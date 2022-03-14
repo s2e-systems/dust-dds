@@ -1,6 +1,6 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{BuiltInTopicKey, Duration, InstanceHandle, StatusMask},
     domain::domain_participant::DomainParticipantTopicFactory,
@@ -24,7 +24,7 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
 };
 
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::writer::{
         stateful_writer::RtpsStatefulWriterConstructor,
         writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -204,9 +204,9 @@ where
                     .rtps_participant
                     .default_multicast_locator_list(),
                 true,
-                rust_rtps_pim::behavior::types::Duration::new(0, 200_000_000),
-                rust_rtps_pim::behavior::types::DURATION_ZERO,
-                rust_rtps_pim::behavior::types::DURATION_ZERO,
+                rtps_pim::behavior::types::Duration::new(0, 200_000_000),
+                rtps_pim::behavior::types::DURATION_ZERO,
+                rtps_pim::behavior::types::DURATION_ZERO,
                 None,
             ));
 
@@ -293,7 +293,7 @@ where
                 .write_w_timestamp(
                     &sedp_discovered_writer_data,
                     None,
-                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+                    dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
                 )
                 .unwrap();
         }
@@ -378,7 +378,7 @@ where
 
     fn wait_for_acknowledgments(
         &self,
-        _max_wait: rust_dds_api::dcps_psm::Duration,
+        _max_wait: dds_api::dcps_psm::Duration,
     ) -> DDSResult<()> {
         todo!()
     }
@@ -469,13 +469,13 @@ where
 mod tests {
     use std::{io::Write, sync::atomic::AtomicU8, vec};
 
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::DomainId,
         infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, TopicQos},
         publication::publisher::PublisherDataWriterFactory,
         return_type::{DDSError, DDSResult},
     };
-    use rust_rtps_pim::{
+    use rtps_pim::{
         behavior::{
             types::Duration,
             writer::{
@@ -625,8 +625,8 @@ mod tests {
             _guid: Guid,
             _default_unicast_locator_list: &[Locator],
             _default_multicast_locator_list: &[Locator],
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
+            _protocol_version: rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }
@@ -639,11 +639,11 @@ mod tests {
     }
 
     impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> rust_rtps_pim::structure::types::ProtocolVersion {
+        fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
             todo!()
         }
 
-        fn vendor_id(&self) -> rust_rtps_pim::structure::types::VendorId {
+        fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
             todo!()
         }
 

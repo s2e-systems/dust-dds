@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::{submessages::NackFragSubmessage, types::FragmentNumber};
+use rtps_pim::messages::{submessages::NackFragSubmessage, types::FragmentNumber};
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

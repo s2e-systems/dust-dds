@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{reader::reader::RtpsReaderAttributes, types::Duration},
     structure::{
         endpoint::RtpsEndpointAttributes,

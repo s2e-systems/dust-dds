@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::submessages::InfoTimestampSubmessage;
+use rtps_pim::messages::submessages::InfoTimestampSubmessage;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

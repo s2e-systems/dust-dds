@@ -1,6 +1,6 @@
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
-use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
-use rust_rtps_pim::{
+use dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use rtps_pim::{
     behavior::types::Duration,
     discovery::{
         spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
@@ -132,7 +132,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> rust_dds_api::return_type::DDSResult<()> {
+    ) -> dds_api::return_type::DDSResult<()> {
         let guid = Guid {
             prefix: self.participant_proxy.guid_prefix,
             entity_id: ENTITYID_PARTICIPANT,
@@ -203,7 +203,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize(buf: &mut &'de [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DDSResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let guid = param_list.get::<GuidDeserialize, Guid>(PID_PARTICIPANT_GUID)?;
@@ -262,8 +262,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::dds_type::LittleEndian;
-    use rust_dds_api::infrastructure::qos_policy::UserDataQosPolicy;
-    use rust_rtps_pim::{
+    use dds_api::infrastructure::qos_policy::UserDataQosPolicy;
+    use rtps_pim::{
         discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,
         structure::types::{EntityId, GuidPrefix, ProtocolVersion},

@@ -7,7 +7,7 @@ use crate::{
         shared_object::{RtpsShared, RtpsWeak},
     },
 };
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
@@ -26,7 +26,7 @@ use rust_dds_api::{
         query_condition::QueryCondition,
     },
 };
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::reader::reader::RtpsReaderAttributes,
     structure::{
         cache_change::RtpsCacheChangeAttributes,

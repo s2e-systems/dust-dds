@@ -1,4 +1,4 @@
-use rust_dds_api::builtin_topics::TopicBuiltinTopicData;
+use dds_api::builtin_topics::TopicBuiltinTopicData;
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 use super::{
@@ -50,7 +50,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> rust_dds_api::return_type::DDSResult<()> {
+    ) -> dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -136,7 +136,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
-    fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DDSResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
@@ -195,7 +195,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,

@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::types::Duration,
     messages::types::Count,
     structure::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion},

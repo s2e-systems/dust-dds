@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::submessages::InfoDestinationSubmessage;
+use rtps_pim::messages::submessages::InfoDestinationSubmessage;
 
 use crate::{
     mapping_traits::{MappingRead, MappingWrite},

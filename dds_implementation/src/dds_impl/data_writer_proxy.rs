@@ -7,7 +7,7 @@ use crate::{
         shared_object::{RtpsShared, RtpsWeak},
     },
 };
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
@@ -20,7 +20,7 @@ use rust_dds_api::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
     structure::{history_cache::RtpsHistoryCacheOperations, types::ChangeKind},
 };
@@ -362,14 +362,14 @@ mod test {
     use std::io::Write;
 
     use mockall::mock;
-    use rust_dds_api::dcps_psm::{InstanceHandle, Time};
-    use rust_dds_api::infrastructure::qos::{DataWriterQos, TopicQos};
-    use rust_dds_api::publication::data_writer::DataWriter;
-    use rust_dds_api::return_type::DDSResult;
-    use rust_rtps_pim::behavior::types::Duration;
-    use rust_rtps_pim::behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations};
-    use rust_rtps_pim::structure::history_cache::RtpsHistoryCacheOperations;
-    use rust_rtps_pim::structure::types::{ChangeKind, SequenceNumber};
+    use dds_api::dcps_psm::{InstanceHandle, Time};
+    use dds_api::infrastructure::qos::{DataWriterQos, TopicQos};
+    use dds_api::publication::data_writer::DataWriter;
+    use dds_api::return_type::DDSResult;
+    use rtps_pim::behavior::types::Duration;
+    use rtps_pim::behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations};
+    use rtps_pim::structure::history_cache::RtpsHistoryCacheOperations;
+    use rtps_pim::structure::types::{ChangeKind, SequenceNumber};
 
     use crate::dds_impl::no_listener::NoListener;
     use crate::dds_impl::topic_proxy::TopicAttributes;

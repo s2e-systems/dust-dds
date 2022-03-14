@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{
         types::ChangeForReaderStatusKind,
         writer::change_for_reader::{

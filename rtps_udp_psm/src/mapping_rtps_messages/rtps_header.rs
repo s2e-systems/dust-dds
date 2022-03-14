@@ -1,7 +1,7 @@
 use std::io::{Error, Read, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
+use rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
 use crate::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite};
 
@@ -71,7 +71,7 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
+    use rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};

@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::writer::reader_locator::{
         RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
     },
@@ -106,7 +106,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::{
+    use rtps_pim::structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},

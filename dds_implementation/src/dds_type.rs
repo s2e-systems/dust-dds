@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use rust_dds_api::return_type::DDSResult;
+use dds_api::return_type::DDSResult;
 
 type RepresentationType = [u8; 2];
 pub trait Endianness {

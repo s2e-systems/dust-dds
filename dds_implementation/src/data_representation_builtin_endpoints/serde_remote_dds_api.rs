@@ -1,4 +1,4 @@
-use rust_dds_api::{
+use dds_api::{
     dcps_psm::{BuiltInTopicKey, Duration},
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
@@ -13,7 +13,7 @@ use rust_dds_api::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
 };
-use rust_rtps_pim::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
+use rtps_pim::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]

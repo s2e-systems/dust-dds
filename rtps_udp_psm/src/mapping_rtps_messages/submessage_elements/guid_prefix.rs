@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElement;
+use rtps_pim::messages::submessage_elements::GuidPrefixSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
@@ -23,7 +23,7 @@ impl<'de> MappingReadByteOrdered<'de> for GuidPrefixSubmessageElement {
 }
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::GuidPrefix;
+    use rtps_pim::structure::types::GuidPrefix;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};

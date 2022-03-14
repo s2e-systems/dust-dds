@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::messages::{
+use rtps_pim::messages::{
     overall_structure::RtpsSubmessageHeader,
     submessage_elements::{
         Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
@@ -133,7 +133,7 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rust_rtps_pim::{
+    use rtps_pim::{
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,

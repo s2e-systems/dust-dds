@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     messages::{submessage_elements::Parameter, types::ParameterId},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
@@ -175,13 +175,13 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
 mod tests {
 
     use super::*;
-    use rust_rtps_pim::structure::types::GUID_UNKNOWN;
+    use rtps_pim::structure::types::GUID_UNKNOWN;
 
     #[test]
     fn remove_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change = RtpsCacheChangeImpl::new(
-            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
@@ -197,7 +197,7 @@ mod tests {
     fn get_seq_num_min() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChangeImpl::new(
-            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
@@ -205,7 +205,7 @@ mod tests {
             RtpsParameterList(vec![]),
         );
         let change2 = RtpsCacheChangeImpl::new(
-            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
@@ -221,7 +221,7 @@ mod tests {
     fn get_seq_num_max() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 = RtpsCacheChangeImpl::new(
-            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             1,
@@ -229,7 +229,7 @@ mod tests {
             RtpsParameterList(vec![]),
         );
         let change2 = RtpsCacheChangeImpl::new(
-            rust_rtps_pim::structure::types::ChangeKind::Alive,
+            rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,

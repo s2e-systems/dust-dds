@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::reader::writer_proxy::{
         RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
     },
@@ -148,7 +148,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
+    use rtps_pim::structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
 
     use super::*;
 

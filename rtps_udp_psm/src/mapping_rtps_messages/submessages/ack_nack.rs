@@ -1,4 +1,4 @@
-use rust_rtps_pim::messages::submessages::AckNackSubmessage;
+use rtps_pim::messages::submessages::AckNackSubmessage;
 
 use crate::{
     mapping_traits::{MappingRead, MappingWrite},

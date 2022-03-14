@@ -1,4 +1,4 @@
-use rust_rtps_pim::structure::{
+use rtps_pim::structure::{
     entity::RtpsEntityAttributes,
     group::{RtpsGroupAttributes, RtpsGroupConstructor},
     types::Guid,

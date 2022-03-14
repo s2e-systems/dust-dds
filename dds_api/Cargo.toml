@@ -1,5 +1,5 @@
 [package]
-name = "rust-dds-api"
+name = "dds-api"
 version = "0.1.0"
 authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
 		   "Stefan Kimmer <skimmer@s2e-systems.com"]

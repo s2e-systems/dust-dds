@@ -1,17 +1,17 @@
 use std::cell::RefCell;
 
-use rust_dds_implementation::{
+use dds_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::RtpsShared,
 };
-use rust_rtps_implementation::{
+use rtps_implementation::{
     rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
 };
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
             BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
@@ -28,7 +28,7 @@ use rust_rtps_pim::{
         GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
-use rust_rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
+use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::{
     domain_participant_factory::RtpsStructureImpl,
@@ -52,7 +52,7 @@ where
             let mut publisher_lock = publisher.write_lock();
 
             let message_header = RtpsMessageHeader {
-                protocol: rust_rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix: publisher_lock.rtps_group.entity.guid.prefix(),

@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rust_rtps_pim::messages::{
+use rtps_pim::messages::{
     submessage_elements::{Parameter, ParameterListSubmessageElement},
     types::ParameterId,
 };
@@ -96,7 +96,7 @@ impl<'a> NumberOfBytes for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::Parameter;
+    use rtps_pim::messages::submessage_elements::Parameter;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};

@@ -1,10 +1,10 @@
 use std::io::Write;
 
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
 };
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
-use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
+use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use super::{
     parameter_id_values::{
@@ -273,7 +273,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
@@ -284,7 +284,7 @@ mod tests {
         },
     };
     use crate::dds_type::LittleEndian;
-    use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
+    use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use super::*;
 

@@ -1,6 +1,6 @@
 use std::io::{BufRead, Error, Write};
 
-use rust_rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
+use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 
 use crate::{
     mapping_traits::{MappingRead, MappingWrite},
@@ -85,16 +85,16 @@ mod tests {
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
-    use rust_rtps_pim::messages::overall_structure::RtpsMessageHeader;
-    use rust_rtps_pim::messages::submessage_elements::{
+    use rtps_pim::messages::overall_structure::RtpsMessageHeader;
+    use rtps_pim::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
 
-    use rust_rtps_pim::messages::submessages::DataSubmessage;
-    use rust_rtps_pim::messages::types::ParameterId;
-    use rust_rtps_pim::messages::types::ProtocolId;
-    use rust_rtps_pim::structure::types::{
+    use rtps_pim::messages::submessages::DataSubmessage;
+    use rtps_pim::messages::types::ParameterId;
+    use rtps_pim::messages::types::ProtocolId;
+    use rtps_pim::structure::types::{
         EntityId, GuidPrefix, ProtocolVersion, USER_DEFINED_READER_GROUP,
         USER_DEFINED_READER_NO_KEY,
     };

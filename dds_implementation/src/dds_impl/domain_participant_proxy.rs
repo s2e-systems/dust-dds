@@ -1,4 +1,4 @@
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
@@ -18,7 +18,7 @@ use rust_dds_api::{
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::topic_listener::TopicListener,
 };
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::writer::{
         stateful_writer::RtpsStatefulWriterConstructor,
         writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -72,7 +72,7 @@ where
     pub topic_list: Vec<RtpsShared<TopicAttributes<Rtps>>>,
     pub default_topic_qos: TopicQos,
     pub manual_liveliness_count: Count,
-    pub lease_duration: rust_rtps_pim::behavior::types::Duration,
+    pub lease_duration: rtps_pim::behavior::types::Duration,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
     pub enabled: bool,
@@ -93,7 +93,7 @@ where
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) -> Self {
-        let lease_duration = rust_rtps_pim::behavior::types::Duration::new(100, 0);
+        let lease_duration = rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let rtps_participant = Rtps::Participant::new(
@@ -244,7 +244,7 @@ where
                 .write_w_timestamp(
                     &sedp_discovered_topic_data,
                     None,
-                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+                    dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
                 )
                 .unwrap();
         }
@@ -671,13 +671,13 @@ where
 mod tests {
     use std::io::Write;
 
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::{DomainId, InstanceHandle},
         domain::domain_participant::DomainParticipantTopicFactory,
         infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, TopicQos},
         return_type::{DDSError, DDSResult},
     };
-    use rust_rtps_pim::{
+    use rtps_pim::{
         behavior::writer::{
             stateful_writer::RtpsStatefulWriterConstructor,
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -747,11 +747,11 @@ mod tests {
     struct EmptyParticipant {}
     impl RtpsParticipantConstructor for EmptyParticipant {
         fn new(
-            _guid: rust_rtps_pim::structure::types::Guid,
-            _default_unicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
-            _default_multicast_locator_list: &[rust_rtps_pim::structure::types::Locator],
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
+            _guid: rtps_pim::structure::types::Guid,
+            _default_unicast_locator_list: &[rtps_pim::structure::types::Locator],
+            _default_multicast_locator_list: &[rtps_pim::structure::types::Locator],
+            _protocol_version: rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }
@@ -764,11 +764,11 @@ mod tests {
     }
 
     impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> rust_rtps_pim::structure::types::ProtocolVersion {
+        fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
             todo!()
         }
 
-        fn vendor_id(&self) -> rust_rtps_pim::structure::types::VendorId {
+        fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
             todo!()
         }
 
@@ -806,15 +806,15 @@ mod tests {
             todo!()
         }
 
-        fn heartbeat_period(&self) -> rust_rtps_pim::behavior::types::Duration {
+        fn heartbeat_period(&self) -> rtps_pim::behavior::types::Duration {
             todo!()
         }
 
-        fn nack_response_delay(&self) -> rust_rtps_pim::behavior::types::Duration {
+        fn nack_response_delay(&self) -> rtps_pim::behavior::types::Duration {
             todo!()
         }
 
-        fn nack_suppression_duration(&self) -> rust_rtps_pim::behavior::types::Duration {
+        fn nack_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
             todo!()
         }
 
@@ -838,9 +838,9 @@ mod tests {
             _unicast_locator_list: &[Locator],
             _multicast_locator_list: &[Locator],
             _push_mode: bool,
-            _heartbeat_period: rust_rtps_pim::behavior::types::Duration,
-            _nack_response_delay: rust_rtps_pim::behavior::types::Duration,
-            _nack_suppression_duration: rust_rtps_pim::behavior::types::Duration,
+            _heartbeat_period: rtps_pim::behavior::types::Duration,
+            _nack_response_delay: rtps_pim::behavior::types::Duration,
+            _nack_suppression_duration: rtps_pim::behavior::types::Duration,
             _data_max_size_serialized: Option<i32>,
         ) -> Self {
             EmptyWriter {

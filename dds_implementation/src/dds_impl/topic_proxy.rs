@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::utils::{rtps_structure::RtpsStructure, shared_object::RtpsWeak};
-use rust_dds_api::{
+use dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},

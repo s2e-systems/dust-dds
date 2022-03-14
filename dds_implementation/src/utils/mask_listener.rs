@@ -1,4 +1,4 @@
-use rust_dds_api::dcps_psm::StatusMask;
+use dds_api::dcps_psm::StatusMask;
 
 pub struct MaskListener<T> {
     listener: Option<T>,

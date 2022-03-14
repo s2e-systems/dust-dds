@@ -1,4 +1,4 @@
-use rust_dds_api::{
+use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         BuiltInTopicKey, Duration, InstanceHandle, InstanceStateKind, SampleLostStatus,
@@ -25,7 +25,7 @@ use rust_dds_api::{
     },
 };
 
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{
         reader::stateful_reader::RtpsStatefulReaderConstructor,
         writer::{
@@ -225,8 +225,8 @@ where
                     .read_lock()
                     .rtps_participant
                     .default_multicast_locator_list(),
-                rust_rtps_pim::behavior::types::DURATION_ZERO,
-                rust_rtps_pim::behavior::types::DURATION_ZERO,
+                rtps_pim::behavior::types::DURATION_ZERO,
+                rtps_pim::behavior::types::DURATION_ZERO,
                 false,
             ));
 
@@ -316,7 +316,7 @@ where
                 .write_w_timestamp(
                     &sedp_discovered_reader_data,
                     None,
-                    rust_dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
+                    dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
                 )
                 .unwrap();
         }
@@ -481,7 +481,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::{DomainId, InstanceHandle},
         infrastructure::qos::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
@@ -491,7 +491,7 @@ mod tests {
         subscription::subscriber::{Subscriber, SubscriberDataReaderFactory},
     };
 
-    use rust_rtps_pim::{
+    use rtps_pim::{
         behavior::{
             reader::stateful_reader::RtpsStatefulReaderConstructor,
             types::Duration,
@@ -659,8 +659,8 @@ mod tests {
             _guid: Guid,
             _default_unicast_locator_list: &[Locator],
             _default_multicast_locator_list: &[Locator],
-            _protocol_version: rust_rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rust_rtps_pim::structure::types::VendorId,
+            _protocol_version: rtps_pim::structure::types::ProtocolVersion,
+            _vendor_id: rtps_pim::structure::types::VendorId,
         ) -> Self {
             EmptyParticipant {}
         }
@@ -673,11 +673,11 @@ mod tests {
     }
 
     impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> rust_rtps_pim::structure::types::ProtocolVersion {
+        fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
             todo!()
         }
 
-        fn vendor_id(&self) -> rust_rtps_pim::structure::types::VendorId {
+        fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
             todo!()
         }
 

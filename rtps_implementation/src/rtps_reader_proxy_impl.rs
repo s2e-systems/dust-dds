@@ -1,6 +1,6 @@
 use std::vec;
 
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::{
         types::ChangeForReaderStatusKind::{
             Acknowledged, Requested, Unacknowledged, Underway, Unsent,
@@ -241,7 +241,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::structure::{
+    use rtps_pim::structure::{
         cache_change::RtpsCacheChangeConstructor,
         history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},

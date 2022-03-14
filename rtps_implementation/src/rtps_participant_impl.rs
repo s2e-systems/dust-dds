@@ -1,4 +1,4 @@
-use rust_rtps_pim::structure::{
+use rtps_pim::structure::{
     entity::RtpsEntityAttributes,
     participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
     types::{Guid, Locator, ProtocolVersion, VendorId},

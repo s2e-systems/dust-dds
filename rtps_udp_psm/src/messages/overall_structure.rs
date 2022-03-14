@@ -1,4 +1,4 @@
-use rust_rtps_pim::{
+use rtps_pim::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::Parameter,

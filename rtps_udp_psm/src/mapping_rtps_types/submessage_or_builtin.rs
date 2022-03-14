@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
+use rtps_pim::{
     behavior::types::Duration,
     messages::types::{GroupDigest, Time},
     structure::types::Locator,

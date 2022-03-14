@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
-use rust_dds_api::return_type::{DDSError, DDSResult};
+use dds_api::return_type::{DDSError, DDSResult};
 
 use crate::dds_type::{LittleEndian, BigEndian, Endianness};
 

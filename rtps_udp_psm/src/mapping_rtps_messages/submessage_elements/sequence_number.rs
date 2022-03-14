@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rust_rtps_pim::{
+use rtps_pim::{
     messages::submessage_elements::SequenceNumberSubmessageElement,
     structure::types::SequenceNumber,
 };

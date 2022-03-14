@@ -1,8 +1,8 @@
 use std::io::Write;
 
-use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
-use rust_rtps_pim::structure::types::{EntityId, Guid, Locator};
+use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use super::{
     parameter_id_values::{
@@ -66,7 +66,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
     fn serialize<W: Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> rust_dds_api::return_type::DDSResult<()> {
+    ) -> dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
@@ -173,7 +173,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> rust_dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DDSResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy
@@ -258,7 +258,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_api::{
+    use dds_api::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -268,7 +268,7 @@ mod tests {
         },
     };
     use crate::dds_type::LittleEndian;
-    use rust_rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
+    use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();

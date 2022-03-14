@@ -2,7 +2,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
 
-use rust_dds_api::return_type::{DDSError, DDSResult};
+use dds_api::return_type::{DDSError, DDSResult};
 
 pub struct RtpsShared<T: ?Sized>(Arc<RwLock<T>>);
 

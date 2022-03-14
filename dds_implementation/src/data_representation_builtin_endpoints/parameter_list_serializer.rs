@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use rust_dds_api::return_type::{DDSError, DDSResult};
+use dds_api::return_type::{DDSError, DDSResult};
 use crate::dds_type::Endianness;
 use serde::Serialize;
 

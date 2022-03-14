@@ -1,4 +1,4 @@
-use rust_rtps_pim::structure::{
+use rtps_pim::structure::{
     endpoint::RtpsEndpointAttributes,
     types::{TopicKind, ReliabilityKind, Locator, Guid},
     entity::RtpsEntityAttributes
