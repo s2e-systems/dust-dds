@@ -106,7 +106,7 @@ impl MessageReceiver {
                                     if stateless_rtps_reader.reader_cache.changes().len()
                                         > cache_len
                                     {
-                                        data_reader_lock.listener.as_ref().on_data_available();
+                                        data_reader_lock.listener.as_ref().map(|l|l.on_data_available());
                                     }
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
@@ -144,7 +144,7 @@ impl MessageReceiver {
                                     if stateful_rtps_reader.reader.reader_cache.changes().len()
                                         > cache_len
                                     {
-                                        data_reader_lock.listener.as_ref().on_data_available();
+                                        data_reader_lock.listener.as_ref().map(|l|l.on_data_available());
                                     }
                                 }
                             }

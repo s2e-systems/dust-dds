@@ -66,7 +66,7 @@ where
 {
     pub _qos: DataWriterQos,
     pub rtps_writer: RtpsWriter<Rtps>,
-    pub listener: Box<dyn DataWriterListener + Send + Sync>,
+    pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
     pub status: PublicationMatchedStatus,
@@ -79,7 +79,7 @@ where
     pub fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter<Rtps>,
-        listener: Box<dyn DataWriterListener + Send + Sync>,
+        listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
         publisher: RtpsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
@@ -326,12 +326,12 @@ where
         todo!()
     }
 
-    fn set_listener(&self, listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         self.as_ref().upgrade()?.write_lock().listener = listener;
         Ok(())
     }
 
-    fn get_listener(&self) -> DDSResult<Self::Listener> {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_listener()
         todo!()
     }
@@ -361,17 +361,16 @@ where
 mod test {
     use std::io::Write;
 
-    use mockall::mock;
     use dds_api::dcps_psm::{InstanceHandle, Time};
     use dds_api::infrastructure::qos::{DataWriterQos, TopicQos};
     use dds_api::publication::data_writer::DataWriter;
     use dds_api::return_type::DDSResult;
+    use mockall::mock;
     use rtps_pim::behavior::types::Duration;
     use rtps_pim::behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations};
     use rtps_pim::structure::history_cache::RtpsHistoryCacheOperations;
     use rtps_pim::structure::types::{ChangeKind, SequenceNumber};
 
-    use crate::dds_impl::no_listener::NoListener;
     use crate::dds_impl::topic_proxy::TopicAttributes;
     use crate::dds_type::{DdsSerialize, Endianness};
     use crate::utils::rtps_structure::RtpsStructure;
@@ -513,7 +512,7 @@ mod test {
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(mock_writer),
-            Box::new(NoListener),
+            None,
             dummy_topic,
             RtpsWeak::new(),
         );
@@ -552,7 +551,7 @@ mod test {
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(mock_writer),
-            Box::new(NoListener),
+            None,
             dummy_topic,
             RtpsWeak::new(),
         );

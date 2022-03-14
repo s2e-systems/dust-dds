@@ -7,7 +7,6 @@ use dds::{
     DDSError,
 };
 use dds_implementation::{
-    dds_impl::no_listener::NoListener,
     dds_type::{DdsDeserialize, DdsSerialize, DdsType},
 };
 use serde::{Deserialize, Serialize};
@@ -87,14 +86,14 @@ fn main() {
     std::thread::sleep(std::time::Duration::from_secs(15));
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
 
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
-    let subscriber = participant.create_subscriber(None, &NoListener, 0).unwrap();
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), Box::new(NoListener), 0)
+        .create_datareader(&topic, Some(reader_qos), None, 0)
         .unwrap();
     println!("{:?} [S] Created reader", std::time::SystemTime::now());
 

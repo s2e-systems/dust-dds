@@ -131,12 +131,16 @@ where
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Self::Listener> {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_listener()
         todo!()
     }

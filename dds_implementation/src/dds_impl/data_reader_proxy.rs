@@ -89,7 +89,7 @@ where
     pub rtps_reader: RtpsReader<Rtps>,
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub listener: Box<dyn DataReaderListener + Send + Sync>,
+    pub listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     pub status: SubscriptionMatchedStatus,
 }
@@ -102,7 +102,7 @@ where
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
-        listener: Box<dyn DataReaderListener + Send + Sync>,
+        listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
         parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -570,12 +570,12 @@ where
         todo!()
     }
 
-    fn set_listener(&self, listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         self.as_ref().upgrade()?.write_lock().listener = listener;
         Ok(())
     }
 
-    fn get_listener(&self) -> DDSResult<Self::Listener> {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
         todo!()
     }
