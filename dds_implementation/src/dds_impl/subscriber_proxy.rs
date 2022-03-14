@@ -56,7 +56,7 @@ use crate::{
 };
 
 use super::{
-    data_reader_proxy::{DataReaderAttributes, DataReaderProxy, RtpsReader},
+    data_reader_proxy::{AnyDataReaderListener, DataReaderAttributes, DataReaderProxy, RtpsReader},
     domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
     publisher_proxy::PublisherProxy,
     topic_proxy::TopicProxy,
@@ -229,12 +229,16 @@ where
                 rtps_pim::behavior::types::DURATION_ZERO,
                 false,
             ));
-
+            let any_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>> = match listener
+            {
+                Some(l) => Some(Box::new(l)),
+                None => None,
+            };
             let data_reader = DataReaderAttributes::new(
                 qos,
                 rtps_reader,
                 topic_shared.clone(),
-                listener,
+                any_listener,
                 self.subscriber_impl.clone(),
             );
 

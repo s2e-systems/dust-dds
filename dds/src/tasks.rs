@@ -361,7 +361,7 @@ pub fn task_sedp_writer_discovery(
                             data_reader_lock
                                 .listener
                                 .as_ref()
-                                .map(|l| l.on_subscription_matched(data_reader_lock.status));
+                                .map(|l| l.trigger_on_subscription_matched(data_reader_lock.status));
 
                             data_reader_lock.status.total_count_change = 0;
                             data_reader_lock.status.current_count_change = 0;
