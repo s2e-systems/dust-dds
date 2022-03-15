@@ -29,7 +29,7 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::StdTimer};
+use crate::{rtps_reader_proxy_impl::ChangeForReader, utils::clock::StdTimer};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -62,7 +62,7 @@ impl RtpsStatefulWriterImpl {
                     let submessages = RefCell::new(Vec::new());
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     BestEffortStatefulWriterBehavior::send_unsent_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
+                        &mut ChangeForReader::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -102,7 +102,7 @@ impl RtpsStatefulWriterImpl {
                     // );
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
+                        &mut ChangeForReader::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -340,7 +340,7 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        RtpsReaderProxyOperationsImpl::new(
+        ChangeForReader::new(
             &mut matched_reader_proxy,
             &writer.writer.writer_cache,
             true,
@@ -372,7 +372,7 @@ mod tests {
         );
 
         {
-            let mut operations = RtpsReaderProxyOperationsImpl::new(
+            let mut operations = ChangeForReader::new(
                 &mut matched_reader_proxy,
                 &writer.writer.writer_cache,
                 true,
