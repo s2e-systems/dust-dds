@@ -359,7 +359,10 @@ pub fn task_sedp_writer_discovery(
                             data_reader_lock.status.current_count_change += 1;
 
                             data_reader_lock.listener.as_ref().map(|l| {
-                                l.trigger_on_subscription_matched(data_reader_lock.status)
+                                l.trigger_on_subscription_matched(
+                                    data_reader.clone(),
+                                    data_reader_lock.status,
+                                )
                             });
 
                             data_reader_lock.status.total_count_change = 0;

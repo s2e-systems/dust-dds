@@ -22,7 +22,8 @@ use dds_api::{
     },
     return_type::{DDSError, DDSResult},
     subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener,
+        data_reader::{DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription},
+        data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
 };
@@ -39,43 +40,116 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
-pub trait AnyDataReaderListener {
-    fn trigger_on_data_available(&self);
-    fn trigger_on_sample_rejected(&self, status: SampleRejectedStatus);
-    fn trigger_on_liveliness_changed(&self, status: LivelinessChangedStatus);
-    fn trigger_on_requested_deadline_missed(&self, status: RequestedDeadlineMissedStatus);
-    fn trigger_on_requested_incompatible_qos(&self, status: RequestedIncompatibleQosStatus);
-    fn trigger_on_subscription_matched(&self, status: SubscriptionMatchedStatus);
-    fn trigger_on_sample_lost(&self, status: SampleLostStatus);
+pub trait AnyDataReaderListener<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn trigger_on_data_available(&self, reader: RtpsShared<DataReaderAttributes<Rtps>>);
+    fn trigger_on_sample_rejected(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SampleRejectedStatus,
+    );
+    fn trigger_on_liveliness_changed(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: LivelinessChangedStatus,
+    );
+    fn trigger_on_requested_deadline_missed(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: RequestedDeadlineMissedStatus,
+    );
+    fn trigger_on_requested_incompatible_qos(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: RequestedIncompatibleQosStatus,
+    );
+    fn trigger_on_subscription_matched(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SubscriptionMatchedStatus,
+    );
+    fn trigger_on_sample_lost(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SampleLostStatus,
+    );
 }
 
-impl AnyDataReaderListener for Box<dyn DataReaderListener + Send + Sync> {
-    fn trigger_on_data_available(&self) {
-        self.on_data_available()
+impl<Foo, Rtps> AnyDataReaderListener<Rtps> for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
+where
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
+    Rtps: RtpsStructure,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes,
+    <Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+{
+    fn trigger_on_data_available(&self, reader: RtpsShared<DataReaderAttributes<Rtps>>) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_data_available(&data_reader)
     }
 
-    fn trigger_on_sample_rejected(&self, status: SampleRejectedStatus) {
-        self.on_sample_rejected(status)
+    fn trigger_on_sample_rejected(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SampleRejectedStatus,
+    ) {
+
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_sample_rejected(&data_reader, status)
     }
 
-    fn trigger_on_liveliness_changed(&self, status: LivelinessChangedStatus) {
-        self.on_liveliness_changed(status)
+    fn trigger_on_liveliness_changed(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: LivelinessChangedStatus,
+    ) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_liveliness_changed(&data_reader,status)
     }
 
-    fn trigger_on_requested_deadline_missed(&self, status: RequestedDeadlineMissedStatus) {
-        self.on_requested_deadline_missed(status)
+    fn trigger_on_requested_deadline_missed(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: RequestedDeadlineMissedStatus,
+    ) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_requested_deadline_missed(&data_reader,status)
     }
 
-    fn trigger_on_requested_incompatible_qos(&self, status: RequestedIncompatibleQosStatus) {
-        self.on_requested_incompatible_qos(status)
+    fn trigger_on_requested_incompatible_qos(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: RequestedIncompatibleQosStatus,
+    ) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_requested_incompatible_qos(&data_reader,status)
     }
 
-    fn trigger_on_subscription_matched(&self, status: SubscriptionMatchedStatus) {
-        self.on_subscription_matched(status)
+    fn trigger_on_subscription_matched(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SubscriptionMatchedStatus,
+    ) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_subscription_matched(&data_reader,status)
     }
 
-    fn trigger_on_sample_lost(&self, status: SampleLostStatus) {
-        self.on_sample_lost(status)
+    fn trigger_on_sample_lost(
+        &self,
+        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        status: SampleLostStatus,
+    ) {
+        let data_reader = DataReaderProxy::new(reader.downgrade());
+        self.on_sample_lost(&data_reader,status)
     }
 }
 
@@ -117,7 +191,7 @@ where
     pub rtps_reader: RtpsReader<Rtps>,
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+    pub listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     pub status: SubscriptionMatchedStatus,
 }
@@ -130,7 +204,7 @@ where
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
-        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+        listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
         parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -192,6 +266,28 @@ where
     }
 }
 
+impl<Foo, Rtps> DataReaderGetSubscriber for DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    type Subscriber = SubscriberProxy<Rtps>;
+
+    fn data_reader_get_subscriber(&self) -> DDSResult<Self::Subscriber> {
+        todo!()
+    }
+}
+
+impl<Foo, Rtps> DataReaderGetTopicDescription for DataReaderProxy<Foo, Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    type TopicDescription = TopicProxy<Foo, Rtps>;
+
+    fn data_reader_get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
+        todo!()
+    }
+}
+
 impl<Foo, Rtps> DataReader<Foo> for DataReaderProxy<Foo, Rtps>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
@@ -207,9 +303,6 @@ where
     for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
     for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
-    type Subscriber = SubscriberProxy<Rtps>;
-    type TopicDescription = TopicProxy<Foo, Rtps>;
-
     fn read(
         &self,
         max_samples: i32,
@@ -550,16 +643,6 @@ where
         todo!()
     }
 
-    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
-        // Ok(self.topic.clone())
-        todo!()
-    }
-
-    fn get_subscriber(&self) -> DDSResult<Self::Subscriber> {
-        // Ok(self.subscriber.clone())
-        todo!()
-    }
-
     fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
@@ -583,10 +666,21 @@ where
 
 impl<Foo, Rtps> Entity for DataReaderProxy<Foo, Rtps>
 where
-    Rtps: RtpsStructure,
+Foo: for<'de> DdsDeserialize<'de> + 'static,
+Rtps: RtpsStructure,
+Rtps::StatelessReader: RtpsReaderAttributes,
+Rtps::StatefulReader: RtpsReaderAttributes,
+<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
+    RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
+<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
+    RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
+for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn DataReaderListener + Send + Sync>;
+    type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)

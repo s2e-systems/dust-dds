@@ -11,6 +11,18 @@ use crate::{
 
 use super::query_condition::QueryCondition;
 
+pub trait DataReaderGetSubscriber {
+    type Subscriber;
+
+    fn data_reader_get_subscriber(&self) -> DDSResult<Self::Subscriber>;
+}
+
+pub trait DataReaderGetTopicDescription {
+    type TopicDescription;
+
+    fn data_reader_get_topicdescription(&self) -> DDSResult<Self::TopicDescription>;
+}
+
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -23,9 +35,6 @@ use super::query_condition::QueryCondition;
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<Foo> {
-    type Subscriber;
-    type TopicDescription;
-
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -451,10 +460,20 @@ pub trait DataReader<Foo> {
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription>;
+    fn get_topicdescription(&self) -> DDSResult<Self::TopicDescription>
+    where
+        Self: DataReaderGetTopicDescription + Sized,
+    {
+        self.data_reader_get_topicdescription()
+    }
 
     /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> DDSResult<Self::Subscriber>;
+    fn get_subscriber(&self) -> DDSResult<Self::Subscriber>
+    where
+        Self: DataReaderGetSubscriber + Sized,
+    {
+        self.data_reader_get_subscriber()
+    }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

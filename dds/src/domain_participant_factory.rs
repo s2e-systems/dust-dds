@@ -1382,8 +1382,9 @@ mod tests {
         ReaderListener {}
 
         impl DataReaderListener for ReaderListener {
-            fn on_subscription_matched(&self, status: SubscriptionMatchedStatus);
-            fn on_data_available(&self);
+            type Foo = UserData;
+            fn on_subscription_matched(&self, the_reader: &dyn DataReader<UserData>, status: SubscriptionMatchedStatus);
+            fn on_data_available(&self, the_reader: &dyn DataReader<UserData>);
         }
     }
 
