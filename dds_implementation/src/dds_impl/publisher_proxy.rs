@@ -136,7 +136,7 @@ where
     fn datawriter_factory_create_datawriter(
         &self,
         topic: &Self::TopicType,
-        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        qos: Option<DataWriterQos>,
         listener: Option<<Self::DataWriterType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType> {

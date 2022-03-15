@@ -16,7 +16,7 @@ pub trait SubscriberDataReaderFactory<Foo> {
     fn datareader_factory_create_datareader(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<<Self::DataReaderType as Entity>::Qos>,
+        qos: Option<DataReaderQos>,
         a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType>
@@ -75,7 +75,7 @@ pub trait Subscriber {
     fn create_datareader<Foo>(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<<Self::DataReaderType as Entity>::Qos>,
+        qos: Option<DataReaderQos>,
         a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType>

@@ -14,7 +14,7 @@ pub trait PublisherDataWriterFactory<Foo> {
     fn datawriter_factory_create_datawriter(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        qos: Option<DataWriterQos>,
         a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType>
@@ -65,7 +65,7 @@ pub trait Publisher {
     fn create_datawriter<Foo>(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        qos: Option<DataWriterQos>,
         a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType>

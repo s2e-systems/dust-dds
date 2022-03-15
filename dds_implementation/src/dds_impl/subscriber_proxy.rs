@@ -161,7 +161,7 @@ where
     fn datareader_factory_create_datareader(
         &self,
         topic: &Self::TopicType,
-        qos: Option<<Self::DataReaderType as Entity>::Qos>,
+        qos: Option<DataReaderQos>,
         listener: Option<<Self::DataReaderType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType> {
