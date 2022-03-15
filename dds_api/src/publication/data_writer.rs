@@ -67,11 +67,7 @@ pub trait DataWriter<Foo> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11,
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    fn unregister_instance(
-        &self,
-        instance: Foo,
-        handle: Option<InstanceHandle>,
-    ) -> DDSResult<()>;
+    fn unregister_instance(&self, instance: Foo, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the

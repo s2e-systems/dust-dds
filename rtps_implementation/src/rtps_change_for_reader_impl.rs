@@ -1,9 +1,6 @@
 use rtps_pim::{
     behavior::{
-        types::ChangeForReaderStatusKind,
-        writer::change_for_reader::{
-            RtpsChangeForReaderAttributes,
-        },
+        types::ChangeForReaderStatusKind, writer::change_for_reader::RtpsChangeForReaderAttributes,
     },
     structure::types::SequenceNumber,
 };

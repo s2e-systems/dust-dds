@@ -6,7 +6,7 @@ use dds::{
     types::Time,
     DDSError,
 };
-use dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);

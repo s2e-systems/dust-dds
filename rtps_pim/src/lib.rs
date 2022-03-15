@@ -34,6 +34,6 @@
 ///     - the name of the associated type shall be <TypeName>ListType
 ///
 pub mod behavior;
+pub mod discovery;
 pub mod messages;
 pub mod structure;
-pub mod discovery;

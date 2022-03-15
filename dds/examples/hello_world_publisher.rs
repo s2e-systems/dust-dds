@@ -6,9 +6,7 @@ use dds::{
     types::Time,
     DDSError,
 };
-use dds_implementation::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -90,9 +88,7 @@ fn main() {
         .unwrap();
 
     let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let writer = publisher
-        .create_datawriter(&topic, None, None, 0)
-        .unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
     println!("{:?} [P] Created writer", std::time::SystemTime::now());
 
     while writer

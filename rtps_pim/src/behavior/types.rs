@@ -3,7 +3,6 @@
 /// Table 8.4.6 - Types definitions for the Behavior Module
 ///
 
-
 /// Duration_t
 /// Type used to hold time differences.
 /// Should have at least nano-second resolution.
@@ -13,7 +12,9 @@ pub struct Duration {
     pub fraction: u32,
 }
 impl Duration {
-    pub fn new(seconds: i32, fraction: u32) -> Self { Self { seconds, fraction } }
+    pub fn new(seconds: i32, fraction: u32) -> Self {
+        Self { seconds, fraction }
+    }
     pub fn seconds(&self) -> &i32 {
         &self.seconds
     }
@@ -30,7 +31,6 @@ pub const DURATION_INFINITE: Duration = Duration {
     fraction: 0xffffffff,
 };
 
-
 /// ChangeForReaderStatusKind
 /// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
 /// UNSENT, UNACKNOWLEDGED, REQUESTED, ACKNOWLEDGED, UNDERWAY
@@ -43,7 +43,6 @@ pub enum ChangeForReaderStatusKind {
     Underway,
 }
 
-
 /// ChangeFromWriterStatusKind
 /// Enumeration used to indicate the status of a ChangeFromWriter. It can take the values:
 /// LOST, MISSING, RECEIVED, UNKNOWN
@@ -55,10 +54,8 @@ pub enum ChangeFromWriterStatusKind {
     Unknown,
 }
 
-
 /// InstanceHandle_t
 /// Already defined in Structure module Table 8.2
-
 
 /// ParticipantMessageData
 /// Type used to hold data exchanged between Participants. The most notable use of this type is for the Writer Liveliness Protocol.

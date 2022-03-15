@@ -1,5 +1,5 @@
-use dds_api::builtin_topics::TopicBuiltinTopicData;
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use dds_api::builtin_topics::TopicBuiltinTopicData;
 
 use super::{
     parameter_id_values::{

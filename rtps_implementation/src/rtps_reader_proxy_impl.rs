@@ -247,9 +247,7 @@ mod tests {
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
-    use crate::rtps_history_cache_impl::{
-        RtpsCacheChangeImpl, RtpsData, RtpsParameterList,
-    };
+    use crate::rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsData, RtpsParameterList};
 
     use super::*;
 

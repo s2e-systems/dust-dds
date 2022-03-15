@@ -5,7 +5,6 @@ use std::{
     sync::Mutex,
 };
 
-use mac_address::MacAddress;
 use dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
@@ -33,6 +32,7 @@ use dds_implementation::{
     dds_type::DdsType,
     utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
 };
+use mac_address::MacAddress;
 use rtps_implementation::{
     rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
     rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
@@ -810,7 +810,6 @@ pub fn create_builtins(
 mod tests {
     use std::net::SocketAddr;
 
-    use mockall::mock;
     use dds_api::{
         dcps_psm::{
             BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus, Time,
@@ -849,6 +848,7 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::RtpsShared,
     };
+    use mockall::mock;
     use rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
 
     use crate::{
@@ -1254,12 +1254,8 @@ mod tests {
         }
 
         // ////////// Create user endpoints
-        let user_publisher = participant1_proxy
-            .create_publisher(None,None, 0)
-            .unwrap();
-        let user_subscriber = participant1_proxy
-            .create_subscriber(None,None, 0)
-            .unwrap();
+        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let user_subscriber = participant1_proxy.create_subscriber(None, None, 0).unwrap();
 
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
@@ -1489,21 +1485,27 @@ mod tests {
         }
 
         // ////////// Write SEDP discovery data
-        let user_publisher = participant1_proxy
-            .create_publisher(None,None, 0)
-            .unwrap();
-        let user_subscriber = participant2_proxy
-            .create_subscriber(None,None, 0)
-            .unwrap();
+        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
 
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
             .unwrap();
         let user_writer = user_publisher
-            .create_datawriter(&user_topic, None, Some(Box::new(MockWriterListener::new())), 0)
+            .create_datawriter(
+                &user_topic,
+                None,
+                Some(Box::new(MockWriterListener::new())),
+                0,
+            )
             .unwrap();
         let user_reader = user_subscriber
-            .create_datareader(&user_topic, None, Some(Box::new(MockReaderListener::new())), 0)
+            .create_datareader(
+                &user_topic,
+                None,
+                Some(Box::new(MockReaderListener::new())),
+                0,
+            )
             .unwrap();
 
         // ////////// Send SEDP data
@@ -1663,12 +1665,8 @@ mod tests {
         }
 
         // ////////// Create user endpoints
-        let user_publisher = participant1_proxy
-            .create_publisher(None,None, 0)
-            .unwrap();
-        let user_subscriber = participant2_proxy
-            .create_subscriber(None,None, 0)
-            .unwrap();
+        let user_publisher = participant1_proxy.create_publisher(None, None, 0).unwrap();
+        let user_subscriber = participant2_proxy.create_subscriber(None, None, 0).unwrap();
 
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)

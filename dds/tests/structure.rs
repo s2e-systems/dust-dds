@@ -4,9 +4,7 @@ use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
-use dds_implementation::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 struct TestType;
 
