@@ -12,11 +12,9 @@ use dds_api::{
     publication::{
         data_writer::DataWriter,
         publisher::{Publisher, PublisherDataWriterFactory},
-        publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic::topic_listener::TopicListener,
+    subscription::subscriber::Subscriber,
 };
 use rtps_pim::{
     behavior::writer::{
@@ -180,7 +178,7 @@ where
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener>>,
+        _a_listener: Option<<Self::TopicType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::TopicType> {
         let participant_shared = self.domain_participant.upgrade()?;
@@ -326,7 +324,7 @@ where
     fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        _a_listener: Option<Box<dyn PublisherListener>>,
+        _a_listener: Option<<Self::PublisherType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
@@ -390,7 +388,7 @@ where
     fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _a_listener: Option<<Self::SubscriberType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
