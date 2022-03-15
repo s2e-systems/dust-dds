@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
 use crate::{
     dds_type::DdsDeserialize,
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
     },
 };
 use dds_api::{
@@ -188,12 +188,12 @@ pub struct DataReaderAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub rtps_reader: RtpsReader<Rtps>,
+    pub rtps_reader: RtpsRwLock<RtpsReader<Rtps>>,
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
+    pub listener: RtpsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
-    pub status: SubscriptionMatchedStatus,
+    pub status: RtpsRwLock<SubscriptionMatchedStatus>,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -208,18 +208,18 @@ where
         parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
-            rtps_reader,
+            rtps_reader: RtpsRwLock::new(rtps_reader),
             _qos: qos,
             topic,
-            listener,
+            listener: RtpsRwLock::new(listener),
             parent_subscriber,
-            status: SubscriptionMatchedStatus {
+            status: RtpsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_publication_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
-            },
+            }),
         }
     }
 }
@@ -311,11 +311,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &mut data_reader_shared
-            .write_lock()
-            .rtps_reader;
-
-        match rtps_reader {
+        let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
+        match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
                 let samples = rtps_reader.reader_cache().changes()
                     .iter()
@@ -393,11 +390,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &mut data_reader_shared
-            .write_lock()
-            .rtps_reader;
-
-        match rtps_reader {
+        let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
+        match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
                 let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
@@ -693,7 +687,7 @@ for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as Rtp
     }
 
     fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
-        self.as_ref().upgrade()?.write_lock().listener = match listener {
+        *self.as_ref().upgrade()?.listener.write_lock() = match listener {
             Some(l) => Some(Box::new(l)),
             None => None,
         };

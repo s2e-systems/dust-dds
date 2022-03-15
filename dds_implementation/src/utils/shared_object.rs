@@ -1,16 +1,35 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak};
+use std::{
+    ops::Deref,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
+};
 
 use dds_api::return_type::{DDSError, DDSResult};
 
-pub struct RtpsShared<T: ?Sized>(Arc<RwLock<T>>);
+pub struct RtpsShared<T: ?Sized>(Arc<T>);
 
 impl<T> RtpsShared<T> {
     pub fn new(t: T) -> Self {
-        RtpsShared(Arc::new(RwLock::new(t)))
+        RtpsShared(Arc::new(t))
     }
 
     pub fn downgrade(&self) -> RtpsWeak<T> {
         RtpsWeak(Arc::downgrade(&self.0))
+    }
+}
+
+impl<T: ?Sized> Deref for RtpsShared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+pub struct RtpsRwLock<T>(RwLock<T>);
+
+impl<T> RtpsRwLock<T> {
+    pub fn new(t: T) -> Self {
+        Self(RwLock::new(t))
     }
 
     pub fn read_lock(&self) -> RwLockReadGuard<'_, T> {
@@ -34,7 +53,7 @@ impl<T> PartialEq for RtpsShared<T> {
     }
 }
 
-pub struct RtpsWeak<T: ?Sized>(Weak<RwLock<T>>);
+pub struct RtpsWeak<T: ?Sized>(Weak<T>);
 
 impl<T> RtpsWeak<T> {
     pub fn new() -> Self {

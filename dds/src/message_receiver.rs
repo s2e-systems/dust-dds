@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use dds_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
     utils::shared_object::RtpsShared,
@@ -71,11 +73,9 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(_) => todo!(),
                 RtpsSubmessageType::Data(data) => {
                     for subscriber in list {
-                        let subscriber_lock = subscriber.read_lock();
-                        for data_reader in &subscriber_lock.data_reader_list {
-                            let mut data_reader_lock = data_reader.write_lock();
-                            let rtps_reader = &mut data_reader_lock.rtps_reader;
-                            match rtps_reader {
+                        for data_reader in subscriber.data_reader_list.read_lock().iter() {
+                            let mut rtps_reader = data_reader.rtps_reader.write_lock();
+                            match rtps_reader.deref_mut() {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
                                     let cache_len =
                                         stateless_rtps_reader.0.reader_cache.changes().len();
@@ -86,7 +86,7 @@ impl MessageReceiver {
                                     if stateless_rtps_reader.0.reader_cache.changes().len()
                                         > cache_len
                                     {
-                                        data_reader_lock.listener.as_ref().map(|l| {
+                                        data_reader.listener.read_lock().as_ref().map(|l| {
                                             l.trigger_on_data_available(data_reader.clone())
                                         });
                                     }
@@ -101,7 +101,7 @@ impl MessageReceiver {
                                     if stateful_rtps_reader.reader.reader_cache.changes().len()
                                         > cache_len
                                     {
-                                        data_reader_lock.listener.as_ref().map(|l| {
+                                        data_reader.listener.read_lock().as_ref().map(|l| {
                                             l.trigger_on_data_available(data_reader.clone())
                                         });
                                     }

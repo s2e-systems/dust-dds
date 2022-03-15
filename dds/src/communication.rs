@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use dds_implementation::{
     dds_impl::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
@@ -35,20 +37,17 @@ where
 {
     pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
-            let mut publisher_lock = publisher.write_lock();
-
             let message_header = RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
-                guid_prefix: publisher_lock.rtps_group.entity.guid.prefix(),
+                guid_prefix: publisher.rtps_group.entity.guid.prefix(),
             };
 
-            for any_data_writer in &mut publisher_lock.data_writer_list {
-                let mut rtps_writer_lock = any_data_writer.write_lock();
-                let rtps_writer = &mut rtps_writer_lock.rtps_writer;
+            for any_data_writer in publisher.data_writer_list.write_lock().iter_mut() {
+                let mut rtps_writer = any_data_writer.rtps_writer.write_lock();
 
-                match rtps_writer {
+                match rtps_writer.deref_mut() {
                     RtpsWriter::Stateless(stateless_rtps_writer) => {
                         let message_header = RtpsMessageHeader {
                             guid_prefix: stateless_rtps_writer.writer.endpoint.entity.guid.prefix,

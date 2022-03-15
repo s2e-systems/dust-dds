@@ -63,12 +63,12 @@ fn main() {
         .as_ref()
         .upgrade()
         .unwrap()
-        .read_lock()
         .data_reader_list
+        .read_lock()
         .iter()
         .filter_map(|r| {
-            r.write_lock()
-                .rtps_reader
+            r.rtps_reader
+                .write_lock()
                 .try_as_stateful_reader()
                 .ok()
                 .map(|sr| sr.matched_writers.len())
@@ -100,8 +100,8 @@ fn main() {
         .as_ref()
         .upgrade()
         .unwrap()
-        .write_lock()
         .rtps_reader
+        .write_lock()
         .try_as_stateful_reader()
         .unwrap()
         .matched_writers

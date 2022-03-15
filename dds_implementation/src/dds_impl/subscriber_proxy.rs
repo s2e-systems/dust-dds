@@ -51,7 +51,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
     },
 };
 
@@ -68,7 +68,7 @@ where
 {
     pub qos: SubscriberQos,
     pub rtps_group: Rtps::Group,
-    pub data_reader_list: Vec<RtpsShared<DataReaderAttributes<Rtps>>>,
+    pub data_reader_list: RtpsRwLock<Vec<RtpsShared<DataReaderAttributes<Rtps>>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
     pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
@@ -86,7 +86,7 @@ where
         Self {
             qos,
             rtps_group,
-            data_reader_list: Vec::new(),
+            data_reader_list: RtpsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant,
@@ -179,13 +179,11 @@ where
             EntityId::new(
                 [
                     subscriber_shared
-                        .read_lock()
                         .rtps_group
                         .guid()
                         .entity_id()
                         .entity_key()[0],
                     subscriber_shared
-                        .read_lock()
                         .user_defined_data_reader_counter,
                     0,
                 ],
@@ -194,7 +192,7 @@ where
         };
 
         let guid = Guid::new(
-            subscriber_shared.read_lock().rtps_group.guid().prefix(),
+            subscriber_shared.rtps_group.guid().prefix(),
             entity_id,
         );
 
@@ -202,7 +200,6 @@ where
         let data_reader_shared = {
             let qos = qos.unwrap_or(
                 subscriber_shared
-                    .read_lock()
                     .default_data_reader_qos
                     .clone(),
             );
@@ -219,7 +216,6 @@ where
             };
 
             let domain_participant = subscriber_shared
-                .read_lock()
                 .parent_domain_participant
                 .upgrade()?;
             let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
@@ -227,11 +223,9 @@ where
                 topic_kind,
                 reliability_level,
                 &domain_participant
-                    .read_lock()
                     .rtps_participant
                     .default_unicast_locator_list(),
                 &domain_participant
-                    .read_lock()
                     .rtps_participant
                     .default_multicast_locator_list(),
                 rtps_pim::behavior::types::DURATION_ZERO,
@@ -254,8 +248,8 @@ where
             let data_reader_shared = RtpsShared::new(data_reader);
 
             subscriber_shared
-                .write_lock()
-                .data_reader_list
+
+                .data_reader_list.write_lock()
                 .push(data_reader_shared.clone());
 
             data_reader_shared
@@ -264,14 +258,12 @@ where
         // /////// Announce the data reader creation
         {
             let domain_participant = subscriber_shared
-                .read_lock()
                 .parent_domain_participant
                 .upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
             let builtin_publisher = domain_participant
-                .read_lock()
-                .builtin_publisher
+                .builtin_publisher.read_lock()
                 .clone()
                 .ok_or(DDSError::PreconditionNotMet(
                     "No builtin publisher".to_string(),
@@ -289,12 +281,10 @@ where
                     remote_reader_guid: guid,
                     remote_group_entity_id: entity_id,
                     unicast_locator_list: domain_participant
-                        .read_lock()
                         .rtps_participant
                         .default_unicast_locator_list()
                         .to_vec(),
                     multicast_locator_list: domain_participant
-                        .read_lock()
                         .rtps_participant
                         .default_multicast_locator_list()
                         .to_vec(),
@@ -304,7 +294,7 @@ where
                 subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                     key: BuiltInTopicKey { value: guid.into() },
                     participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: topic_shared.read_lock().topic_name.clone(),
+                    topic_name: topic_shared.topic_name.clone(),
                     type_name: Foo::type_name().to_string(),
                     durability: DurabilityQosPolicy::default(),
                     deadline: DeadlineQosPolicy::default(),
@@ -344,15 +334,15 @@ where
         let subscriber_shared = self.subscriber_impl.upgrade()?;
         let datareader_shared = datareader.as_ref().upgrade()?;
 
-        let data_reader_list = &mut subscriber_shared.write_lock().data_reader_list;
-
+        let data_reader_list = &mut subscriber_shared.data_reader_list.write_lock();
+        let data_reader_list_position = data_reader_list
+        .iter()
+        .position(|x| x == &datareader_shared)
+        .ok_or(DDSError::PreconditionNotMet(
+            "Data reader can only be deleted from its parent subscriber".to_string(),
+        ))?;
         data_reader_list.remove(
-            data_reader_list
-                .iter()
-                .position(|x| x == &datareader_shared)
-                .ok_or(DDSError::PreconditionNotMet(
-                    "Data reader can only be deleted from its parent subscriber".to_string(),
-                ))?,
+            data_reader_list_position
         );
 
         Ok(())
@@ -363,18 +353,16 @@ where
         topic: &Self::TopicType,
     ) -> DDSResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
-        let data_reader_list = &subscriber_shared.write_lock().data_reader_list;
+        let data_reader_list = &subscriber_shared.data_reader_list.write_lock();
 
         let topic_shared = topic.as_ref().upgrade()?;
-        let topic = topic_shared.read_lock();
 
         data_reader_list
             .iter()
             .find_map(|data_reader_shared| {
-                let data_reader_lock = data_reader_shared.read_lock();
-                let data_reader_topic = data_reader_lock.topic.read_lock();
+                let data_reader_topic = &data_reader_shared.topic;
 
-                if data_reader_topic.topic_name == topic.topic_name
+                if data_reader_topic.topic_name == topic_shared.topic_name
                     && data_reader_topic.type_name == Foo::type_name()
                 {
                     Some(DataReaderProxy::new(data_reader_shared.downgrade()))
@@ -546,7 +534,7 @@ mod tests {
         dds_type::{DdsDeserialize, DdsType},
         utils::{
             rtps_structure::RtpsStructure,
-            shared_object::{RtpsShared, RtpsWeak},
+            shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
         },
     };
 
@@ -801,7 +789,7 @@ mod tests {
             vec![],
         ));
 
-        domain_participant.write_lock().builtin_publisher =
+        *domain_participant.builtin_publisher.write_lock() =
             Some(RtpsShared::new(PublisherAttributes::new(
                 PublisherQos::default(),
                 Rtps::Group::default(),
@@ -816,8 +804,8 @@ mod tests {
         ));
 
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_subscription.clone());
 
         let sedp_builtin_subscriptions_rtps_writer =
@@ -828,19 +816,19 @@ mod tests {
             None,
             sedp_topic_subscription.clone(),
             domain_participant
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
         ));
         domain_participant
-            .read_lock()
             .builtin_publisher
+            .read_lock()
             .as_ref()
             .unwrap()
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_subscriptions_data_writer.clone());
 
         domain_participant
@@ -855,7 +843,7 @@ mod tests {
         RtpsShared::new(SubscriberAttributes {
             qos: SubscriberQos::default(),
             rtps_group: Rtps::Group::default(),
-            data_reader_list: Vec::new(),
+            data_reader_list: RtpsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: parent,
@@ -928,7 +916,7 @@ mod tests {
             subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
 
         assert!(data_reader.is_ok());
-        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
+        assert_eq!(1, subscriber.data_reader_list.read_lock().len());
     }
 
     #[test]
@@ -948,12 +936,12 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
+        assert_eq!(1, subscriber.data_reader_list.read_lock().len());
 
         subscriber_proxy
             .datareader_factory_delete_datareader(&data_reader)
             .unwrap();
-        assert_eq!(0, subscriber.read_lock().data_reader_list.len());
+        assert_eq!(0, subscriber.data_reader_list.read_lock().len());
         assert!(data_reader.as_ref().upgrade().is_err());
     }
 
@@ -980,8 +968,8 @@ mod tests {
             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, subscriber.read_lock().data_reader_list.len());
-        assert_eq!(0, subscriber2.read_lock().data_reader_list.len());
+        assert_eq!(1, subscriber.data_reader_list.read_lock().len());
+        assert_eq!(0, subscriber2.data_reader_list.read_lock().len());
 
         assert!(matches!(
             subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),

@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
     },
 };
 use dds_api::{
@@ -65,11 +65,11 @@ where
     Rtps: RtpsStructure,
 {
     pub _qos: DataWriterQos,
-    pub rtps_writer: RtpsWriter<Rtps>,
-    pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+    pub rtps_writer: RtpsRwLock<RtpsWriter<Rtps>>,
+    pub listener: RtpsRwLock<Option<Box<dyn DataWriterListener + Send + Sync>>>,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
     pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
-    pub status: PublicationMatchedStatus,
+    pub status: RtpsRwLock<PublicationMatchedStatus>,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -85,17 +85,17 @@ where
     ) -> Self {
         Self {
             _qos: qos,
-            rtps_writer,
-            listener,
+            rtps_writer: RtpsRwLock::new(rtps_writer),
+            listener: RtpsRwLock::new(listener),
             topic,
             publisher,
-            status: PublicationMatchedStatus {
+            status: RtpsRwLock::new(PublicationMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_subscription_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
-            },
+            }),
         }
     }
 }
@@ -221,9 +221,8 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
-        let rtps_writer = &mut data_writer_shared.write_lock().rtps_writer;
 
-        match rtps_writer {
+        match data_writer_shared.rtps_writer.write_lock().deref_mut() {
             RtpsWriter::Stateless(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
                 rtps_writer.writer_cache().add_change(change);
@@ -327,7 +326,7 @@ where
     }
 
     fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
-        self.as_ref().upgrade()?.write_lock().listener = listener;
+        *self.as_ref().upgrade()?.listener.write_lock() = listener;
         Ok(())
     }
 
