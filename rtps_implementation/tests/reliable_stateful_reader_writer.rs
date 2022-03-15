@@ -97,17 +97,19 @@ fn reliable_stateful_reader_writer_dropped_data() {
     stateful_writer.writer_cache().add_change(change1);
     stateful_writer.writer_cache().add_change(change2);
 
-    let writer_submessages = stateful_writer.produce_destined_submessages();
-    let data_submessage = match &writer_submessages[0].1[0] {
-        RtpsStatefulSubmessage::Data(d) => d,
-        RtpsStatefulSubmessage::Gap(_) => todo!(),
-    };
-    stateful_reader.process_submessage(data_submessage, writer_guid.prefix());
-    let data_submessage = match &writer_submessages[0].1[1] {
-        RtpsStatefulSubmessage::Data(d) => d,
-        RtpsStatefulSubmessage::Gap(_) => todo!(),
-    };
-    stateful_reader.process_submessage(data_submessage, writer_guid.prefix());
+    let mut writer_destined_submessages = stateful_writer.produce_destined_submessages();
+    let (_reader_proxy, writer_submessages) = writer_destined_submessages.pop().unwrap();
+
+    for submessage in writer_submessages {
+        match submessage {
+            RtpsStatefulSubmessage::Data(d) => {
+                stateful_reader.process_data_submessage(&d, writer_guid.prefix())
+            }
+            RtpsStatefulSubmessage::Gap(g) => {
+                stateful_reader.process_gap_submessage(&g, writer_guid.prefix())
+            }
+        }
+    }
 
     assert_eq!(2, stateful_reader.reader_cache().changes().len())
 }
