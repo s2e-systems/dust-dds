@@ -122,4 +122,105 @@ mod tests {
         assert_eq!(data.writer_sn.value, change.sequence_number);
         assert_eq!(data.serialized_payload.value, change.data_value());
     }
+
+    #[test]
+    fn reliable_stateless_data_reader_all_data_received_when_not_sent_in_order() {
+        let reader_guid = Guid::new(
+            GuidPrefix([3; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let source_guid = Guid::new(
+            GuidPrefix([6; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatelessReaderImpl::new(
+            RtpsEndpointImpl::new(
+                reader_guid,
+                TopicKind::NoKey,
+                ReliabilityKind::Reliable,
+                &[],
+                &[],
+            ),
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: source_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), source_guid.prefix);
+        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), source_guid.prefix);
+        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
+        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
+
+        assert_eq!(4, reader.reader_cache.changes().len());
+    }
+
+    // this test fails (all data is received); should it?
+    // #[test]
+    // fn best_effort_stateless_data_reader_data_only_received_in_order() {
+    //     let reader_guid = Guid::new(
+    //         GuidPrefix([3; 12]),
+    //         EntityId::new([4, 1, 3], USER_DEFINED_READER_NO_KEY),
+    //     );
+
+    //     let source_guid = Guid::new(
+    //         GuidPrefix([6; 12]),
+    //         EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY),
+    //     );
+
+    //     let mut reader = RtpsStatelessReaderImpl::new(
+    //         RtpsEndpointImpl::new(
+    //             reader_guid,
+    //             TopicKind::NoKey,
+    //             ReliabilityKind::BestEffort,
+    //             &[],
+    //             &[],
+    //         ),
+    //         Duration::new(0, 0),
+    //         Duration::new(0, 0),
+    //         false,
+    //     );
+
+    //     let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+    //         endianness_flag: true,
+    //         inline_qos_flag: true,
+    //         data_flag: true,
+    //         key_flag: false,
+    //         non_standard_payload_flag: false,
+    //         reader_id: EntityIdSubmessageElement {
+    //             value: reader_guid.entity_id,
+    //         },
+    //         writer_id: EntityIdSubmessageElement {
+    //             value: source_guid.entity_id,
+    //         },
+    //         writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+    //         inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+    //         serialized_payload: SerializedDataSubmessageElement { value: data },
+    //     };
+
+    //     reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), source_guid.prefix);
+    //     reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), source_guid.prefix);
+    //     reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
+    //     reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
+
+    //     assert_eq!(2, reader.reader_cache.changes().len());
+    // }
 }
