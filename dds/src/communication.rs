@@ -98,6 +98,9 @@ where
                                             RtpsStatefulSubmessage::Gap(gap) => {
                                                 RtpsSubmessageType::Gap(gap)
                                             }
+                                            RtpsStatefulSubmessage::Heartbeat(heartbeat) => {
+                                                RtpsSubmessageType::Heartbeat(heartbeat)
+                                            }
                                         })
                                         .collect(),
                                 ),

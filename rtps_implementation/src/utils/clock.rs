@@ -1,20 +1,13 @@
 pub trait Timer {
-    fn reset(&mut self);
-
+    fn start() -> Self;
     fn elapsed(&self) -> std::time::Duration;
 }
 
 pub struct StdTimer(std::time::Instant);
 
-impl StdTimer {
-    pub fn new() -> Self {
-        Self(std::time::Instant::now())
-    }
-}
-
 impl Timer for StdTimer {
-    fn reset(&mut self) {
-        self.0 = std::time::Instant::now();
+    fn start() -> Self {
+        Self(std::time::Instant::now())
     }
 
     fn elapsed(&self) -> std::time::Duration {
