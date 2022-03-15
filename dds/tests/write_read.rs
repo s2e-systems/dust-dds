@@ -6,7 +6,7 @@ use dds::{
     types::Time,
     DDSError,
 };
-use dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::no_listener::NoListener};
+use dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -95,14 +95,14 @@ fn user_defined_write_read_auto_enable() {
     }
 
     let topic = participant1
-        .create_topic::<UserData>("MyTopic", None, Box::new(NoListener), 0)
+        .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
 
-    let publisher = participant1.create_publisher(None, &NoListener, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, Box::new(NoListener), 0).unwrap();
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
-    let subscriber = participant2.create_subscriber(None, &NoListener, 0).unwrap();
-    let reader = subscriber.create_datareader(&topic, None, Box::new(NoListener), 0).unwrap();
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
     // Wait for reader to be aware of the user writer
     while reader

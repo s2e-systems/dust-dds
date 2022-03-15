@@ -7,5 +7,3 @@ pub mod data_reader_proxy;
 pub mod subscriber_proxy;
 
 pub mod topic_proxy;
-
-pub mod no_listener;

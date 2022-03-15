@@ -14,7 +14,7 @@ pub trait SubscriberDataReaderFactory<Foo> {
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Box<dyn DataReaderListener + Send + Sync>,
+        a_listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType>;
 
@@ -71,7 +71,7 @@ pub trait Subscriber {
         &self,
         a_topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Box<dyn DataReaderListener + Send + Sync>,
+        a_listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType>
     where
