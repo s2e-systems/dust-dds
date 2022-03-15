@@ -27,15 +27,16 @@ use dds_api::{
 
 use rtps_pim::{
     behavior::{
-        reader::stateful_reader::RtpsStatefulReaderConstructor,
+        reader::{reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderConstructor},
         writer::{
             stateful_writer::RtpsStatefulWriterConstructor,
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
@@ -133,18 +134,27 @@ where
     Rtps: RtpsStructure,
     Rtps::Group: RtpsEntityAttributes,
     Rtps::Participant: RtpsParticipantAttributes,
-    Rtps::StatefulReader: RtpsStatefulReaderConstructor,
+    Rtps::StatelessReader: RtpsReaderAttributes,
+    Rtps::StatefulReader: RtpsReaderAttributes + RtpsStatefulReaderConstructor,
     Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes,
     Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
         + RtpsWriterAttributes
         + RtpsStatefulWriterConstructor,
+        <Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
+    <Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
+        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
     <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
         CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
     >,
     <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
         CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
     >,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataReaderType = DataReaderProxy<Foo, Rtps>;
@@ -153,7 +163,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        listener: Option<Box<dyn DataReaderListener + Send + Sync>>,
+        listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
@@ -229,11 +239,11 @@ where
                 rtps_pim::behavior::types::DURATION_ZERO,
                 false,
             ));
-            let any_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>> = match listener
-            {
-                Some(l) => Some(Box::new(l)),
-                None => None,
-            };
+            let any_listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>> =
+                match listener {
+                    Some(l) => Some(Box::new(l)),
+                    None => None,
+                };
             let data_reader = DataReaderAttributes::new(
                 qos,
                 rtps_reader,
@@ -501,7 +511,10 @@ mod tests {
 
     use rtps_pim::{
         behavior::{
-            reader::stateful_reader::RtpsStatefulReaderConstructor,
+            reader::{
+                reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderConstructor,
+                stateless_reader::RtpsStatelessReaderAttributes,
+            },
             types::Duration,
             writer::{
                 stateful_writer::RtpsStatefulWriterConstructor,
@@ -510,8 +523,9 @@ mod tests {
         },
         discovery::sedp::builtin_endpoints::SedpBuiltinSubscriptionsWriter,
         structure::{
+            cache_change::RtpsCacheChangeAttributes,
             entity::RtpsEntityAttributes,
-            history_cache::RtpsHistoryCacheOperations,
+            history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
             participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
             types::{
                 ChangeKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
@@ -539,6 +553,38 @@ mod tests {
 
     use super::{SubscriberAttributes, SubscriberProxy};
 
+    struct EmptyCacheChange;
+
+    impl<'a> RtpsCacheChangeAttributes<'a> for EmptyCacheChange {
+        type DataType = [u8];
+
+        type ParameterListType = ();
+
+        fn kind(&self) -> ChangeKind {
+            todo!()
+        }
+
+        fn writer_guid(&self) -> Guid {
+            todo!()
+        }
+
+        fn instance_handle(&self) -> rtps_pim::structure::types::InstanceHandle {
+            todo!()
+        }
+
+        fn sequence_number(&self) -> SequenceNumber {
+            todo!()
+        }
+
+        fn data_value(&self) -> &Self::DataType {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &Self::ParameterListType {
+            todo!()
+        }
+    }
+
     #[derive(Default)]
     struct EmptyGroup {}
     impl RtpsEntityAttributes for EmptyGroup {
@@ -548,9 +594,18 @@ mod tests {
     }
 
     struct EmptyHistoryCache {}
+
+    impl RtpsHistoryCacheAttributes for EmptyHistoryCache {
+        type CacheChangeType = EmptyCacheChange;
+
+        fn changes(&self) -> &[Self::CacheChangeType] {
+            todo!()
+        }
+    }
+
     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
-        type CacheChangeType = ();
-        fn add_change(&mut self, _change: ()) {}
+        type CacheChangeType = EmptyCacheChange;
+        fn add_change(&mut self, _change: Self::CacheChangeType) {}
 
         fn remove_change<F>(&mut self, _f: F)
         where
@@ -579,7 +634,7 @@ mod tests {
     impl RtpsWriterOperations for EmptyWriter {
         type DataType = Vec<u8>;
         type ParameterListType = Vec<u8>;
-        type CacheChangeType = ();
+        type CacheChangeType = EmptyCacheChange;
 
         fn new_change(
             &mut self,
@@ -587,8 +642,8 @@ mod tests {
             _data: Vec<u8>,
             _inline_qos: Vec<u8>,
             _handle: InstanceHandle,
-        ) -> () {
-            ()
+        ) -> Self::CacheChangeType {
+            EmptyCacheChange
         }
     }
     impl RtpsWriterAttributes for EmptyWriter {
@@ -642,6 +697,28 @@ mod tests {
     }
 
     struct EmptyReader {}
+
+    impl RtpsReaderAttributes for EmptyReader {
+        type HistoryCacheType = EmptyHistoryCache;
+
+        fn heartbeat_response_delay(&self) -> Duration {
+            todo!()
+        }
+
+        fn heartbeat_suppression_duration(&self) -> Duration {
+            todo!()
+        }
+
+        fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
+            todo!()
+        }
+
+        fn expects_inline_qos(&self) -> bool {
+            todo!()
+        }
+    }
+
+    impl RtpsStatelessReaderAttributes for EmptyReader {}
 
     impl RtpsStatefulReaderConstructor for EmptyReader {
         fn new(
@@ -704,7 +781,7 @@ mod tests {
         type Participant = EmptyParticipant;
         type StatelessWriter = EmptyWriter;
         type StatefulWriter = EmptyWriter;
-        type StatelessReader = ();
+        type StatelessReader = EmptyReader;
         type StatefulReader = EmptyReader;
     }
 
