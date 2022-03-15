@@ -1,8 +1,6 @@
 use rtps_implementation::{
-    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateful_writer_impl::{RtpsStatefulSubmessage, RtpsStatefulWriterImpl},
-    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 use rtps_pim::{
     behavior::{
@@ -97,19 +95,30 @@ fn reliable_stateful_reader_writer_dropped_data() {
     stateful_writer.writer_cache().add_change(change1);
     stateful_writer.writer_cache().add_change(change2);
 
-    let mut writer_destined_submessages = stateful_writer.produce_destined_submessages();
-    let (_reader_proxy, writer_submessages) = writer_destined_submessages.pop().unwrap();
+    let writer_destined_submessages = stateful_writer.produce_destined_submessages();
+    // Original data submessages sent are dropped
+    std::mem::drop(writer_destined_submessages);
 
-    for submessage in writer_submessages {
-        match submessage {
-            RtpsStatefulSubmessage::Data(d) => {
-                stateful_reader.process_data_submessage(&d, writer_guid.prefix())
-            }
-            RtpsStatefulSubmessage::Gap(g) => {
-                stateful_reader.process_gap_submessage(&g, writer_guid.prefix())
-            }
-        }
-    }
+    // Missing steps:
+    // 1. Send Heartbeat from writer
+    // 2. Process heartbeat on reader
+    // 3. Send AckNack from reader
+    // 4. Process AckNack on writer
+    // 5. Send requested data from writer
+    // 6. Process new data submessages on reader
+
+    // let (_reader_proxy, writer_submessages) = writer_destined_submessages.pop().unwrap();
+
+    // for submessage in writer_submessages {
+    //     match submessage {
+    //         RtpsStatefulSubmessage::Data(d) => {
+    //             stateful_reader.process_data_submessage(&d, writer_guid.prefix())
+    //         }
+    //         RtpsStatefulSubmessage::Gap(g) => {
+    //             stateful_reader.process_gap_submessage(&g, writer_guid.prefix())
+    //         }
+    //     }
+    // }
 
     assert_eq!(2, stateful_reader.reader_cache().changes().len())
 }
