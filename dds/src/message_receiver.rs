@@ -78,12 +78,12 @@ impl MessageReceiver {
                             match rtps_reader {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
                                     let cache_len =
-                                        stateless_rtps_reader.reader_cache.changes().len();
+                                        stateless_rtps_reader.0.reader_cache.changes().len();
 
                                     stateless_rtps_reader
                                         .process_submessage(data, self.source_guid_prefix);
 
-                                    if stateless_rtps_reader.reader_cache.changes().len()
+                                    if stateless_rtps_reader.0.reader_cache.changes().len()
                                         > cache_len
                                     {
                                         data_reader_lock.listener.as_ref().map(|l| {
