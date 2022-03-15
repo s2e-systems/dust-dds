@@ -90,7 +90,7 @@ impl RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl {
         expects_inline_qos: bool,
     ) -> Self {
         if reliability_level == ReliabilityKind::Reliable {
-            panic!("Reliable stateless reader is not implemented");
+            panic!("Reliable stateless reader is not supported");
         }
 
         Self(RtpsReaderImpl::new(
