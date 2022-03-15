@@ -96,7 +96,7 @@ impl MessageReceiver {
                                         stateful_rtps_reader.reader.reader_cache.changes().len();
 
                                     stateful_rtps_reader
-                                        .process_submessage(data, self.source_guid_prefix);
+                                        .process_data_submessage(data, self.source_guid_prefix);
 
                                     if stateful_rtps_reader.reader.reader_cache.changes().len()
                                         > cache_len

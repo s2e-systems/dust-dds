@@ -13,11 +13,14 @@ use rtps_pim::{
         },
         types::Duration,
     },
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage},
+    },
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        types::{Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind},
+        types::{Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind},
     },
 };
 
@@ -32,12 +35,12 @@ pub struct RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
-    pub fn process_submessage(
+    pub fn process_data_submessage(
         &mut self,
-        data: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>,
         source_guid_prefix: GuidPrefix,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
 
         if let Some(writer_proxy) = self
             .matched_writers
@@ -49,14 +52,37 @@ impl RtpsStatefulReaderImpl {
                     writer_proxy,
                     &mut self.reader.reader_cache,
                     source_guid_prefix,
-                    data,
+                    data_submessage,
                 ),
                 ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::receive_data(
                     writer_proxy,
                     &mut self.reader.reader_cache,
                     source_guid_prefix,
-                    data,
+                    data_submessage,
                 ),
+            }
+        }
+    }
+
+    pub fn process_gap_submessage(
+        &mut self,
+        gap_submessage: &GapSubmessage<Vec<SequenceNumber>>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value);
+
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == writer_guid)
+        {
+            match self.reader.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => {
+                    BestEffortStatefulReaderBehavior::receive_gap(writer_proxy, gap_submessage)
+                }
+                ReliabilityKind::Reliable => {
+                    ReliableStatefulReaderBehavior::receive_gap(writer_proxy, gap_submessage)
+                }
             }
         }
     }
@@ -207,6 +233,8 @@ mod tests {
 
         reader.matched_writer_add(writer_proxy);
 
+        let writer_sn = 1;
+        let serialized_payload_value = [1, 0, 2, 5];
         let data: DataSubmessage<Vec<Parameter>, &[u8]> = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: true,
@@ -219,20 +247,20 @@ mod tests {
             writer_id: EntityIdSubmessageElement {
                 value: source_guid.entity_id,
             },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
+            writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
             serialized_payload: SerializedDataSubmessageElement {
-                value: &[1, 0, 2, 5],
+                value: &serialized_payload_value,
             },
         };
 
-        reader.process_submessage(&data, source_guid.prefix);
+        reader.process_data_submessage(&data, source_guid.prefix);
 
         assert_eq!(1, reader.reader.reader_cache.changes().len());
         let change = &reader.reader.reader_cache.changes()[0];
         assert_eq!(source_guid, change.writer_guid);
-        assert_eq!(data.writer_sn.value, change.sequence_number);
-        assert_eq!(data.serialized_payload.value, change.data_value());
+        assert_eq!(writer_sn, change.sequence_number);
+        assert_eq!(serialized_payload_value, change.data_value());
     }
 
     #[test]
@@ -283,10 +311,10 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: data },
         };
 
-        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
-        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
-        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
-        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
 
         assert_eq!(4, reader.reader_cache().changes().len());
     }
@@ -339,10 +367,10 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: data },
         };
 
-        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
-        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
-        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
-        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
 
         assert_eq!(2, reader.reader_cache().changes().len());
     }

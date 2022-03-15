@@ -1,11 +1,11 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
-    publication::publisher_listener::PublisherListener,
+    infrastructure::{
+        entity::Entity,
+        qos::{PublisherQos, SubscriberQos, TopicQos},
+    },
     return_type::DDSResult,
-    subscription::subscriber_listener::SubscriberListener,
-    topic::topic_listener::TopicListener,
 };
 
 pub trait DomainParticipantTopicFactory<Foo> {
@@ -15,9 +15,11 @@ pub trait DomainParticipantTopicFactory<Foo> {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener>>,
+        a_listener: Option<<Self::TopicType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::TopicType>;
+    ) -> DDSResult<Self::TopicType>
+    where
+        Self::TopicType: Entity;
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()>;
 
@@ -45,9 +47,11 @@ pub trait DomainParticipant {
     fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
+        a_listener: Option<<Self::PublisherType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::PublisherType>;
+    ) -> DDSResult<Self::PublisherType>
+    where
+        Self::PublisherType: Entity;
 
     /// This operation deletes an existing Publisher.
     /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
@@ -69,9 +73,11 @@ pub trait DomainParticipant {
     fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener>>,
+        a_listener: Option<<Self::SubscriberType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::SubscriberType>;
+    ) -> DDSResult<Self::SubscriberType>
+    where
+        Self::SubscriberType: Entity;
 
     /// This operation deletes an existing Subscriber.
     /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
@@ -96,11 +102,12 @@ pub trait DomainParticipant {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener>>,
+        a_listener: Option<<Self::TopicType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::TopicType>
     where
         Self: DomainParticipantTopicFactory<Foo> + Sized,
+        Self::TopicType: Entity,
     {
         self.topic_factory_create_topic(topic_name, qos, a_listener, mask)
     }

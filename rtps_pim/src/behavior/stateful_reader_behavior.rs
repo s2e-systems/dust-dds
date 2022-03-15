@@ -59,15 +59,15 @@ impl BestEffortStatefulReaderBehavior {
     }
 
     // 8.4.12.1.4 Transition T4
-    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: GapSubmessage<S>)
+    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: &GapSubmessage<S>)
     where
-        S: IntoIterator<Item = SequenceNumber>,
+        for<'a> &'a S: IntoIterator<Item = &'a SequenceNumber>,
     {
         for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
-        for seq_num in gap.gap_list.set {
-            writer_proxy.irrelevant_change_set(seq_num);
+        for seq_num in gap.gap_list.set.into_iter() {
+            writer_proxy.irrelevant_change_set(*seq_num);
         }
     }
 }
@@ -156,15 +156,15 @@ impl ReliableStatefulReaderBehavior {
     }
 
     // 8.4.12.2.9 Transition T9
-    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: GapSubmessage<S>)
+    pub fn receive_gap<S>(writer_proxy: &mut impl RtpsWriterProxyOperations, gap: &GapSubmessage<S>)
     where
-        S: IntoIterator<Item = SequenceNumber>,
+        for<'a> &'a S: IntoIterator<Item = &'a SequenceNumber>,
     {
         for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
-        for seq_num in gap.gap_list.set {
-            writer_proxy.irrelevant_change_set(seq_num);
+        for seq_num in gap.gap_list.set.into_iter() {
+            writer_proxy.irrelevant_change_set(*seq_num);
         }
     }
 }
@@ -455,7 +455,7 @@ mod tests {
             .once()
             .return_const(());
 
-        BestEffortStatefulReaderBehavior::receive_gap(&mut writer_proxy, gap)
+        BestEffortStatefulReaderBehavior::receive_gap(&mut writer_proxy, &gap)
     }
 
     #[test]
@@ -687,6 +687,6 @@ mod tests {
             .once()
             .return_const(());
 
-        ReliableStatefulReaderBehavior::receive_gap(&mut writer_proxy, gap)
+        ReliableStatefulReaderBehavior::receive_gap(&mut writer_proxy, &gap)
     }
 }
