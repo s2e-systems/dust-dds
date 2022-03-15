@@ -234,4 +234,116 @@ mod tests {
         assert_eq!(data.writer_sn.value, change.sequence_number);
         assert_eq!(data.serialized_payload.value, change.data_value());
     }
+
+    #[test]
+    fn reliable_stateful_data_reader_all_data_received_when_not_sent_in_order() {
+        let writer_guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let reader_guid = Guid::new(
+            GuidPrefix([1; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatefulReaderImpl::new(
+            reader_guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+            writer_guid,
+            &[],
+            &[],
+            None,
+            writer_guid.entity_id,
+        ));
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+
+        assert_eq!(4, reader.reader_cache().changes().len());
+    }
+
+    #[test]
+    fn best_effort_stateful_data_reader_data_only_received_in_order() {
+        let writer_guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let reader_guid = Guid::new(
+            GuidPrefix([1; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatefulReaderImpl::new(
+            reader_guid,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+            writer_guid,
+            &[],
+            &[],
+            None,
+            writer_guid.entity_id,
+        ));
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+
+        assert_eq!(2, reader.reader_cache().changes().len());
+    }
 }
