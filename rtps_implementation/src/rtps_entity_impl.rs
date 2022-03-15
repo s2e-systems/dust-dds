@@ -1,4 +1,4 @@
-use rtps_pim::structure::{types::Guid, entity::RtpsEntityAttributes};
+use rtps_pim::structure::{entity::RtpsEntityAttributes, types::Guid};
 
 pub struct RtpsEntityImpl {
     pub guid: Guid,

@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use super::{
@@ -38,7 +38,7 @@ use super::{
 pub const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq)]
-pub struct  RtpsReaderProxy {
+pub struct RtpsReaderProxy {
     pub remote_reader_guid: Guid,
     pub remote_group_entity_id: EntityId,
     pub unicast_locator_list: Vec<Locator>,
@@ -63,10 +63,7 @@ impl DdsType for SedpDiscoveredReaderData {
 }
 
 impl DdsSerialize for SedpDiscoveredReaderData {
-    fn serialize<W: Write, E: Endianness>(
-        &self,
-        writer: W,
-    ) -> dds_api::return_type::DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> dds_api::return_type::DDSResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
@@ -258,6 +255,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dds_type::LittleEndian;
     use dds_api::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
@@ -267,7 +265,6 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
-    use crate::dds_type::LittleEndian;
     use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {

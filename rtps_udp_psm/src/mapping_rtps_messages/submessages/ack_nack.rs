@@ -1,8 +1,6 @@
 use rtps_pim::messages::submessages::AckNackSubmessage;
 
-use crate::{
-    mapping_traits::{MappingRead, MappingWrite},
-};
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 use std::io::{Error, Write};
 

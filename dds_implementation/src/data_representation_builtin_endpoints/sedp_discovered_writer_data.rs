@@ -1,9 +1,9 @@
 use std::io::Write;
 
+use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
 };
-use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use super::{
@@ -273,6 +273,7 @@ impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
+    use crate::dds_type::LittleEndian;
     use dds_api::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
@@ -283,7 +284,6 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     };
-    use crate::dds_type::LittleEndian;
     use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use super::*;

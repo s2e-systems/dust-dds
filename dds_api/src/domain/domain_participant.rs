@@ -15,7 +15,7 @@ pub trait DomainParticipantTopicFactory<Foo> {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Box<dyn TopicListener>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> DDSResult<Self::TopicType>;
 
@@ -45,7 +45,7 @@ pub trait DomainParticipant {
     fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        a_listener: &'static dyn PublisherListener,
+        a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
     ) -> DDSResult<Self::PublisherType>;
 
@@ -69,7 +69,7 @@ pub trait DomainParticipant {
     fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        a_listener: &'static dyn SubscriberListener,
+        a_listener: Option<Box<dyn SubscriberListener>>,
         mask: StatusMask,
     ) -> DDSResult<Self::SubscriberType>;
 
@@ -96,7 +96,7 @@ pub trait DomainParticipant {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Box<dyn TopicListener>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> DDSResult<Self::TopicType>
     where

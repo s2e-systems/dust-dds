@@ -1,7 +1,10 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
 use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
-use rtps_udp_psm::{mapping_traits::{from_bytes, to_bytes}, messages::overall_structure::RtpsMessage};
+use rtps_udp_psm::{
+    mapping_traits::{from_bytes, to_bytes},
+    messages::overall_structure::RtpsMessage,
+};
 
 use crate::transport::{TransportRead, TransportWrite};
 

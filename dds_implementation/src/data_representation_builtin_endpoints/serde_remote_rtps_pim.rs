@@ -4,8 +4,9 @@ use rtps_pim::{
     structure::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion},
 };
 
-use super::parameter_id_values::{DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION};
-
+use super::parameter_id_values::{
+    DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
+};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Duration")]
@@ -50,9 +51,7 @@ pub struct ProtocolVersionSerialize<'a>(
 );
 
 #[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct ProtocolVersionDeserialize(
-    #[serde(with = "ProtocolVersionDef")] pub ProtocolVersion,
-);
+pub struct ProtocolVersionDeserialize(#[serde(with = "ProtocolVersionDef")] pub ProtocolVersion);
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Guid")]
@@ -84,7 +83,6 @@ pub struct EntityIdDeserialize(#[serde(with = "EntityIdDef")] pub EntityId);
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "GuidPrefix")]
 pub struct GuidPrefixDef(pub [u8; 12]);
-
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "Count")]

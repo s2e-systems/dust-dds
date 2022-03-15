@@ -1,6 +1,8 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{ChangeKind, InstanceHandle, SequenceNumber, Guid, TopicKind, ReliabilityKind, Locator},
+    structure::types::{
+        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+    },
 };
 
 pub trait RtpsWriterAttributes {

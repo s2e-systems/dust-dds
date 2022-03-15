@@ -1,7 +1,7 @@
 use rtps_pim::structure::{
     endpoint::RtpsEndpointAttributes,
-    types::{TopicKind, ReliabilityKind, Locator, Guid},
-    entity::RtpsEntityAttributes
+    entity::RtpsEntityAttributes,
+    types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
 use super::rtps_entity_impl::RtpsEntityImpl;
@@ -23,7 +23,7 @@ impl RtpsEndpointImpl {
         multicast_locator_list: &[Locator],
     ) -> Self {
         Self {
-            entity: RtpsEntityImpl{ guid },
+            entity: RtpsEntityImpl { guid },
             topic_kind,
             reliability_level,
             unicast_locator_list: unicast_locator_list.to_vec(),

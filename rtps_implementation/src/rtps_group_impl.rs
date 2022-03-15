@@ -12,7 +12,9 @@ pub struct RtpsGroupImpl {
 
 impl RtpsGroupConstructor for RtpsGroupImpl {
     fn new(guid: Guid) -> Self {
-        Self { entity: RtpsEntityImpl { guid } }
+        Self {
+            entity: RtpsEntityImpl { guid },
+        }
     }
 }
 
@@ -22,4 +24,4 @@ impl RtpsEntityAttributes for RtpsGroupImpl {
     }
 }
 
-impl RtpsGroupAttributes for RtpsGroupImpl { }
+impl RtpsGroupAttributes for RtpsGroupImpl {}

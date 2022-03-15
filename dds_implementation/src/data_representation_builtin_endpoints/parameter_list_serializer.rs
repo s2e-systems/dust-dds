@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
-use dds_api::return_type::{DDSError, DDSResult};
 use crate::dds_type::Endianness;
+use dds_api::return_type::{DDSError, DDSResult};
 use serde::Serialize;
 
 use super::parameter_id_values::PID_SENTINEL;

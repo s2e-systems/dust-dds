@@ -39,15 +39,43 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
-pub struct Samples<Foo> {
-    pub samples: Vec<Foo>,
+pub trait AnyDataReaderListener {
+    fn trigger_on_data_available(&self);
+    fn trigger_on_sample_rejected(&self, status: SampleRejectedStatus);
+    fn trigger_on_liveliness_changed(&self, status: LivelinessChangedStatus);
+    fn trigger_on_requested_deadline_missed(&self, status: RequestedDeadlineMissedStatus);
+    fn trigger_on_requested_incompatible_qos(&self, status: RequestedIncompatibleQosStatus);
+    fn trigger_on_subscription_matched(&self, status: SubscriptionMatchedStatus);
+    fn trigger_on_sample_lost(&self, status: SampleLostStatus);
 }
 
-impl<Foo> std::ops::Deref for Samples<Foo> {
-    type Target = [Foo];
+impl AnyDataReaderListener for Box<dyn DataReaderListener + Send + Sync> {
+    fn trigger_on_data_available(&self) {
+        self.on_data_available()
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.samples
+    fn trigger_on_sample_rejected(&self, status: SampleRejectedStatus) {
+        self.on_sample_rejected(status)
+    }
+
+    fn trigger_on_liveliness_changed(&self, status: LivelinessChangedStatus) {
+        self.on_liveliness_changed(status)
+    }
+
+    fn trigger_on_requested_deadline_missed(&self, status: RequestedDeadlineMissedStatus) {
+        self.on_requested_deadline_missed(status)
+    }
+
+    fn trigger_on_requested_incompatible_qos(&self, status: RequestedIncompatibleQosStatus) {
+        self.on_requested_incompatible_qos(status)
+    }
+
+    fn trigger_on_subscription_matched(&self, status: SubscriptionMatchedStatus) {
+        self.on_subscription_matched(status)
+    }
+
+    fn trigger_on_sample_lost(&self, status: SampleLostStatus) {
+        self.on_sample_lost(status)
     }
 }
 
@@ -89,7 +117,7 @@ where
     pub rtps_reader: RtpsReader<Rtps>,
     pub _qos: DataReaderQos,
     pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub listener: Box<dyn DataReaderListener + Send + Sync>,
+    pub listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
     pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     pub status: SubscriptionMatchedStatus,
 }
@@ -102,7 +130,7 @@ where
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: RtpsShared<TopicAttributes<Rtps>>,
-        listener: Box<dyn DataReaderListener + Send + Sync>,
+        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
@@ -570,12 +598,15 @@ where
         todo!()
     }
 
-    fn set_listener(&self, listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
-        self.as_ref().upgrade()?.write_lock().listener = listener;
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+        self.as_ref().upgrade()?.write_lock().listener = match listener {
+            Some(l) => Some(Box::new(l)),
+            None => None,
+        };
         Ok(())
     }
 
-    fn get_listener(&self) -> DDSResult<Self::Listener> {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
         todo!()
     }

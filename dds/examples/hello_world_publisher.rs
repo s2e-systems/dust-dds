@@ -6,10 +6,7 @@ use dds::{
     types::Time,
     DDSError,
 };
-use dds_implementation::{
-    dds_impl::no_listener::NoListener,
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -87,13 +84,11 @@ fn main() {
     std::thread::sleep(std::time::Duration::from_secs(15));
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, Box::new(NoListener), 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
 
-    let publisher = participant.create_publisher(None, &NoListener, 0).unwrap();
-    let writer = publisher
-        .create_datawriter(&topic, None, Box::new(NoListener), 0)
-        .unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
     println!("{:?} [P] Created writer", std::time::SystemTime::now());
 
     while writer

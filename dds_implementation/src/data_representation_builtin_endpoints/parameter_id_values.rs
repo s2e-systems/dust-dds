@@ -1,4 +1,7 @@
-use rtps_pim::{behavior::types::Duration, structure::types::{ENTITYID_UNKNOWN, EntityId}};
+use rtps_pim::{
+    behavior::types::Duration,
+    structure::types::{EntityId, ENTITYID_UNKNOWN},
+};
 
 // Constant value from Table 9.13 - ParameterId Values
 pub const PID_PAD: u16 = 0x0000;

@@ -24,9 +24,7 @@ pub trait MappingReadByteOrdered<'de>: Sized {
         B: ByteOrder;
 }
 
-pub fn to_bytes_le<S: MappingWriteByteOrdered>(
-    value: &S,
-) -> Result<Vec<u8>, Error> {
+pub fn to_bytes_le<S: MappingWriteByteOrdered>(value: &S) -> Result<Vec<u8>, Error> {
     let mut writer = Vec::<u8>::new();
     value.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
     Ok(writer)

@@ -47,7 +47,7 @@ impl RtpsParticipantConstructor for RtpsParticipantImpl {
         vendor_id: VendorId,
     ) -> Self {
         Self {
-            entity: RtpsEntityImpl{ guid },
+            entity: RtpsEntityImpl { guid },
             protocol_version,
             vendor_id,
             default_unicast_locator_list: default_unicast_locator_list.to_vec(),

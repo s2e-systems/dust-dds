@@ -3,7 +3,7 @@ use std::io::Read;
 use byteorder::{ByteOrder, ReadBytesExt};
 use dds_api::return_type::{DDSError, DDSResult};
 
-use crate::dds_type::{LittleEndian, BigEndian, Endianness};
+use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
 use super::parameter_id_values::PID_SENTINEL;
 
