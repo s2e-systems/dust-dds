@@ -1,10 +1,13 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    infrastructure::qos::{DataReaderQos, TopicQos},
+    infrastructure::{
+        entity::Entity,
+        qos::{DataReaderQos, TopicQos},
+    },
     return_type::DDSResult,
 };
 
-use super::{data_reader::AnyDataReader, data_reader_listener::DataReaderListener};
+use super::data_reader::AnyDataReader;
 
 pub trait SubscriberDataReaderFactory<Foo> {
     type TopicType;
@@ -13,10 +16,12 @@ pub trait SubscriberDataReaderFactory<Foo> {
     fn datareader_factory_create_datareader(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        qos: Option<<Self::DataReaderType as Entity>::Qos>,
+        a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::DataReaderType>;
+    ) -> DDSResult<Self::DataReaderType>
+    where
+        Self::DataReaderType: Entity;
 
     fn datareader_factory_delete_datareader(
         &self,
@@ -70,12 +75,13 @@ pub trait Subscriber {
     fn create_datareader<Foo>(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        qos: Option<<Self::DataReaderType as Entity>::Qos>,
+        a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType>
     where
         Self: SubscriberDataReaderFactory<Foo> + Sized,
+        Self::DataReaderType: Entity,
     {
         self.datareader_factory_create_datareader(a_topic, qos, a_listener, mask)
     }

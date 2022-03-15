@@ -1,10 +1,11 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
-    infrastructure::qos::{DataWriterQos, TopicQos},
+    infrastructure::{
+        entity::Entity,
+        qos::{DataWriterQos, TopicQos},
+    },
     return_type::DDSResult,
 };
-
-use super::data_writer_listener::DataWriterListener;
 
 pub trait PublisherDataWriterFactory<Foo> {
     type TopicType;
@@ -13,10 +14,12 @@ pub trait PublisherDataWriterFactory<Foo> {
     fn datawriter_factory_create_datawriter(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::DataWriterType>;
+    ) -> DDSResult<Self::DataWriterType>
+    where
+        Self::DataWriterType: Entity;
 
     fn datawriter_factory_delete_datawriter(
         &self,
@@ -62,12 +65,13 @@ pub trait Publisher {
     fn create_datawriter<Foo>(
         &self,
         a_topic: &Self::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType>
     where
         Self: PublisherDataWriterFactory<Foo> + Sized,
+        Self::DataWriterType: Entity,
     {
         self.datawriter_factory_create_datawriter(a_topic, qos, a_listener, mask)
     }

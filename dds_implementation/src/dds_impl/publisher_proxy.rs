@@ -17,7 +17,6 @@ use dds_api::{
     },
     publication::{
         data_writer::DataWriter,
-        data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
@@ -137,8 +136,8 @@ where
     fn datawriter_factory_create_datawriter(
         &self,
         topic: &Self::TopicType,
-        qos: Option<DataWriterQos>,
-        listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
+        qos: Option<<Self::DataWriterType as Entity>::Qos>,
+        listener: Option<<Self::DataWriterType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
