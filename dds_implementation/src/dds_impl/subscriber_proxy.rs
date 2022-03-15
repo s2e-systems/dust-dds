@@ -19,7 +19,6 @@ use dds_api::{
     return_type::{DDSError, DDSResult},
     subscription::{
         data_reader::AnyDataReader,
-        data_reader_listener::DataReaderListener,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
         subscriber_listener::SubscriberListener,
     },
@@ -163,7 +162,7 @@ where
         &self,
         topic: &Self::TopicType,
         qos: Option<DataReaderQos>,
-        listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        listener: Option<<Self::DataReaderType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DDSResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
