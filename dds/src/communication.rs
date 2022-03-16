@@ -158,7 +158,7 @@ where
 
 impl<T> Communication<T>
 where
-    T: TransportRead + TransportWrite,
+    T: TransportRead,
 {
     pub fn receive(&mut self, list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         while let Some((source_locator, message)) = self.transport.read() {
