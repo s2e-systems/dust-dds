@@ -81,16 +81,6 @@ impl<Foo, Rtps> AnyDataReaderListener<Rtps> for Box<dyn DataReaderListener<Foo =
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
-    Rtps::StatelessReader: RtpsReaderAttributes,
-    Rtps::StatefulReader: RtpsReaderAttributes,
-    <Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
-        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-    <Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
-        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps>>) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -102,7 +92,6 @@ where
         reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SampleRejectedStatus,
     ) {
-
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_sample_rejected(&data_reader, status)
     }
@@ -113,7 +102,7 @@ where
         status: LivelinessChangedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
-        self.on_liveliness_changed(&data_reader,status)
+        self.on_liveliness_changed(&data_reader, status)
     }
 
     fn trigger_on_requested_deadline_missed(
@@ -122,7 +111,7 @@ where
         status: RequestedDeadlineMissedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
-        self.on_requested_deadline_missed(&data_reader,status)
+        self.on_requested_deadline_missed(&data_reader, status)
     }
 
     fn trigger_on_requested_incompatible_qos(
@@ -131,7 +120,7 @@ where
         status: RequestedIncompatibleQosStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
-        self.on_requested_incompatible_qos(&data_reader,status)
+        self.on_requested_incompatible_qos(&data_reader, status)
     }
 
     fn trigger_on_subscription_matched(
@@ -140,7 +129,7 @@ where
         status: SubscriptionMatchedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
-        self.on_subscription_matched(&data_reader,status)
+        self.on_subscription_matched(&data_reader, status)
     }
 
     fn trigger_on_sample_lost(
@@ -149,7 +138,7 @@ where
         status: SampleLostStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
-        self.on_sample_lost(&data_reader,status)
+        self.on_sample_lost(&data_reader, status)
     }
 }
 
@@ -292,16 +281,6 @@ impl<Foo, Rtps> DataReader<Foo> for DataReaderProxy<Foo, Rtps>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
-    Rtps::StatelessReader: RtpsReaderAttributes,
-    Rtps::StatefulReader: RtpsReaderAttributes,
-    <Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
-        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-    <Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
-        RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-    for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
     fn read(
         &self,
@@ -314,7 +293,9 @@ where
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
         match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
-                let samples = rtps_reader.reader_cache().changes()
+                let samples = rtps_reader
+                    .reader_cache()
+                    .changes()
                     .iter()
                     .take(max_samples as usize)
                     .map(|cache_change| {
@@ -330,7 +311,7 @@ where
                             sample_rank: 0,
                             generation_rank: 0,
                             absolute_generation_rank: 0,
-                            source_timestamp: Time{sec:0, nanosec:0},
+                            source_timestamp: Time { sec: 0, nanosec: 0 },
                             instance_handle: 0,
                             publication_handle: 0,
                             valid_data: true,
@@ -347,7 +328,9 @@ where
                 }
             }
             RtpsReader::Stateful(rtps_reader) => {
-                let samples = rtps_reader.reader_cache().changes()
+                let samples = rtps_reader
+                    .reader_cache()
+                    .changes()
                     .iter()
                     .take(max_samples as usize)
                     .map(|cache_change| {
@@ -363,7 +346,7 @@ where
                             sample_rank: 0,
                             generation_rank: 0,
                             absolute_generation_rank: 0,
-                            source_timestamp: Time{sec:0, nanosec:0},
+                            source_timestamp: Time { sec: 0, nanosec: 0 },
                             instance_handle: 0,
                             publication_handle: 0,
                             valid_data: true,
@@ -393,58 +376,80 @@ where
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
         match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
-                let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
+                let seq_num = rtps_reader
+                    .reader_cache()
+                    .get_seq_num_min()
+                    .ok_or(DDSError::NoData)?;
 
-                let samples = rtps_reader.reader_cache().changes().iter()
+                let samples = rtps_reader
+                    .reader_cache()
+                    .changes()
+                    .iter()
                     .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
-                        (DdsDeserialize::deserialize(&mut data_value).unwrap(), SampleInfo {
-                            sample_state: SampleStateKind::NotRead,
-                            view_state: ViewStateKind::New,
-                            instance_state: InstanceStateKind::Alive,
-                            disposed_generation_count: 0,
-                            no_writers_generation_count: 0,
-                            sample_rank: 0,
-                            generation_rank: 0,
-                            absolute_generation_rank: 0,
-                            source_timestamp: Time{sec:0, nanosec:0},
-                            instance_handle: 0,
-                            publication_handle: 0,
-                            valid_data: true,
-                        })
+                        (
+                            DdsDeserialize::deserialize(&mut data_value).unwrap(),
+                            SampleInfo {
+                                sample_state: SampleStateKind::NotRead,
+                                view_state: ViewStateKind::New,
+                                instance_state: InstanceStateKind::Alive,
+                                disposed_generation_count: 0,
+                                no_writers_generation_count: 0,
+                                sample_rank: 0,
+                                generation_rank: 0,
+                                absolute_generation_rank: 0,
+                                source_timestamp: Time { sec: 0, nanosec: 0 },
+                                instance_handle: 0,
+                                publication_handle: 0,
+                                valid_data: true,
+                            },
+                        )
                     })
                     .collect::<Vec<_>>();
 
-                rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
+                rtps_reader
+                    .reader_cache()
+                    .remove_change(|cc| cc.sequence_number() == seq_num);
 
                 Ok(samples)
             }
             RtpsReader::Stateful(rtps_reader) => {
-                let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
+                let seq_num = rtps_reader
+                    .reader_cache()
+                    .get_seq_num_min()
+                    .ok_or(DDSError::NoData)?;
 
-                let samples = rtps_reader.reader_cache().changes().iter()
+                let samples = rtps_reader
+                    .reader_cache()
+                    .changes()
+                    .iter()
                     .filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
-                        (DdsDeserialize::deserialize(&mut data_value).unwrap(), SampleInfo {
-                            sample_state: SampleStateKind::NotRead,
-                            view_state: ViewStateKind::New,
-                            instance_state: InstanceStateKind::Alive,
-                            disposed_generation_count: 0,
-                            no_writers_generation_count: 0,
-                            sample_rank: 0,
-                            generation_rank: 0,
-                            absolute_generation_rank: 0,
-                            source_timestamp: Time{sec:0, nanosec:0},
-                            instance_handle: 0,
-                            publication_handle: 0,
-                            valid_data: true,
-                        })
+                        (
+                            DdsDeserialize::deserialize(&mut data_value).unwrap(),
+                            SampleInfo {
+                                sample_state: SampleStateKind::NotRead,
+                                view_state: ViewStateKind::New,
+                                instance_state: InstanceStateKind::Alive,
+                                disposed_generation_count: 0,
+                                no_writers_generation_count: 0,
+                                sample_rank: 0,
+                                generation_rank: 0,
+                                absolute_generation_rank: 0,
+                                source_timestamp: Time { sec: 0, nanosec: 0 },
+                                instance_handle: 0,
+                                publication_handle: 0,
+                                valid_data: true,
+                            },
+                        )
                     })
                     .collect::<Vec<_>>();
 
-                rtps_reader.reader_cache().remove_change(|cc| cc.sequence_number() == seq_num);
+                rtps_reader
+                    .reader_cache()
+                    .remove_change(|cc| cc.sequence_number() == seq_num);
 
                 Ok(samples)
             }
@@ -660,18 +665,8 @@ where
 
 impl<Foo, Rtps> Entity for DataReaderProxy<Foo, Rtps>
 where
-Foo: for<'de> DdsDeserialize<'de> + 'static,
-Rtps: RtpsStructure,
-Rtps::StatelessReader: RtpsReaderAttributes,
-Rtps::StatefulReader: RtpsReaderAttributes,
-<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType:
-    RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType:
-    RtpsHistoryCacheAttributes + RtpsHistoryCacheOperations,
-for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheAttributes>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
-for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
+    Foo: for<'de> DdsDeserialize<'de> + 'static,
+    Rtps: RtpsStructure,
 {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;

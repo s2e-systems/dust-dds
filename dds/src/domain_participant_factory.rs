@@ -35,12 +35,15 @@ use dds_implementation::{
 };
 use mac_address::MacAddress;
 use rtps_implementation::{
-    rtps_group_impl::RtpsGroupImpl, rtps_participant_impl::RtpsParticipantImpl,
+    rtps_group_impl::RtpsGroupImpl,
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_participant_impl::RtpsParticipantImpl,
     rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -81,6 +84,8 @@ impl RtpsStructure for RtpsStructureImpl {
     type StatefulWriter = RtpsStatefulWriterImpl<StdTimer>;
     type StatelessReader = RtpsStatelessReaderImpl;
     type StatefulReader = RtpsStatefulReaderImpl;
+    type HistoryCache = RtpsHistoryCacheImpl;
+    type CacheChange = RtpsCacheChangeImpl;
 }
 
 /// The DomainParticipant object plays several roles:
@@ -1043,11 +1048,10 @@ mod tests {
         {
             task_announce_participant(participant1.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications2
                 .metatraffic_multicast
@@ -1216,16 +1220,14 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_multicast
@@ -1266,16 +1268,14 @@ mod tests {
 
         // ////////// Send and receive SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_unicast
@@ -1448,16 +1448,14 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_multicast
@@ -1508,16 +1506,14 @@ mod tests {
 
         // ////////// Send SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_unicast
@@ -1628,16 +1624,14 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_multicast
@@ -1686,16 +1680,14 @@ mod tests {
 
         // ////////// Activate SEDP
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_unicast

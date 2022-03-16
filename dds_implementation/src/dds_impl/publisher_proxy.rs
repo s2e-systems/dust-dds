@@ -24,13 +24,9 @@ use dds_api::{
 };
 
 use rtps_pim::{
-    behavior::writer::{
-        stateful_writer::RtpsStatefulWriterConstructor,
-        writer::{RtpsWriterAttributes, RtpsWriterOperations},
-    },
+    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
     structure::{
         entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheOperations,
         participant::RtpsParticipantAttributes,
         types::{
             EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
@@ -116,19 +112,6 @@ impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
 where
     Foo: DdsType + DdsSerialize + Send + Sync + 'static,
     Rtps: RtpsStructure,
-    Rtps::Group: RtpsEntityAttributes,
-    Rtps::Participant: RtpsParticipantAttributes,
-    Rtps::StatelessWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes,
-    Rtps::StatefulWriter: RtpsWriterOperations<DataType = Vec<u8>, ParameterListType = Vec<u8>>
-        + RtpsWriterAttributes
-        + RtpsStatefulWriterConstructor,
-    <Rtps::StatelessWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
-        CacheChangeType = <Rtps::StatelessWriter as RtpsWriterOperations>::CacheChangeType,
-    >,
-    <Rtps::StatefulWriter as RtpsWriterAttributes>::HistoryCacheType: RtpsHistoryCacheOperations<
-        CacheChangeType = <Rtps::StatefulWriter as RtpsWriterOperations>::CacheChangeType,
-    >,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
     type DataWriterType = DataWriterProxy<Foo, Rtps>;
@@ -450,549 +433,549 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::{io::Write, sync::atomic::AtomicU8, vec};
-
-    use dds_api::{
-        dcps_psm::DomainId,
-        infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, TopicQos},
-        publication::publisher::PublisherDataWriterFactory,
-        return_type::{DDSError, DDSResult},
-    };
-    use rtps_pim::{
-        behavior::{
-            types::Duration,
-            writer::{
-                stateful_writer::RtpsStatefulWriterConstructor,
-                writer::{RtpsWriterAttributes, RtpsWriterOperations},
-            },
-        },
-        discovery::sedp::builtin_endpoints::SedpBuiltinPublicationsWriter,
-        structure::{
-            entity::RtpsEntityAttributes,
-            history_cache::RtpsHistoryCacheOperations,
-            participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
-            types::{
-                ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
-                SequenceNumber, TopicKind, GUID_UNKNOWN,
-            },
-        },
-    };
-
-    use crate::{
-        data_representation_builtin_endpoints::sedp_discovered_writer_data::{
-            SedpDiscoveredWriterData, DCPS_PUBLICATION,
-        },
-        dds_impl::{
-            data_writer_proxy::{DataWriterAttributes, RtpsWriter},
-            domain_participant_proxy::DomainParticipantAttributes,
-            topic_proxy::{TopicAttributes, TopicProxy},
-        },
-        dds_type::{DdsSerialize, DdsType, Endianness},
-        utils::{
-            rtps_structure::RtpsStructure,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
-        },
-    };
-
-    use super::{PublisherAttributes, PublisherProxy};
-
-    #[derive(Default)]
-    struct EmptyGroup;
-
-    impl RtpsEntityAttributes for EmptyGroup {
-        fn guid(&self) -> Guid {
-            GUID_UNKNOWN
-        }
-    }
-
-    struct EmptyHistoryCache {}
-    impl RtpsHistoryCacheOperations for EmptyHistoryCache {
-        type CacheChangeType = ();
-        fn add_change(&mut self, _change: ()) {}
-
-        fn remove_change<F>(&mut self, _f: F)
-        where
-            F: FnMut(&Self::CacheChangeType) -> bool,
-        {
-            todo!()
-        }
-        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            None
-        }
-
-        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-            None
-        }
-    }
-
-    struct EmptyWriter {
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        last_change_sequence_number: SequenceNumber,
-        data_max_serialized: Option<i32>,
-        writer_cache: EmptyHistoryCache,
-    }
-    impl RtpsWriterOperations for EmptyWriter {
-        type DataType = Vec<u8>;
-        type ParameterListType = Vec<u8>;
-        type CacheChangeType = ();
-
-        fn new_change(
-            &mut self,
-            _kind: ChangeKind,
-            _data: Vec<u8>,
-            _inline_qos: Vec<u8>,
-            _handle: InstanceHandle,
-        ) -> () {
-            ()
-        }
-    }
-    impl RtpsWriterAttributes for EmptyWriter {
-        type HistoryCacheType = EmptyHistoryCache;
-
-        fn push_mode(&self) -> bool {
-            self.push_mode
-        }
-        fn heartbeat_period(&self) -> Duration {
-            self.heartbeat_period
-        }
-        fn nack_response_delay(&self) -> Duration {
-            self.nack_response_delay
-        }
-        fn nack_suppression_duration(&self) -> Duration {
-            self.nack_suppression_duration
-        }
-        fn last_change_sequence_number(&self) -> SequenceNumber {
-            self.last_change_sequence_number
-        }
-        fn data_max_size_serialized(&self) -> Option<i32> {
-            self.data_max_serialized
-        }
-        fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
-            &mut self.writer_cache
-        }
-    }
-    impl RtpsStatefulWriterConstructor for EmptyWriter {
-        fn new(
-            _guid: Guid,
-            _topic_kind: TopicKind,
-            _reliability_level: ReliabilityKind,
-            _unicast_locator_list: &[Locator],
-            _multicast_locator_list: &[Locator],
-            _push_mode: bool,
-            _heartbeat_period: Duration,
-            _nack_response_delay: Duration,
-            _nack_suppression_duration: Duration,
-            _data_max_size_serialized: Option<i32>,
-        ) -> Self {
-            EmptyWriter {
-                push_mode: true,
-                heartbeat_period: Duration::new(0, 0),
-                nack_response_delay: Duration::new(0, 0),
-                nack_suppression_duration: Duration::new(0, 0),
-                last_change_sequence_number: SequenceNumber::default(),
-                data_max_serialized: None,
-                writer_cache: EmptyHistoryCache {},
-            }
-        }
-    }
-
-    #[derive(Default)]
-    struct EmptyParticipant {}
-
-    impl RtpsParticipantConstructor for EmptyParticipant {
-        fn new(
-            _guid: Guid,
-            _default_unicast_locator_list: &[Locator],
-            _default_multicast_locator_list: &[Locator],
-            _protocol_version: rtps_pim::structure::types::ProtocolVersion,
-            _vendor_id: rtps_pim::structure::types::VendorId,
-        ) -> Self {
-            EmptyParticipant {}
-        }
-    }
-
-    impl RtpsEntityAttributes for EmptyParticipant {
-        fn guid(&self) -> Guid {
-            todo!()
-        }
-    }
-
-    impl RtpsParticipantAttributes for EmptyParticipant {
-        fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
-            todo!()
-        }
-
-        fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
-            todo!()
-        }
-
-        fn default_unicast_locator_list(&self) -> &[Locator] {
-            &[]
-        }
-
-        fn default_multicast_locator_list(&self) -> &[Locator] {
-            &[]
-        }
-    }
-
-    struct EmptyRtps {}
-
-    impl RtpsStructure for EmptyRtps {
-        type Group = EmptyGroup;
-        type Participant = EmptyParticipant;
-        type StatelessWriter = EmptyWriter;
-        type StatefulWriter = EmptyWriter;
-        type StatelessReader = ();
-        type StatefulReader = ();
-    }
-
-    fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
-    where
-        Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
-        Rtps::Participant: Default + RtpsParticipantConstructor,
-        Rtps::Group: Default,
-    {
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
-            GuidPrefix([1; 12]),
-            DomainId::default(),
-            "".to_string(),
-            DomainParticipantQos::default(),
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ));
-
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                Rtps::Group::default(),
-                domain_participant.downgrade(),
-            )));
-
-        let sedp_topic_publication = DdsShared::new(TopicAttributes::<Rtps>::new(
-            TopicQos::default(),
-            SedpDiscoveredWriterData::type_name(),
-            DCPS_PUBLICATION,
-            DdsWeak::new(),
-        ));
-
-        domain_participant
-            .topic_list
-            .write_lock()
-            .push(sedp_topic_publication.clone());
-
-        let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
-        let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
-            None,
-            sedp_topic_publication.clone(),
-            domain_participant
-                .builtin_publisher
-                .read_lock()
-                .as_ref()
-                .unwrap()
-                .downgrade(),
-        ));
-        domain_participant
-            .builtin_publisher
-            .read_lock()
-            .as_ref()
-            .unwrap()
-            .data_writer_list
-            .write_lock()
-            .push(sedp_builtin_publications_data_writer.clone());
-
-        domain_participant
-    }
-
-    fn make_publisher<Rtps: RtpsStructure>(
-        parent: DdsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> DdsShared<PublisherAttributes<Rtps>>
-    where
-        Rtps::Group: Default,
-    {
-        DdsShared::new(PublisherAttributes {
-            _qos: PublisherQos::default(),
-            rtps_group: Rtps::Group::default(),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: parent,
-        })
-    }
-
-    fn make_topic<Rtps: RtpsStructure>(
-        type_name: &'static str,
-        topic_name: &'static str,
-    ) -> TopicAttributes<Rtps> {
-        TopicAttributes::new(TopicQos::default(), type_name, topic_name, DdsWeak::new())
-    }
-
-    macro_rules! make_empty_dds_type {
-        ($type_name:ident) => {
-            struct $type_name {}
-
-            impl DdsSerialize for $type_name {
-                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
-                    Ok(())
-                }
-            }
-
-            impl DdsType for $type_name {
-                fn type_name() -> &'static str {
-                    stringify!($type_name)
-                }
-
-                fn has_key() -> bool {
-                    false
-                }
-            }
-        };
-    }
-
-    make_empty_dds_type!(Foo);
-
-    #[test]
-    fn datawriter_factory_create_datawriter() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        let data_writer =
-            publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
-
-        assert!(data_writer.is_ok());
-        assert_eq!(1, publisher.data_writer_list.read_lock().len());
-    }
-
-    #[test]
-    fn datawriter_factory_delete_datawriter() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
-            .unwrap();
-
-        assert_eq!(1, publisher.data_writer_list.read_lock().len());
-
-        publisher_proxy
-            .datawriter_factory_delete_datawriter(&data_writer)
-            .unwrap();
-
-        assert_eq!(0, publisher.data_writer_list.read_lock().len());
-        assert!(data_writer.as_ref().upgrade().is_err())
-    }
-
-    #[test]
-    fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let publisher2 = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
-
-        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
-            .unwrap();
-
-        assert_eq!(1, publisher.data_writer_list.read_lock().len());
-        assert_eq!(0, publisher2.data_writer_list.read_lock().len());
-
-        assert!(matches!(
-            publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
-            Err(DDSError::PreconditionNotMet(_))
-        ));
-        assert!(data_writer.as_ref().upgrade().is_ok())
-    }
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_proxy)
-            .is_err());
-    }
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
-
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
-            .unwrap();
-
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer.as_ref().upgrade().unwrap()
-        );
-    }
-
-    make_empty_dds_type!(Bar);
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
-
-        let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
-        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
-
-        publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
-            .unwrap();
-
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-            .is_err());
-    }
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
-        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
-
-        let topic2 = DdsShared::new(make_topic(Bar::type_name(), "topic2"));
-        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
-
-        publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
-            .unwrap();
-
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic1_proxy)
-            .is_err());
-    }
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic_foo = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
-        let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
-
-        let topic_bar = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
-        let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
-
-        let data_writer_foo = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_foo_proxy, None, None, 0)
-            .unwrap();
-        let data_writer_bar = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
-            .unwrap();
-
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_foo.as_ref().upgrade().unwrap()
-        );
-
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_bar_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_bar.as_ref().upgrade().unwrap()
-        );
-    }
-
-    #[test]
-    fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let domain_participant = make_participant::<EmptyRtps>();
-
-        let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
-
-        let topic1 = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
-        let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
-
-        let topic2 = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
-        let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
-
-        let data_writer1 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic1_proxy, None, None, 0)
-            .unwrap();
-        let data_writer2 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
-            .unwrap();
-
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic1_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer1.as_ref().upgrade().unwrap()
-        );
-
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic2_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer2.as_ref().upgrade().unwrap()
-        );
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use std::{io::Write, sync::atomic::AtomicU8, vec};
+
+//     use dds_api::{
+//         dcps_psm::DomainId,
+//         infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, TopicQos},
+//         publication::publisher::PublisherDataWriterFactory,
+//         return_type::{DDSError, DDSResult},
+//     };
+//     use rtps_pim::{
+//         behavior::{
+//             types::Duration,
+//             writer::{
+//                 stateful_writer::RtpsStatefulWriterConstructor,
+//                 writer::{RtpsWriterAttributes, RtpsWriterOperations},
+//             },
+//         },
+//         discovery::sedp::builtin_endpoints::SedpBuiltinPublicationsWriter,
+//         structure::{
+//             entity::RtpsEntityAttributes,
+//             history_cache::RtpsHistoryCacheOperations,
+//             participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
+//             types::{
+//                 ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
+//                 SequenceNumber, TopicKind, GUID_UNKNOWN,
+//             },
+//         },
+//     };
+
+//     use crate::{
+//         data_representation_builtin_endpoints::sedp_discovered_writer_data::{
+//             SedpDiscoveredWriterData, DCPS_PUBLICATION,
+//         },
+//         dds_impl::{
+//             data_writer_proxy::{DataWriterAttributes, RtpsWriter},
+//             domain_participant_proxy::DomainParticipantAttributes,
+//             topic_proxy::{TopicAttributes, TopicProxy},
+//         },
+//         dds_type::{DdsSerialize, DdsType, Endianness},
+//         utils::{
+//             rtps_structure::RtpsStructure,
+//             shared_object::{DdsRwLock, DdsShared, DdsWeak},
+//         },
+//     };
+
+//     use super::{PublisherAttributes, PublisherProxy};
+
+//     #[derive(Default)]
+//     struct EmptyGroup;
+
+//     impl RtpsEntityAttributes for EmptyGroup {
+//         fn guid(&self) -> Guid {
+//             GUID_UNKNOWN
+//         }
+//     }
+
+//     struct EmptyHistoryCache {}
+//     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
+//         type CacheChangeType = ();
+//         fn add_change(&mut self, _change: ()) {}
+
+//         fn remove_change<F>(&mut self, _f: F)
+//         where
+//             F: FnMut(&Self::CacheChangeType) -> bool,
+//         {
+//             todo!()
+//         }
+//         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+//             None
+//         }
+
+//         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+//             None
+//         }
+//     }
+
+//     struct EmptyWriter {
+//         push_mode: bool,
+//         heartbeat_period: Duration,
+//         nack_response_delay: Duration,
+//         nack_suppression_duration: Duration,
+//         last_change_sequence_number: SequenceNumber,
+//         data_max_serialized: Option<i32>,
+//         writer_cache: EmptyHistoryCache,
+//     }
+//     impl RtpsWriterOperations for EmptyWriter {
+//         type DataType = Vec<u8>;
+//         type ParameterListType = Vec<u8>;
+//         type CacheChangeType = ();
+
+//         fn new_change(
+//             &mut self,
+//             _kind: ChangeKind,
+//             _data: Vec<u8>,
+//             _inline_qos: Vec<u8>,
+//             _handle: InstanceHandle,
+//         ) -> () {
+//             ()
+//         }
+//     }
+//     impl RtpsWriterAttributes for EmptyWriter {
+//         type HistoryCacheType = EmptyHistoryCache;
+
+//         fn push_mode(&self) -> bool {
+//             self.push_mode
+//         }
+//         fn heartbeat_period(&self) -> Duration {
+//             self.heartbeat_period
+//         }
+//         fn nack_response_delay(&self) -> Duration {
+//             self.nack_response_delay
+//         }
+//         fn nack_suppression_duration(&self) -> Duration {
+//             self.nack_suppression_duration
+//         }
+//         fn last_change_sequence_number(&self) -> SequenceNumber {
+//             self.last_change_sequence_number
+//         }
+//         fn data_max_size_serialized(&self) -> Option<i32> {
+//             self.data_max_serialized
+//         }
+//         fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
+//             &mut self.writer_cache
+//         }
+//     }
+//     impl RtpsStatefulWriterConstructor for EmptyWriter {
+//         fn new(
+//             _guid: Guid,
+//             _topic_kind: TopicKind,
+//             _reliability_level: ReliabilityKind,
+//             _unicast_locator_list: &[Locator],
+//             _multicast_locator_list: &[Locator],
+//             _push_mode: bool,
+//             _heartbeat_period: Duration,
+//             _nack_response_delay: Duration,
+//             _nack_suppression_duration: Duration,
+//             _data_max_size_serialized: Option<i32>,
+//         ) -> Self {
+//             EmptyWriter {
+//                 push_mode: true,
+//                 heartbeat_period: Duration::new(0, 0),
+//                 nack_response_delay: Duration::new(0, 0),
+//                 nack_suppression_duration: Duration::new(0, 0),
+//                 last_change_sequence_number: SequenceNumber::default(),
+//                 data_max_serialized: None,
+//                 writer_cache: EmptyHistoryCache {},
+//             }
+//         }
+//     }
+
+//     #[derive(Default)]
+//     struct EmptyParticipant {}
+
+//     impl RtpsParticipantConstructor for EmptyParticipant {
+//         fn new(
+//             _guid: Guid,
+//             _default_unicast_locator_list: &[Locator],
+//             _default_multicast_locator_list: &[Locator],
+//             _protocol_version: rtps_pim::structure::types::ProtocolVersion,
+//             _vendor_id: rtps_pim::structure::types::VendorId,
+//         ) -> Self {
+//             EmptyParticipant {}
+//         }
+//     }
+
+//     impl RtpsEntityAttributes for EmptyParticipant {
+//         fn guid(&self) -> Guid {
+//             todo!()
+//         }
+//     }
+
+//     impl RtpsParticipantAttributes for EmptyParticipant {
+//         fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
+//             todo!()
+//         }
+
+//         fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
+//             todo!()
+//         }
+
+//         fn default_unicast_locator_list(&self) -> &[Locator] {
+//             &[]
+//         }
+
+//         fn default_multicast_locator_list(&self) -> &[Locator] {
+//             &[]
+//         }
+//     }
+
+//     struct EmptyRtps {}
+
+//     impl RtpsStructure for EmptyRtps {
+//         type Group = EmptyGroup;
+//         type Participant = EmptyParticipant;
+//         type StatelessWriter = EmptyWriter;
+//         type StatefulWriter = EmptyWriter;
+//         type StatelessReader = ();
+//         type StatefulReader = ();
+//     }
+
+//     fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
+//     where
+//         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
+//         Rtps::Participant: Default + RtpsParticipantConstructor,
+//         Rtps::Group: Default,
+//     {
+//         let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         ));
+
+//         *domain_participant.builtin_publisher.write_lock() =
+//             Some(DdsShared::new(PublisherAttributes::new(
+//                 PublisherQos::default(),
+//                 Rtps::Group::default(),
+//                 domain_participant.downgrade(),
+//             )));
+
+//         let sedp_topic_publication = DdsShared::new(TopicAttributes::<Rtps>::new(
+//             TopicQos::default(),
+//             SedpDiscoveredWriterData::type_name(),
+//             DCPS_PUBLICATION,
+//             DdsWeak::new(),
+//         ));
+
+//         domain_participant
+//             .topic_list
+//             .write_lock()
+//             .push(sedp_topic_publication.clone());
+
+//         let sedp_builtin_publications_rtps_writer =
+//             SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
+//         let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
+//             DataWriterQos::default(),
+//             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
+//             None,
+//             sedp_topic_publication.clone(),
+//             domain_participant
+//                 .builtin_publisher
+//                 .read_lock()
+//                 .as_ref()
+//                 .unwrap()
+//                 .downgrade(),
+//         ));
+//         domain_participant
+//             .builtin_publisher
+//             .read_lock()
+//             .as_ref()
+//             .unwrap()
+//             .data_writer_list
+//             .write_lock()
+//             .push(sedp_builtin_publications_data_writer.clone());
+
+//         domain_participant
+//     }
+
+//     fn make_publisher<Rtps: RtpsStructure>(
+//         parent: DdsWeak<DomainParticipantAttributes<Rtps>>,
+//     ) -> DdsShared<PublisherAttributes<Rtps>>
+//     where
+//         Rtps::Group: Default,
+//     {
+//         DdsShared::new(PublisherAttributes {
+//             _qos: PublisherQos::default(),
+//             rtps_group: Rtps::Group::default(),
+//             data_writer_list: DdsRwLock::new(Vec::new()),
+//             user_defined_data_writer_counter: AtomicU8::new(0),
+//             default_datawriter_qos: DataWriterQos::default(),
+//             parent_participant: parent,
+//         })
+//     }
+
+//     fn make_topic<Rtps: RtpsStructure>(
+//         type_name: &'static str,
+//         topic_name: &'static str,
+//     ) -> TopicAttributes<Rtps> {
+//         TopicAttributes::new(TopicQos::default(), type_name, topic_name, DdsWeak::new())
+//     }
+
+//     macro_rules! make_empty_dds_type {
+//         ($type_name:ident) => {
+//             struct $type_name {}
+
+//             impl DdsSerialize for $type_name {
+//                 fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+//                     Ok(())
+//                 }
+//             }
+
+//             impl DdsType for $type_name {
+//                 fn type_name() -> &'static str {
+//                     stringify!($type_name)
+//                 }
+
+//                 fn has_key() -> bool {
+//                     false
+//                 }
+//             }
+//         };
+//     }
+
+//     make_empty_dds_type!(Foo);
+
+//     #[test]
+//     fn datawriter_factory_create_datawriter() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+
+//         let data_writer =
+//             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+
+//         assert!(data_writer.is_ok());
+//         assert_eq!(1, publisher.data_writer_list.read_lock().len());
+//     }
+
+//     #[test]
+//     fn datawriter_factory_delete_datawriter() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+
+//         let data_writer = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert_eq!(1, publisher.data_writer_list.read_lock().len());
+
+//         publisher_proxy
+//             .datawriter_factory_delete_datawriter(&data_writer)
+//             .unwrap();
+
+//         assert_eq!(0, publisher.data_writer_list.read_lock().len());
+//         assert!(data_writer.as_ref().upgrade().is_err())
+//     }
+
+//     #[test]
+//     fn datawriter_factory_delete_datawriter_from_other_publisher() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let publisher2 = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
+
+//         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+
+//         let data_writer = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert_eq!(1, publisher.data_writer_list.read_lock().len());
+//         assert_eq!(0, publisher2.data_writer_list.read_lock().len());
+
+//         assert!(matches!(
+//             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
+//             Err(DDSError::PreconditionNotMet(_))
+//         ));
+//         assert!(data_writer.as_ref().upgrade().is_ok())
+//     }
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+
+//         assert!(publisher_proxy
+//             .datawriter_factory_lookup_datawriter(&topic_proxy)
+//             .is_err());
+//     }
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+
+//         let data_writer = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert!(
+//             publisher_proxy
+//                 .datawriter_factory_lookup_datawriter(&topic_proxy)
+//                 .unwrap()
+//                 .as_ref()
+//                 .upgrade()
+//                 .unwrap()
+//                 == data_writer.as_ref().upgrade().unwrap()
+//         );
+//     }
+
+//     make_empty_dds_type!(Bar);
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
+//         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+
+//         let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
+//         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+
+//         publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert!(publisher_proxy
+//             .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+//             .is_err());
+//     }
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
+//         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+//         let topic2 = DdsShared::new(make_topic(Bar::type_name(), "topic2"));
+//         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+//         publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert!(publisher_proxy
+//             .datawriter_factory_lookup_datawriter(&topic1_proxy)
+//             .is_err());
+//     }
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic_foo = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
+//         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+
+//         let topic_bar = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
+//         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+
+//         let data_writer_foo = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_foo_proxy, None, None, 0)
+//             .unwrap();
+//         let data_writer_bar = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert!(
+//             publisher_proxy
+//                 .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
+//                 .unwrap()
+//                 .as_ref()
+//                 .upgrade()
+//                 .unwrap()
+//                 == data_writer_foo.as_ref().upgrade().unwrap()
+//         );
+
+//         assert!(
+//             publisher_proxy
+//                 .datawriter_factory_lookup_datawriter(&topic_bar_proxy)
+//                 .unwrap()
+//                 .as_ref()
+//                 .upgrade()
+//                 .unwrap()
+//                 == data_writer_bar.as_ref().upgrade().unwrap()
+//         );
+//     }
+
+//     #[test]
+//     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
+//         let domain_participant = make_participant::<EmptyRtps>();
+
+//         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
+//         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
+
+//         let topic1 = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
+//         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+
+//         let topic2 = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
+//         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
+
+//         let data_writer1 = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic1_proxy, None, None, 0)
+//             .unwrap();
+//         let data_writer2 = publisher_proxy
+//             .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+//             .unwrap();
+
+//         assert!(
+//             publisher_proxy
+//                 .datawriter_factory_lookup_datawriter(&topic1_proxy)
+//                 .unwrap()
+//                 .as_ref()
+//                 .upgrade()
+//                 .unwrap()
+//                 == data_writer1.as_ref().upgrade().unwrap()
+//         );
+
+//         assert!(
+//             publisher_proxy
+//                 .datawriter_factory_lookup_datawriter(&topic2_proxy)
+//                 .unwrap()
+//                 .as_ref()
+//                 .upgrade()
+//                 .unwrap()
+//                 == data_writer2.as_ref().upgrade().unwrap()
+//         );
+//     }
+// }
