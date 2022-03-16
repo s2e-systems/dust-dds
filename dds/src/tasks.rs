@@ -32,7 +32,7 @@ use dds_implementation::{
         publisher_proxy::PublisherProxy,
         subscriber_proxy::SubscriberProxy,
     },
-    utils::shared_object::RtpsShared,
+    utils::shared_object::DdsShared,
 };
 use rtps_implementation::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
@@ -127,7 +127,7 @@ pub struct EnabledPeriodicTask {
 }
 
 pub fn task_spdp_discovery(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
     let builtin_subscriber = SubscriberProxy::new(
@@ -298,7 +298,7 @@ pub fn task_spdp_discovery(
 }
 
 pub fn task_sedp_writer_discovery(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
     if domain_participant
         .user_defined_subscriber_list
@@ -375,7 +375,7 @@ pub fn task_sedp_writer_discovery(
 }
 
 pub fn task_sedp_reader_discovery(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
     if domain_participant
         .user_defined_publisher_list
@@ -451,7 +451,7 @@ pub fn task_sedp_reader_discovery(
 }
 
 pub fn task_announce_participant(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
     let spdp_participant_writer = {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
@@ -536,7 +536,7 @@ mod tests {
             subscriber_proxy::SubscriberProxy,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-        utils::shared_object::RtpsShared,
+        utils::shared_object::DdsShared,
     };
 
     use crate::{
@@ -618,7 +618,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -638,7 +638,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -870,7 +870,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -890,7 +890,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1034,7 +1034,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1054,7 +1054,7 @@ mod tests {
             multicast_address.into(),
         )
         .unwrap();
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),

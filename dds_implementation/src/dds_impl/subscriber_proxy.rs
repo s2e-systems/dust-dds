@@ -51,7 +51,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 
@@ -68,10 +68,10 @@ where
 {
     pub qos: SubscriberQos,
     pub rtps_group: Rtps::Group,
-    pub data_reader_list: RtpsRwLock<Vec<RtpsShared<DataReaderAttributes<Rtps>>>>,
+    pub data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderAttributes<Rtps>>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
-    pub parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    pub parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> SubscriberAttributes<Rtps>
@@ -81,12 +81,12 @@ where
     pub fn new(
         qos: SubscriberQos,
         rtps_group: Rtps::Group,
-        parent_domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+        parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             qos,
             rtps_group,
-            data_reader_list: RtpsRwLock::new(Vec::new()),
+            data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant,
@@ -100,7 +100,7 @@ where
     Rtps: RtpsStructure,
 {
     participant: DomainParticipantProxy<Rtps>,
-    subscriber_impl: RtpsWeak<SubscriberAttributes<Rtps>>,
+    subscriber_impl: DdsWeak<SubscriberAttributes<Rtps>>,
 }
 
 impl<Rtps> SubscriberProxy<Rtps>
@@ -109,7 +109,7 @@ where
 {
     pub fn new(
         participant: DomainParticipantProxy<Rtps>,
-        subscriber_impl: RtpsWeak<SubscriberAttributes<Rtps>>,
+        subscriber_impl: DdsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
             participant,
@@ -118,11 +118,11 @@ where
     }
 }
 
-impl<Rtps> AsRef<RtpsWeak<SubscriberAttributes<Rtps>>> for SubscriberProxy<Rtps>
+impl<Rtps> AsRef<DdsWeak<SubscriberAttributes<Rtps>>> for SubscriberProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<SubscriberAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<SubscriberAttributes<Rtps>> {
         &self.subscriber_impl
     }
 }
@@ -245,7 +245,7 @@ where
                 self.subscriber_impl.clone(),
             );
 
-            let data_reader_shared = RtpsShared::new(data_reader);
+            let data_reader_shared = DdsShared::new(data_reader);
 
             subscriber_shared
 
@@ -534,7 +534,7 @@ mod tests {
         dds_type::{DdsDeserialize, DdsType},
         utils::{
             rtps_structure::RtpsStructure,
-            shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
         },
     };
 
@@ -772,13 +772,13 @@ mod tests {
         type StatefulReader = EmptyReader;
     }
 
-    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
     where
         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
         Rtps::Participant: Default + RtpsParticipantConstructor,
         Rtps::Group: Default,
     {
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -790,17 +790,17 @@ mod tests {
         ));
 
         *domain_participant.builtin_publisher.write_lock() =
-            Some(RtpsShared::new(PublisherAttributes::new(
+            Some(DdsShared::new(PublisherAttributes::new(
                 PublisherQos::default(),
                 Rtps::Group::default(),
                 domain_participant.downgrade(),
             )));
 
-        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::<Rtps>::new(
+        let sedp_topic_subscription = DdsShared::new(TopicAttributes::<Rtps>::new(
             TopicQos::default(),
             SedpDiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         domain_participant
@@ -810,7 +810,7 @@ mod tests {
 
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
-        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
             None,
@@ -835,15 +835,15 @@ mod tests {
     }
 
     fn make_subscriber<Rtps: RtpsStructure>(
-        parent: RtpsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> RtpsShared<SubscriberAttributes<Rtps>>
+        parent: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    ) -> DdsShared<SubscriberAttributes<Rtps>>
     where
         Rtps::Group: Default,
     {
-        RtpsShared::new(SubscriberAttributes {
+        DdsShared::new(SubscriberAttributes {
             qos: SubscriberQos::default(),
             rtps_group: Rtps::Group::default(),
-            data_reader_list: RtpsRwLock::new(Vec::new()),
+            data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: parent,
@@ -854,7 +854,7 @@ mod tests {
         type_name: &'static str,
         topic_name: &'static str,
     ) -> TopicAttributes<Rtps> {
-        TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
+        TopicAttributes::new(TopicQos::default(), type_name, topic_name, DdsWeak::new())
     }
 
     macro_rules! make_empty_dds_type {
@@ -891,7 +891,7 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
@@ -909,7 +909,7 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader =
@@ -929,7 +929,7 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
@@ -961,7 +961,7 @@ mod tests {
             subscriber2.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
@@ -988,7 +988,7 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         assert!(subscriber_proxy
@@ -1006,7 +1006,7 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_reader = subscriber_proxy
@@ -1036,10 +1036,10 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(make_topic(Bar::type_name(), "topic"));
+        let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         subscriber_proxy
@@ -1061,10 +1061,10 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
+        let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
 
-        let topic2 = RtpsShared::new(make_topic(Foo::type_name(), "topic2"));
+        let topic2 = DdsShared::new(make_topic(Foo::type_name(), "topic2"));
         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
 
         subscriber_proxy
@@ -1086,10 +1086,10 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(make_topic(Bar::type_name(), "topic"));
+        let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_reader_foo = subscriber_proxy
@@ -1130,10 +1130,10 @@ mod tests {
             subscriber.downgrade(),
         );
 
-        let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
+        let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
 
-        let topic2 = RtpsShared::new(make_topic(Foo::type_name(), "topic2"));
+        let topic2 = DdsShared::new(make_topic(Foo::type_name(), "topic2"));
         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
 
         let data_reader1 = subscriber_proxy

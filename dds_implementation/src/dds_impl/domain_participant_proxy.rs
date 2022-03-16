@@ -43,7 +43,7 @@ use crate::{
     dds_type::{DdsSerialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsRwLock, RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 
@@ -61,21 +61,21 @@ where
     pub domain_id: DomainId,
     pub domain_tag: String,
     pub qos: DomainParticipantQos,
-    pub builtin_subscriber: RtpsRwLock<Option<RtpsShared<SubscriberAttributes<Rtps>>>>,
-    pub builtin_publisher: RtpsRwLock<Option<RtpsShared<PublisherAttributes<Rtps>>>>,
-    pub user_defined_subscriber_list: RtpsRwLock<Vec<RtpsShared<SubscriberAttributes<Rtps>>>>,
+    pub builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes<Rtps>>>>,
+    pub builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes<Rtps>>>>,
+    pub user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes<Rtps>>>>,
     pub user_defined_subscriber_counter: AtomicU8,
     pub default_subscriber_qos: SubscriberQos,
-    pub user_defined_publisher_list: RtpsRwLock<Vec<RtpsShared<PublisherAttributes<Rtps>>>>,
+    pub user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes<Rtps>>>>,
     pub user_defined_publisher_counter: AtomicU8,
     pub default_publisher_qos: PublisherQos,
-    pub topic_list: RtpsRwLock<Vec<RtpsShared<TopicAttributes<Rtps>>>>,
+    pub topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<Rtps>>>>,
     pub default_topic_qos: TopicQos,
     pub manual_liveliness_count: Count,
     pub lease_duration: rtps_pim::behavior::types::Duration,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub enabled: RtpsRwLock<bool>,
+    pub enabled: DdsRwLock<bool>,
 }
 
 impl<Rtps> DomainParticipantAttributes<Rtps>
@@ -109,21 +109,21 @@ where
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            builtin_subscriber: RtpsRwLock::new(None),
-            builtin_publisher: RtpsRwLock::new(None),
-            user_defined_subscriber_list: RtpsRwLock::new(Vec::new()),
+            builtin_subscriber: DdsRwLock::new(None),
+            builtin_publisher: DdsRwLock::new(None),
+            user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: RtpsRwLock::new(Vec::new()),
+            user_defined_publisher_list: DdsRwLock::new(Vec::new()),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
-            topic_list: RtpsRwLock::new(Vec::new()),
+            topic_list: DdsRwLock::new(Vec::new()),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            enabled: RtpsRwLock::new(false),
+            enabled: DdsRwLock::new(false),
         }
     }
 }
@@ -132,7 +132,7 @@ pub struct DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> Clone for DomainParticipantProxy<Rtps>
@@ -150,7 +150,7 @@ impl<Rtps> DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
+    pub fn new(domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
         Self { domain_participant }
     }
 }
@@ -188,7 +188,7 @@ where
         let qos = qos.unwrap_or(participant_shared.default_topic_qos.clone());
 
         // /////// Create topic
-        let topic_shared = RtpsShared::new(TopicAttributes::new(
+        let topic_shared = DdsShared::new(TopicAttributes::new(
             qos.clone(),
             Foo::type_name(),
             topic_name,
@@ -345,7 +345,7 @@ where
         //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
         let publisher_impl =
             PublisherAttributes::new(publisher_qos, rtps_group, self.domain_participant.clone());
-        let publisher_impl_shared = RtpsShared::new(publisher_impl);
+        let publisher_impl_shared = DdsShared::new(publisher_impl);
         domain_participant_attributes
             .user_defined_publisher_list
             .write_lock()
@@ -396,7 +396,7 @@ where
         let rtps_group = Rtps::Group::new(guid);
         let subscriber =
             SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
-        let subscriber_shared = RtpsShared::new(subscriber);
+        let subscriber_shared = DdsShared::new(subscriber);
         domain_participant_attributes
             .user_defined_subscriber_list
             .write_lock()
@@ -685,7 +685,7 @@ mod tests {
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
             rtps_structure::RtpsStructure,
-            shared_object::{RtpsShared, RtpsWeak},
+            shared_object::{DdsShared, DdsWeak},
         },
     };
 
@@ -837,13 +837,13 @@ mod tests {
         type StatefulReader = ();
     }
 
-    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
     where
         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
         Rtps::Participant: Default + RtpsParticipantConstructor,
         Rtps::Group: Default,
     {
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -855,17 +855,17 @@ mod tests {
         ));
 
         *domain_participant.builtin_publisher.write_lock() =
-            Some(RtpsShared::new(PublisherAttributes::new(
+            Some(DdsShared::new(PublisherAttributes::new(
                 PublisherQos::default(),
                 Rtps::Group::default(),
                 domain_participant.downgrade(),
             )));
 
-        let sedp_topic_topic = RtpsShared::new(TopicAttributes::<Rtps>::new(
+        let sedp_topic_topic = DdsShared::new(TopicAttributes::<Rtps>::new(
             TopicQos::default(),
             SedpDiscoveredTopicData::type_name(),
             DCPS_TOPIC,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         domain_participant
@@ -875,7 +875,7 @@ mod tests {
 
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
-        let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             None,

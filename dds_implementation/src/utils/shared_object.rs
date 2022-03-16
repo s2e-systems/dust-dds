@@ -5,19 +5,19 @@ use std::{
 
 use dds_api::return_type::{DDSError, DDSResult};
 
-pub struct RtpsShared<T: ?Sized>(Arc<T>);
+pub struct DdsShared<T: ?Sized>(Arc<T>);
 
-impl<T> RtpsShared<T> {
+impl<T> DdsShared<T> {
     pub fn new(t: T) -> Self {
-        RtpsShared(Arc::new(t))
+        DdsShared(Arc::new(t))
     }
 
-    pub fn downgrade(&self) -> RtpsWeak<T> {
-        RtpsWeak(Arc::downgrade(&self.0))
+    pub fn downgrade(&self) -> DdsWeak<T> {
+        DdsWeak(Arc::downgrade(&self.0))
     }
 }
 
-impl<T: ?Sized> Deref for RtpsShared<T> {
+impl<T: ?Sized> Deref for DdsShared<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -25,9 +25,9 @@ impl<T: ?Sized> Deref for RtpsShared<T> {
     }
 }
 
-pub struct RtpsRwLock<T>(RwLock<T>);
+pub struct DdsRwLock<T>(RwLock<T>);
 
-impl<T> RtpsRwLock<T> {
+impl<T> DdsRwLock<T> {
     pub fn new(t: T) -> Self {
         Self(RwLock::new(t))
     }
@@ -41,35 +41,35 @@ impl<T> RtpsRwLock<T> {
     }
 }
 
-impl<T: ?Sized> Clone for RtpsShared<T> {
+impl<T: ?Sized> Clone for DdsShared<T> {
     fn clone(&self) -> Self {
-        RtpsShared(self.0.clone())
+        DdsShared(self.0.clone())
     }
 }
 
-impl<T> PartialEq for RtpsShared<T> {
+impl<T> PartialEq for DdsShared<T> {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-pub struct RtpsWeak<T: ?Sized>(Weak<T>);
+pub struct DdsWeak<T: ?Sized>(Weak<T>);
 
-impl<T> RtpsWeak<T> {
+impl<T> DdsWeak<T> {
     pub fn new() -> Self {
-        RtpsWeak(Weak::new())
+        DdsWeak(Weak::new())
     }
 
-    pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {
+    pub fn upgrade(&self) -> DDSResult<DdsShared<T>> {
         self.0
             .upgrade()
-            .map(|x| RtpsShared(x))
+            .map(|x| DdsShared(x))
             .ok_or(DDSError::AlreadyDeleted)
     }
 }
 
-impl<T: ?Sized> Clone for RtpsWeak<T> {
+impl<T: ?Sized> Clone for DdsWeak<T> {
     fn clone(&self) -> Self {
-        RtpsWeak(self.0.clone())
+        DdsWeak(self.0.clone())
     }
 }

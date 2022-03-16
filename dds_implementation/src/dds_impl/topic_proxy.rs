@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::utils::{rtps_structure::RtpsStructure, shared_object::RtpsWeak};
+use crate::utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak};
 use dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
@@ -20,7 +20,7 @@ where
     pub _qos: TopicQos,
     pub type_name: &'static str,
     pub topic_name: String,
-    pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    pub parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> TopicAttributes<Rtps>
@@ -31,7 +31,7 @@ where
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
@@ -46,7 +46,7 @@ pub struct TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    topic_impl: RtpsWeak<TopicAttributes<Rtps>>,
+    topic_impl: DdsWeak<TopicAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -67,7 +67,7 @@ impl<Foo, Rtps> TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(topic_impl: RtpsWeak<TopicAttributes<Rtps>>) -> Self {
+    pub fn new(topic_impl: DdsWeak<TopicAttributes<Rtps>>) -> Self {
         Self {
             topic_impl,
             phantom: PhantomData,
@@ -75,11 +75,11 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<RtpsWeak<TopicAttributes<Rtps>>> for TopicProxy<Foo, Rtps>
+impl<Foo, Rtps> AsRef<DdsWeak<TopicAttributes<Rtps>>> for TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<TopicAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<TopicAttributes<Rtps>> {
         &self.topic_impl
     }
 }

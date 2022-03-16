@@ -2,7 +2,7 @@ use std::ops::DerefMut;
 
 use dds_implementation::{
     dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
-    utils::shared_object::RtpsShared,
+    utils::shared_object::DdsShared,
 };
 use rtps_pim::{
     messages::{
@@ -49,7 +49,7 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        list: &'a [RtpsShared<SubscriberAttributes<RtpsStructureImpl>>],
+        list: &'a [DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
         message: &'a RtpsMessage<'a>,
     ) {

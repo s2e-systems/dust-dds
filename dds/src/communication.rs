@@ -5,7 +5,7 @@ use dds_implementation::{
         data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    utils::shared_object::RtpsShared,
+    utils::shared_object::DdsShared,
 };
 use rtps_implementation::{
     rtps_stateful_writer_impl::RtpsStatefulSubmessage,
@@ -35,7 +35,7 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[RtpsShared<PublisherAttributes<RtpsStructureImpl>>]) {
+    pub fn send(&mut self, list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>]) {
         for publisher in list {
             let message_header = RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
@@ -114,7 +114,7 @@ impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[RtpsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
+    pub fn receive(&mut self, list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         while let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,

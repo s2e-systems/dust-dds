@@ -31,7 +31,7 @@ use dds_implementation::{
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
-    utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
+    utils::{rtps_structure::RtpsStructure, shared_object::DdsShared},
 };
 use mac_address::MacAddress;
 use rtps_implementation::{
@@ -291,7 +291,7 @@ impl Communications {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
+    participant_list: Mutex<Vec<DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
 }
 
 impl DomainParticipantFactory {
@@ -344,7 +344,7 @@ impl DomainParticipantFactory {
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             communications.guid_prefix,
             domain_id,
             "".to_string(),
@@ -371,7 +371,7 @@ impl DomainParticipantFactory {
 
     fn enable(
         &self,
-        domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+        domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
         communications: Communications,
     ) -> DDSResult<()> {
         // ////////// Task creation
@@ -590,13 +590,13 @@ impl DomainParticipantFactory {
 }
 
 pub fn create_builtins(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
     let guid_prefix = domain_participant.rtps_participant.guid().prefix;
 
     // ///////// Create the built-in publisher and subcriber
 
-    let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
+    let builtin_subscriber = DdsShared::new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
@@ -606,7 +606,7 @@ pub fn create_builtins(
     ));
     *domain_participant.builtin_subscriber.write_lock() = Some(builtin_subscriber.clone());
 
-    let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
+    let builtin_publisher = DdsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
@@ -621,7 +621,7 @@ pub fn create_builtins(
 
     // ////////// SPDP built-in topic, reader and writer
     {
-        let spdp_topic_participant = RtpsShared::new(TopicAttributes::new(
+        let spdp_topic_participant = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
@@ -635,7 +635,7 @@ pub fn create_builtins(
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
 
-        let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let spdp_builtin_participant_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
@@ -660,7 +660,7 @@ pub fn create_builtins(
             guid_prefix, &[], &[], spdp_reader_locators
         );
 
-        let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let spdp_builtin_participant_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
             None,
@@ -675,7 +675,7 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in publication topic, reader and writer
     {
-        let sedp_topic_publication = RtpsShared::new(TopicAttributes::new(
+        let sedp_topic_publication = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             SedpDiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
@@ -688,7 +688,7 @@ pub fn create_builtins(
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_publications_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
@@ -702,7 +702,7 @@ pub fn create_builtins(
 
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             None,
@@ -717,7 +717,7 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in subcriptions topic, reader and writer
     {
-        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
+        let sedp_topic_subscription = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             SedpDiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
@@ -730,7 +730,7 @@ pub fn create_builtins(
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_subscriptions_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
@@ -744,7 +744,7 @@ pub fn create_builtins(
 
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
             None,
@@ -759,7 +759,7 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in topics topic, reader and writer
     {
-        let sedp_topic_topic = RtpsShared::new(TopicAttributes::new(
+        let sedp_topic_topic = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             SedpDiscoveredTopicData::type_name(),
             DCPS_TOPIC,
@@ -772,7 +772,7 @@ pub fn create_builtins(
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_topics_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
@@ -786,7 +786,7 @@ pub fn create_builtins(
 
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             None,
@@ -842,7 +842,7 @@ mod tests {
             topic_proxy::TopicProxy,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-        utils::shared_object::RtpsShared,
+        utils::shared_object::DdsShared,
     };
     use mockall::mock;
     use rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
@@ -915,7 +915,7 @@ mod tests {
     #[test]
     fn create_builtins_adds_builtin_readers_and_writers() {
         let guid_prefix = GuidPrefix([1; 12]);
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             DomainId::default(),
             "".to_string(),
@@ -1003,7 +1003,7 @@ mod tests {
             multicast_ip.into(),
         )
         .unwrap();
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1023,7 +1023,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1173,7 +1173,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1194,7 +1194,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1405,7 +1405,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1426,7 +1426,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1585,7 +1585,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1606,7 +1606,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
