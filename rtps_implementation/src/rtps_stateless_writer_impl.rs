@@ -29,7 +29,10 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl, utils::clock::Timer};
+use crate::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -105,7 +108,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                         );
 
                         self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
-                        self.heartbeat_timer = T::start();
+                        self.heartbeat_timer.reset();
                     }
 
                     let writer_cache = &self.writer.writer_cache;
@@ -200,7 +203,7 @@ impl<T> RtpsStatelessWriterAttributes for RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<T: Timer> RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl<T> {
+impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl<T> {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -229,7 +232,7 @@ impl<T: Timer> RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl<T> {
                 data_max_size_serialized,
             ),
             reader_locators: Vec::new(),
-            heartbeat_timer: T::start(),
+            heartbeat_timer: T::new(),
             heartbeat_count: Count(0),
         }
     }
@@ -273,6 +276,7 @@ impl<T> RtpsWriterOperations for RtpsStatelessWriterImpl<T> {
 
 #[cfg(test)]
 mod tests {
+    use mockall::mock;
     use rtps_pim::{
         behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
         messages::{
@@ -284,14 +288,18 @@ mod tests {
         },
         structure::{
             cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
+            history_cache::RtpsHistoryCacheOperations,
             types::{
                 EntityId, GuidPrefix, LOCATOR_KIND_UDPv4, ENTITYID_UNKNOWN,
                 USER_DEFINED_WRITER_NO_KEY,
-            }, history_cache::RtpsHistoryCacheOperations,
+            },
         },
     };
 
-    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::StdTimer};
+    use crate::{
+        rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList},
+        utils::clock::StdTimer,
+    };
 
     use super::*;
 
@@ -384,17 +392,18 @@ mod tests {
         }
     }
 
-    struct DiscreteTimer {
-        n: u64,
+    mock! {
+        Timer {}
+
+        impl Timer for Timer {
+            fn reset(&mut self);
+            fn elapsed(&self) -> std::time::Duration;
+        }
     }
 
-    impl Timer for DiscreteTimer {
-        fn start() -> Self {
-            Self { n: 0 }
-        }
-
-        fn elapsed(&self) -> std::time::Duration {
-            std::time::Duration::from_secs(self.n)
+    impl TimerConstructor for MockTimer {
+        fn new() -> Self {
+            MockTimer::new()
         }
     }
 
@@ -405,7 +414,7 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
         );
 
-        let mut writer = RtpsStatelessWriterImpl::<DiscreteTimer>::new(
+        let mut writer = RtpsStatelessWriterImpl::<MockTimer>::new(
             guid,
             TopicKind::NoKey,
             ReliabilityKind::Reliable,
@@ -423,13 +432,14 @@ mod tests {
             false,
         ));
 
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(0));
         assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
 
-        writer.heartbeat_timer.n += 1;
-
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(1));
         assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
 
-        writer.heartbeat_timer.n += 1;
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(2));
+        writer.heartbeat_timer.expect_reset().once().return_const(());
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len()); // one heartbeat sent
@@ -439,11 +449,5 @@ mod tests {
             submessages[0],
             RtpsStatelessSubmessage::Heartbeat(_)
         ));
-
-        assert_eq!(0, writer.produce_destined_submessages().len()); // nothing more to send
-
-        writer.heartbeat_timer.n += 1;
-
-        assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing more to send
     }
 }

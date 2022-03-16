@@ -29,7 +29,7 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::Timer};
+use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::{Timer, TimerConstructor}};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -111,7 +111,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                         );
 
                         self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
-                        self.heartbeat_timer = T::start();
+                        self.heartbeat_timer.reset();
                     }
 
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -212,7 +212,7 @@ impl<T> RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl<T> {
     }
 }
 
-impl<T: Timer> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<T> {
+impl<T: TimerConstructor> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<T> {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -241,7 +241,7 @@ impl<T: Timer> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<T> {
                 data_max_size_serialized,
             ),
             matched_readers: Vec::new(),
-            heartbeat_timer: T::start(),
+            heartbeat_timer: T::new(),
             heartbeat_count: Count(0),
         }
     }
@@ -289,6 +289,7 @@ impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
 
 #[cfg(test)]
 mod tests {
+    use mockall::mock;
     use rtps_pim::{
         behavior::writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
         messages::{
@@ -305,7 +306,7 @@ mod tests {
         },
     };
 
-    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::StdTimer};
+    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::{StdTimer, TimerConstructor}};
 
     use super::*;
 
@@ -433,17 +434,18 @@ mod tests {
         }
     }
 
-    struct DiscreteTimer {
-        n: u64,
+    mock! {
+        Timer {}
+
+        impl Timer for Timer {
+            fn reset(&mut self);
+            fn elapsed(&self) -> std::time::Duration;
+        }
     }
 
-    impl Timer for DiscreteTimer {
-        fn start() -> Self {
-            Self { n: 0 }
-        }
-
-        fn elapsed(&self) -> std::time::Duration {
-            std::time::Duration::from_secs(self.n)
+    impl TimerConstructor for MockTimer {
+        fn new() -> Self {
+            MockTimer::new()
         }
     }
 
@@ -454,7 +456,7 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
         );
 
-        let mut writer = RtpsStatefulWriterImpl::<DiscreteTimer>::new(
+        let mut writer = RtpsStatefulWriterImpl::<MockTimer>::new(
             guid,
             TopicKind::NoKey,
             ReliabilityKind::Reliable,
@@ -480,13 +482,14 @@ mod tests {
         );
         writer.matched_readers.push(matched_reader_proxy);
 
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(0));
         assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
 
-        writer.heartbeat_timer.n += 1;
-
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(1));
         assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
-
-        writer.heartbeat_timer.n += 1;
+        
+        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(2));
+        writer.heartbeat_timer.expect_reset().once().return_const(());
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len()); // one heartbeat sent
@@ -496,11 +499,5 @@ mod tests {
             submessages[0],
             RtpsStatefulSubmessage::Heartbeat(_)
         ));
-
-        assert_eq!(0, writer.produce_destined_submessages().len()); // nothing more to send
-
-        writer.heartbeat_timer.n += 1;
-
-        assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing more to send
     }
 }
