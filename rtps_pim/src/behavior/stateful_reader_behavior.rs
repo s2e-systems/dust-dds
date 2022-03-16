@@ -149,7 +149,7 @@ impl ReliableStatefulReaderBehavior {
     // 8.4.12.2.7 Transition T7
     pub fn receive_heartbeat(
         writer_proxy: &mut impl RtpsWriterProxyOperations,
-        heartbeat: HeartbeatSubmessage,
+        heartbeat: &HeartbeatSubmessage,
     ) {
         writer_proxy.missing_changes_update(heartbeat.last_sn.value);
         writer_proxy.lost_changes_update(heartbeat.first_sn.value);
@@ -548,7 +548,7 @@ mod tests {
             .once()
             .return_const(());
 
-        ReliableStatefulReaderBehavior::receive_heartbeat(&mut writer_proxy, heartbeat)
+        ReliableStatefulReaderBehavior::receive_heartbeat(&mut writer_proxy, &heartbeat)
     }
 
     #[test]
