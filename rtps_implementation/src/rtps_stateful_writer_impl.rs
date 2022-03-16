@@ -17,7 +17,7 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
@@ -29,7 +29,10 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::ChangeForReader, utils::clock::StdTimer};
+use crate::{
+    rtps_reader_proxy_impl::ChangeForReader,
+    utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -41,16 +44,17 @@ use super::{
 pub enum RtpsStatefulSubmessage<'a> {
     Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
     Gap(GapSubmessage<Vec<SequenceNumber>>),
+    Heartbeat(HeartbeatSubmessage),
 }
 
-pub struct RtpsStatefulWriterImpl {
+pub struct RtpsStatefulWriterImpl<T> {
     pub writer: RtpsWriterImpl,
     pub matched_readers: Vec<RtpsReaderProxyImpl>,
-    pub heartbeat_timer: StdTimer,
+    pub heartbeat_timer: T,
     pub heartbeat_count: Count,
 }
 
-impl RtpsStatefulWriterImpl {
+impl<T: Timer> RtpsStatefulWriterImpl<T> {
     pub fn produce_destined_submessages<'a>(
         &'a mut self,
     ) -> Vec<(&mut RtpsReaderProxyImpl, Vec<RtpsStatefulSubmessage<'a>>)> {
@@ -90,16 +94,29 @@ impl RtpsStatefulWriterImpl {
 
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
-                    // ReliableStatefulWriterBehavior::send_heartbeat(
-                    //     &self.writer.writer_cache,
-                    //     self.writer.endpoint.entity.guid.entity_id,
-                    //     self.heartbeat_count,
-                    //     &mut |heartbeat| {
-                    //         submessages
-                    //             .borrow_mut()
-                    //             .push(RtpsSubmessageType::Heartbeat(heartbeat));
-                    //     },
-                    // );
+
+                    if self.heartbeat_timer.elapsed()
+                        >= std::time::Duration::from_secs(
+                            self.writer.heartbeat_period.seconds as u64,
+                        ) + std::time::Duration::from_nanos(
+                            self.writer.heartbeat_period.fraction as u64,
+                        )
+                    {
+                        ReliableStatefulWriterBehavior::send_heartbeat(
+                            &self.writer.writer_cache,
+                            self.writer.endpoint.entity.guid.entity_id,
+                            self.heartbeat_count,
+                            |heartbeat| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsStatefulSubmessage::Heartbeat(heartbeat));
+                            },
+                        );
+
+                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
+                        self.heartbeat_timer.reset();
+                    }
+
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
                         &mut ChangeForReader::new(
@@ -134,13 +151,13 @@ impl RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsEntityAttributes for RtpsStatefulWriterImpl {
+impl<T> RtpsEntityAttributes for RtpsStatefulWriterImpl<T> {
     fn guid(&self) -> Guid {
         self.writer.endpoint.entity.guid
     }
 }
 
-impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
+impl<T> RtpsEndpointAttributes for RtpsStatefulWriterImpl<T> {
     fn topic_kind(&self) -> TopicKind {
         self.writer.endpoint.topic_kind
     }
@@ -158,7 +175,7 @@ impl RtpsEndpointAttributes for RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
+impl<T> RtpsWriterAttributes for RtpsStatefulWriterImpl<T> {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
@@ -190,7 +207,7 @@ impl RtpsWriterAttributes for RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl {
+impl<T> RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl<T> {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
@@ -198,7 +215,7 @@ impl RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl {
+impl<T: TimerConstructor> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<T> {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -227,13 +244,13 @@ impl RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl {
                 data_max_size_serialized,
             ),
             matched_readers: Vec::new(),
-            heartbeat_timer: StdTimer::new(),
+            heartbeat_timer: T::new(),
             heartbeat_count: Count(0),
         }
     }
 }
 
-impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
+impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
@@ -258,7 +275,7 @@ impl RtpsStatefulWriterOperations for RtpsStatefulWriterImpl {
     }
 }
 
-impl RtpsWriterOperations for RtpsStatefulWriterImpl {
+impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
     type CacheChangeType = RtpsCacheChangeImpl;
@@ -275,6 +292,7 @@ impl RtpsWriterOperations for RtpsStatefulWriterImpl {
 
 #[cfg(test)]
 mod tests {
+    use mockall::mock;
     use rtps_pim::{
         behavior::writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
         messages::{
@@ -291,7 +309,10 @@ mod tests {
         },
     };
 
-    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+    use crate::{
+        rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList},
+        utils::clock::{StdTimer, TimerConstructor},
+    };
 
     use super::*;
 
@@ -302,7 +323,7 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
         );
 
-        let mut writer = RtpsStatefulWriterImpl::new(
+        let mut writer = RtpsStatefulWriterImpl::<StdTimer>::new(
             guid,
             TopicKind::NoKey,
             ReliabilityKind::BestEffort,
@@ -340,11 +361,7 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        ChangeForReader::new(
-            &mut matched_reader_proxy,
-            &writer.writer.writer_cache,
-            true,
-        );
+        ChangeForReader::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
         writer.matched_readers.push(matched_reader_proxy);
 
         let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
@@ -417,5 +434,88 @@ mod tests {
         } else {
             panic!("Should be Data");
         }
+    }
+
+    mock! {
+        Timer {}
+
+        impl Timer for Timer {
+            fn reset(&mut self);
+            fn elapsed(&self) -> std::time::Duration;
+        }
+    }
+
+    impl TimerConstructor for MockTimer {
+        fn new() -> Self {
+            MockTimer::new()
+        }
+    }
+
+    #[test]
+    fn reliable_stateful_writer_sends_heartbeat() {
+        let guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let mut writer = RtpsStatefulWriterImpl::<MockTimer>::new(
+            guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            false,
+            Duration::new(2, 0),
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            None,
+        );
+
+        let matched_reader_proxy = RtpsReaderProxyImpl::new(
+            Guid::new(
+                GuidPrefix([1; 12]),
+                EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            ),
+            EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            &[],
+            &[],
+            false,
+            false,
+        );
+        writer.matched_readers.push(matched_reader_proxy);
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(0));
+        assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(1));
+        assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(2));
+        writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
+
+        let destined_submessages = writer.produce_destined_submessages();
+        assert_eq!(1, destined_submessages.len()); // one heartbeat sent
+        let (_, submessages) = &destined_submessages[0];
+        assert_eq!(1, submessages.len()); // one heartbeat
+        assert!(matches!(
+            submessages[0],
+            RtpsStatefulSubmessage::Heartbeat(_)
+        ));
     }
 }
