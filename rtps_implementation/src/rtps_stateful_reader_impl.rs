@@ -132,14 +132,14 @@ impl RtpsStatefulReaderImpl {
                 let acknacks = RefCell::new(Vec::new());
 
                 if !writer_proxy.missing_changes().is_empty() {
+                    self.acknack_count = Count(self.acknack_count.0 + 1);
+
                     ReliableStatefulReaderBehavior::send_ack_nack(
                         writer_proxy,
                         self.reader.endpoint.entity.guid.entity_id,
                         self.acknack_count,
                         |acknack| acknacks.borrow_mut().push(acknack),
                     );
-
-                    self.acknack_count = Count(self.acknack_count.0 + 1);
                 }
 
                 let acknacks = acknacks.take();
@@ -531,5 +531,97 @@ mod tests {
 
         reader.process_heartbeat_submessage(&make_heartbeat(2, 5), writer_guid.prefix);
         assert_eq!(vec![3, 5], reader.matched_writers[0].missing_changes());
+    }
+
+    #[test]
+    fn reliable_stateful_data_reader_sends_acknack() {
+        let writer_guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let reader_guid = Guid::new(
+            GuidPrefix([1; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatefulReaderImpl::new(
+            reader_guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+            writer_guid,
+            &[],
+            &[],
+            None,
+            writer_guid.entity_id,
+        ));
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        let make_heartbeat = |first_sn, last_sn| -> HeartbeatSubmessage {
+            HeartbeatSubmessage {
+                endianness_flag: true,
+                final_flag: false,
+                liveliness_flag: false,
+                reader_id: EntityIdSubmessageElement {
+                    value: reader_guid.entity_id,
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: writer_guid.entity_id,
+                },
+                first_sn: SequenceNumberSubmessageElement { value: first_sn },
+                last_sn: SequenceNumberSubmessageElement { value: last_sn },
+                count: CountSubmessageElement { value: Count(0) },
+            }
+        };
+
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
+        assert!(reader.produce_acknack_submessages().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        let missing_changes = reader.matched_writers[0].missing_changes();
+        let submessages = reader.produce_acknack_submessages();
+        assert_eq!(1, submessages.len());
+        let (_, acknacks) = &submessages[0];
+        assert_eq!(1, acknacks.len());
+        assert_eq!(missing_changes, acknacks[0].reader_sn_state.set);
+        assert_eq!(Count(1), acknacks[0].count.value);
+
+        // doesn't send a second time
+        assert!(reader.produce_acknack_submessages().is_empty());
+
+        // resend when new heartbeat
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        assert_eq!(1, reader.produce_acknack_submessages().len());
+
+        // doesn't send if message received in the meantime
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
+        assert!(reader.produce_acknack_submessages().is_empty());
     }
 }
