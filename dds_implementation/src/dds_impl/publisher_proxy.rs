@@ -46,7 +46,7 @@ use crate::{
     dds_type::{DdsSerialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 
@@ -63,10 +63,10 @@ where
 {
     pub _qos: PublisherQos,
     pub rtps_group: Rtps::Group,
-    pub data_writer_list: Vec<RtpsShared<DataWriterAttributes<Rtps>>>,
+    pub data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes<Rtps>>>>,
     pub user_defined_data_writer_counter: AtomicU8,
     pub default_datawriter_qos: DataWriterQos,
-    pub parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    pub parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> PublisherAttributes<Rtps>
@@ -76,12 +76,12 @@ where
     pub fn new(
         qos: PublisherQos,
         rtps_group: Rtps::Group,
-        parent_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
             rtps_group,
-            data_writer_list: Vec::new(),
+            data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant,
@@ -90,7 +90,7 @@ where
 }
 
 #[derive(Clone)]
-pub struct PublisherProxy<Rtps>(pub(crate) RtpsWeak<PublisherAttributes<Rtps>>)
+pub struct PublisherProxy<Rtps>(pub(crate) DdsWeak<PublisherAttributes<Rtps>>)
 where
     Rtps: RtpsStructure;
 
@@ -98,16 +98,16 @@ impl<Rtps> PublisherProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(publisher_impl: RtpsWeak<PublisherAttributes<Rtps>>) -> Self {
+    pub fn new(publisher_impl: DdsWeak<PublisherAttributes<Rtps>>) -> Self {
         Self(publisher_impl)
     }
 }
 
-impl<Rtps> AsRef<RtpsWeak<PublisherAttributes<Rtps>>> for PublisherProxy<Rtps>
+impl<Rtps> AsRef<DdsWeak<PublisherAttributes<Rtps>>> for PublisherProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<PublisherAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<PublisherAttributes<Rtps>> {
         &self.0
     }
 }
@@ -147,7 +147,6 @@ where
         // /////// Build the GUID
         let guid = {
             let user_defined_data_writer_counter = publisher_shared
-                .write_lock()
                 .user_defined_data_writer_counter
                 .fetch_add(1, atomic::Ordering::SeqCst);
 
@@ -157,15 +156,10 @@ where
             };
 
             Guid::new(
-                publisher_shared.read_lock().rtps_group.guid().prefix(),
+                publisher_shared.rtps_group.guid().prefix(),
                 EntityId::new(
                     [
-                        publisher_shared
-                            .read_lock()
-                            .rtps_group
-                            .guid()
-                            .entity_id()
-                            .entity_key()[0],
+                        publisher_shared.rtps_group.guid().entity_id().entity_key()[0],
                         user_defined_data_writer_counter,
                         0,
                     ],
@@ -176,7 +170,7 @@ where
 
         // /////// Create data writer
         let data_writer_shared = {
-            let qos = qos.unwrap_or(publisher_shared.read_lock().default_datawriter_qos.clone());
+            let qos = qos.unwrap_or(publisher_shared.default_datawriter_qos.clone());
             qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
@@ -189,17 +183,15 @@ where
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let domain_participant = publisher_shared.read_lock().parent_participant.upgrade()?;
+            let domain_participant = publisher_shared.parent_participant.upgrade()?;
             let rtps_writer_impl = RtpsWriter::Stateful(Rtps::StatefulWriter::new(
                 guid,
                 topic_kind,
                 reliability_level,
                 &domain_participant
-                    .read_lock()
                     .rtps_participant
                     .default_unicast_locator_list(),
                 &domain_participant
-                    .read_lock()
                     .rtps_participant
                     .default_multicast_locator_list(),
                 true,
@@ -209,7 +201,7 @@ where
                 None,
             ));
 
-            let data_writer_shared = RtpsShared::new(DataWriterAttributes::new(
+            let data_writer_shared = DdsShared::new(DataWriterAttributes::new(
                 qos,
                 rtps_writer_impl,
                 listener,
@@ -218,8 +210,8 @@ where
             ));
 
             publisher_shared
-                .write_lock()
                 .data_writer_list
+                .write_lock()
                 .push(data_writer_shared.clone());
 
             data_writer_shared
@@ -227,12 +219,12 @@ where
 
         // /////// Announce the data writer creation
         {
-            let domain_participant = publisher_shared.read_lock().parent_participant.upgrade()?;
+            let domain_participant = publisher_shared.parent_participant.upgrade()?;
             let domain_participant_proxy =
                 DomainParticipantProxy::new(domain_participant.downgrade());
             let builtin_publisher = domain_participant
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .clone()
                 .ok_or(DDSError::PreconditionNotMet(
                     "No builtin publisher".to_string(),
@@ -249,12 +241,10 @@ where
                 writer_proxy: RtpsWriterProxy {
                     remote_writer_guid: guid,
                     unicast_locator_list: domain_participant
-                        .read_lock()
                         .rtps_participant
                         .default_unicast_locator_list()
                         .to_vec(),
                     multicast_locator_list: domain_participant
-                        .read_lock()
                         .rtps_participant
                         .default_multicast_locator_list()
                         .to_vec(),
@@ -265,7 +255,7 @@ where
                 publication_builtin_topic_data: PublicationBuiltinTopicData {
                     key: BuiltInTopicKey { value: guid.into() },
                     participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: topic_shared.read_lock().topic_name.clone(),
+                    topic_name: topic_shared.topic_name.clone(),
                     type_name: Foo::type_name().to_string(),
                     durability: DurabilityQosPolicy::default(),
                     durability_service: DurabilityServiceQosPolicy::default(),
@@ -307,16 +297,14 @@ where
         let publisher_shared = self.0.upgrade()?;
         let datawriter_shared = datawriter.as_ref().upgrade()?;
 
-        let data_writer_list = &mut publisher_shared.write_lock().data_writer_list;
-
-        data_writer_list.remove(
-            data_writer_list
-                .iter()
-                .position(|x| x == &datawriter_shared)
-                .ok_or(DDSError::PreconditionNotMet(
-                    "Data writer can only be deleted from its parent publisher".to_string(),
-                ))?,
-        );
+        let data_writer_list = &mut publisher_shared.data_writer_list.write_lock();
+        let data_writer_list_position = data_writer_list
+            .iter()
+            .position(|x| x == &datawriter_shared)
+            .ok_or(DDSError::PreconditionNotMet(
+                "Data writer can only be deleted from its parent publisher".to_string(),
+            ))?;
+        data_writer_list.remove(data_writer_list_position);
 
         Ok(())
     }
@@ -326,18 +314,16 @@ where
         topic: &Self::TopicType,
     ) -> DDSResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
-        let data_writer_list = &publisher_shared.write_lock().data_writer_list;
+        let data_writer_list = &publisher_shared.data_writer_list.write_lock();
 
         let topic_shared = topic.as_ref().upgrade()?;
-        let topic = topic_shared.read_lock();
 
         data_writer_list
             .iter()
             .find_map(|data_writer_shared| {
-                let data_writer_lock = data_writer_shared.read_lock();
-                let data_writer_topic = data_writer_lock.topic.read_lock();
+                let data_writer_topic = &data_writer_shared.topic;
 
-                if data_writer_topic.topic_name == topic.topic_name
+                if data_writer_topic.topic_name == topic_shared.topic_name
                     && data_writer_topic.type_name == Foo::type_name()
                 {
                     Some(DataWriterProxy::new(data_writer_shared.downgrade()))
@@ -405,9 +391,8 @@ where
 
     fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
         let publisher_attributes = self.0.upgrade()?;
-        let publisher_attributes_lock = publisher_attributes.read_lock();
         Ok(DomainParticipantProxy::new(
-            publisher_attributes_lock.parent_participant.clone(),
+            publisher_attributes.parent_participant.clone(),
         ))
     }
 }
@@ -507,7 +492,7 @@ mod tests {
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
             rtps_structure::RtpsStructure,
-            shared_object::{RtpsShared, RtpsWeak},
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
         },
     };
 
@@ -666,13 +651,13 @@ mod tests {
         type StatefulReader = ();
     }
 
-    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
     where
         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
         Rtps::Participant: Default + RtpsParticipantConstructor,
         Rtps::Group: Default,
     {
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -683,61 +668,61 @@ mod tests {
             vec![],
         ));
 
-        domain_participant.write_lock().builtin_publisher =
-            Some(RtpsShared::new(PublisherAttributes::new(
+        *domain_participant.builtin_publisher.write_lock() =
+            Some(DdsShared::new(PublisherAttributes::new(
                 PublisherQos::default(),
                 Rtps::Group::default(),
                 domain_participant.downgrade(),
             )));
 
-        let sedp_topic_publication = RtpsShared::new(TopicAttributes::<Rtps>::new(
+        let sedp_topic_publication = DdsShared::new(TopicAttributes::<Rtps>::new(
             TopicQos::default(),
             SedpDiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_publication.clone());
 
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
-        let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             None,
             sedp_topic_publication.clone(),
             domain_participant
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
         ));
         domain_participant
-            .read_lock()
             .builtin_publisher
+            .read_lock()
             .as_ref()
             .unwrap()
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_publications_data_writer.clone());
 
         domain_participant
     }
 
     fn make_publisher<Rtps: RtpsStructure>(
-        parent: RtpsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> RtpsShared<PublisherAttributes<Rtps>>
+        parent: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    ) -> DdsShared<PublisherAttributes<Rtps>>
     where
         Rtps::Group: Default,
     {
-        RtpsShared::new(PublisherAttributes {
+        DdsShared::new(PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: Rtps::Group::default(),
-            data_writer_list: Vec::new(),
+            data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: parent,
@@ -748,7 +733,7 @@ mod tests {
         type_name: &'static str,
         topic_name: &'static str,
     ) -> TopicAttributes<Rtps> {
-        TopicAttributes::new(TopicQos::default(), type_name, topic_name, RtpsWeak::new())
+        TopicAttributes::new(TopicQos::default(), type_name, topic_name, DdsWeak::new())
     }
 
     macro_rules! make_empty_dds_type {
@@ -782,14 +767,14 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer =
             publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
 
         assert!(data_writer.is_ok());
-        assert_eq!(1, publisher.read_lock().data_writer_list.len());
+        assert_eq!(1, publisher.data_writer_list.read_lock().len());
     }
 
     #[test]
@@ -799,20 +784,20 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read_lock().data_writer_list.len());
+        assert_eq!(1, publisher.data_writer_list.read_lock().len());
 
         publisher_proxy
             .datawriter_factory_delete_datawriter(&data_writer)
             .unwrap();
 
-        assert_eq!(0, publisher.read_lock().data_writer_list.len());
+        assert_eq!(0, publisher.data_writer_list.read_lock().len());
         assert!(data_writer.as_ref().upgrade().is_err())
     }
 
@@ -826,15 +811,15 @@ mod tests {
         let publisher2 = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
             .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
             .unwrap();
 
-        assert_eq!(1, publisher.read_lock().data_writer_list.len());
-        assert_eq!(0, publisher2.read_lock().data_writer_list.len());
+        assert_eq!(1, publisher.data_writer_list.read_lock().len());
+        assert_eq!(0, publisher2.data_writer_list.read_lock().len());
 
         assert!(matches!(
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
@@ -850,7 +835,7 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         assert!(publisher_proxy
@@ -865,7 +850,7 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
 
         let data_writer = publisher_proxy
@@ -892,10 +877,10 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic_foo = RtpsShared::new(make_topic(Foo::type_name(), "topic"));
+        let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(make_topic(Bar::type_name(), "topic"));
+        let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         publisher_proxy
@@ -914,10 +899,10 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic1 = RtpsShared::new(make_topic(Foo::type_name(), "topic1"));
+        let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
 
-        let topic2 = RtpsShared::new(make_topic(Bar::type_name(), "topic2"));
+        let topic2 = DdsShared::new(make_topic(Bar::type_name(), "topic2"));
         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
 
         publisher_proxy
@@ -936,10 +921,10 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic_foo = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
+        let topic_foo = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic"));
         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
 
-        let topic_bar = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
+        let topic_bar = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic"));
         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
 
         let data_writer_foo = publisher_proxy
@@ -977,10 +962,10 @@ mod tests {
         let publisher = make_publisher::<EmptyRtps>(domain_participant.downgrade());
         let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
-        let topic1 = RtpsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
+        let topic1 = DdsShared::new(make_topic::<EmptyRtps>(Foo::type_name(), "topic1"));
         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
 
-        let topic2 = RtpsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
+        let topic2 = DdsShared::new(make_topic::<EmptyRtps>(Bar::type_name(), "topic2"));
         let topic2_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic2.downgrade());
 
         let data_writer1 = publisher_proxy

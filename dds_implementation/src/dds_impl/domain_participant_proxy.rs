@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU8, Ordering};
+
 use dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{BuiltInTopicKey, DomainId, Duration, InstanceHandle, StatusMask, Time},
@@ -41,7 +43,7 @@ use crate::{
     dds_type::{DdsSerialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 
@@ -59,21 +61,21 @@ where
     pub domain_id: DomainId,
     pub domain_tag: String,
     pub qos: DomainParticipantQos,
-    pub builtin_subscriber: Option<RtpsShared<SubscriberAttributes<Rtps>>>,
-    pub builtin_publisher: Option<RtpsShared<PublisherAttributes<Rtps>>>,
-    pub user_defined_subscriber_list: Vec<RtpsShared<SubscriberAttributes<Rtps>>>,
-    pub user_defined_subscriber_counter: u8,
+    pub builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes<Rtps>>>>,
+    pub builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes<Rtps>>>>,
+    pub user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes<Rtps>>>>,
+    pub user_defined_subscriber_counter: AtomicU8,
     pub default_subscriber_qos: SubscriberQos,
-    pub user_defined_publisher_list: Vec<RtpsShared<PublisherAttributes<Rtps>>>,
-    pub user_defined_publisher_counter: u8,
+    pub user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes<Rtps>>>>,
+    pub user_defined_publisher_counter: AtomicU8,
     pub default_publisher_qos: PublisherQos,
-    pub topic_list: Vec<RtpsShared<TopicAttributes<Rtps>>>,
+    pub topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<Rtps>>>>,
     pub default_topic_qos: TopicQos,
     pub manual_liveliness_count: Count,
     pub lease_duration: rtps_pim::behavior::types::Duration,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub enabled: bool,
+    pub enabled: DdsRwLock<bool>,
 }
 
 impl<Rtps> DomainParticipantAttributes<Rtps>
@@ -107,21 +109,21 @@ where
             domain_id,
             domain_tag,
             qos: domain_participant_qos,
-            builtin_subscriber: None,
-            builtin_publisher: None,
-            user_defined_subscriber_list: Vec::new(),
-            user_defined_subscriber_counter: 0,
+            builtin_subscriber: DdsRwLock::new(None),
+            builtin_publisher: DdsRwLock::new(None),
+            user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
+            user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: SubscriberQos::default(),
-            user_defined_publisher_list: Vec::new(),
-            user_defined_publisher_counter: 0,
+            user_defined_publisher_list: DdsRwLock::new(Vec::new()),
+            user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
-            topic_list: Vec::new(),
+            topic_list: DdsRwLock::new(Vec::new()),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
-            enabled: false,
+            enabled: DdsRwLock::new(false),
         }
     }
 }
@@ -130,7 +132,7 @@ pub struct DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>,
+    domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> Clone for DomainParticipantProxy<Rtps>
@@ -148,7 +150,7 @@ impl<Rtps> DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(domain_participant: RtpsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
+    pub fn new(domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
         Self { domain_participant }
     }
 }
@@ -183,10 +185,10 @@ where
     ) -> DDSResult<Self::TopicType> {
         let participant_shared = self.domain_participant.upgrade()?;
 
-        let qos = qos.unwrap_or(participant_shared.read_lock().default_topic_qos.clone());
+        let qos = qos.unwrap_or(participant_shared.default_topic_qos.clone());
 
         // /////// Create topic
-        let topic_shared = RtpsShared::new(TopicAttributes::new(
+        let topic_shared = DdsShared::new(TopicAttributes::new(
             qos.clone(),
             Foo::type_name(),
             topic_name,
@@ -194,8 +196,8 @@ where
         ));
 
         participant_shared
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(topic_shared.clone());
 
         // /////// Announce the topic creation
@@ -203,8 +205,8 @@ where
             let domain_participant_proxy =
                 DomainParticipantProxy::new(participant_shared.downgrade());
             let builtin_publisher = participant_shared
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .clone()
                 .ok_or(DDSError::PreconditionNotMet(
                     "No builtin publisher".to_string(),
@@ -254,16 +256,14 @@ where
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let topic_shared = topic.as_ref().upgrade()?;
 
-        let topic_list = &mut domain_participant_shared.write_lock().topic_list;
-
-        topic_list.remove(
-            topic_list
-                .iter()
-                .position(|topic| topic == &topic_shared)
-                .ok_or(DDSError::PreconditionNotMet(
-                    "Topic can only be deleted from its parent publisher".to_string(),
-                ))?,
-        );
+        let topic_list = &mut domain_participant_shared.topic_list.write_lock();
+        let topic_list_position = topic_list
+            .iter()
+            .position(|topic| topic == &topic_shared)
+            .ok_or(DDSError::PreconditionNotMet(
+                "Topic can only be deleted from its parent publisher".to_string(),
+            ))?;
+        topic_list.remove(topic_list_position);
 
         Ok(())
     }
@@ -275,14 +275,12 @@ where
     ) -> DDSResult<Self::TopicType> {
         self.domain_participant
             .upgrade()?
-            .read_lock()
             .topic_list
+            .read_lock()
             .iter()
-            .find_map(|topic_shared| {
-                let topic = topic_shared.read_lock();
-
+            .find_map(|topic| {
                 if topic.topic_name == topic_name && topic.type_name == Foo::type_name() {
-                    Some(TopicProxy::new(topic_shared.downgrade()))
+                    Some(TopicProxy::new(topic.downgrade()))
                 } else {
                     None
                 }
@@ -296,14 +294,12 @@ where
     ) -> DDSResult<Self::TopicType> {
         self.domain_participant
             .upgrade()?
-            .read_lock()
             .topic_list
+            .read_lock()
             .iter()
-            .find_map(|topic_shared| {
-                let topic = topic_shared.read_lock();
-
+            .find_map(|topic| {
                 if topic.topic_name == topic_name && topic.type_name == Foo::type_name() {
-                    Some(TopicProxy::new(topic_shared.downgrade()))
+                    Some(TopicProxy::new(topic.downgrade()))
                 } else {
                     None
                 }
@@ -328,23 +324,14 @@ where
         _mask: StatusMask,
     ) -> DDSResult<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
-        let publisher_qos = qos.unwrap_or(
-            domain_participant_attributes_lock
-                .default_publisher_qos
-                .clone(),
-        );
-        let entity_id = EntityId::new(
-            [
-                domain_participant_attributes_lock.user_defined_publisher_counter,
-                0,
-                0,
-            ],
-            USER_DEFINED_WRITER_GROUP,
-        );
-        domain_participant_attributes_lock.user_defined_publisher_counter += 1;
+        let publisher_qos =
+            qos.unwrap_or(domain_participant_attributes.default_publisher_qos.clone());
+        let publisher_counter = domain_participant_attributes
+            .user_defined_publisher_counter
+            .fetch_add(1, Ordering::Relaxed);
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(
-            domain_participant_attributes_lock
+            domain_participant_attributes
                 .rtps_participant
                 .guid()
                 .prefix(),
@@ -358,9 +345,10 @@ where
         //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
         let publisher_impl =
             PublisherAttributes::new(publisher_qos, rtps_group, self.domain_participant.clone());
-        let publisher_impl_shared = RtpsShared::new(publisher_impl);
-        domain_participant_attributes_lock
+        let publisher_impl_shared = DdsShared::new(publisher_impl);
+        domain_participant_attributes
             .user_defined_publisher_list
+            .write_lock()
             .push(publisher_impl_shared.clone());
 
         let publisher_weak = publisher_impl_shared.downgrade();
@@ -370,12 +358,12 @@ where
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
-            domain_participant_attributes_lock
+            domain_participant_attributes
                 .user_defined_publisher_list
+                .write_lock()
                 .retain(|x| *x != publisher_shared);
             Ok(())
         } else {
@@ -392,23 +380,14 @@ where
         _mask: StatusMask,
     ) -> DDSResult<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
-        let subscriber_qos = qos.unwrap_or(
-            domain_participant_attributes_lock
-                .default_subscriber_qos
-                .clone(),
-        );
-        let entity_id = EntityId::new(
-            [
-                domain_participant_attributes_lock.user_defined_subscriber_counter,
-                0,
-                0,
-            ],
-            USER_DEFINED_READER_GROUP,
-        );
-        domain_participant_attributes_lock.user_defined_subscriber_counter += 1;
+        let subscriber_qos =
+            qos.unwrap_or(domain_participant_attributes.default_subscriber_qos.clone());
+        let subcriber_counter = domain_participant_attributes
+            .user_defined_subscriber_counter
+            .fetch_add(1, Ordering::Relaxed);
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(
-            domain_participant_attributes_lock
+            domain_participant_attributes
                 .rtps_participant
                 .guid()
                 .prefix(),
@@ -417,9 +396,10 @@ where
         let rtps_group = Rtps::Group::new(guid);
         let subscriber =
             SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
-        let subscriber_shared = RtpsShared::new(subscriber);
-        domain_participant_attributes_lock
+        let subscriber_shared = DdsShared::new(subscriber);
+        domain_participant_attributes
             .user_defined_subscriber_list
+            .write_lock()
             .push(subscriber_shared.clone());
 
         let subscriber_weak = subscriber_shared.downgrade();
@@ -428,13 +408,11 @@ where
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
-        let mut domain_participant_attributes_lock = domain_participant_attributes.write_lock();
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant()?, self) {
-            // rtps_shared_read_lock(&domain_participant_lock).delete_subscriber(&subscriber_shared)
-
-            domain_participant_attributes_lock
+            domain_participant_attributes
                 .user_defined_subscriber_list
+                .write_lock()
                 .retain(|x| *x != subscriber_shared);
             Ok(())
         } else {
@@ -446,9 +424,9 @@ where
 
     fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
-        let domain_participant_lock = domain_participant_shared.read_lock();
-        let subscriber = domain_participant_lock
+        let subscriber = domain_participant_shared
             .builtin_subscriber
+            .read_lock()
             .as_ref()
             .unwrap()
             .clone();
@@ -656,8 +634,7 @@ where
 
     fn enable(&self) -> DDSResult<()> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
-        let mut domain_participant_lock = domain_participant_shared.write_lock();
-        domain_participant_lock.enabled = true;
+        *domain_participant_shared.enabled.write_lock() = true;
         Ok(())
     }
 
@@ -708,7 +685,7 @@ mod tests {
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::{
             rtps_structure::RtpsStructure,
-            shared_object::{RtpsShared, RtpsWeak},
+            shared_object::{DdsShared, DdsWeak},
         },
     };
 
@@ -860,13 +837,13 @@ mod tests {
         type StatefulReader = ();
     }
 
-    fn make_participant<Rtps>() -> RtpsShared<DomainParticipantAttributes<Rtps>>
+    fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
     where
         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
         Rtps::Participant: Default + RtpsParticipantConstructor,
         Rtps::Group: Default,
     {
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -877,46 +854,46 @@ mod tests {
             vec![],
         ));
 
-        domain_participant.write_lock().builtin_publisher =
-            Some(RtpsShared::new(PublisherAttributes::new(
+        *domain_participant.builtin_publisher.write_lock() =
+            Some(DdsShared::new(PublisherAttributes::new(
                 PublisherQos::default(),
                 Rtps::Group::default(),
                 domain_participant.downgrade(),
             )));
 
-        let sedp_topic_topic = RtpsShared::new(TopicAttributes::<Rtps>::new(
+        let sedp_topic_topic = DdsShared::new(TopicAttributes::<Rtps>::new(
             TopicQos::default(),
             SedpDiscoveredTopicData::type_name(),
             DCPS_TOPIC,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
-        let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             None,
             sedp_topic_topic.clone(),
             domain_participant
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
         ));
         domain_participant
-            .read_lock()
             .builtin_publisher
+            .read_lock()
             .as_ref()
             .unwrap()
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_topics_data_writer.clone());
 
         domain_participant
@@ -953,7 +930,7 @@ mod tests {
         let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let len_before = domain_participant.read_lock().topic_list.len();
+        let len_before = domain_participant.topic_list.read_lock().len();
 
         let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
             as DDSResult<Topic>;
@@ -961,7 +938,7 @@ mod tests {
         assert!(topic.is_ok());
         assert_eq!(
             len_before + 1,
-            domain_participant.read_lock().topic_list.len()
+            domain_participant.topic_list.read_lock().len()
         );
     }
 
@@ -972,7 +949,7 @@ mod tests {
         let domain_participant = make_participant();
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let len_before = domain_participant.read_lock().topic_list.len();
+        let len_before = domain_participant.topic_list.read_lock().len();
 
         let topic = domain_participant_proxy
             .topic_factory_create_topic("topic", None, None, 0)
@@ -980,14 +957,14 @@ mod tests {
 
         assert_eq!(
             len_before + 1,
-            domain_participant.read_lock().topic_list.len()
+            domain_participant.topic_list.read_lock().len()
         );
 
         domain_participant_proxy
             .topic_factory_delete_topic(&topic)
             .unwrap();
 
-        assert_eq!(len_before, domain_participant.read_lock().topic_list.len());
+        assert_eq!(len_before, domain_participant.topic_list.read_lock().len());
         assert!(topic.as_ref().upgrade().is_err());
     }
 
@@ -1002,8 +979,8 @@ mod tests {
         let domain_participant2_proxy =
             DomainParticipantProxy::new(domain_participant2.downgrade());
 
-        let len_before = domain_participant.read_lock().topic_list.len();
-        let len_before2 = domain_participant2.read_lock().topic_list.len();
+        let len_before = domain_participant.topic_list.read_lock().len();
+        let len_before2 = domain_participant2.topic_list.read_lock().len();
 
         let topic = domain_participant_proxy
             .topic_factory_create_topic("topic", None, None, 0)
@@ -1011,11 +988,11 @@ mod tests {
 
         assert_eq!(
             len_before + 1,
-            domain_participant.read_lock().topic_list.len()
+            domain_participant.topic_list.read_lock().len()
         );
         assert_eq!(
             len_before2,
-            domain_participant2.read_lock().topic_list.len()
+            domain_participant2.topic_list.read_lock().len()
         );
 
         assert!(matches!(

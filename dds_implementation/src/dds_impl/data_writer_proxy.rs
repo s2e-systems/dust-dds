@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 use dds_api::{
@@ -65,11 +65,11 @@ where
     Rtps: RtpsStructure,
 {
     pub _qos: DataWriterQos,
-    pub rtps_writer: RtpsWriter<Rtps>,
-    pub listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
-    pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub publisher: RtpsWeak<PublisherAttributes<Rtps>>,
-    pub status: PublicationMatchedStatus,
+    pub rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
+    pub listener: DdsRwLock<Option<Box<dyn DataWriterListener + Send + Sync>>>,
+    pub topic: DdsShared<TopicAttributes<Rtps>>,
+    pub publisher: DdsWeak<PublisherAttributes<Rtps>>,
+    pub status: DdsRwLock<PublicationMatchedStatus>,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -80,22 +80,22 @@ where
         qos: DataWriterQos,
         rtps_writer: RtpsWriter<Rtps>,
         listener: Option<Box<dyn DataWriterListener + Send + Sync>>,
-        topic: RtpsShared<TopicAttributes<Rtps>>,
-        publisher: RtpsWeak<PublisherAttributes<Rtps>>,
+        topic: DdsShared<TopicAttributes<Rtps>>,
+        publisher: DdsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
         Self {
             _qos: qos,
-            rtps_writer,
-            listener,
+            rtps_writer: DdsRwLock::new(rtps_writer),
+            listener: DdsRwLock::new(listener),
             topic,
             publisher,
-            status: PublicationMatchedStatus {
+            status: DdsRwLock::new(PublicationMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_subscription_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
-            },
+            }),
         }
     }
 }
@@ -104,7 +104,7 @@ pub struct DataWriterProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    data_writer_impl: RtpsWeak<DataWriterAttributes<Rtps>>,
+    data_writer_impl: DdsWeak<DataWriterAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -125,7 +125,7 @@ impl<Foo, Rtps> DataWriterProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(data_writer_impl: RtpsWeak<DataWriterAttributes<Rtps>>) -> Self {
+    pub fn new(data_writer_impl: DdsWeak<DataWriterAttributes<Rtps>>) -> Self {
         Self {
             data_writer_impl,
             phantom: PhantomData,
@@ -133,11 +133,11 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<RtpsWeak<DataWriterAttributes<Rtps>>> for DataWriterProxy<Foo, Rtps>
+impl<Foo, Rtps> AsRef<DdsWeak<DataWriterAttributes<Rtps>>> for DataWriterProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<DataWriterAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<DataWriterAttributes<Rtps>> {
         &self.data_writer_impl
     }
 }
@@ -221,9 +221,8 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
-        let rtps_writer = &mut data_writer_shared.write_lock().rtps_writer;
 
-        match rtps_writer {
+        match data_writer_shared.rtps_writer.write_lock().deref_mut() {
             RtpsWriter::Stateless(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
                 rtps_writer.writer_cache().add_change(change);
@@ -327,7 +326,7 @@ where
     }
 
     fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
-        self.as_ref().upgrade()?.write_lock().listener = listener;
+        *self.as_ref().upgrade()?.listener.write_lock() = listener;
         Ok(())
     }
 
@@ -374,7 +373,7 @@ mod test {
     use crate::dds_impl::topic_proxy::TopicAttributes;
     use crate::dds_type::{DdsSerialize, Endianness};
     use crate::utils::rtps_structure::RtpsStructure;
-    use crate::utils::shared_object::{RtpsShared, RtpsWeak};
+    use crate::utils::shared_object::{DdsShared, DdsWeak};
 
     use super::{DataWriterAttributes, DataWriterProxy, RtpsWriter};
 
@@ -502,11 +501,11 @@ mod test {
             .once()
             .return_var(mock_writer_history_cache);
 
-        let dummy_topic = RtpsShared::new(TopicAttributes::new(
+        let dummy_topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
             "",
             "",
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
@@ -514,10 +513,10 @@ mod test {
             RtpsWriter::Stateless(mock_writer),
             None,
             dummy_topic,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         );
 
-        let shared_data_writer = RtpsShared::new(data_writer);
+        let shared_data_writer = DdsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
 
         let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
@@ -541,11 +540,11 @@ mod test {
             .once()
             .return_var(mock_writer_history_cache);
 
-        let dummy_topic = RtpsShared::new(TopicAttributes::new(
+        let dummy_topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
             "",
             "",
-            RtpsWeak::new(),
+            DdsWeak::new(),
         ));
 
         let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
@@ -553,10 +552,10 @@ mod test {
             RtpsWriter::Stateful(mock_writer),
             None,
             dummy_topic,
-            RtpsWeak::new(),
+            DdsWeak::new(),
         );
 
-        let shared_data_writer = RtpsShared::new(data_writer);
+        let shared_data_writer = DdsShared::new(data_writer);
         let weak_data_writer = shared_data_writer.downgrade();
 
         let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
