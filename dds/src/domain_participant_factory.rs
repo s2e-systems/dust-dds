@@ -425,22 +425,19 @@ impl DomainParticipantFactory {
             spawner.spawn_enabled_periodic_task(
                 "builtin unicast communication",
                 move || {
-                    if let Some(builtin_publisher) =
-                        domain_participant.builtin_publisher.read_lock().deref()
+                    if let (Some(builtin_publisher), Some(builtin_subscriber)) =
+                        (domain_participant.builtin_publisher.read_lock().deref(),
+                        domain_participant.builtin_subscriber.read_lock().deref())
                     {
-                        metatraffic_unicast_communication
-                            .send(core::slice::from_ref(builtin_publisher));
-                    } else {
-                        println!("/!\\ Participant has no builtin publisher");
-                    }
+                        metatraffic_unicast_communication.send(
+                            core::slice::from_ref(builtin_publisher),
+                            core::slice::from_ref(builtin_subscriber),
+                        );
 
-                    if let Some(builtin_subscriber) =
-                        domain_participant.builtin_subscriber.read_lock().deref()
-                    {
                         metatraffic_unicast_communication
                             .receive(core::slice::from_ref(builtin_subscriber));
                     } else {
-                        println!("/!\\ Participant has no builtin subscriber");
+                        println!("/!\\ Participant doesn't have a builtin publisher and a builtin subscriber");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -476,6 +473,10 @@ impl DomainParticipantFactory {
                     default_unicast_communication.send(
                         domain_participant
                             .user_defined_publisher_list
+                            .read_lock()
+                            .as_ref(),
+                        domain_participant
+                            .user_defined_subscriber_list
                             .read_lock()
                             .as_ref(),
                     );
@@ -700,8 +701,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_publications_data_reader.clone());
 
-        let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
+        let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
@@ -742,8 +744,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
-        let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
+        let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
@@ -784,8 +787,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_topics_data_reader.clone());
 
-        let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
+        let sedp_builtin_topics_rtps_writer = SedpBuiltinTopicsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
@@ -1043,7 +1047,7 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications2
                 .metatraffic_multicast
@@ -1216,12 +1220,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_multicast
@@ -1266,12 +1270,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_unicast
@@ -1448,12 +1452,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_multicast
@@ -1508,12 +1512,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_unicast
@@ -1628,12 +1632,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_multicast
@@ -1686,12 +1690,12 @@ mod tests {
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
                     participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+                ), &[]);
 
             communications1
                 .metatraffic_unicast
@@ -1739,7 +1743,7 @@ mod tests {
         {
             communications1
                 .default_unicast
-                .send(&participant1.user_defined_publisher_list.read_lock());
+                .send(&participant1.user_defined_publisher_list.read_lock(), &[]);
 
             // On receive the available data listener should be called
             let mut reader_listener = Box::new(MockReaderListener::new());
