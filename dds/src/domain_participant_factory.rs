@@ -1,6 +1,7 @@
 use std::{
     io::{self, ErrorKind},
     net::{Ipv4Addr, SocketAddr, UdpSocket},
+    ops::Deref,
     str::FromStr,
     sync::Mutex,
 };
@@ -30,7 +31,7 @@ use dds_implementation::{
         topic_proxy::TopicAttributes,
     },
     dds_type::DdsType,
-    utils::{rtps_structure::RtpsStructure, shared_object::RtpsShared},
+    utils::{rtps_structure::RtpsStructure, shared_object::DdsShared},
 };
 use mac_address::MacAddress;
 use rtps_implementation::{
@@ -290,7 +291,7 @@ impl Communications {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
+    participant_list: Mutex<Vec<DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
 }
 
 impl DomainParticipantFactory {
@@ -343,7 +344,7 @@ impl DomainParticipantFactory {
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             communications.guid_prefix,
             domain_id,
             "".to_string(),
@@ -370,7 +371,7 @@ impl DomainParticipantFactory {
 
     fn enable(
         &self,
-        domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+        domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
         communications: Communications,
     ) -> DDSResult<()> {
         // ////////// Task creation
@@ -392,7 +393,7 @@ impl DomainParticipantFactory {
                 "builtin multicast communication",
                 move || {
                     if let Some(builtin_participant_subscriber) =
-                        &domain_participant.read_lock().builtin_subscriber
+                        domain_participant.builtin_subscriber.read_lock().deref()
                     {
                         metatraffic_multicast_communication
                             .receive(core::slice::from_ref(builtin_participant_subscriber));
@@ -425,7 +426,7 @@ impl DomainParticipantFactory {
                 "builtin unicast communication",
                 move || {
                     if let Some(builtin_publisher) =
-                        &domain_participant.read_lock().builtin_publisher
+                        domain_participant.builtin_publisher.read_lock().deref()
                     {
                         metatraffic_unicast_communication
                             .send(core::slice::from_ref(builtin_publisher));
@@ -434,7 +435,7 @@ impl DomainParticipantFactory {
                     }
 
                     if let Some(builtin_subscriber) =
-                        &domain_participant.read_lock().builtin_subscriber
+                        domain_participant.builtin_subscriber.read_lock().deref()
                     {
                         metatraffic_unicast_communication
                             .receive(core::slice::from_ref(builtin_subscriber));
@@ -474,15 +475,15 @@ impl DomainParticipantFactory {
                 move || {
                     default_unicast_communication.send(
                         domain_participant
-                            .read_lock()
                             .user_defined_publisher_list
+                            .read_lock()
                             .as_ref(),
                     );
 
                     default_unicast_communication.receive(
                         domain_participant
-                            .read_lock()
                             .user_defined_subscriber_list
+                            .read_lock()
                             .as_ref(),
                     );
                 },
@@ -589,17 +590,13 @@ impl DomainParticipantFactory {
 }
 
 pub fn create_builtins(
-    domain_participant: RtpsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+    domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DDSResult<()> {
-    let guid_prefix = domain_participant
-        .read_lock()
-        .rtps_participant
-        .guid()
-        .prefix;
+    let guid_prefix = domain_participant.rtps_participant.guid().prefix;
 
     // ///////// Create the built-in publisher and subcriber
 
-    let builtin_subscriber = RtpsShared::new(SubscriberAttributes::new(
+    let builtin_subscriber = DdsShared::new(SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
@@ -607,9 +604,9 @@ pub fn create_builtins(
         )),
         domain_participant.downgrade(),
     ));
-    domain_participant.write_lock().builtin_subscriber = Some(builtin_subscriber.clone());
+    *domain_participant.builtin_subscriber.write_lock() = Some(builtin_subscriber.clone());
 
-    let builtin_publisher = RtpsShared::new(PublisherAttributes::new(
+    let builtin_publisher = DdsShared::new(PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
@@ -617,28 +614,28 @@ pub fn create_builtins(
         )),
         domain_participant.downgrade(),
     ));
-    domain_participant.write_lock().builtin_subscriber = Some(builtin_subscriber.clone());
-    domain_participant.write_lock().builtin_publisher = Some(builtin_publisher.clone());
+    *domain_participant.builtin_subscriber.write_lock() = Some(builtin_subscriber.clone());
+    *domain_participant.builtin_publisher.write_lock() = Some(builtin_publisher.clone());
 
     // ///////// Create built-in DDS data readers and data writers
 
     // ////////// SPDP built-in topic, reader and writer
     {
-        let spdp_topic_participant = RtpsShared::new(TopicAttributes::new(
-            domain_participant.read_lock().default_topic_qos.clone(),
+        let spdp_topic_participant = DdsShared::new(TopicAttributes::new(
+            domain_participant.default_topic_qos.clone(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(spdp_topic_participant.clone());
 
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
 
-        let spdp_builtin_participant_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let spdp_builtin_participant_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
@@ -646,12 +643,11 @@ pub fn create_builtins(
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock()
             .data_reader_list
+            .write_lock()
             .push(spdp_builtin_participant_data_reader);
 
         let spdp_reader_locators: Vec<RtpsReaderLocatorAttributesImpl> = domain_participant
-            .read_lock()
             .metatraffic_multicast_locator_list
             .iter()
             .map(|locator| RtpsReaderLocatorAttributesImpl::new(locator.clone(), false))
@@ -664,7 +660,7 @@ pub fn create_builtins(
             guid_prefix, &[], &[], spdp_reader_locators
         );
 
-        let spdp_builtin_participant_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let spdp_builtin_participant_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
             None,
@@ -672,27 +668,27 @@ pub fn create_builtins(
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(spdp_builtin_participant_data_writer);
     }
 
     // ////////// SEDP built-in publication topic, reader and writer
     {
-        let sedp_topic_publication = RtpsShared::new(TopicAttributes::new(
-            domain_participant.read_lock().default_topic_qos.clone(),
+        let sedp_topic_publication = DdsShared::new(TopicAttributes::new(
+            domain_participant.default_topic_qos.clone(),
             SedpDiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_publication.clone());
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_publications_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
@@ -700,13 +696,13 @@ pub fn create_builtins(
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock()
             .data_reader_list
+            .write_lock()
             .push(sedp_builtin_publications_data_reader.clone());
 
         let sedp_builtin_publications_rtps_writer =
             SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             None,
@@ -714,27 +710,27 @@ pub fn create_builtins(
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_publications_data_writer.clone());
     }
 
     // ////////// SEDP built-in subcriptions topic, reader and writer
     {
-        let sedp_topic_subscription = RtpsShared::new(TopicAttributes::new(
-            domain_participant.read_lock().default_topic_qos.clone(),
+        let sedp_topic_subscription = DdsShared::new(TopicAttributes::new(
+            domain_participant.default_topic_qos.clone(),
             SedpDiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_subscription.clone());
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_subscriptions_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
@@ -742,13 +738,13 @@ pub fn create_builtins(
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock()
             .data_reader_list
+            .write_lock()
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
         let sedp_builtin_subscriptions_rtps_writer =
             SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
             None,
@@ -756,27 +752,27 @@ pub fn create_builtins(
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_subscriptions_data_writer.clone());
     }
 
     // ////////// SEDP built-in topics topic, reader and writer
     {
-        let sedp_topic_topic = RtpsShared::new(TopicAttributes::new(
-            domain_participant.read_lock().default_topic_qos.clone(),
+        let sedp_topic_topic = DdsShared::new(TopicAttributes::new(
+            domain_participant.default_topic_qos.clone(),
             SedpDiscoveredTopicData::type_name(),
             DCPS_TOPIC,
             domain_participant.downgrade(),
         ));
         domain_participant
-            .write_lock()
             .topic_list
+            .write_lock()
             .push(sedp_topic_topic.clone());
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_reader = RtpsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_topics_data_reader = DdsShared::new(DataReaderAttributes::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
@@ -784,13 +780,13 @@ pub fn create_builtins(
             builtin_subscriber.downgrade(),
         ));
         builtin_subscriber
-            .write_lock()
             .data_reader_list
+            .write_lock()
             .push(sedp_builtin_topics_data_reader.clone());
 
         let sedp_builtin_topics_rtps_writer =
             SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             None,
@@ -798,8 +794,8 @@ pub fn create_builtins(
             builtin_publisher.downgrade(),
         ));
         builtin_publisher
-            .write_lock()
             .data_writer_list
+            .write_lock()
             .push(sedp_builtin_topics_data_writer.clone());
     }
 
@@ -846,7 +842,7 @@ mod tests {
             topic_proxy::TopicProxy,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
-        utils::shared_object::RtpsShared,
+        utils::shared_object::DdsShared,
     };
     use mockall::mock;
     use rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
@@ -919,7 +915,7 @@ mod tests {
     #[test]
     fn create_builtins_adds_builtin_readers_and_writers() {
         let guid_prefix = GuidPrefix([1; 12]);
-        let domain_participant = RtpsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
             guid_prefix,
             DomainId::default(),
             "".to_string(),
@@ -950,16 +946,16 @@ mod tests {
         let builtin_subscriber = SubscriberProxy::new(
             participant_proxy,
             domain_participant
-                .read_lock()
                 .builtin_subscriber
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
         );
         let builtin_publisher = PublisherProxy::new(
             domain_participant
-                .read_lock()
                 .builtin_publisher
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
@@ -1007,7 +1003,7 @@ mod tests {
             multicast_ip.into(),
         )
         .unwrap();
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1027,7 +1023,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1046,15 +1042,15 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications2
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1067,8 +1063,8 @@ mod tests {
             let subscriber = SubscriberProxy::new(
                 participant2_proxy.clone(),
                 participant2
-                    .read_lock()
                     .builtin_subscriber
+                    .read_lock()
                     .as_ref()
                     .unwrap()
                     .downgrade(),
@@ -1091,7 +1087,7 @@ mod tests {
         {
             assert_eq!(
                 BuiltInTopicKey {
-                    value: participant1.read_lock().rtps_participant.guid().into()
+                    value: participant1.rtps_participant.guid().into()
                 },
                 spdp_discovered_participant_data.dds_participant_data.key,
             );
@@ -1102,31 +1098,28 @@ mod tests {
             );
 
             assert_eq!(
-                participant1.read_lock().rtps_participant.guid().prefix,
+                participant1.rtps_participant.guid().prefix,
                 spdp_discovered_participant_data
                     .participant_proxy
                     .guid_prefix
             );
 
             assert_eq!(
-                participant1.read_lock().metatraffic_unicast_locator_list,
+                participant1.metatraffic_unicast_locator_list,
                 spdp_discovered_participant_data
                     .participant_proxy
                     .metatraffic_unicast_locator_list
             );
 
             assert_eq!(
-                participant1.read_lock().metatraffic_multicast_locator_list,
+                participant1.metatraffic_multicast_locator_list,
                 spdp_discovered_participant_data
                     .participant_proxy
                     .metatraffic_multicast_locator_list
             );
 
             assert_eq!(
-                participant1
-                    .read_lock()
-                    .rtps_participant
-                    .default_unicast_locator_list,
+                participant1.rtps_participant.default_unicast_locator_list,
                 spdp_discovered_participant_data
                     .participant_proxy
                     .default_unicast_locator_list
@@ -1180,7 +1173,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1201,7 +1194,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1222,20 +1215,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1243,8 +1236,8 @@ mod tests {
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1272,20 +1265,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1293,8 +1286,8 @@ mod tests {
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1315,8 +1308,8 @@ mod tests {
         let participant2_subscriber = SubscriberProxy::new(
             participant2_proxy,
             participant2
-                .read_lock()
                 .builtin_subscriber
+                .read_lock()
                 .as_ref()
                 .unwrap()
                 .downgrade(),
@@ -1352,8 +1345,8 @@ mod tests {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write_lock()
                 .rtps_writer
+                .write_lock()
                 .try_as_stateful_writer()
                 .unwrap()
                 .guid(),
@@ -1368,8 +1361,8 @@ mod tests {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .write_lock()
                 .rtps_reader
+                .write_lock()
                 .try_as_stateful_reader()
                 .unwrap()
                 .guid(),
@@ -1412,7 +1405,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1433,7 +1426,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1454,20 +1447,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1475,8 +1468,8 @@ mod tests {
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1514,20 +1507,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1535,8 +1528,8 @@ mod tests {
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1592,7 +1585,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant1 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications1.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1613,7 +1606,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2 = RtpsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
+        let participant2 = DdsShared::new(DomainParticipantAttributes::<RtpsStructureImpl>::new(
             communications2.guid_prefix,
             domain_id,
             "".to_string(),
@@ -1634,20 +1627,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1655,8 +1648,8 @@ mod tests {
                 .metatraffic_multicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1692,20 +1685,20 @@ mod tests {
             communications1
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant1.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
             communications2
                 .metatraffic_unicast
                 .send(core::slice::from_ref(
-                    participant2.read_lock().builtin_publisher.as_ref().unwrap(),
+                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
                 ));
 
             communications1
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant1
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1713,8 +1706,8 @@ mod tests {
                 .metatraffic_unicast
                 .receive(core::slice::from_ref(
                     participant2
-                        .read_lock()
                         .builtin_subscriber
+                        .read_lock()
                         .as_ref()
                         .unwrap(),
                 ));
@@ -1746,7 +1739,7 @@ mod tests {
         {
             communications1
                 .default_unicast
-                .send(&participant1.read_lock().user_defined_publisher_list);
+                .send(&participant1.user_defined_publisher_list.read_lock());
 
             // On receive the available data listener should be called
             let mut reader_listener = Box::new(MockReaderListener::new());
@@ -1758,7 +1751,7 @@ mod tests {
 
             communications2
                 .default_unicast
-                .receive(&participant2.read_lock().user_defined_subscriber_list);
+                .receive(&participant2.user_defined_subscriber_list.read_lock());
 
             // From now on no listener should be called anymore
             user_reader

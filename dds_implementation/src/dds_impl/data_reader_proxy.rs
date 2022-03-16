@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
 use crate::{
     dds_type::DdsDeserialize,
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{RtpsShared, RtpsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 use dds_api::{
@@ -44,35 +44,35 @@ pub trait AnyDataReaderListener<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn trigger_on_data_available(&self, reader: RtpsShared<DataReaderAttributes<Rtps>>);
+    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps>>);
     fn trigger_on_sample_rejected(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SampleLostStatus,
     );
 }
@@ -92,14 +92,14 @@ where
     for<'a> <<Rtps::StatelessReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
     for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType: RtpsCacheChangeAttributes<'a, DataType = [u8]>,
 {
-    fn trigger_on_data_available(&self, reader: RtpsShared<DataReaderAttributes<Rtps>>) {
+    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps>>) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_data_available(&data_reader)
     }
 
     fn trigger_on_sample_rejected(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SampleRejectedStatus,
     ) {
 
@@ -109,7 +109,7 @@ where
 
     fn trigger_on_liveliness_changed(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: LivelinessChangedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -118,7 +118,7 @@ where
 
     fn trigger_on_requested_deadline_missed(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: RequestedDeadlineMissedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -127,7 +127,7 @@ where
 
     fn trigger_on_requested_incompatible_qos(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: RequestedIncompatibleQosStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -136,7 +136,7 @@ where
 
     fn trigger_on_subscription_matched(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SubscriptionMatchedStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -145,7 +145,7 @@ where
 
     fn trigger_on_sample_lost(
         &self,
-        reader: RtpsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps>>,
         status: SampleLostStatus,
     ) {
         let data_reader = DataReaderProxy::new(reader.downgrade());
@@ -188,12 +188,12 @@ pub struct DataReaderAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub rtps_reader: RtpsReader<Rtps>,
+    pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
     pub _qos: DataReaderQos,
-    pub topic: RtpsShared<TopicAttributes<Rtps>>,
-    pub listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
-    pub parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
-    pub status: SubscriptionMatchedStatus,
+    pub topic: DdsShared<TopicAttributes<Rtps>>,
+    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>>,
+    pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+    pub status: DdsRwLock<SubscriptionMatchedStatus>,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -203,23 +203,23 @@ where
     pub fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
-        topic: RtpsShared<TopicAttributes<Rtps>>,
+        topic: DdsShared<TopicAttributes<Rtps>>,
         listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
-        parent_subscriber: RtpsWeak<SubscriberAttributes<Rtps>>,
+        parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         Self {
-            rtps_reader,
+            rtps_reader: DdsRwLock::new(rtps_reader),
             _qos: qos,
             topic,
-            listener,
+            listener: DdsRwLock::new(listener),
             parent_subscriber,
-            status: SubscriptionMatchedStatus {
+            status: DdsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_publication_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
-            },
+            }),
         }
     }
 }
@@ -228,7 +228,7 @@ pub struct DataReaderProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    data_reader_impl: RtpsWeak<DataReaderAttributes<Rtps>>,
+    data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -249,7 +249,7 @@ impl<Foo, Rtps> DataReaderProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(data_reader_impl: RtpsWeak<DataReaderAttributes<Rtps>>) -> Self {
+    pub fn new(data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>) -> Self {
         Self {
             data_reader_impl,
             phantom: PhantomData,
@@ -257,11 +257,11 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<RtpsWeak<DataReaderAttributes<Rtps>>> for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps> AsRef<DdsWeak<DataReaderAttributes<Rtps>>> for DataReaderProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn as_ref(&self) -> &RtpsWeak<DataReaderAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<DataReaderAttributes<Rtps>> {
         &self.data_reader_impl
     }
 }
@@ -311,11 +311,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &mut data_reader_shared
-            .write_lock()
-            .rtps_reader;
-
-        match rtps_reader {
+        let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
+        match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
                 let samples = rtps_reader.reader_cache().changes()
                     .iter()
@@ -393,11 +390,8 @@ where
         _instance_states: &[InstanceStateKind],
     ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
-        let rtps_reader = &mut data_reader_shared
-            .write_lock()
-            .rtps_reader;
-
-        match rtps_reader {
+        let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
+        match rtps_reader.deref_mut() {
             RtpsReader::Stateless(rtps_reader) => {
                 let seq_num = rtps_reader.reader_cache().get_seq_num_min().ok_or(DDSError::NoData)?;
 
@@ -693,7 +687,7 @@ for<'a> <<Rtps::StatefulReader as RtpsReaderAttributes>::HistoryCacheType as Rtp
     }
 
     fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
-        self.as_ref().upgrade()?.write_lock().listener = match listener {
+        *self.as_ref().upgrade()?.listener.write_lock() = match listener {
             Some(l) => Some(Box::new(l)),
             None => None,
         };
@@ -732,7 +726,7 @@ mod tests {
     // #[test]
     // fn read() {
     //     let reader = DataReaderStorage {};
-    //     let shared_reader = RtpsShared::new(reader);
+    //     let shared_reader = DdsShared::new(reader);
 
     //     let data_reader = DataReaderImpl::<u8> {
     //         _subscriber: &MockSubcriber,
