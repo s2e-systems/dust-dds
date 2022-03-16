@@ -29,7 +29,10 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::{Timer, TimerConstructor}};
+use crate::{
+    rtps_reader_proxy_impl::ChangeForReader,
+    utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -63,7 +66,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                     let submessages = RefCell::new(Vec::new());
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     BestEffortStatefulWriterBehavior::send_unsent_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
+                        &mut ChangeForReader::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -116,7 +119,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
 
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
+                        &mut ChangeForReader::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -306,7 +309,10 @@ mod tests {
         },
     };
 
-    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::{StdTimer, TimerConstructor}};
+    use crate::{
+        rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList},
+        utils::clock::{StdTimer, TimerConstructor},
+    };
 
     use super::*;
 
@@ -355,11 +361,7 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        RtpsReaderProxyOperationsImpl::new(
-            &mut matched_reader_proxy,
-            &writer.writer.writer_cache,
-            true,
-        );
+        ChangeForReader::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
         writer.matched_readers.push(matched_reader_proxy);
 
         let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
@@ -387,7 +389,7 @@ mod tests {
         );
 
         {
-            let mut operations = RtpsReaderProxyOperationsImpl::new(
+            let mut operations = ChangeForReader::new(
                 &mut matched_reader_proxy,
                 &writer.writer.writer_cache,
                 true,
@@ -482,14 +484,30 @@ mod tests {
         );
         writer.matched_readers.push(matched_reader_proxy);
 
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(0));
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(0));
         assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
 
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(1));
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(1));
         assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
-        
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(2));
-        writer.heartbeat_timer.expect_reset().once().return_const(());
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(2));
+        writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len()); // one heartbeat sent

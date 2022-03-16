@@ -1,5 +1,3 @@
-use std::vec;
-
 use rtps_pim::{
     behavior::{
         types::ChangeForReaderStatusKind::{
@@ -84,18 +82,19 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
     }
 }
 
-pub struct RtpsReaderProxyOperationsImpl<'a> {
-    this: &'a mut RtpsReaderProxyImpl,
+pub struct ChangeForReader<'a> {
+    pub sequence_number: SequenceNumber,
+    pub reader_proxy: &'a mut RtpsReaderProxyImpl,
+    pub writer_cache: &'a RtpsHistoryCacheImpl,
 }
 
-impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+impl<'a> ChangeForReader<'a> {
     pub fn new(
         reader_proxy: &'a mut RtpsReaderProxyImpl,
         writer_cache: &'a RtpsHistoryCacheImpl,
         push_mode: bool,
     ) -> Self {
-        // TODO :remove changes from changes_for_reader that are not in writer_cache_changes
-
+        // Todo: move the following code to where add_change is called
         // add changes from writer_cache_changes that are not in changes_for_reader
         for writer_cache_change_seq_num in writer_cache.changes().iter().map(|c| c.sequence_number)
         {
@@ -115,26 +114,36 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             }
         }
 
-        Self { this: reader_proxy }
+        Self {
+            sequence_number: 0,
+            reader_proxy,
+            writer_cache,
+        }
     }
 }
 
-impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
-    type ChangeForReaderType = SequenceNumber;
+impl From<&'_ ChangeForReader<'_>> for SequenceNumber {
+    fn from(cfr: &'_ ChangeForReader<'_>) -> Self {
+        cfr.sequence_number
+    }
+}
+
+impl<'a> RtpsReaderProxyOperations for ChangeForReader<'a> {
+    type ChangeForReaderType = ChangeForReader<'a>;
     type ChangeForReaderListType = Vec<SequenceNumber>;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         // "FOR_EACH change in this.changes_for_reader
         // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
         // change.status := ACKNOWLEDGED;"
-        for change in &mut self.this.changes_for_reader {
+        for change in &mut self.reader_proxy.changes_for_reader {
             if change.sequence_number <= committed_seq_num {
                 change.status = Acknowledged;
             }
         }
     }
 
-    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
+    fn next_requested_change(&mut self) -> Option<&mut Self::ChangeForReaderType> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
         //  return change IN this.requested_changes()
@@ -144,17 +153,18 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         // Following 8.4.9.2.12 Transition T12 of Reliable Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_requested_change();
         // a_change.status := UNDERWAY;
-        self.this
+        self.reader_proxy
             .changes_for_reader
             .iter_mut()
             .find(|c| c.sequence_number == next_seq_num)
             .unwrap()
             .status = Underway;
 
-        Some(next_seq_num)
+        self.sequence_number = next_seq_num;
+        Some(self)
     }
 
-    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
+    fn next_unsent_change(&mut self) -> Option<&mut Self::ChangeForReaderType> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
@@ -164,19 +174,20 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_unsent_change();
         // a_change.status := UNDERWAY;
-        self.this
+        self.reader_proxy
             .changes_for_reader
             .iter_mut()
             .find(|c| c.sequence_number == next_seq_num)
             .unwrap()
             .status = Underway;
 
-        Some(next_seq_num)
+        self.sequence_number = next_seq_num;
+        Some(self)
     }
 
     fn unsent_changes(&self) -> Self::ChangeForReaderListType {
         // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
-        self.this
+        self.reader_proxy
             .changes_for_reader
             .iter()
             .filter_map(|cc| {
@@ -193,7 +204,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         // "return change IN this.changes_for_reader
         //      SUCH-THAT (change.status == REQUESTED);"
         let requested_changes_for_reader: Vec<_> = self
-            .this
+            .reader_proxy
             .changes_for_reader
             .iter()
             .filter(|&change_for_reader| change_for_reader.status == Requested)
@@ -212,7 +223,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         // END"
         for &seq_num in req_seq_num_set {
             for change_for_reader in &mut self
-                .this
+                .reader_proxy
                 .changes_for_reader
                 .iter_mut()
                 .filter(|change_for_reader| change_for_reader.sequence_number == seq_num)
@@ -225,7 +236,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
     fn unacked_changes(&self) -> Self::ChangeForReaderListType {
         //"return change IN this.changes_for_reader
         //    SUCH-THAT (change.status == UNACKNOWLEDGED);"
-        self.this
+        self.reader_proxy
             .changes_for_reader
             .iter()
             .filter_map(|cc| {
@@ -263,50 +274,28 @@ mod tests {
     }
 
     #[test]
-    fn new_cache_change_in_history_cache() {
-        let mut reader_proxy_attributes =
-            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-        let mut writer_cache = RtpsHistoryCacheImpl::new();
-        add_new_change(&mut writer_cache, 1);
-
-        let mut reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
-
-        assert_eq!(reader_proxy.this.changes_for_reader.len(), 1);
-        assert_eq!(reader_proxy.this.changes_for_reader[0].sequence_number, 1);
-        assert_eq!(reader_proxy.this.changes_for_reader[0].status, Unsent);
-        assert_eq!(reader_proxy.next_unsent_change(), Some(1));
-        assert_eq!(reader_proxy.this.changes_for_reader[0].status, Underway);
-
-        add_new_change(&mut writer_cache, 2);
-        add_new_change(&mut writer_cache, 3);
-
-        let reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
-
-        assert_eq!(reader_proxy.this.changes_for_reader[0].status, Underway);
-        assert_eq!(reader_proxy.this.changes_for_reader[1].status, Unsent);
-        assert_eq!(reader_proxy.this.changes_for_reader[2].status, Unsent);
-    }
-
-    #[test]
     fn next_requested_change() {
-        let mut reader_proxy_attributes =
-            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = RtpsHistoryCacheImpl::new();
         add_new_change(&mut writer_cache, 1);
         add_new_change(&mut writer_cache, 2);
         add_new_change(&mut writer_cache, 4);
         add_new_change(&mut writer_cache, 6);
 
+        let mut reader_proxy_attributes =
+            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+
         let mut reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+            ChangeForReader::new(&mut reader_proxy_attributes, &writer_cache, true);
 
         reader_proxy.requested_changes_set(&[2, 4]);
 
-        assert_eq!(reader_proxy.next_requested_change(), Some(2));
-        assert_eq!(reader_proxy.next_requested_change(), Some(4));
-        assert_eq!(reader_proxy.next_requested_change(), None);
+        let result = reader_proxy.next_requested_change().unwrap();
+        assert_eq!(result.sequence_number, 2);
+
+        let result = reader_proxy.next_requested_change().unwrap();
+        assert_eq!(result.sequence_number, 4);
+
+        assert!(reader_proxy.next_requested_change().is_none());
     }
 
     #[test]
@@ -318,8 +307,7 @@ mod tests {
         add_new_change(&mut writer_cache, 3);
         add_new_change(&mut writer_cache, 4);
 
-        let reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+        let reader_proxy = ChangeForReader::new(&mut reader_proxy_attributes, &writer_cache, true);
 
         assert_eq!(reader_proxy.unsent_changes(), vec![1, 3, 4]);
     }
@@ -333,11 +321,15 @@ mod tests {
         add_new_change(&mut writer_cache, 2);
 
         let mut reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, true);
+            ChangeForReader::new(&mut reader_proxy_attributes, &writer_cache, true);
 
-        assert_eq!(reader_proxy.next_unsent_change(), Some(1));
-        assert_eq!(reader_proxy.next_unsent_change(), Some(2));
-        assert_eq!(reader_proxy.next_unsent_change(), None);
+        let result = reader_proxy.next_unsent_change().unwrap();
+        assert_eq!(result.sequence_number, 1);
+
+        let result = reader_proxy.next_unsent_change().unwrap();
+        assert_eq!(result.sequence_number, 2);
+
+        assert!(reader_proxy.next_unsent_change().is_none());
     }
 
     #[test]
@@ -351,7 +343,7 @@ mod tests {
         add_new_change(&mut writer_cache, 6);
 
         let mut reader_proxy =
-            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache, false);
+            ChangeForReader::new(&mut reader_proxy_attributes, &writer_cache, false);
 
         reader_proxy.acked_changes_set(2);
 
