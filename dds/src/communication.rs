@@ -2,8 +2,8 @@ use std::ops::DerefMut;
 
 use dds_implementation::{
     dds_impl::{
-        data_writer_proxy::RtpsWriter, publisher_proxy::PublisherAttributes,
-        subscriber_proxy::SubscriberAttributes,
+        data_reader_proxy::RtpsReader, data_writer_proxy::RtpsWriter,
+        publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::DdsShared,
 };
@@ -12,9 +12,15 @@ use rtps_implementation::{
     rtps_stateless_writer_impl::RtpsStatelessSubmessage,
 };
 use rtps_pim::{
-    behavior::writer::reader_proxy::RtpsReaderProxyAttributes,
+    behavior::{writer::reader_proxy::RtpsReaderProxyAttributes, reader::writer_proxy::RtpsWriterProxyAttributes},
     messages::overall_structure::RtpsMessageHeader,
-    structure::types::{GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E},
+    structure::{
+        entity::RtpsEntityAttributes,
+        types::{
+            GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+        },
+    },
 };
 use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
@@ -35,8 +41,12 @@ impl<T> Communication<T>
 where
     T: TransportWrite,
 {
-    pub fn send(&mut self, list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>]) {
-        for publisher in list {
+    pub fn send(
+        &mut self,
+        publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
+        subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
+    ) {
+        for publisher in publisher_list {
             let message_header = RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
                 version: PROTOCOLVERSION,
@@ -113,12 +123,42 @@ where
                 }
             }
         }
+
+        for subscriber in subscriber_list {
+            for any_data_reader in subscriber.data_reader_list.write_lock().iter_mut() {
+                if let RtpsReader::Stateful(stateful_rtps_reader) =
+                    any_data_reader.rtps_reader.write_lock().deref_mut()
+                {
+                    let message_header = RtpsMessageHeader {
+                        protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                        version: PROTOCOLVERSION,
+                        vendor_id: VENDOR_ID_S2E,
+                        guid_prefix: stateful_rtps_reader.guid().prefix,
+                    };
+
+                    for (writer_proxy, acknacks) in
+                        stateful_rtps_reader.produce_acknack_submessages()
+                    {
+                        self.transport.write(
+                            &RtpsMessage::new(
+                                message_header.clone(),
+                                acknacks
+                                    .into_iter()
+                                    .map(|acknack| RtpsSubmessageType::AckNack(acknack))
+                                    .collect(),
+                            ),
+                            writer_proxy.unicast_locator_list()[0],
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 
 impl<T> Communication<T>
 where
-    T: TransportRead,
+    T: TransportRead + TransportWrite,
 {
     pub fn receive(&mut self, list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
         while let Some((source_locator, message)) = self.transport.read() {

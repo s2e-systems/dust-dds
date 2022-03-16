@@ -116,8 +116,13 @@ impl MessageReceiver {
                     for subscriber in list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
                             let mut rtps_reader = data_reader.rtps_reader.write_lock();
-                            if let RtpsReader::Stateful(stateful_rtps_reader) = rtps_reader.deref_mut() {
-                                stateful_rtps_reader.process_heartbeat_submessage(heartbeat, self.source_guid_prefix);
+                            if let RtpsReader::Stateful(stateful_rtps_reader) =
+                                rtps_reader.deref_mut()
+                            {
+                                stateful_rtps_reader.process_heartbeat_submessage(
+                                    heartbeat,
+                                    self.source_guid_prefix,
+                                );
                             }
                         }
                     }
