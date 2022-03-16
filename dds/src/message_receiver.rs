@@ -74,38 +74,39 @@ impl MessageReceiver {
                 RtpsSubmessageType::Data(data) => {
                     for subscriber in list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
+                            let before_data_cache_len;
+                            let after_data_cache_len;
                             let mut rtps_reader = data_reader.rtps_reader.write_lock();
                             match rtps_reader.deref_mut() {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
-                                    let cache_len =
+                                    before_data_cache_len =
                                         stateless_rtps_reader.0.reader_cache.changes().len();
 
                                     stateless_rtps_reader
                                         .process_submessage(data, self.source_guid_prefix);
 
-                                    if stateless_rtps_reader.0.reader_cache.changes().len()
-                                        > cache_len
-                                    {
-                                        data_reader.listener.read_lock().as_ref().map(|l| {
-                                            l.trigger_on_data_available(data_reader.clone())
-                                        });
-                                    }
+                                    after_data_cache_len =
+                                        stateless_rtps_reader.0.reader_cache.changes().len();
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    let cache_len =
+                                    before_data_cache_len =
                                         stateful_rtps_reader.reader.reader_cache.changes().len();
 
                                     stateful_rtps_reader
                                         .process_data_submessage(data, self.source_guid_prefix);
 
-                                    if stateful_rtps_reader.reader.reader_cache.changes().len()
-                                        > cache_len
-                                    {
-                                        data_reader.listener.read_lock().as_ref().map(|l| {
-                                            l.trigger_on_data_available(data_reader.clone())
-                                        });
-                                    }
+                                    after_data_cache_len =
+                                        stateful_rtps_reader.reader.reader_cache.changes().len();
                                 }
+                            }
+                            // Call the listener after dropping the rtps_reader lock to avoid deadlock
+                            drop(rtps_reader);
+                            if before_data_cache_len < after_data_cache_len {
+                                data_reader
+                                    .listener
+                                    .read_lock()
+                                    .as_ref()
+                                    .map(|l| l.trigger_on_data_available(data_reader.clone()));
                             }
                         }
                     }
