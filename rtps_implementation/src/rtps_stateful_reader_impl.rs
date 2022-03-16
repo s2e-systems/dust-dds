@@ -466,8 +466,9 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        // reader.process_heartbeat_submessage(make_heartbeat(0, 0), writer_guid.prefix);
-        // assert_eq!(vec![0], reader.matched_writers[0].missing_changes());
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
         reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
         assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
 
