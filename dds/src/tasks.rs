@@ -781,35 +781,35 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         task_spdp_discovery(participant1.clone()).unwrap();
@@ -908,35 +908,35 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             task_spdp_discovery(participant1.clone()).unwrap();
             task_spdp_discovery(participant2.clone()).unwrap();
@@ -966,35 +966,35 @@ mod tests {
 
         // Send SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         // Before the SEDP task the readers/writers are not matched
@@ -1072,35 +1072,35 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             task_spdp_discovery(participant1.clone()).unwrap();
             task_spdp_discovery(participant2.clone()).unwrap();
@@ -1133,35 +1133,35 @@ mod tests {
 
         // Send SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ), &[]);
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         // Before the SEDP task the readers/writers are not matched

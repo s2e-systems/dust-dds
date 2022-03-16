@@ -1,7 +1,10 @@
 use std::ops::DerefMut;
 
 use dds_implementation::{
-    dds_impl::{data_reader_proxy::RtpsReader, subscriber_proxy::SubscriberAttributes},
+    dds_impl::{
+        data_reader_proxy::RtpsReader, data_writer_proxy::RtpsWriter,
+        publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
+    },
     utils::shared_object::DdsShared,
 };
 use rtps_pim::{
@@ -49,7 +52,8 @@ impl MessageReceiver {
     pub fn process_message<'a>(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        list: &'a [DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
+        publisher_list: &'a [DdsShared<PublisherAttributes<RtpsStructureImpl>>],
+        subscriber_list: &'a [DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
         message: &'a RtpsMessage<'a>,
     ) {
@@ -70,9 +74,22 @@ impl MessageReceiver {
 
         for submessage in &message.submessages {
             match submessage {
-                RtpsSubmessageType::AckNack(_) => todo!(),
+                RtpsSubmessageType::AckNack(acknack) => {
+                    for publisher in publisher_list {
+                        for data_writer in publisher.data_writer_list.read_lock().iter() {
+                            match data_writer.rtps_writer.write_lock().deref_mut() {
+                                RtpsWriter::Stateless(stateless_rtps_writer) => {
+                                    stateless_rtps_writer.process_acknack_submessage(acknack);
+                                },
+                                RtpsWriter::Stateful(stateful_rtps_writer) => {
+                                    stateful_rtps_writer.process_acknack_submessage(acknack, self.source_guid_prefix);
+                                },
+                            }
+                        }
+                    }
+                }
                 RtpsSubmessageType::Data(data) => {
-                    for subscriber in list {
+                    for subscriber in subscriber_list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
                             let before_data_cache_len;
                             let after_data_cache_len;
@@ -114,7 +131,7 @@ impl MessageReceiver {
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(heartbeat) => {
-                    for subscriber in list {
+                    for subscriber in subscriber_list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
                             let mut rtps_reader = data_reader.rtps_reader.write_lock();
                             if let RtpsReader::Stateful(stateful_rtps_reader) =
