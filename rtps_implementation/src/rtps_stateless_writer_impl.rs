@@ -17,14 +17,15 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
+            TopicKind, ENTITYID_UNKNOWN,
         },
     },
 };
@@ -136,6 +137,24 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
         }
 
         destined_submessages
+    }
+
+    pub fn process_acknack_submessage(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+        if self.writer.endpoint.reliability_level == ReliabilityKind::Reliable {
+            if acknack.reader_id.value == ENTITYID_UNKNOWN
+                || acknack.reader_id.value == self.writer.endpoint.entity.guid.entity_id()
+            {
+                for reader_locator in self.reader_locators.iter_mut() {
+                    ReliableStatelessWriterBehavior::receive_acknack(
+                        &mut RtpsReaderLocatorOperationsImpl::new(
+                            reader_locator,
+                            &self.writer.writer_cache,
+                        ),
+                        acknack,
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -432,14 +451,30 @@ mod tests {
             false,
         ));
 
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(0));
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(0));
         assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
 
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(1));
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(1));
         assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
 
-        writer.heartbeat_timer.expect_elapsed().once().return_const(std::time::Duration::from_secs(2));
-        writer.heartbeat_timer.expect_reset().once().return_const(());
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(2));
+        writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len()); // one heartbeat sent

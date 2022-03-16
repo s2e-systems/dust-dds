@@ -12,14 +12,14 @@ use rtps_implementation::{
     rtps_stateless_writer_impl::RtpsStatelessSubmessage,
 };
 use rtps_pim::{
-    behavior::{writer::reader_proxy::RtpsReaderProxyAttributes, reader::writer_proxy::RtpsWriterProxyAttributes},
+    behavior::{
+        reader::writer_proxy::RtpsWriterProxyAttributes,
+        writer::reader_proxy::RtpsReaderProxyAttributes,
+    },
     messages::overall_structure::RtpsMessageHeader,
     structure::{
         entity::RtpsEntityAttributes,
-        types::{
-            GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION,
-            VENDOR_ID_S2E,
-        },
+        types::{GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
 };
 use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -160,11 +160,16 @@ impl<T> Communication<T>
 where
     T: TransportRead,
 {
-    pub fn receive(&mut self, list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>]) {
+    pub fn receive(
+        &mut self,
+        publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
+        subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
+    ) {
         while let Some((source_locator, message)) = self.transport.read() {
             MessageReceiver::new().process_message(
                 self.guid_prefix,
-                list,
+                publisher_list,
+                subscriber_list,
                 source_locator,
                 &message,
             );

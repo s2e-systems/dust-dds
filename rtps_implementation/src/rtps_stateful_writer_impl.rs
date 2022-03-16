@@ -17,14 +17,14 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GuidPrefix,
         },
     },
 };
@@ -148,6 +148,27 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
         }
 
         destined_submessages
+    }
+
+    pub fn process_acknack_submessage(
+        &mut self,
+        acknack: &AckNackSubmessage<Vec<SequenceNumber>>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.writer.endpoint.reliability_level == ReliabilityKind::Reliable {
+            let reader_guid = Guid::new(source_guid_prefix, acknack.reader_id.value);
+
+            if let Some(reader_proxy) = self
+                .matched_readers
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                ReliableStatefulWriterBehavior::receive_acknack(
+                    &mut ChangeForReader::new(reader_proxy, &self.writer.writer_cache, self.writer.push_mode),
+                    acknack,
+                );
+            }
+        }
     }
 }
 
@@ -389,11 +410,8 @@ mod tests {
         );
 
         {
-            let mut operations = ChangeForReader::new(
-                &mut matched_reader_proxy,
-                &writer.writer.writer_cache,
-                true,
-            );
+            let mut operations =
+                ChangeForReader::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
             operations.requested_changes_set(&[change.sequence_number]);
             operations.next_requested_change();
         }
