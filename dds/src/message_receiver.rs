@@ -112,7 +112,16 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
-                RtpsSubmessageType::Heartbeat(_) => (),
+                RtpsSubmessageType::Heartbeat(heartbeat) => {
+                    for subscriber in list {
+                        for data_reader in subscriber.data_reader_list.read_lock().iter() {
+                            let mut rtps_reader = data_reader.rtps_reader.write_lock();
+                            if let RtpsReader::Stateful(stateful_rtps_reader) = rtps_reader.deref_mut() {
+                                stateful_rtps_reader.process_heartbeat_submessage(heartbeat, self.source_guid_prefix);
+                            }
+                        }
+                    }
+                }
                 RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
                 RtpsSubmessageType::InfoDestination(_) => todo!(),
                 RtpsSubmessageType::InfoReply(_) => todo!(),
