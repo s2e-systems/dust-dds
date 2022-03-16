@@ -107,6 +107,8 @@ impl RtpsStatefulReaderImpl {
             {
                 if !heartbeat_submessage.final_flag {
                     self.must_send_acknacks = true;
+                } else {
+                    todo!();
                 }
 
                 ReliableStatefulReaderBehavior::receive_heartbeat(
