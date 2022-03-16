@@ -29,10 +29,7 @@ use rtps_pim::{
     },
 };
 
-use crate::{
-    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
-    utils::clock::{StdTimer, Timer},
-};
+use crate::{rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::Timer};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -47,7 +44,7 @@ pub enum RtpsStatefulSubmessage<'a> {
     Heartbeat(HeartbeatSubmessage),
 }
 
-pub struct RtpsStatefulWriterImpl<T = StdTimer> {
+pub struct RtpsStatefulWriterImpl<T> {
     pub writer: RtpsWriterImpl,
     pub matched_readers: Vec<RtpsReaderProxyImpl>,
     pub heartbeat_timer: T,
@@ -308,7 +305,7 @@ mod tests {
         },
     };
 
-    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::StdTimer};
 
     use super::*;
 

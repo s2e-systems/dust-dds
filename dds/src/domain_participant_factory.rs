@@ -39,7 +39,7 @@ use rtps_implementation::{
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -76,8 +76,8 @@ pub struct RtpsStructureImpl;
 impl RtpsStructure for RtpsStructureImpl {
     type Group = RtpsGroupImpl;
     type Participant = RtpsParticipantImpl;
-    type StatelessWriter = RtpsStatelessWriterImpl;
-    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatelessWriter = RtpsStatelessWriterImpl<StdTimer>;
+    type StatefulWriter = RtpsStatefulWriterImpl<StdTimer>;
     type StatelessReader = RtpsStatelessReaderImpl;
     type StatefulReader = RtpsStatefulReaderImpl;
 }
@@ -658,7 +658,7 @@ pub fn create_builtins(
             .collect();
 
         let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
-            RtpsStatelessWriterImpl,
+            RtpsStatelessWriterImpl<StdTimer>,
             _,
         >(
             guid_prefix, &[], &[], spdp_reader_locators
@@ -705,7 +705,7 @@ pub fn create_builtins(
             .push(sedp_builtin_publications_data_reader.clone());
 
         let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
@@ -747,7 +747,7 @@ pub fn create_builtins(
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
         let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+            SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
@@ -789,7 +789,7 @@ pub fn create_builtins(
             .push(sedp_builtin_topics_data_reader.clone());
 
         let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+            SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl<StdTimer>>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_writer = RtpsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),

@@ -29,10 +29,7 @@ use rtps_pim::{
     },
 };
 
-use crate::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-    utils::clock::{StdTimer, Timer},
-};
+use crate::{rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl, utils::clock::Timer};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -41,7 +38,7 @@ use super::{
     rtps_writer_impl::RtpsWriterImpl,
 };
 
-pub struct RtpsStatelessWriterImpl<T = StdTimer> {
+pub struct RtpsStatelessWriterImpl<T> {
     pub writer: RtpsWriterImpl,
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
     pub heartbeat_timer: T,
@@ -287,15 +284,14 @@ mod tests {
         },
         structure::{
             cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-            history_cache::RtpsHistoryCacheOperations,
             types::{
                 EntityId, GuidPrefix, LOCATOR_KIND_UDPv4, ENTITYID_UNKNOWN,
                 USER_DEFINED_WRITER_NO_KEY,
-            },
+            }, history_cache::RtpsHistoryCacheOperations,
         },
     };
 
-    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, utils::clock::StdTimer};
 
     use super::*;
 
