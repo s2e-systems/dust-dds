@@ -1,11 +1,25 @@
 use mockall::mock;
 use rtps_pim::{
-    behavior::{reader::stateless_reader::RtpsStatelessReaderConstructor, types::Duration},
+    behavior::{
+        reader::{reader::RtpsReaderAttributes, stateless_reader::RtpsStatelessReaderConstructor},
+        types::Duration,
+    },
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
+use super::mock_rtps_history_cache::MockRtpsHistoryCache;
+
 mock! {
     pub RtpsStatelessReader{}
+
+    impl RtpsReaderAttributes for RtpsStatelessReader{
+        type HistoryCacheType = MockRtpsHistoryCache;
+
+        fn heartbeat_response_delay(&self) -> Duration;
+        fn heartbeat_suppression_duration(&self) -> Duration;
+        fn reader_cache(&mut self) -> &mut MockRtpsHistoryCache;
+        fn expects_inline_qos(&self) -> bool;
+    }
 }
 
 impl RtpsStatelessReaderConstructor for MockRtpsStatelessReader {

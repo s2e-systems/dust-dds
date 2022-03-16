@@ -2,12 +2,19 @@ use mockall::mock;
 use rtps_pim::{
     behavior::{
         types::Duration,
-        writer::{stateless_writer::RtpsStatelessWriterConstructor, writer::RtpsWriterAttributes},
+        writer::{
+            stateless_writer::RtpsStatelessWriterConstructor,
+            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+        },
     },
-    structure::types::{Guid, Locator, ReliabilityKind, SequenceNumber, TopicKind},
+    structure::types::{
+        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+    },
 };
 
-use super::mock_rtps_history_cache::MockRtpsHistoryCache;
+use super::{
+    mock_rtps_cache_change::MockRtpsCacheChange, mock_rtps_history_cache::MockRtpsHistoryCache,
+};
 
 mock! {
     pub RtpsStatelessWriter{}
@@ -22,6 +29,20 @@ mock! {
         fn last_change_sequence_number(&self) -> SequenceNumber;
         fn data_max_size_serialized(&self) -> Option<i32>;
         fn writer_cache(&mut self) -> &mut MockRtpsHistoryCache;
+    }
+
+    impl RtpsWriterOperations for RtpsStatelessWriter {
+        type DataType = Vec<u8>;
+        type ParameterListType = Vec<u8>;
+        type CacheChangeType = MockRtpsCacheChange;
+
+        fn new_change(
+            &mut self,
+            kind: ChangeKind,
+            data: Vec<u8>,
+            inline_qos: Vec<u8>,
+            handle: InstanceHandle,
+        ) -> MockRtpsCacheChange;
     }
 }
 
