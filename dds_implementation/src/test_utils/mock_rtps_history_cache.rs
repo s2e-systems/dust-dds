@@ -10,9 +10,9 @@ use super::mock_rtps_cache_change::MockRtpsCacheChange;
 
 mock! {
     pub RtpsHistoryCache{
-        fn add_change_(&mut self, change: MockRtpsCacheChange);
-        fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
-        fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
+        pub fn add_change_(&mut self, change: MockRtpsCacheChange);
+        pub fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
+        pub fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
     }
 
     impl RtpsHistoryCacheAttributes for RtpsHistoryCache {

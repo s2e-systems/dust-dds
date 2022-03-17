@@ -714,22 +714,3 @@ where
         todo!()
     }
 }
-
-#[cfg(test)]
-mod tests {
-
-    // #[test]
-    // fn read() {
-    //     let reader = DataReaderStorage {};
-    //     let shared_reader = DdsShared::new(reader);
-
-    //     let data_reader = DataReaderImpl::<u8> {
-    //         _subscriber: &MockSubcriber,
-    //         _topic: &MockTopic(PhantomData),
-    //         reader: shared_reader.downgrade(),
-    //     };
-
-    //     let sample = data_reader.read(1, &[], &[], &[]).unwrap();
-    //     assert_eq!(sample[0].0, 1);
-    // }
-}

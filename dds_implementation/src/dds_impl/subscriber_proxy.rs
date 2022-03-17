@@ -438,317 +438,43 @@ where
 
 // #[cfg(test)]
 // mod tests {
-//     use dds_api::{
-//         dcps_psm::{DomainId, InstanceHandle},
-//         infrastructure::qos::{
-//             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
-//             TopicQos,
-//         },
-//         return_type::{DDSError, DDSResult},
-//         subscription::subscriber::{Subscriber, SubscriberDataReaderFactory},
-//     };
 
+//     use dds_api::{
+//         dcps_psm::DomainId,
+//         infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos},
+//     };
 //     use rtps_pim::{
-//         behavior::{
-//             reader::{
-//                 reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderConstructor,
-//                 stateless_reader::RtpsStatelessReaderAttributes,
-//             },
-//             types::Duration,
-//             writer::{
-//                 stateful_writer::RtpsStatefulWriterConstructor,
-//                 writer::{RtpsWriterAttributes, RtpsWriterOperations},
-//             },
-//         },
 //         discovery::sedp::builtin_endpoints::SedpBuiltinSubscriptionsWriter,
-//         structure::{
-//             cache_change::RtpsCacheChangeAttributes,
-//             entity::RtpsEntityAttributes,
-//             history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-//             participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
-//             types::{
-//                 ChangeKind, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-//                 GUID_UNKNOWN,
-//             },
-//         },
+//         structure::types::GuidPrefix,
 //     };
 
 //     use crate::{
-//         data_representation_builtin_endpoints::sedp_discovered_reader_data::{
-//             SedpDiscoveredReaderData, DCPS_SUBSCRIPTION,
-//         },
 //         dds_impl::{
 //             data_writer_proxy::{DataWriterAttributes, RtpsWriter},
-//             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
 //             publisher_proxy::PublisherAttributes,
-//             topic_proxy::{TopicAttributes, TopicProxy},
+//             topic_proxy::TopicAttributes,
 //         },
-//         dds_type::{DdsDeserialize, DdsType},
-//         utils::{
-//             rtps_structure::RtpsStructure,
-//             shared_object::{DdsRwLock, DdsShared, DdsWeak},
+//         test_utils::{
+//             mock_rtps::MockRtps, mock_rtps_group::MockRtpsGroup,
+//             mock_rtps_stateful_writer::MockRtpsStatefulWriter,
 //         },
 //     };
 
-//     use super::{SubscriberAttributes, SubscriberProxy};
+//     use super::*;
 
-//     struct EmptyCacheChange;
-
-//     impl<'a> RtpsCacheChangeAttributes<'a> for EmptyCacheChange {
-//         type DataType = [u8];
-
-//         type ParameterListType = ();
-
-//         fn kind(&self) -> ChangeKind {
-//             todo!()
-//         }
-
-//         fn writer_guid(&self) -> Guid {
-//             todo!()
-//         }
-
-//         fn instance_handle(&self) -> rtps_pim::structure::types::InstanceHandle {
-//             todo!()
-//         }
-
-//         fn sequence_number(&self) -> SequenceNumber {
-//             todo!()
-//         }
-
-//         fn data_value(&self) -> &Self::DataType {
-//             todo!()
-//         }
-
-//         fn inline_qos(&self) -> &Self::ParameterListType {
-//             todo!()
-//         }
-//     }
-
-//     #[derive(Default)]
-//     struct EmptyGroup {}
-//     impl RtpsEntityAttributes for EmptyGroup {
-//         fn guid(&self) -> Guid {
-//             GUID_UNKNOWN
-//         }
-//     }
-
-//     struct EmptyHistoryCache {}
-
-//     impl RtpsHistoryCacheAttributes for EmptyHistoryCache {
-//         type CacheChangeType = EmptyCacheChange;
-
-//         fn changes(&self) -> &[Self::CacheChangeType] {
-//             todo!()
-//         }
-//     }
-
-//     impl RtpsHistoryCacheOperations for EmptyHistoryCache {
-//         type CacheChangeType = EmptyCacheChange;
-//         fn add_change(&mut self, _change: Self::CacheChangeType) {}
-
-//         fn remove_change<F>(&mut self, _f: F)
-//         where
-//             F: FnMut(&Self::CacheChangeType) -> bool,
-//         {
-//             todo!()
-//         }
-//         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-//             None
-//         }
-
-//         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-//             None
-//         }
-//     }
-
-//     struct EmptyWriter {
-//         push_mode: bool,
-//         heartbeat_period: Duration,
-//         nack_response_delay: Duration,
-//         nack_suppression_duration: Duration,
-//         last_change_sequence_number: SequenceNumber,
-//         data_max_serialized: Option<i32>,
-//         writer_cache: EmptyHistoryCache,
-//     }
-//     impl RtpsWriterOperations for EmptyWriter {
-//         type DataType = Vec<u8>;
-//         type ParameterListType = Vec<u8>;
-//         type CacheChangeType = EmptyCacheChange;
-
-//         fn new_change(
-//             &mut self,
-//             _kind: ChangeKind,
-//             _data: Vec<u8>,
-//             _inline_qos: Vec<u8>,
-//             _handle: InstanceHandle,
-//         ) -> Self::CacheChangeType {
-//             EmptyCacheChange
-//         }
-//     }
-//     impl RtpsWriterAttributes for EmptyWriter {
-//         type HistoryCacheType = EmptyHistoryCache;
-
-//         fn push_mode(&self) -> bool {
-//             self.push_mode
-//         }
-//         fn heartbeat_period(&self) -> Duration {
-//             self.heartbeat_period
-//         }
-//         fn nack_response_delay(&self) -> Duration {
-//             self.nack_response_delay
-//         }
-//         fn nack_suppression_duration(&self) -> Duration {
-//             self.nack_suppression_duration
-//         }
-//         fn last_change_sequence_number(&self) -> SequenceNumber {
-//             self.last_change_sequence_number
-//         }
-//         fn data_max_size_serialized(&self) -> Option<i32> {
-//             self.data_max_serialized
-//         }
-//         fn writer_cache(&mut self) -> &mut EmptyHistoryCache {
-//             &mut self.writer_cache
-//         }
-//     }
-//     impl RtpsStatefulWriterConstructor for EmptyWriter {
-//         fn new(
-//             _guid: Guid,
-//             _topic_kind: TopicKind,
-//             _reliability_level: ReliabilityKind,
-//             _unicast_locator_list: &[Locator],
-//             _multicast_locator_list: &[Locator],
-//             _push_mode: bool,
-//             _heartbeat_period: Duration,
-//             _nack_response_delay: Duration,
-//             _nack_suppression_duration: Duration,
-//             _data_max_size_serialized: Option<i32>,
-//         ) -> Self {
-//             EmptyWriter {
-//                 push_mode: true,
-//                 heartbeat_period: Duration::new(0, 0),
-//                 nack_response_delay: Duration::new(0, 0),
-//                 nack_suppression_duration: Duration::new(0, 0),
-//                 last_change_sequence_number: SequenceNumber::default(),
-//                 data_max_serialized: None,
-//                 writer_cache: EmptyHistoryCache {},
-//             }
-//         }
-//     }
-
-//     struct EmptyReader {}
-
-//     impl RtpsReaderAttributes for EmptyReader {
-//         type HistoryCacheType = EmptyHistoryCache;
-
-//         fn heartbeat_response_delay(&self) -> Duration {
-//             todo!()
-//         }
-
-//         fn heartbeat_suppression_duration(&self) -> Duration {
-//             todo!()
-//         }
-
-//         fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
-//             todo!()
-//         }
-
-//         fn expects_inline_qos(&self) -> bool {
-//             todo!()
-//         }
-//     }
-
-//     impl RtpsStatelessReaderAttributes for EmptyReader {}
-
-//     impl RtpsStatefulReaderConstructor for EmptyReader {
-//         fn new(
-//             _guid: Guid,
-//             _topic_kind: TopicKind,
-//             _reliability_level: ReliabilityKind,
-//             _unicast_locator_list: &[Locator],
-//             _multicast_locator_list: &[Locator],
-//             _heartbeat_response_delay: Duration,
-//             _heartbeat_suppression_duration: Duration,
-//             _expects_inline_qos: bool,
-//         ) -> Self {
-//             EmptyReader {}
-//         }
-//     }
-
-//     #[derive(Default)]
-//     struct EmptyParticipant {}
-
-//     impl RtpsParticipantConstructor for EmptyParticipant {
-//         fn new(
-//             _guid: Guid,
-//             _default_unicast_locator_list: &[Locator],
-//             _default_multicast_locator_list: &[Locator],
-//             _protocol_version: rtps_pim::structure::types::ProtocolVersion,
-//             _vendor_id: rtps_pim::structure::types::VendorId,
-//         ) -> Self {
-//             EmptyParticipant {}
-//         }
-//     }
-
-//     impl RtpsEntityAttributes for EmptyParticipant {
-//         fn guid(&self) -> Guid {
-//             todo!()
-//         }
-//     }
-
-//     impl RtpsParticipantAttributes for EmptyParticipant {
-//         fn protocol_version(&self) -> rtps_pim::structure::types::ProtocolVersion {
-//             todo!()
-//         }
-
-//         fn vendor_id(&self) -> rtps_pim::structure::types::VendorId {
-//             todo!()
-//         }
-
-//         fn default_unicast_locator_list(&self) -> &[Locator] {
-//             &[]
-//         }
-
-//         fn default_multicast_locator_list(&self) -> &[Locator] {
-//             &[]
-//         }
-//     }
-
-//     struct EmptyRtps {}
-
-//     impl RtpsStructure for EmptyRtps {
-//         type Group = EmptyGroup;
-//         type Participant = EmptyParticipant;
-//         type StatelessWriter = EmptyWriter;
-//         type StatefulWriter = EmptyWriter;
-//         type StatelessReader = EmptyReader;
-//         type StatefulReader = EmptyReader;
-//     }
-
-//     fn make_participant<Rtps>() -> DdsShared<DomainParticipantAttributes<Rtps>>
-//     where
-//         Rtps: RtpsStructure<StatefulWriter = EmptyWriter>,
-//         Rtps::Participant: Default + RtpsParticipantConstructor,
-//         Rtps::Group: Default,
-//     {
-//         let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
-//             GuidPrefix([1; 12]),
-//             DomainId::default(),
-//             "".to_string(),
-//             DomainParticipantQos::default(),
-//             vec![],
-//             vec![],
-//             vec![],
-//             vec![],
-//         ));
+//     fn make_participant(
+//         domain_participant_attributes: DomainParticipantAttributes<MockRtps>,
+//     ) -> DdsShared<DomainParticipantAttributes<MockRtps>> {
+//         let domain_participant = DdsShared::new(domain_participant_attributes);
 
 //         *domain_participant.builtin_publisher.write_lock() =
 //             Some(DdsShared::new(PublisherAttributes::new(
 //                 PublisherQos::default(),
-//                 Rtps::Group::default(),
+//                 MockRtpsGroup::new(),
 //                 domain_participant.downgrade(),
 //             )));
 
-//         let sedp_topic_subscription = DdsShared::new(TopicAttributes::<Rtps>::new(
+//         let sedp_topic_subscription = DdsShared::new(TopicAttributes::new(
 //             TopicQos::default(),
 //             SedpDiscoveredReaderData::type_name(),
 //             DCPS_SUBSCRIPTION,
@@ -760,8 +486,9 @@ where
 //             .write_lock()
 //             .push(sedp_topic_subscription.clone());
 
-//         let sedp_builtin_subscriptions_rtps_writer =
-//             SedpBuiltinSubscriptionsWriter::create::<EmptyWriter>(GuidPrefix([2; 12]), &[], &[]);
+//         let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
+//             MockRtpsStatefulWriter,
+//         >(GuidPrefix([2; 12]), &[], &[]);
 //         let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
 //             DataWriterQos::default(),
 //             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
@@ -786,26 +513,20 @@ where
 //         domain_participant
 //     }
 
-//     fn make_subscriber<Rtps: RtpsStructure>(
-//         parent: DdsWeak<DomainParticipantAttributes<Rtps>>,
-//     ) -> DdsShared<SubscriberAttributes<Rtps>>
-//     where
-//         Rtps::Group: Default,
-//     {
-//         DdsShared::new(SubscriberAttributes {
+//     fn make_subscriber(
+//         parent: DdsWeak<DomainParticipantAttributes<MockRtps>>,
+//     ) -> SubscriberAttributes<MockRtps> {
+//         SubscriberAttributes {
 //             qos: SubscriberQos::default(),
-//             rtps_group: Rtps::Group::default(),
+//             rtps_group: MockRtpsGroup::new(),
 //             data_reader_list: DdsRwLock::new(Vec::new()),
 //             user_defined_data_reader_counter: 0,
 //             default_data_reader_qos: DataReaderQos::default(),
 //             parent_domain_participant: parent,
-//         })
+//         }
 //     }
 
-//     fn make_topic<Rtps: RtpsStructure>(
-//         type_name: &'static str,
-//         topic_name: &'static str,
-//     ) -> TopicAttributes<Rtps> {
+//     fn make_topic(type_name: &'static str, topic_name: &'static str) -> TopicAttributes<MockRtps> {
 //         TopicAttributes::new(TopicQos::default(), type_name, topic_name, DdsWeak::new())
 //     }
 
@@ -835,16 +556,31 @@ where
 
 //     #[test]
 //     fn create_datareader() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
 
@@ -853,16 +589,31 @@ where
 
 //     #[test]
 //     fn datareader_factory_create_datareader() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         let data_reader =
 //             subscriber_proxy.datareader_factory_create_datareader(&topic_proxy, None, None, 0);
@@ -873,16 +624,40 @@ where
 
 //     #[test]
 //     fn datareader_factory_delete_datareader() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let mut domain_participant_attributes = DomainParticipantAttributes::<MockRtps>::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         domain_participant_attributes
+//             .rtps_participant
+//             .expect_default_unicast_locator_list()
+//             .return_const(vec![]);
+//         domain_participant_attributes
+//             .rtps_participant
+//             .expect_default_multicast_locator_list()
+//             .return_const(vec![]);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let domain_participant = make_participant(domain_participant_attributes);
+
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         let data_reader = subscriber_proxy
 //             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
@@ -899,22 +674,42 @@ where
 
 //     #[test]
 //     fn datareader_factory_delete_datareader_from_other_subscriber() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
-//         let subscriber2 = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber2_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber2_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber2 = DdsShared::new(subscriber2_attributes);
 //         let subscriber2_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber2.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         let data_reader = subscriber_proxy
 //             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
@@ -932,16 +727,31 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_when_empty() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         assert!(subscriber_proxy
 //             .datareader_factory_lookup_datareader(&topic_proxy)
@@ -950,16 +760,31 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_when_one_datareader() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic.downgrade());
+//         let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
 //         let data_reader = subscriber_proxy
 //             .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
@@ -980,19 +805,34 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+//         let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
 //         let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
-//         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+//         let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
 //         subscriber_proxy
 //             .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
@@ -1005,19 +845,34 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
-//         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+//         let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
 //         let topic2 = DdsShared::new(make_topic(Foo::type_name(), "topic2"));
-//         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
+//         let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
 //         subscriber_proxy
 //             .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
@@ -1030,19 +885,34 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_with_two_types() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic_foo = DdsShared::new(make_topic(Foo::type_name(), "topic"));
-//         let topic_foo_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic_foo.downgrade());
+//         let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
 //         let topic_bar = DdsShared::new(make_topic(Bar::type_name(), "topic"));
-//         let topic_bar_proxy = TopicProxy::<Bar, EmptyRtps>::new(topic_bar.downgrade());
+//         let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
 //         let data_reader_foo = subscriber_proxy
 //             .datareader_factory_create_datareader(&topic_foo_proxy, None, None, 0)
@@ -1074,19 +944,34 @@ where
 
 //     #[test]
 //     fn datareader_factory_lookup_datareader_with_two_topics() {
-//         let domain_participant = make_participant::<EmptyRtps>();
+//         let domain_participant_attributes = DomainParticipantAttributes::new(
+//             GuidPrefix([1; 12]),
+//             DomainId::default(),
+//             "".to_string(),
+//             DomainParticipantQos::default(),
+//             vec![],
+//             vec![],
+//             vec![],
+//             vec![],
+//         );
+//         let domain_participant = make_participant(domain_participant_attributes);
 
-//         let subscriber = make_subscriber::<EmptyRtps>(domain_participant.downgrade());
+//         let mut subscriber_attributes = make_subscriber(domain_participant.downgrade());
+//         subscriber_attributes
+//             .rtps_group
+//             .expect_guid()
+//             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+//         let subscriber = DdsShared::new(subscriber_attributes);
 //         let subscriber_proxy = SubscriberProxy::new(
 //             DomainParticipantProxy::new(domain_participant.downgrade()),
 //             subscriber.downgrade(),
 //         );
 
 //         let topic1 = DdsShared::new(make_topic(Foo::type_name(), "topic1"));
-//         let topic1_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic1.downgrade());
+//         let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
 //         let topic2 = DdsShared::new(make_topic(Foo::type_name(), "topic2"));
-//         let topic2_proxy = TopicProxy::<Foo, EmptyRtps>::new(topic2.downgrade());
+//         let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
 //         let data_reader1 = subscriber_proxy
 //             .datareader_factory_create_datareader(&topic1_proxy, None, None, 0)
