@@ -40,7 +40,7 @@ use rtps_implementation::{
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -77,8 +77,8 @@ pub struct RtpsStructureImpl;
 impl RtpsStructure for RtpsStructureImpl {
     type Group = RtpsGroupImpl;
     type Participant = RtpsParticipantImpl;
-    type StatelessWriter = RtpsStatelessWriterImpl;
-    type StatefulWriter = RtpsStatefulWriterImpl;
+    type StatelessWriter = RtpsStatelessWriterImpl<StdTimer>;
+    type StatefulWriter = RtpsStatefulWriterImpl<StdTimer>;
     type StatelessReader = RtpsStatelessReaderImpl;
     type StatefulReader = RtpsStatefulReaderImpl;
 }
@@ -392,11 +392,17 @@ impl DomainParticipantFactory {
             spawner.spawn_enabled_periodic_task(
                 "builtin multicast communication",
                 move || {
-                    if let Some(builtin_participant_subscriber) =
-                        domain_participant.builtin_subscriber.read_lock().deref()
-                    {
-                        metatraffic_multicast_communication
-                            .receive(core::slice::from_ref(builtin_participant_subscriber));
+                    if let (
+                        Some(builtin_participant_publisher),
+                        Some(builtin_participant_subscriber),
+                    ) = (
+                        domain_participant.builtin_publisher.read_lock().deref(),
+                        domain_participant.builtin_subscriber.read_lock().deref(),
+                    ) {
+                        metatraffic_multicast_communication.receive(
+                            core::slice::from_ref(builtin_participant_publisher),
+                            core::slice::from_ref(builtin_participant_subscriber),
+                        );
                     } else {
                         println!("/!\\ Participant has no builtin subscriber");
                     }
@@ -425,22 +431,20 @@ impl DomainParticipantFactory {
             spawner.spawn_enabled_periodic_task(
                 "builtin unicast communication",
                 move || {
-                    if let Some(builtin_publisher) =
-                        domain_participant.builtin_publisher.read_lock().deref()
+                    if let (Some(builtin_publisher), Some(builtin_subscriber)) =
+                        (domain_participant.builtin_publisher.read_lock().deref(),
+                        domain_participant.builtin_subscriber.read_lock().deref())
                     {
-                        metatraffic_unicast_communication
-                            .send(core::slice::from_ref(builtin_publisher));
+                        metatraffic_unicast_communication.send(
+                            core::slice::from_ref(builtin_publisher),
+                            core::slice::from_ref(builtin_subscriber),
+                        );
+                        metatraffic_unicast_communication.receive(
+                            core::slice::from_ref(builtin_publisher),
+                            core::slice::from_ref(builtin_subscriber),
+                        );
                     } else {
-                        println!("/!\\ Participant has no builtin publisher");
-                    }
-
-                    if let Some(builtin_subscriber) =
-                        domain_participant.builtin_subscriber.read_lock().deref()
-                    {
-                        metatraffic_unicast_communication
-                            .receive(core::slice::from_ref(builtin_subscriber));
-                    } else {
-                        println!("/!\\ Participant has no builtin subscriber");
+                        println!("/!\\ Participant doesn't have a builtin publisher and a builtin subscriber");
                     }
                 },
                 std::time::Duration::from_millis(500),
@@ -478,9 +482,17 @@ impl DomainParticipantFactory {
                             .user_defined_publisher_list
                             .read_lock()
                             .as_ref(),
+                        domain_participant
+                            .user_defined_subscriber_list
+                            .read_lock()
+                            .as_ref(),
                     );
 
                     default_unicast_communication.receive(
+                        domain_participant
+                            .user_defined_publisher_list
+                            .read_lock()
+                            .as_ref(),
                         domain_participant
                             .user_defined_subscriber_list
                             .read_lock()
@@ -654,7 +666,7 @@ pub fn create_builtins(
             .collect();
 
         let spdp_builtin_participant_rtps_writer = SpdpBuiltinParticipantWriter::create::<
-            RtpsStatelessWriterImpl,
+            RtpsStatelessWriterImpl<StdTimer>,
             _,
         >(
             guid_prefix, &[], &[], spdp_reader_locators
@@ -700,8 +712,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_publications_data_reader.clone());
 
-        let sedp_builtin_publications_rtps_writer =
-            SedpBuiltinPublicationsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
@@ -742,8 +755,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_subscriptions_data_reader.clone());
 
-        let sedp_builtin_subscriptions_rtps_writer =
-            SedpBuiltinSubscriptionsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
@@ -784,8 +798,9 @@ pub fn create_builtins(
             .write_lock()
             .push(sedp_builtin_topics_data_reader.clone());
 
-        let sedp_builtin_topics_rtps_writer =
-            SedpBuiltinTopicsWriter::create::<RtpsStatefulWriterImpl>(guid_prefix, &[], &[]);
+        let sedp_builtin_topics_rtps_writer = SedpBuiltinTopicsWriter::create::<
+            RtpsStatefulWriterImpl<StdTimer>,
+        >(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
@@ -1039,21 +1054,21 @@ mod tests {
         {
             task_announce_participant(participant1.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         // ////////// Participant 2 receives discovered participant data
@@ -1212,35 +1227,35 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             task_spdp_discovery(participant1.clone()).unwrap();
             task_spdp_discovery(participant2.clone()).unwrap();
@@ -1262,35 +1277,35 @@ mod tests {
 
         // ////////// Send and receive SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         // ////////// Check that the received data corresponds to the sent data
@@ -1444,35 +1459,35 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
-            communications1
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             task_spdp_discovery(participant1.clone()).unwrap();
             task_spdp_discovery(participant2.clone()).unwrap();
@@ -1504,20 +1519,18 @@ mod tests {
 
         // ////////// Send SEDP data
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
@@ -1526,7 +1539,7 @@ mod tests {
                 ));
             communications2
                 .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
@@ -1624,20 +1637,18 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
@@ -1646,7 +1657,7 @@ mod tests {
                 ));
             communications2
                 .metatraffic_multicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
@@ -1682,20 +1693,18 @@ mod tests {
 
         // ////////// Activate SEDP
         {
-            communications1
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant1.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .send(core::slice::from_ref(
-                    participant2.builtin_publisher.read_lock().as_ref().unwrap(),
-                ));
+            communications1.metatraffic_unicast.send(
+                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
+            communications2.metatraffic_unicast.send(
+                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
+                &[],
+            );
 
             communications1
                 .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
@@ -1704,7 +1713,7 @@ mod tests {
                 ));
             communications2
                 .metatraffic_unicast
-                .receive(core::slice::from_ref(
+                .receive(&[], core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
@@ -1739,7 +1748,7 @@ mod tests {
         {
             communications1
                 .default_unicast
-                .send(&participant1.user_defined_publisher_list.read_lock());
+                .send(&participant1.user_defined_publisher_list.read_lock(), &[]);
 
             // On receive the available data listener should be called
             let mut reader_listener = Box::new(MockReaderListener::new());
@@ -1751,7 +1760,7 @@ mod tests {
 
             communications2
                 .default_unicast
-                .receive(&participant2.user_defined_subscriber_list.read_lock());
+                .receive(&[], &participant2.user_defined_subscriber_list.read_lock());
 
             // From now on no listener should be called anymore
             user_reader

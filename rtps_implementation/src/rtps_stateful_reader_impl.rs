@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use rtps_pim::{
     behavior::{
         reader::{
@@ -6,7 +8,7 @@ use rtps_pim::{
                 RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor,
                 RtpsStatefulReaderOperations,
             },
-            writer_proxy::RtpsWriterProxyAttributes,
+            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
         },
         stateful_reader_behavior::{
             BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
@@ -15,7 +17,8 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -32,6 +35,8 @@ use super::{
 pub struct RtpsStatefulReaderImpl {
     pub reader: RtpsReaderImpl,
     pub matched_writers: Vec<RtpsWriterProxyImpl>,
+    pub must_send_acknacks: bool,
+    pub acknack_count: Count,
 }
 
 impl RtpsStatefulReaderImpl {
@@ -85,6 +90,67 @@ impl RtpsStatefulReaderImpl {
                 }
             }
         }
+    }
+
+    pub fn process_heartbeat_submessage(
+        &mut self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.reader.endpoint.reliability_level == ReliabilityKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if !heartbeat_submessage.final_flag {
+                    self.must_send_acknacks = true;
+                } else {
+                    todo!();
+                }
+
+                ReliableStatefulReaderBehavior::receive_heartbeat(
+                    writer_proxy,
+                    heartbeat_submessage,
+                );
+            }
+        }
+    }
+
+    pub fn produce_acknack_submessages(
+        &mut self,
+    ) -> Vec<(
+        &mut RtpsWriterProxyImpl,
+        Vec<AckNackSubmessage<Vec<SequenceNumber>>>,
+    )> {
+        let mut destined_submessages = Vec::new();
+
+        if self.must_send_acknacks {
+            for writer_proxy in self.matched_writers.iter_mut() {
+                let acknacks = RefCell::new(Vec::new());
+
+                if !writer_proxy.missing_changes().is_empty() {
+                    self.acknack_count = Count(self.acknack_count.0 + 1);
+
+                    ReliableStatefulReaderBehavior::send_ack_nack(
+                        writer_proxy,
+                        self.reader.endpoint.entity.guid.entity_id,
+                        self.acknack_count,
+                        |acknack| acknacks.borrow_mut().push(acknack),
+                    );
+                }
+
+                let acknacks = acknacks.take();
+                if !acknacks.is_empty() {
+                    destined_submessages.push((writer_proxy, acknacks));
+                }
+            }
+            self.must_send_acknacks = false;
+        }
+
+        destined_submessages
     }
 }
 
@@ -165,6 +231,8 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
                 expects_inline_qos,
             ),
             matched_writers: Vec::new(),
+            must_send_acknacks: false,
+            acknack_count: Count(0),
         }
     }
 }
@@ -193,10 +261,13 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
 #[cfg(test)]
 mod tests {
     use rtps_pim::{
-        behavior::reader::writer_proxy::RtpsWriterProxyConstructor,
-        messages::submessage_elements::{
-            EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        behavior::reader::writer_proxy::{RtpsWriterProxyConstructor, RtpsWriterProxyOperations},
+        messages::{
+            submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::Count,
         },
         structure::{
             cache_change::RtpsCacheChangeAttributes,
@@ -373,5 +444,184 @@ mod tests {
         reader.process_data_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
 
         assert_eq!(2, reader.reader_cache().changes().len());
+    }
+
+    #[test]
+    fn reliable_stateful_data_reader_receive_heartbeat() {
+        let writer_guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let reader_guid = Guid::new(
+            GuidPrefix([1; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatefulReaderImpl::new(
+            reader_guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+            writer_guid,
+            &[],
+            &[],
+            None,
+            writer_guid.entity_id,
+        ));
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        let make_heartbeat = |first_sn, last_sn| -> HeartbeatSubmessage {
+            HeartbeatSubmessage {
+                endianness_flag: true,
+                final_flag: false,
+                liveliness_flag: false,
+                reader_id: EntityIdSubmessageElement {
+                    value: reader_guid.entity_id,
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: writer_guid.entity_id,
+                },
+                first_sn: SequenceNumberSubmessageElement { value: first_sn },
+                last_sn: SequenceNumberSubmessageElement { value: last_sn },
+                count: CountSubmessageElement { value: Count(0) },
+            }
+        };
+
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
+
+        reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 2), writer_guid.prefix);
+        assert_eq!(vec![2], reader.matched_writers[0].missing_changes());
+
+        reader.process_data_submessage(&make_data(4, &[]), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 5), writer_guid.prefix);
+        assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(2, 5), writer_guid.prefix);
+        assert_eq!(vec![3, 5], reader.matched_writers[0].missing_changes());
+    }
+
+    #[test]
+    fn reliable_stateful_data_reader_sends_acknack() {
+        let writer_guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([4, 1, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let reader_guid = Guid::new(
+            GuidPrefix([1; 12]),
+            EntityId::new([6, 1, 2], USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut reader = RtpsStatefulReaderImpl::new(
+            reader_guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            false,
+        );
+
+        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+            writer_guid,
+            &[],
+            &[],
+            None,
+            writer_guid.entity_id,
+        ));
+
+        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: reader_guid.entity_id,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_guid.entity_id,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        };
+
+        let make_heartbeat = |first_sn, last_sn| -> HeartbeatSubmessage {
+            HeartbeatSubmessage {
+                endianness_flag: true,
+                final_flag: false,
+                liveliness_flag: false,
+                reader_id: EntityIdSubmessageElement {
+                    value: reader_guid.entity_id,
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: writer_guid.entity_id,
+                },
+                first_sn: SequenceNumberSubmessageElement { value: first_sn },
+                last_sn: SequenceNumberSubmessageElement { value: last_sn },
+                count: CountSubmessageElement { value: Count(0) },
+            }
+        };
+
+        assert!(reader.matched_writers[0].missing_changes().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
+        assert!(reader.produce_acknack_submessages().is_empty());
+
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        let missing_changes = reader.matched_writers[0].missing_changes();
+        let submessages = reader.produce_acknack_submessages();
+        assert_eq!(1, submessages.len());
+        let (_, acknacks) = &submessages[0];
+        assert_eq!(1, acknacks.len());
+        assert_eq!(missing_changes, acknacks[0].reader_sn_state.set);
+        assert_eq!(Count(1), acknacks[0].count.value);
+
+        // doesn't send a second time
+        assert!(reader.produce_acknack_submessages().is_empty());
+
+        // resend when new heartbeat
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        assert_eq!(1, reader.produce_acknack_submessages().len());
+
+        // doesn't send if message received in the meantime
+        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
+        assert!(reader.produce_acknack_submessages().is_empty());
     }
 }

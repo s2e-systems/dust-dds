@@ -17,18 +17,23 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage},
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
+            TopicKind, ENTITYID_UNKNOWN,
         },
     },
 };
 
-use crate::rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl;
+use crate::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -37,17 +42,20 @@ use super::{
     rtps_writer_impl::RtpsWriterImpl,
 };
 
-pub struct RtpsStatelessWriterImpl {
+pub struct RtpsStatelessWriterImpl<T> {
     pub writer: RtpsWriterImpl,
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
+    pub heartbeat_timer: T,
+    pub heartbeat_count: Count,
 }
 
 pub enum RtpsStatelessSubmessage<'a> {
     Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
     Gap(GapSubmessage<Vec<SequenceNumber>>),
+    Heartbeat(HeartbeatSubmessage),
 }
 
-impl RtpsStatelessWriterImpl {
+impl<T: Timer> RtpsStatelessWriterImpl<T> {
     pub fn produce_destined_submessages<'a>(
         &'a mut self,
     ) -> Vec<(Locator, Vec<RtpsStatelessSubmessage<'a>>)> {
@@ -81,6 +89,29 @@ impl RtpsStatelessWriterImpl {
 
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
+
+                    if self.heartbeat_timer.elapsed()
+                        >= std::time::Duration::from_secs(
+                            self.writer.heartbeat_period.seconds as u64,
+                        ) + std::time::Duration::from_nanos(
+                            self.writer.heartbeat_period.fraction as u64,
+                        )
+                    {
+                        ReliableStatelessWriterBehavior::send_heartbeat(
+                            &self.writer.writer_cache,
+                            self.writer.endpoint.entity.guid.entity_id,
+                            self.heartbeat_count,
+                            |heartbeat| {
+                                submessages
+                                    .borrow_mut()
+                                    .push(RtpsStatelessSubmessage::Heartbeat(heartbeat));
+                            },
+                        );
+
+                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
+                        self.heartbeat_timer.reset();
+                    }
+
                     let writer_cache = &self.writer.writer_cache;
                     ReliableStatelessWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
@@ -107,15 +138,33 @@ impl RtpsStatelessWriterImpl {
 
         destined_submessages
     }
+
+    pub fn process_acknack_submessage(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+        if self.writer.endpoint.reliability_level == ReliabilityKind::Reliable {
+            if acknack.reader_id.value == ENTITYID_UNKNOWN
+                || acknack.reader_id.value == self.writer.endpoint.entity.guid.entity_id()
+            {
+                for reader_locator in self.reader_locators.iter_mut() {
+                    ReliableStatelessWriterBehavior::receive_acknack(
+                        &mut RtpsReaderLocatorOperationsImpl::new(
+                            reader_locator,
+                            &self.writer.writer_cache,
+                        ),
+                        acknack,
+                    );
+                }
+            }
+        }
+    }
 }
 
-impl RtpsEntityAttributes for RtpsStatelessWriterImpl {
+impl<T> RtpsEntityAttributes for RtpsStatelessWriterImpl<T> {
     fn guid(&self) -> Guid {
         self.writer.guid()
     }
 }
 
-impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
+impl<T> RtpsEndpointAttributes for RtpsStatelessWriterImpl<T> {
     fn topic_kind(&self) -> TopicKind {
         self.writer.endpoint.topic_kind
     }
@@ -133,7 +182,7 @@ impl RtpsEndpointAttributes for RtpsStatelessWriterImpl {
     }
 }
 
-impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
+impl<T> RtpsWriterAttributes for RtpsStatelessWriterImpl<T> {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
@@ -165,7 +214,7 @@ impl RtpsWriterAttributes for RtpsStatelessWriterImpl {
     }
 }
 
-impl RtpsStatelessWriterAttributes for RtpsStatelessWriterImpl {
+impl<T> RtpsStatelessWriterAttributes for RtpsStatelessWriterImpl<T> {
     type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
     fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
@@ -173,7 +222,7 @@ impl RtpsStatelessWriterAttributes for RtpsStatelessWriterImpl {
     }
 }
 
-impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {
+impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl<T> {
     fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -202,11 +251,13 @@ impl RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl {
                 data_max_size_serialized,
             ),
             reader_locators: Vec::new(),
+            heartbeat_timer: T::new(),
+            heartbeat_count: Count(0),
         }
     }
 }
 
-impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
+impl<T> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<T> {
     type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
@@ -227,7 +278,7 @@ impl RtpsStatelessWriterOperations for RtpsStatelessWriterImpl {
     }
 }
 
-impl RtpsWriterOperations for RtpsStatelessWriterImpl {
+impl<T> RtpsWriterOperations for RtpsStatelessWriterImpl<T> {
     type DataType = Vec<u8>;
     type ParameterListType = Vec<u8>;
     type CacheChangeType = RtpsCacheChangeImpl;
@@ -244,6 +295,7 @@ impl RtpsWriterOperations for RtpsStatelessWriterImpl {
 
 #[cfg(test)]
 mod tests {
+    use mockall::mock;
     use rtps_pim::{
         behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
         messages::{
@@ -263,7 +315,10 @@ mod tests {
         },
     };
 
-    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+    use crate::{
+        rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList},
+        utils::clock::StdTimer,
+    };
 
     use super::*;
 
@@ -274,26 +329,23 @@ mod tests {
             EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
         );
 
-        let mut writer = RtpsStatelessWriterImpl {
-            writer: RtpsWriterImpl::new(
-                RtpsEndpointImpl::new(
-                    guid,
-                    TopicKind::NoKey,
-                    ReliabilityKind::BestEffort,
-                    &[],
-                    &[],
-                ),
-                false,
-                Duration::new(0, 0),
-                Duration::new(0, 0),
-                Duration::new(0, 0),
-                None,
-            ),
-            reader_locators: vec![RtpsReaderLocatorAttributesImpl::new(
-                Locator::new(LOCATOR_KIND_UDPv4, 1234, [6; 16]),
-                false,
-            )],
-        };
+        let mut writer = RtpsStatelessWriterImpl::<StdTimer>::new(
+            guid,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            false,
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            None,
+        );
+
+        writer.reader_locator_add(RtpsReaderLocatorAttributesImpl::new(
+            Locator::new(LOCATOR_KIND_UDPv4, 1234, [6; 16]),
+            false,
+        ));
 
         let change = RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
@@ -357,5 +409,80 @@ mod tests {
         } else {
             panic!("Should be Data");
         }
+    }
+
+    mock! {
+        Timer {}
+
+        impl Timer for Timer {
+            fn reset(&mut self);
+            fn elapsed(&self) -> std::time::Duration;
+        }
+    }
+
+    impl TimerConstructor for MockTimer {
+        fn new() -> Self {
+            MockTimer::new()
+        }
+    }
+
+    #[test]
+    fn reliable_stateless_writer_sends_heartbeat() {
+        let guid = Guid::new(
+            GuidPrefix([0; 12]),
+            EntityId::new([1, 2, 3], USER_DEFINED_WRITER_NO_KEY),
+        );
+
+        let mut writer = RtpsStatelessWriterImpl::<MockTimer>::new(
+            guid,
+            TopicKind::NoKey,
+            ReliabilityKind::Reliable,
+            &[],
+            &[],
+            false,
+            Duration::new(2, 0),
+            Duration::new(0, 0),
+            Duration::new(0, 0),
+            None,
+        );
+
+        writer.reader_locator_add(RtpsReaderLocatorAttributesImpl::new(
+            Locator::new(LOCATOR_KIND_UDPv4, 1234, [6; 16]),
+            false,
+        ));
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(0));
+        assert_eq!(0, writer.produce_destined_submessages().len()); // nothing to send
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(1));
+        assert_eq!(0, writer.produce_destined_submessages().len()); // still nothing to send
+
+        writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .once()
+            .return_const(std::time::Duration::from_secs(2));
+        writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
+
+        let destined_submessages = writer.produce_destined_submessages();
+        assert_eq!(1, destined_submessages.len()); // one heartbeat sent
+        let (_, submessages) = &destined_submessages[0];
+        assert_eq!(1, submessages.len()); // one heartbeat
+        assert!(matches!(
+            submessages[0],
+            RtpsStatelessSubmessage::Heartbeat(_)
+        ));
     }
 }

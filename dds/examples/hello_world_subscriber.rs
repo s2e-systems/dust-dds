@@ -3,7 +3,7 @@ use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{data_reader::DataReader, subscriber::Subscriber, data_reader_listener::DataReaderListener},
     DDSError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
@@ -23,6 +23,18 @@ impl DdsType for HelloWorldType {
     fn has_key() -> bool {
         false
     }
+}
+
+struct ExampleListener;
+
+impl DataReaderListener for ExampleListener{
+    type Foo = HelloWorldType;
+
+    fn on_data_available(&self, the_reader: &dyn DataReader<Self::Foo>) {
+        let sample = the_reader.read(1,&[],&[],&[]).unwrap();
+        println!("Data id: {:?} Msg: {:?}", sample[0].0.id, sample[0].0.msg)
+    }
+
 }
 
 impl DdsSerialize for HelloWorldType {
@@ -91,7 +103,7 @@ fn main() {
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .create_datareader(&topic, Some(reader_qos), Some(Box::new(ExampleListener)), 0)
         .unwrap();
     println!("{:?} [S] Created reader", std::time::SystemTime::now());
 

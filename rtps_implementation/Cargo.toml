@@ -9,3 +9,6 @@ edition = "2018"
 
 [dependencies]
 rtps-pim = {path="../rtps_pim"}
+
+[dev-dependencies]
+mockall = {version = "0.10.2"}

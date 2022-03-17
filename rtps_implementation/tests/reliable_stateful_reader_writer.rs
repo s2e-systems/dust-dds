@@ -1,11 +1,11 @@
 use rtps_implementation::{
     rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes,
             stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
             writer_proxy::RtpsWriterProxyConstructor,
         },
@@ -17,7 +17,7 @@ use rtps_pim::{
         },
     },
     structure::{
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
+        history_cache::RtpsHistoryCacheOperations,
         types::{
             ChangeKind, EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
         },
@@ -39,7 +39,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
     let writer_nack_response_delay = DURATION_ZERO;
     let writer_nack_suppression_duration = DURATION_ZERO;
     let writer_data_max_size_serialized = None;
-    let mut stateful_writer = RtpsStatefulWriterImpl::new(
+    let mut stateful_writer = RtpsStatefulWriterImpl::<StdTimer>::new(
         writer_guid,
         writer_topic_kind,
         writer_reliability_level,

@@ -13,4 +13,4 @@ pub mod rtps_stateless_writer_impl;
 pub mod rtps_writer_impl;
 pub mod rtps_writer_proxy_impl;
 
-mod utils;
+pub mod utils;
