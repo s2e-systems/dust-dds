@@ -29,7 +29,8 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::ChangeForReader, utils::clock::StdTimer};
+
+use crate::{utils::clock::StdTimer, rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -62,7 +63,7 @@ impl RtpsStatefulWriterImpl {
                     let submessages = RefCell::new(Vec::new());
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     BestEffortStatefulWriterBehavior::send_unsent_changes(
-                        &mut ChangeForReader::new(
+                        &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -102,7 +103,7 @@ impl RtpsStatefulWriterImpl {
                     // );
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
-                        &mut ChangeForReader::new(
+                        &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -291,7 +292,7 @@ mod tests {
         },
     };
 
-    use crate::rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList};
+    use crate::{rtps_history_cache_impl::{RtpsData, RtpsParameter, RtpsParameterList}, rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl};
 
     use super::*;
 
@@ -340,7 +341,7 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        ChangeForReader::new(
+        RtpsReaderProxyOperationsImpl::new(
             &mut matched_reader_proxy,
             &writer.writer.writer_cache,
             true,
@@ -372,7 +373,7 @@ mod tests {
         );
 
         {
-            let mut operations = ChangeForReader::new(
+            let mut operations = RtpsReaderProxyOperationsImpl::new(
                 &mut matched_reader_proxy,
                 &writer.writer.writer_cache,
                 true,

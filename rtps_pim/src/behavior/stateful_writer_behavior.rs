@@ -38,7 +38,7 @@ impl BestEffortStatefulWriterBehavior {
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            let seq_num = (&*change_for_reader).into();
+            let seq_num = (&change_for_reader).into();
             let change = writer_cache
                 .changes()
                 .iter()
@@ -124,7 +124,7 @@ impl ReliableStatefulWriterBehavior {
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            let seq_num = (&*change_for_reader).into();
+            let seq_num = (&change_for_reader).into();
             let change = writer_cache
                 .changes()
                 .iter()
@@ -250,7 +250,7 @@ impl ReliableStatefulWriterBehavior {
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(&mut seq_num) = reader_proxy.next_requested_change() {
+        while let Some(seq_num) = reader_proxy.next_requested_change() {
             let change = writer_cache
                 .changes()
                 .iter()
