@@ -125,9 +125,9 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
     }
 }
 
-impl From<&'_ RtpsChangeForReaderCacheChange<'_>> for SequenceNumber {
-    fn from(cfr: &'_ RtpsChangeForReaderCacheChange<'_>) -> Self {
-        cfr.change_for_reader.sequence_number
+impl From<RtpsChangeForReaderCacheChange<'_>> for SequenceNumber {
+    fn from(v: RtpsChangeForReaderCacheChange<'_>) -> Self {
+        v.change_for_reader.sequence_number
     }
 }
 
