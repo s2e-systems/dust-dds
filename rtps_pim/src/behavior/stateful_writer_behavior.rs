@@ -32,13 +32,13 @@ impl BestEffortStatefulWriterBehavior {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        for<'b> &'b ChangeForReader: Into<SequenceNumber>,
+        ChangeForReader: Into<SequenceNumber>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            let seq_num = (&*change_for_reader).into();
+            let seq_num = change_for_reader.into();
             let change = writer_cache
                 .changes()
                 .iter()
@@ -118,13 +118,13 @@ impl ReliableStatefulWriterBehavior {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        for<'b> &'b ChangeForReader: Into<SequenceNumber>,
+        ChangeForReader: Into<SequenceNumber>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            let seq_num = (&*change_for_reader).into();
+            let seq_num = change_for_reader.into();
             let change = writer_cache
                 .changes()
                 .iter()
@@ -246,13 +246,13 @@ impl ReliableStatefulWriterBehavior {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        for<'b> &'b ChangeForReader: Into<SequenceNumber>,
+        ChangeForReader: Into<SequenceNumber>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_requested_change() {
-            let seq_num = (&*change_for_reader).into();
+            let seq_num = change_for_reader.into();
             let change = writer_cache
                 .changes()
                 .iter()

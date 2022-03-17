@@ -24,13 +24,14 @@ use rtps_pim::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GuidPrefix,
+            ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
+            TopicKind,
         },
     },
 };
 
 use crate::{
-    rtps_reader_proxy_impl::ChangeForReader,
+    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
     utils::clock::{Timer, TimerConstructor},
 };
 
@@ -66,7 +67,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                     let submessages = RefCell::new(Vec::new());
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     BestEffortStatefulWriterBehavior::send_unsent_changes(
-                        &mut ChangeForReader::new(
+                        &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -118,7 +119,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
 
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
-                        &mut ChangeForReader::new(
+                        &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
@@ -137,10 +138,10 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                         },
                     );
                     ReliableStatefulWriterBehavior::send_requested_changes(
-                        &mut ChangeForReader::new(
+                        &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
-                            self.writer.push_mode,
+                            true,
                         ),
                         &self.writer.writer_cache,
                         reader_id,
@@ -182,7 +183,11 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
                 ReliableStatefulWriterBehavior::receive_acknack(
-                    &mut ChangeForReader::new(reader_proxy, &self.writer.writer_cache, self.writer.push_mode),
+                    &mut RtpsReaderProxyOperationsImpl::new(
+                        reader_proxy,
+                        &self.writer.writer_cache,
+                        self.writer.push_mode,
+                    ),
                     acknack,
                 );
             }
@@ -333,7 +338,10 @@ impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
 mod tests {
     use mockall::mock;
     use rtps_pim::{
-        behavior::{writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations}, types::DURATION_ZERO},
+        behavior::{
+            types::DURATION_ZERO,
+            writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
+        },
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -400,7 +408,11 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        ChangeForReader::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
+        RtpsReaderProxyOperationsImpl::new(
+            &mut matched_reader_proxy,
+            &writer.writer.writer_cache,
+            true,
+        );
         writer.matched_readers.push(matched_reader_proxy);
 
         let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
@@ -428,8 +440,11 @@ mod tests {
         );
 
         {
-            let mut operations =
-                ChangeForReader::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
+            let mut operations = RtpsReaderProxyOperationsImpl::new(
+                &mut matched_reader_proxy,
+                &writer.writer.writer_cache,
+                true,
+            );
             operations.requested_changes_set(&[change.sequence_number]);
             operations.next_requested_change();
         }

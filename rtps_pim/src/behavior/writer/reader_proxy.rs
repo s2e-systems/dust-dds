@@ -27,8 +27,8 @@ pub trait RtpsReaderProxyOperations {
     type ChangeForReaderListType;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
-    fn next_requested_change(&mut self) -> Option<&mut Self::ChangeForReaderType>;
-    fn next_unsent_change(&mut self) -> Option<&mut Self::ChangeForReaderType>;
+    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType>;
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType>;
     fn unsent_changes(&self) -> Self::ChangeForReaderListType;
     fn requested_changes(&self) -> Self::ChangeForReaderListType;
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);

@@ -1,4 +1,3 @@
-pub mod rtps_change_for_reader_impl;
 pub mod rtps_endpoint_impl;
 pub mod rtps_entity_impl;
 pub mod rtps_group_impl;
