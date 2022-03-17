@@ -205,7 +205,7 @@ impl ReliableStatefulWriterBehavior {
         };
         let writer_id = EntityIdSubmessageElement { value: writer_id };
         let first_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: writer_cache.get_seq_num_min().unwrap_or(1),
         };
         let last_sn = SequenceNumberSubmessageElement {
             value: writer_cache.get_seq_num_max().unwrap_or(0),

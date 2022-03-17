@@ -116,7 +116,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(1, heartbeats.len());
 
             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-                assert_eq!(0, heartbeat.first_sn.value);
+                assert_eq!(1, heartbeat.first_sn.value);
                 assert_eq!(0, heartbeat.last_sn.value);
                 assert_eq!(Count(1), heartbeat.count.value);
 
@@ -214,7 +214,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(1, heartbeats.len());
 
             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-                assert_eq!(0, heartbeat.first_sn.value);
+                assert_eq!(1, heartbeat.first_sn.value);
                 assert_eq!(5, heartbeat.last_sn.value);
                 assert_eq!(Count(2), heartbeat.count.value);
 
@@ -308,7 +308,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(1, heartbeats.len());
 
             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-                assert_eq!(0, heartbeat.first_sn.value);
+                assert_eq!(1, heartbeat.first_sn.value);
                 assert_eq!(5, heartbeat.last_sn.value);
                 assert_eq!(Count(3), heartbeat.count.value);
 

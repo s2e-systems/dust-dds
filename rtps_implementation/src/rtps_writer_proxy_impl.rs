@@ -32,7 +32,7 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: 0,
+            first_available_seq_num: 1,
             last_available_seq_num: 0,
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
@@ -76,7 +76,8 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         } else {
             // If there are no missing changes then the highest received sequence number
             // with a lower limit of the first_available_seq_num
-            let minimum_available_changes_max = self.first_available_seq_num;
+            let minimum_available_changes_max =
+                i64::min(self.first_available_seq_num, self.last_available_seq_num);
             let highest_received_seq_num = *self
                 .received_changes
                 .iter()
@@ -119,7 +120,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         );
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        for seq_num in self.first_available_seq_num + 1..=highest_number {
+        for seq_num in self.first_available_seq_num..=highest_number {
             let received = self.received_changes.contains(&seq_num);
             let irrelevant = self.irrelevant_changes.contains(&seq_num);
             if !(irrelevant || received) {
@@ -202,7 +203,7 @@ mod tests {
         writer_proxy.lost_changes_update(2);
         writer_proxy.missing_changes_update(3);
 
-        let expected_missing_changes = vec![3];
+        let expected_missing_changes = vec![2, 3];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
