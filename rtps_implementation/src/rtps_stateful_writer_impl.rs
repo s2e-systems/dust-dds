@@ -24,7 +24,8 @@ use rtps_pim::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GuidPrefix,
+            ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
+            TopicKind,
         },
     },
 };
@@ -102,6 +103,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                             self.writer.heartbeat_period.fraction as u64,
                         )
                     {
+                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatefulWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
@@ -112,8 +114,6 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                                     .push(RtpsStatefulSubmessage::Heartbeat(heartbeat));
                             },
                         );
-
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         self.heartbeat_timer.reset();
                     }
 
@@ -123,6 +123,25 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                             reader_proxy,
                             &self.writer.writer_cache,
                             self.writer.push_mode,
+                        ),
+                        &self.writer.writer_cache,
+                        reader_id,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Gap(gap))
+                        },
+                    );
+                    ReliableStatefulWriterBehavior::send_requested_changes(
+                        &mut RtpsReaderProxyOperationsImpl::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                            true,
                         ),
                         &self.writer.writer_cache,
                         reader_id,
@@ -164,7 +183,11 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
                 ReliableStatefulWriterBehavior::receive_acknack(
-                    &mut RtpsReaderProxyOperationsImpl::new(reader_proxy, &self.writer.writer_cache, self.writer.push_mode),
+                    &mut RtpsReaderProxyOperationsImpl::new(
+                        reader_proxy,
+                        &self.writer.writer_cache,
+                        self.writer.push_mode,
+                    ),
                     acknack,
                 );
             }
@@ -315,7 +338,10 @@ impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
 mod tests {
     use mockall::mock;
     use rtps_pim::{
-        behavior::writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
+        behavior::{
+            types::DURATION_ZERO,
+            writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
+        },
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -382,7 +408,11 @@ mod tests {
         );
 
         writer.writer.writer_cache.add_change(change);
-        RtpsReaderProxyOperationsImpl::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
+        RtpsReaderProxyOperationsImpl::new(
+            &mut matched_reader_proxy,
+            &writer.writer.writer_cache,
+            true,
+        );
         writer.matched_readers.push(matched_reader_proxy);
 
         let mut matched_reader_proxy = RtpsReaderProxyImpl::new(
@@ -410,8 +440,11 @@ mod tests {
         );
 
         {
-            let mut operations =
-            RtpsReaderProxyOperationsImpl::new(&mut matched_reader_proxy, &writer.writer.writer_cache, true);
+            let mut operations = RtpsReaderProxyOperationsImpl::new(
+                &mut matched_reader_proxy,
+                &writer.writer.writer_cache,
+                true,
+            );
             operations.requested_changes_set(&[change.sequence_number]);
             operations.next_requested_change();
         }
@@ -484,8 +517,8 @@ mod tests {
             &[],
             false,
             Duration::new(2, 0),
-            Duration::new(0, 0),
-            Duration::new(0, 0),
+            DURATION_ZERO,
+            DURATION_ZERO,
             None,
         );
 

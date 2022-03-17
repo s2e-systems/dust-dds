@@ -24,8 +24,8 @@ use rtps_pim::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
-            TopicKind, ENTITYID_UNKNOWN,
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+            ENTITYID_UNKNOWN,
         },
     },
 };
@@ -97,6 +97,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                             self.writer.heartbeat_period.fraction as u64,
                         )
                     {
+                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatelessWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
@@ -107,13 +108,26 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                                     .push(RtpsStatelessSubmessage::Heartbeat(heartbeat));
                             },
                         );
-
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         self.heartbeat_timer.reset();
                     }
 
                     let writer_cache = &self.writer.writer_cache;
                     ReliableStatelessWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
+                    );
+
+                    ReliableStatelessWriterBehavior::send_requested_changes(
                         &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
                         writer_cache,
                         |data| {

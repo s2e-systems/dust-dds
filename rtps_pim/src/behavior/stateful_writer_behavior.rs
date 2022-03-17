@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-use super::writer::reader_proxy::RtpsReaderProxyOperations;
+use super::writer::{reader_proxy::RtpsReaderProxyOperations};
 
 pub struct BestEffortStatefulWriterBehavior;
 
@@ -205,7 +205,7 @@ impl ReliableStatefulWriterBehavior {
         };
         let writer_id = EntityIdSubmessageElement { value: writer_id };
         let first_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: writer_cache.get_seq_num_min().unwrap_or(1),
         };
         let last_sn = SequenceNumberSubmessageElement {
             value: writer_cache.get_seq_num_max().unwrap_or(0),
@@ -238,19 +238,21 @@ impl ReliableStatefulWriterBehavior {
     }
 
     /// 8.4.8.2.10 Transition T10
-    pub fn send_requested_changes<'a, CacheChange, S, P, D>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations<ChangeForReaderType = SequenceNumber>,
+    pub fn send_requested_changes<'a, CacheChange, S, P, D, ChangeForReader>(
+        reader_proxy: &mut impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader>,
         writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         reader_id: EntityId,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        ChangeForReader: Into<SequenceNumber>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
         &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
-        while let Some(seq_num) = reader_proxy.next_requested_change() {
+        while let Some(change_for_reader) = reader_proxy.next_requested_change() {
+            let seq_num = change_for_reader.into();
             let change = writer_cache
                 .changes()
                 .iter()

@@ -516,21 +516,21 @@ mod tests {
         reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 1), writer_guid.prefix);
         assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
 
         reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 2), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 2), writer_guid.prefix);
         assert_eq!(vec![2], reader.matched_writers[0].missing_changes());
 
         reader.process_data_submessage(&make_data(4, &[]), writer_guid.prefix);
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 5), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 5), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
 
         reader.process_heartbeat_submessage(&make_heartbeat(2, 5), writer_guid.prefix);
-        assert_eq!(vec![3, 5], reader.matched_writers[0].missing_changes());
+        assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
     }
 
     #[test]
@@ -603,7 +603,7 @@ mod tests {
         reader.process_heartbeat_submessage(&make_heartbeat(1, 0), writer_guid.prefix);
         assert!(reader.produce_acknack_submessages().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 1), writer_guid.prefix);
         let missing_changes = reader.matched_writers[0].missing_changes();
         let submessages = reader.produce_acknack_submessages();
         assert_eq!(1, submessages.len());
@@ -616,11 +616,11 @@ mod tests {
         assert!(reader.produce_acknack_submessages().is_empty());
 
         // resend when new heartbeat
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 1), writer_guid.prefix);
         assert_eq!(1, reader.produce_acknack_submessages().len());
 
         // doesn't send if message received in the meantime
-        reader.process_heartbeat_submessage(&make_heartbeat(0, 1), writer_guid.prefix);
+        reader.process_heartbeat_submessage(&make_heartbeat(1, 1), writer_guid.prefix);
         reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.produce_acknack_submessages().is_empty());
     }
