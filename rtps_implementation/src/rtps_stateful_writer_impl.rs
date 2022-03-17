@@ -102,6 +102,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                             self.writer.heartbeat_period.fraction as u64,
                         )
                     {
+                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatefulWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
@@ -112,13 +113,30 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                                     .push(RtpsStatefulSubmessage::Heartbeat(heartbeat));
                             },
                         );
-
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         self.heartbeat_timer.reset();
                     }
 
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
+                        &mut ChangeForReader::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                            self.writer.push_mode,
+                        ),
+                        &self.writer.writer_cache,
+                        reader_id,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Gap(gap))
+                        },
+                    );
+                    ReliableStatefulWriterBehavior::send_requested_changes(
                         &mut ChangeForReader::new(
                             reader_proxy,
                             &self.writer.writer_cache,
@@ -315,7 +333,7 @@ impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
 mod tests {
     use mockall::mock;
     use rtps_pim::{
-        behavior::writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations},
+        behavior::{writer::reader_proxy::{RtpsReaderProxyConstructor, RtpsReaderProxyOperations}, types::DURATION_ZERO},
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -484,8 +502,8 @@ mod tests {
             &[],
             false,
             Duration::new(2, 0),
-            Duration::new(0, 0),
-            Duration::new(0, 0),
+            DURATION_ZERO,
+            DURATION_ZERO,
             None,
         );
 
