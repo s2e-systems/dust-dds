@@ -115,5 +115,5 @@ fn main() {
         .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
-    loop {}
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
