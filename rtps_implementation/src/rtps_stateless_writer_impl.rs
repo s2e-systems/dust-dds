@@ -61,6 +61,13 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
     ) -> Vec<(Locator, Vec<RtpsStatelessSubmessage<'a>>)> {
         let mut destined_submessages = Vec::new();
 
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+        }
+
         for reader_locator in self.reader_locators.iter_mut() {
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
@@ -90,12 +97,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
 
-                    if self.heartbeat_timer.elapsed()
-                        >= std::time::Duration::from_secs(
-                            self.writer.heartbeat_period.seconds as u64,
-                        ) + std::time::Duration::from_nanos(
-                            self.writer.heartbeat_period.fraction as u64,
-                        )
+                    if time_for_heartbeat
                     {
                         self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatelessWriterBehavior::send_heartbeat(
@@ -108,7 +110,6 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                                     .push(RtpsStatelessSubmessage::Heartbeat(heartbeat));
                             },
                         );
-                        self.heartbeat_timer.reset();
                     }
 
                     let writer_cache = &self.writer.writer_cache;

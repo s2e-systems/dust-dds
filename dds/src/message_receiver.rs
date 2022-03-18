@@ -80,10 +80,13 @@ impl MessageReceiver {
                             match data_writer.rtps_writer.write_lock().deref_mut() {
                                 RtpsWriter::Stateless(stateless_rtps_writer) => {
                                     stateless_rtps_writer.process_acknack_submessage(acknack);
-                                },
+                                }
                                 RtpsWriter::Stateful(stateful_rtps_writer) => {
-                                    stateful_rtps_writer.process_acknack_submessage(acknack, self.source_guid_prefix);
-                                },
+                                    stateful_rtps_writer.process_acknack_submessage(
+                                        acknack,
+                                        self.source_guid_prefix,
+                                    );
+                                }
                             }
                         }
                     }
