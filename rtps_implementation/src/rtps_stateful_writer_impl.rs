@@ -61,6 +61,13 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
     ) -> Vec<(&mut RtpsReaderProxyImpl, Vec<RtpsStatefulSubmessage<'a>>)> {
         let mut destined_submessages = Vec::new();
 
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+        }
+
         for reader_proxy in &mut self.matched_readers {
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
@@ -96,12 +103,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
 
-                    if self.heartbeat_timer.elapsed()
-                        >= std::time::Duration::from_secs(
-                            self.writer.heartbeat_period.seconds as u64,
-                        ) + std::time::Duration::from_nanos(
-                            self.writer.heartbeat_period.fraction as u64,
-                        )
+                    if time_for_heartbeat
                     {
                         self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatefulWriterBehavior::send_heartbeat(
@@ -114,7 +116,6 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                                     .push(RtpsStatefulSubmessage::Heartbeat(heartbeat));
                             },
                         );
-                        self.heartbeat_timer.reset();
                     }
 
                     let reader_id = reader_proxy.remote_reader_guid().entity_id();
