@@ -18,9 +18,9 @@ use dds_api::{
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
-        sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
-        sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
+        sedp_discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+        sedp_discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        sedp_discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         spdp_discovered_participant_data::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
@@ -155,11 +155,11 @@ pub fn task_spdp_discovery(
     let dcps_participant_topic = domain_participant_proxy
         .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
     let dcps_publication_topic = domain_participant_proxy
-        .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+        .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)?;
     let dcps_subscription_topic = domain_participant_proxy
-        .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+        .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
     let dcps_topic_topic =
-        domain_participant_proxy.lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)?;
+        domain_participant_proxy.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)?;
 
     let spdp_builtin_participant_data_reader =
         builtin_subscriber.lookup_datareader(&dcps_participant_topic)?;
@@ -322,7 +322,7 @@ pub fn task_sedp_writer_discovery(
             .downgrade(),
     );
     let dcps_publication_topic = domain_participant_proxy
-        .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)?;
+        .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)?;
     let sedp_builtin_publication_reader =
         builtin_subscriber.lookup_datareader(&dcps_publication_topic)?;
 
@@ -399,7 +399,7 @@ pub fn task_sedp_reader_discovery(
             .downgrade(),
     );
     let dcps_subscription_topic = domain_participant_proxy
-        .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+        .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
     let sedp_builtin_subscription_reader =
         builtin_subscriber.lookup_datareader(&dcps_subscription_topic)?;
 
@@ -526,9 +526,9 @@ mod tests {
     };
     use dds_implementation::{
         data_representation_builtin_endpoints::{
-            sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
-            sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
-            sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
+            sedp_discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            sedp_discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            sedp_discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
@@ -653,13 +653,13 @@ mod tests {
 
         // Get the SEDP endpoints
         let dcps_publication_topic = participant1_proxy
-            .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
+            .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
             .unwrap();
         let dcps_subscription_topic = participant1_proxy
-            .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
             .unwrap();
         let dcps_topic_topic = participant1_proxy
-            .lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)
+            .lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
             .unwrap();
 
         let participant1_publisher = PublisherProxy::new(

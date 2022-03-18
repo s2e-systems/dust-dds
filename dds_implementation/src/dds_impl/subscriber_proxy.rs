@@ -38,7 +38,7 @@ use rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::sedp_discovered_reader_data::{
-        RtpsReaderProxy, SedpDiscoveredReaderData, DCPS_SUBSCRIPTION,
+        RtpsReaderProxy, DiscoveredReaderData, DCPS_SUBSCRIPTION,
     },
     dds_type::{DdsDeserialize, DdsType},
     utils::{
@@ -225,7 +225,7 @@ where
                     if let Ok(sedp_builtin_subscription_announcer) = builtin_publisher_proxy
                         .datawriter_factory_lookup_datawriter(&subscription_topic)
                     {
-                        let sedp_discovered_reader_data = SedpDiscoveredReaderData {
+                        let sedp_discovered_reader_data = DiscoveredReaderData {
                             reader_proxy: RtpsReaderProxy {
                                 remote_reader_guid: guid,
                                 remote_group_entity_id: entity_id,

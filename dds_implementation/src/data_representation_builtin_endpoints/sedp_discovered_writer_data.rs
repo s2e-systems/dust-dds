@@ -49,16 +49,16 @@ pub struct RtpsWriterProxy {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SedpDiscoveredWriterData {
+pub struct DiscoveredWriterData {
     pub writer_proxy: RtpsWriterProxy,
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 
 pub const DCPS_PUBLICATION: &'static str = "DCPSPublication";
 
-impl DdsType for SedpDiscoveredWriterData {
+impl DdsType for DiscoveredWriterData {
     fn type_name() -> &'static str {
-        "SedpDiscoveredWriterData"
+        "DiscoveredWriterData"
     }
 
     fn has_key() -> bool {
@@ -66,7 +66,7 @@ impl DdsType for SedpDiscoveredWriterData {
     }
 }
 
-impl DdsSerialize for SedpDiscoveredWriterData {
+impl DdsSerialize for DiscoveredWriterData {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
@@ -186,7 +186,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
     }
 }
 
-impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
+impl DdsDeserialize<'_> for DiscoveredWriterData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
@@ -295,7 +295,7 @@ mod tests {
     }
     #[test]
     fn serialize_all_default() {
-        let data = SedpDiscoveredWriterData {
+        let data = DiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix([5; 12]),
@@ -366,7 +366,7 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = SedpDiscoveredWriterData {
+        let expected = DiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
@@ -433,7 +433,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: SedpDiscoveredWriterData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredWriterData = DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

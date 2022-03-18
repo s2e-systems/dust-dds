@@ -47,14 +47,14 @@ pub struct RtpsReaderProxy {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SedpDiscoveredReaderData {
+pub struct DiscoveredReaderData {
     pub reader_proxy: RtpsReaderProxy,
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
 
-impl DdsType for SedpDiscoveredReaderData {
+impl DdsType for DiscoveredReaderData {
     fn type_name() -> &'static str {
-        "SedpDiscoveredReaderData"
+        "DiscoveredReaderData"
     }
 
     fn has_key() -> bool {
@@ -62,7 +62,7 @@ impl DdsType for SedpDiscoveredReaderData {
     }
 }
 
-impl DdsSerialize for SedpDiscoveredReaderData {
+impl DdsSerialize for DiscoveredReaderData {
     fn serialize<W: Write, E: Endianness>(&self, writer: W) -> dds_api::return_type::DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
@@ -169,7 +169,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
     }
 }
 
-impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
+impl DdsDeserialize<'_> for DiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
@@ -274,7 +274,7 @@ mod tests {
     }
     #[test]
     fn serialize_all_default() {
-        let data = SedpDiscoveredReaderData {
+        let data = DiscoveredReaderData {
             reader_proxy: RtpsReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix([5; 12]),
@@ -342,7 +342,7 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = SedpDiscoveredReaderData {
+        let expected = DiscoveredReaderData {
             reader_proxy: RtpsReaderProxy {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
@@ -407,7 +407,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: SedpDiscoveredReaderData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredReaderData = DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }
