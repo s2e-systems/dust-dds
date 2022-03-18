@@ -1,4 +1,3 @@
-use byteorder::LittleEndian;
 use rtps_pim::{
     messages::{
         overall_structure::RtpsSubmessageHeader, submessages::AckNackSubmessage,
