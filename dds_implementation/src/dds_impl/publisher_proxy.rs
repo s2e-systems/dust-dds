@@ -20,7 +20,7 @@ use dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DdsResult},
 };
 
 use rtps_pim::{
@@ -122,7 +122,7 @@ where
         qos: Option<DataWriterQos>,
         listener: Option<<Self::DataWriterType as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<Self::DataWriterType> {
+    ) -> DdsResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
 
         let topic_shared = topic.as_ref().upgrade()?;
@@ -274,7 +274,7 @@ where
     fn datawriter_factory_delete_datawriter(
         &self,
         datawriter: &Self::DataWriterType,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         let publisher_shared = self.0.upgrade()?;
         let datawriter_shared = datawriter.as_ref().upgrade()?;
 
@@ -282,7 +282,7 @@ where
         let data_writer_list_position = data_writer_list
             .iter()
             .position(|x| x == &datawriter_shared)
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
             ))?;
         data_writer_list.remove(data_writer_list_position);
@@ -293,7 +293,7 @@ where
     fn datawriter_factory_lookup_datawriter(
         &self,
         topic: &Self::TopicType,
-    ) -> DDSResult<Self::DataWriterType> {
+    ) -> DdsResult<Self::DataWriterType> {
         let publisher_shared = self.0.upgrade()?;
         let data_writer_list = &publisher_shared.data_writer_list.write_lock();
 
@@ -312,7 +312,7 @@ where
                     None
                 }
             })
-            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -322,42 +322,42 @@ where
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 
-    fn suspend_publications(&self) -> DDSResult<()> {
+    fn suspend_publications(&self) -> DdsResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
         //     .suspend_publications()
         todo!()
     }
 
-    fn resume_publications(&self) -> DDSResult<()> {
+    fn resume_publications(&self) -> DdsResult<()> {
         // self.rtps_writer_group_impl.upgrade()?.resume_publications()
         todo!()
     }
 
-    fn begin_coherent_changes(&self) -> DDSResult<()> {
+    fn begin_coherent_changes(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn end_coherent_changes(&self) -> DDSResult<()> {
+    fn end_coherent_changes(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: dds_api::dcps_psm::Duration) -> DDSResult<()> {
+    fn wait_for_acknowledgments(&self, _max_wait: dds_api::dcps_psm::Duration) -> DdsResult<()> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DDSResult<()> {
+    fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DdsResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
         //     .set_default_datawriter_qos(qos)
         todo!()
     }
 
-    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
+    fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
         // self.default_datawriter_qos.lock().unwrap().clone()
         todo!()
     }
@@ -366,11 +366,11 @@ where
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         let publisher_attributes = self.0.upgrade()?;
         Ok(DomainParticipantProxy::new(
             publisher_attributes.parent_participant.clone(),
@@ -385,12 +385,12 @@ where
     type Qos = PublisherQos;
     type Listener = &'static dyn PublisherListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.publisher_impl)?).set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_qos()
         todo!()
     }
@@ -399,33 +399,33 @@ where
         &self,
         _a_listener: Option<Self::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?)
         //     .set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).enable()
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.publisher_impl)?).get_instance_handle()
         todo!()
     }
@@ -447,7 +447,7 @@ mod tests {
             struct $type_name {}
 
             impl DdsSerialize for $type_name {
-                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
                     Ok(())
                 }
             }
@@ -669,7 +669,7 @@ mod tests {
 
         assert!(matches!(
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
-            Err(DDSError::PreconditionNotMet(_))
+            Err(DdsError::PreconditionNotMet(_))
         ));
         assert!(data_writer.as_ref().upgrade().is_ok())
     }

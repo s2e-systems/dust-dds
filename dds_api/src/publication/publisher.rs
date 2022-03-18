@@ -4,7 +4,7 @@ use crate::{
         entity::Entity,
         qos::{DataWriterQos, TopicQos},
     },
-    return_type::DDSResult,
+    return_type::DdsResult,
 };
 
 pub trait PublisherDataWriterFactory<Foo> {
@@ -17,19 +17,19 @@ pub trait PublisherDataWriterFactory<Foo> {
         qos: Option<DataWriterQos>,
         a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::DataWriterType>
+    ) -> DdsResult<Self::DataWriterType>
     where
         Self::DataWriterType: Entity;
 
     fn datawriter_factory_delete_datawriter(
         &self,
         a_datawriter: &Self::DataWriterType,
-    ) -> DDSResult<()>;
+    ) -> DdsResult<()>;
 
     fn datawriter_factory_lookup_datawriter(
         &self,
         topic: &Self::TopicType,
-    ) -> DDSResult<Self::DataWriterType>;
+    ) -> DdsResult<Self::DataWriterType>;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
@@ -68,7 +68,7 @@ pub trait Publisher {
         qos: Option<DataWriterQos>,
         a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DDSResult<Self::DataWriterType>
+    ) -> DdsResult<Self::DataWriterType>
     where
         Self: PublisherDataWriterFactory<Foo> + Sized,
         Self::DataWriterType: Entity,
@@ -84,7 +84,7 @@ pub trait Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datawriter<'dw, T>(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>
+    fn delete_datawriter<'dw, T>(&self, a_datawriter: &Self::DataWriterType) -> DdsResult<()>
     where
         Self: PublisherDataWriterFactory<T> + Sized,
     {
@@ -95,7 +95,7 @@ pub trait Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<'dw, T>(&self, topic: &Self::TopicType) -> DDSResult<Self::DataWriterType>
+    fn lookup_datawriter<'dw, T>(&self, topic: &Self::TopicType) -> DdsResult<Self::DataWriterType>
     where
         Self: PublisherDataWriterFactory<T> + Sized,
     {
@@ -110,7 +110,7 @@ pub trait Publisher {
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    fn suspend_publications(&self) -> DDSResult<()>;
+    fn suspend_publications(&self) -> DdsResult<()>;
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
     /// suspend_publications. This is a hint to the Service that can be used by a Service implementation to e.g., batch all the
@@ -118,7 +118,7 @@ pub trait Publisher {
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn resume_publications(&self) -> DDSResult<()>;
+    fn resume_publications(&self) -> DdsResult<()>;
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
     /// the Publisher. The ‘coherent set’ will be completed by a matching call to end_coherent_changes.
@@ -136,21 +136,21 @@ pub trait Publisher {
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    fn begin_coherent_changes(&self) -> DDSResult<()>;
+    fn begin_coherent_changes(&self) -> DdsResult<()>;
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    fn end_coherent_changes(&self) -> DDSResult<()>;
+    fn end_coherent_changes(&self) -> DdsResult<()>;
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
     /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
-    fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
+    fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant>;
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipant>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.
@@ -158,7 +158,7 @@ pub trait Publisher {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    fn delete_contained_entities(&self) -> DDSResult<()>;
+    fn delete_contained_entities(&self) -> DdsResult<()>;
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
     /// the case where the QoS policies are defaulted in the create_datawriter operation.
@@ -167,14 +167,14 @@ pub trait Publisher {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()>;
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()>;
 
     /// This operation retrieves the dformalefault value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos>;
+    fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).
@@ -187,5 +187,5 @@ pub trait Publisher {
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> DDSResult<()>;
+    ) -> DdsResult<()>;
 }

@@ -1,4 +1,4 @@
-use crate::return_type::DDSResult;
+use crate::return_type::DdsResult;
 
 /// TopicDescription represents the fact that both publications and subscriptions are tied to a single data-type. Its attribute
 /// type_name defines a unique resulting type for the publication or the subscription and therefore creates an implicit association
@@ -8,13 +8,13 @@ pub trait TopicDescription {
     type DomainParticipant;
 
     /// This operation returns the DomainParticipant to which the Topic Description belongs.
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant>;
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipant>;
 
     /// The type_name used to create the TopicDescription
-    fn get_type_name(&self) -> DDSResult<&'static str>;
+    fn get_type_name(&self) -> DdsResult<&'static str>;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> DDSResult<String>;
+    fn get_name(&self) -> DdsResult<String>;
 }
 
 pub trait AnyTopicDescription {}

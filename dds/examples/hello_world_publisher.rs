@@ -4,7 +4,7 @@ use dds::{
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
     types::Time,
-    DDSError,
+    DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use serde::{Deserialize, Serialize};
@@ -29,22 +29,22 @@ impl DdsSerialize for HelloWorldType {
     fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> dds::DDSResult<()> {
+    ) -> dds::DdsResult<()> {
         writer
             .write(
                 cdr::serialize::<_, _, CdrBe>(self, cdr::Infinite)
-                    .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?
+                    .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?
                     .as_slice(),
             )
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
         Ok(())
     }
 }
 
 impl<'de> DdsDeserialize<'de> for HelloWorldType {
-    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
         cdr::deserialize::<HelloWorldType>(buf)
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
     }
 }
 

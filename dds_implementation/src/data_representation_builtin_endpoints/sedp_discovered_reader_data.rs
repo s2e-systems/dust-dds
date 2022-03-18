@@ -63,7 +63,7 @@ impl DdsType for SedpDiscoveredReaderData {
 }
 
 impl DdsSerialize for SedpDiscoveredReaderData {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> dds_api::return_type::DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> dds_api::return_type::DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
@@ -170,7 +170,7 @@ impl DdsSerialize for SedpDiscoveredReaderData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy

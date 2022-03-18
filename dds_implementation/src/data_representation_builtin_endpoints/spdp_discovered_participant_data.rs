@@ -132,7 +132,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> dds_api::return_type::DDSResult<()> {
+    ) -> dds_api::return_type::DdsResult<()> {
         let guid = Guid {
             prefix: self.participant_proxy.guid_prefix,
             entity_id: ENTITYID_PARTICIPANT,
@@ -203,7 +203,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let guid = param_list.get::<GuidDeserialize, Guid>(PID_PARTICIPANT_GUID)?;

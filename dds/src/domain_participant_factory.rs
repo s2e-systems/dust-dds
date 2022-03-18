@@ -13,7 +13,7 @@ use dds_api::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DdsResult},
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
@@ -198,13 +198,13 @@ impl Communications {
         mac_address: [u8; 6],
         unicast_address: Ipv4Addr,
         multicast_address: Ipv4Addr,
-    ) -> DDSResult<Self> {
+    ) -> DdsResult<Self> {
         let metatraffic_multicast_socket = get_multicast_socket(
             unicast_address,
             multicast_address,
             port_builtin_multicast(domain_id as u16),
         )
-        .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+        .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
             .map(
@@ -234,7 +234,7 @@ impl Communications {
             })
             .next()
             .unwrap()
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         #[rustfmt::skip]
         let guid_prefix = GuidPrefix([
@@ -318,7 +318,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> DDSResult<DomainParticipantProxy<RtpsStructureImpl>> {
+    ) -> DdsResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
 
         let interface = ifcfg::IfCfg::get()
@@ -335,12 +335,12 @@ impl DomainParticipantFactory {
                 SocketAddr::V6(_) => None,
             })
             .next()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "No Ipv4 address for interface".to_string(),
             ))?;
 
         let mac_address = MacAddress::from_str(&interface.mac)
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         let communications = Communications::find_available(
             domain_id,
@@ -378,7 +378,7 @@ impl DomainParticipantFactory {
         &self,
         domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
         communications: Communications,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // ////////// Task creation
         let (executor, spawner) = {
             let (sender, receiver) = std::sync::mpsc::sync_channel(10);
@@ -546,7 +546,7 @@ impl DomainParticipantFactory {
     pub fn delete_participant(
         &self,
         _a_participant: DomainParticipantProxy<RtpsStructureImpl>,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -577,7 +577,7 @@ impl DomainParticipantFactory {
     /// DomainParticipant entities in the case where the QoS policies are defaulted in the create_participant operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
-    pub fn set_default_participant_qos(&self, _qos: DomainParticipantQos) -> DDSResult<()> {
+    pub fn set_default_participant_qos(&self, _qos: DomainParticipantQos) -> DdsResult<()> {
         todo!()
     }
 
@@ -587,7 +587,7 @@ impl DomainParticipantFactory {
     /// The values retrieved get_default_participant_qos will match the set of values specified on the last successful call to
     /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    pub fn get_default_participant_qos(&self) -> DDSResult<DomainParticipantQos> {
+    pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
         todo!()
     }
 
@@ -596,7 +596,7 @@ impl DomainParticipantFactory {
     /// Note that despite having QoS, the DomainParticipantFactory is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
-    pub fn set_qos(&self, _qos: DomainParticipantFactoryQos) -> DDSResult<()> {
+    pub fn set_qos(&self, _qos: DomainParticipantFactoryQos) -> DdsResult<()> {
         todo!()
     }
 
@@ -608,7 +608,7 @@ impl DomainParticipantFactory {
 
 pub fn create_builtins(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
-) -> DDSResult<()> {
+) -> DdsResult<()> {
     let guid_prefix = domain_participant.rtps_participant.guid().prefix;
 
     // ///////// Create the built-in publisher and subcriber
@@ -840,7 +840,7 @@ mod tests {
             data_writer_listener::DataWriterListener,
             publisher::{Publisher, PublisherDataWriterFactory},
         },
-        return_type::DDSError,
+        return_type::DdsError,
         subscription::{
             data_reader::DataReader,
             data_reader_listener::DataReaderListener,
@@ -1160,7 +1160,7 @@ mod tests {
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DDSResult<Self> {
+        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DdsResult<Self> {
             Ok(UserData(buf[0]))
         }
     }
@@ -1169,11 +1169,11 @@ mod tests {
         fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
-        ) -> dds_api::return_type::DDSResult<()> {
+        ) -> dds_api::return_type::DdsResult<()> {
             writer
                 .write(&[self.0])
                 .map(|_| ())
-                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
         }
     }
 
