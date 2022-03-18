@@ -43,6 +43,12 @@ impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
     }
 }
 
+impl NumberOfBytes for CountSubmessageElement {
+    fn number_of_bytes(&self) -> usize {
+        4
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
