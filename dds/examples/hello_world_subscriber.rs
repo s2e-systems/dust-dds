@@ -2,6 +2,7 @@ use cdr::CdrBe;
 use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     subscription::{
         data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
     },
@@ -73,9 +74,12 @@ fn main() {
         .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
 
+    let mut qos = DataReaderQos::default();
+    qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
     let reader = subscriber
-        .create_datareader(&topic, None, Some(Box::new(ExampleListener)), 0)
+        .create_datareader(&topic, Some(qos), Some(Box::new(ExampleListener)), 0)
         .unwrap();
     println!("{:?} [S] Created reader", std::time::SystemTime::now());
 
