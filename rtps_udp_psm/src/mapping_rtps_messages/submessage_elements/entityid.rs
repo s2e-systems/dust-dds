@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rtps_pim::messages::submessage_elements::EntityIdSubmessageElement;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 impl MappingWriteByteOrdered for EntityIdSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -18,5 +18,10 @@ impl<'de> MappingReadByteOrdered<'de> for EntityIdSubmessageElement {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
+    }
+}
+impl NumberOfBytes for EntityIdSubmessageElement {
+    fn number_of_bytes(&self) -> usize {
+        4
     }
 }
