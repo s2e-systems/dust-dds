@@ -81,8 +81,6 @@ fn main() {
     }
     println!("{:?} [P] Matched participant", std::time::SystemTime::now());
 
-    std::thread::sleep(std::time::Duration::from_secs(15));
-
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .unwrap();
@@ -90,6 +88,8 @@ fn main() {
     let publisher = participant.create_publisher(None, None, 0).unwrap();
     let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
     println!("{:?} [P] Created writer", std::time::SystemTime::now());
+    
+    publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     while writer
         .as_ref()
@@ -107,8 +107,6 @@ fn main() {
     }
     println!("{:?} [P] Matched with reader", std::time::SystemTime::now());
 
-    std::thread::sleep(std::time::Duration::from_secs(15));
-
     let hello_world = HelloWorldType {
         id: 8,
         msg: "Hello world!".to_string(),
@@ -117,6 +115,5 @@ fn main() {
         .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(600));
-    println!("{:?} [P] End", std::time::SystemTime::now());
+    loop {}
 }
