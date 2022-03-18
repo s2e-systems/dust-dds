@@ -69,6 +69,16 @@ fn main() {
         .unwrap();
     println!("{:?} [S] Created participant", std::time::SystemTime::now());
 
+    let topic = participant
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .unwrap();
+
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let reader = subscriber
+        .create_datareader(&topic, None, Some(Box::new(ExampleListener)), 0)
+        .unwrap();
+    println!("{:?} [S] Created reader", std::time::SystemTime::now());
+
     while participant
         .get_builtin_subscriber()
         .unwrap()
@@ -92,16 +102,6 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     println!("{:?} [S] Matched participant", std::time::SystemTime::now());
-
-    let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
-        .unwrap();
-
-    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-    let reader = subscriber
-        .create_datareader(&topic, None, Some(Box::new(ExampleListener)), 0)
-        .unwrap();
-    println!("{:?} [S] Created reader", std::time::SystemTime::now());
 
     // Wait for reader to be aware of the user writer
     while reader

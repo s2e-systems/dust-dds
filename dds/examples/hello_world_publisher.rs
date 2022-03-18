@@ -57,6 +57,14 @@ fn main() {
         .unwrap();
     println!("{:?} [P] Created participant", std::time::SystemTime::now());
 
+    let topic = participant
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .unwrap();
+
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    println!("{:?} [P] Created writer", std::time::SystemTime::now());
+
     while participant
         .get_builtin_subscriber()
         .unwrap()
@@ -80,16 +88,6 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     println!("{:?} [P] Matched participant", std::time::SystemTime::now());
-
-    let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
-        .unwrap();
-
-    let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
-    println!("{:?} [P] Created writer", std::time::SystemTime::now());
-    
-    publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
     while writer
         .as_ref()
@@ -115,5 +113,5 @@ fn main() {
         .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(30));
 }
