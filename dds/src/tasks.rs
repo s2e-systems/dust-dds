@@ -13,7 +13,7 @@ use dds_api::{
     dcps_psm::{BuiltInTopicKey, Time},
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DdsResult},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use dds_implementation::{
@@ -128,7 +128,7 @@ pub struct EnabledPeriodicTask {
 
 pub fn task_spdp_discovery(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
-) -> DDSResult<()> {
+) -> DdsResult<()> {
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
     let builtin_subscriber = SubscriberProxy::new(
         domain_participant_proxy.clone(),
@@ -136,7 +136,7 @@ pub fn task_spdp_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -146,7 +146,7 @@ pub fn task_spdp_discovery(
             .builtin_publisher
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin publisher".to_string(),
             ))?
             .downgrade(),
@@ -299,7 +299,7 @@ pub fn task_spdp_discovery(
 
 pub fn task_sedp_writer_discovery(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
-) -> DDSResult<()> {
+) -> DdsResult<()> {
     if domain_participant
         .user_defined_subscriber_list
         .read_lock()
@@ -316,7 +316,7 @@ pub fn task_sedp_writer_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -376,7 +376,7 @@ pub fn task_sedp_writer_discovery(
 
 pub fn task_sedp_reader_discovery(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
-) -> DDSResult<()> {
+) -> DdsResult<()> {
     if domain_participant
         .user_defined_publisher_list
         .read_lock()
@@ -393,7 +393,7 @@ pub fn task_sedp_reader_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -452,7 +452,7 @@ pub fn task_sedp_reader_discovery(
 
 pub fn task_announce_participant(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
-) -> DDSResult<()> {
+) -> DdsResult<()> {
     let spdp_participant_writer = {
         let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
         let dcps_topic_participant =
@@ -462,7 +462,7 @@ pub fn task_announce_participant(
                 .builtin_publisher
                 .read_lock()
                 .as_ref()
-                .ok_or(DDSError::PreconditionNotMet(
+                .ok_or(DdsError::PreconditionNotMet(
                     "Domain participant has no builtin publisher".to_string(),
                 ))?
                 .downgrade(),
@@ -521,7 +521,7 @@ mod tests {
         domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
         publication::publisher::Publisher,
-        return_type::{DDSError, DDSResult},
+        return_type::{DdsError, DdsResult},
         subscription::subscriber::Subscriber,
     };
     use dds_implementation::{
@@ -562,16 +562,16 @@ mod tests {
         fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
-        ) -> DDSResult<()> {
+        ) -> DdsResult<()> {
             writer
                 .write(&[self.0])
                 .map(|_| ())
-                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
         }
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> DDSResult<Self> {
+        fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
             Ok(UserData(buf[0]))
         }
     }

@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dds_api::{
-    builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DDSResult,
+    builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DdsResult,
 };
 use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
@@ -67,7 +67,7 @@ impl DdsType for SedpDiscoveredWriterData {
 }
 
 impl DdsSerialize for SedpDiscoveredWriterData {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -187,7 +187,7 @@ impl DdsSerialize for SedpDiscoveredWriterData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredWriterData {
-    fn deserialize(buf: &mut &'_ [u8]) -> DDSResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // writer_proxy

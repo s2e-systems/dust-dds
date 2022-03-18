@@ -4,7 +4,7 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::Time,
-    DDSError,
+    DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
@@ -25,16 +25,16 @@ impl DdsSerialize for UserData {
     fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> dds::DDSResult<()> {
+    ) -> dds::DdsResult<()> {
         writer
             .write(&[self.0])
             .map(|_| ())
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
     }
 }
 
 impl<'de> DdsDeserialize<'de> for UserData {
-    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
         Ok(UserData(buf[0]))
     }
 }
@@ -125,7 +125,7 @@ fn user_defined_write_read_auto_enable() {
         .unwrap();
 
     let mut samples = reader.read(1, &[], &[], &[]);
-    while let Err(DDSError::NoData) = samples {
+    while let Err(DdsError::NoData) = samples {
         std::thread::sleep(std::time::Duration::from_millis(50));
         samples = reader.read(1, &[], &[], &[])
     }

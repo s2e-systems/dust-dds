@@ -24,12 +24,12 @@ impl TypeSupport {
         &self,
         _participant: DomainParticipant,
         _type_name: &str,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     /// This operation returns the default name for the data-type represented by the TypeSupport.
-    pub fn get_type_name(&self) -> DDSResult<String> {
+    pub fn get_type_name(&self) -> DdsResult<String> {
         todo!()
     }
 }

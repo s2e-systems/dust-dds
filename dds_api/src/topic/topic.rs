@@ -1,4 +1,4 @@
-use crate::{dcps_psm::InconsistentTopicStatus, return_type::DDSResult};
+use crate::{dcps_psm::InconsistentTopicStatus, return_type::DdsResult};
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -12,5 +12,5 @@ pub trait Topic {
     /// invoked and can also be monitored by means of the associated StatusCondition.
     /// The complete list of communication status, their values, and the DomainEntities they apply to is provided in 2.2.4.1,
     /// Communication Status.
-    fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus>;
+    fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus>;
 }
