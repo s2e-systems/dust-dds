@@ -50,7 +50,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> dds_api::return_type::DDSResult<()> {
+    ) -> dds_api::return_type::DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -136,7 +136,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
 }
 
 impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
-    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DDSResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;

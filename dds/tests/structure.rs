@@ -19,13 +19,13 @@ impl DdsType for TestType {
 }
 
 impl DdsSerialize for TestType {
-    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> dds::DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> dds::DdsResult<()> {
         todo!()
     }
 }
 
 impl<'de> DdsDeserialize<'de> for TestType {
-    fn deserialize(_buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
+    fn deserialize(_buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
         todo!()
     }
 }

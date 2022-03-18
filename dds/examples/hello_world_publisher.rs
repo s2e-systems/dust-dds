@@ -29,7 +29,7 @@ impl DdsSerialize for HelloWorldType {
     fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> dds::DDSResult<()> {
+    ) -> dds::DdsResult<()> {
         writer
             .write(
                 cdr::serialize::<_, _, CdrBe>(self, cdr::Infinite)
@@ -42,7 +42,7 @@ impl DdsSerialize for HelloWorldType {
 }
 
 impl<'de> DdsDeserialize<'de> for HelloWorldType {
-    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
         cdr::deserialize::<HelloWorldType>(buf)
             .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
     }

@@ -20,7 +20,7 @@ use dds_api::{
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
-    return_type::{DdsError, DDSResult},
+    return_type::{DdsError, DdsResult},
     subscription::{
         data_reader::{DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription},
         data_reader_listener::DataReaderListener,
@@ -154,7 +154,7 @@ impl<Rtps> RtpsReader<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut Rtps::StatelessReader> {
+    pub fn try_as_stateless_reader(&mut self) -> DdsResult<&mut Rtps::StatelessReader> {
         match self {
             RtpsReader::Stateless(x) => Ok(x),
             RtpsReader::Stateful(_) => Err(DdsError::PreconditionNotMet(
@@ -163,7 +163,7 @@ where
         }
     }
 
-    pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut Rtps::StatefulReader> {
+    pub fn try_as_stateful_reader(&mut self) -> DdsResult<&mut Rtps::StatefulReader> {
         match self {
             RtpsReader::Stateless(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateful reader".to_string(),
@@ -261,7 +261,7 @@ where
 {
     type Subscriber = SubscriberProxy<Rtps>;
 
-    fn data_reader_get_subscriber(&self) -> DDSResult<Self::Subscriber> {
+    fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
         todo!()
     }
 }
@@ -272,7 +272,7 @@ where
 {
     type TopicDescription = TopicProxy<Foo, Rtps>;
 
-    fn data_reader_get_topicdescription(&self) -> DDSResult<Self::TopicDescription> {
+    fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         todo!()
     }
 }
@@ -288,7 +288,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
         match rtps_reader.deref_mut() {
@@ -371,7 +371,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
         match rtps_reader.deref_mut() {
@@ -462,7 +462,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -472,7 +472,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -480,7 +480,7 @@ where
         &self,
         _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -488,7 +488,7 @@ where
         &self,
         _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -501,7 +501,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -514,7 +514,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -527,7 +527,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -540,7 +540,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -551,7 +551,7 @@ where
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -562,7 +562,7 @@ where
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
@@ -570,15 +570,15 @@ where
         &self,
         _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
+    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &Foo) -> DDSResult<InstanceHandle> {
+    fn lookup_instance(&self, _instance: &Foo) -> DdsResult<InstanceHandle> {
         todo!()
     }
 
@@ -587,7 +587,7 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<ReadCondition> {
+    ) -> DdsResult<ReadCondition> {
         todo!()
     }
 
@@ -598,55 +598,55 @@ where
         _instance_states: &[InstanceStateKind],
         _query_expression: &'static str,
         _query_parameters: &[&'static str],
-    ) -> DDSResult<QueryCondition> {
+    ) -> DdsResult<QueryCondition> {
         todo!()
     }
 
-    fn delete_readcondition(&self, _a_condition: ReadCondition) -> DDSResult<()> {
+    fn delete_readcondition(&self, _a_condition: ReadCondition) -> DdsResult<()> {
         todo!()
     }
 
     fn get_liveliness_changed_status(
         &self,
         _status: &mut LivelinessChangedStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     fn get_requested_deadline_missed_status(
         &self,
         _status: &mut RequestedDeadlineMissedStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     fn get_requested_incompatible_qos_status(
         &self,
         _status: &mut RequestedIncompatibleQosStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DDSResult<()> {
+    fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DdsResult<()> {
         todo!()
     }
 
     fn get_subscription_matched_status(
         &self,
         _status: &mut SubscriptionMatchedStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DDSResult<()> {
+    fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn wait_for_historical_data(&self) -> DDSResult<()> {
+    fn wait_for_historical_data(&self) -> DdsResult<()> {
         todo!()
     }
 
@@ -654,11 +654,11 @@ where
         &self,
         _publication_data: &mut PublicationBuiltinTopicData,
         _publication_handle: InstanceHandle,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DDSResult<()> {
+    fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DdsResult<()> {
         todo!()
     }
 }
@@ -671,17 +671,17 @@ where
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_qos()
         todo!()
     }
 
-    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {
         *self.as_ref().upgrade()?.listener.write_lock() = match listener {
             Some(l) => Some(Box::new(l)),
             None => None,
@@ -689,27 +689,27 @@ where
         Ok(())
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).enable()
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_instance_handle()
         todo!()
     }

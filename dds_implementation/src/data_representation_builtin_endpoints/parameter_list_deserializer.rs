@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
-use dds_api::return_type::{DdsError, DDSResult};
+use dds_api::return_type::{DdsError, DdsResult};
 
 use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
@@ -14,7 +14,7 @@ struct Parameter<'a> {
 }
 
 impl<'de: 'a, 'a> Parameter<'a> {
-    fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> DDSResult<Self> {
+    fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let parameter_id = buf
             .read_u16::<B>()
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
@@ -37,7 +37,7 @@ enum RepresentationIdentifier {
 }
 
 impl RepresentationIdentifier {
-    fn read(buf: &mut &[u8]) -> DDSResult<Self> {
+    fn read(buf: &mut &[u8]) -> DdsResult<Self> {
         let mut representation_identifier = [0; 2];
         buf.read(&mut representation_identifier)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
@@ -53,7 +53,7 @@ impl RepresentationIdentifier {
 
 struct RepresentationOptions([u8; 2]);
 impl RepresentationOptions {
-    fn read(buf: &mut &[u8]) -> DDSResult<Self> {
+    fn read(buf: &mut &[u8]) -> DdsResult<Self> {
         Ok(Self([
             buf.read_u8().map_err(|err| {
                 DdsError::PreconditionNotMet(format!(
@@ -78,7 +78,7 @@ pub struct ParameterListDeserializer<'a> {
 }
 
 impl<'de: 'a, 'a> ParameterListDeserializer<'a> {
-    pub fn read(buf: &mut &'de [u8]) -> DDSResult<Self> {
+    pub fn read(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let representation_identifier = RepresentationIdentifier::read(buf)?;
         let _representation_options = RepresentationOptions::read(buf)?;
 
@@ -104,7 +104,7 @@ impl<'de: 'a, 'a> ParameterListDeserializer<'a> {
 }
 
 impl<'de> ParameterListDeserializer<'de> {
-    pub fn get<T, U>(&self, parameter_id: u16) -> DDSResult<U>
+    pub fn get<T, U>(&self, parameter_id: u16) -> DdsResult<U>
     where
         T: serde::Deserialize<'de>,
         U: From<T>,
@@ -119,7 +119,7 @@ impl<'de> ParameterListDeserializer<'de> {
             parameter_id
         )))
     }
-    pub fn get_or_default<T, U>(&self, parameter_id: u16) -> DDSResult<U>
+    pub fn get_or_default<T, U>(&self, parameter_id: u16) -> DdsResult<U>
     where
         T: serde::Deserialize<'de> + Default,
         U: From<T>,
@@ -132,7 +132,7 @@ impl<'de> ParameterListDeserializer<'de> {
         Ok(T::default().into())
     }
 
-    pub fn get_list<T, U>(&self, parameter_id: u16) -> DDSResult<Vec<U>>
+    pub fn get_list<T, U>(&self, parameter_id: u16) -> DdsResult<Vec<U>>
     where
         T: serde::Deserialize<'de> + Into<U>,
     {
@@ -148,7 +148,7 @@ impl<'de> ParameterListDeserializer<'de> {
     fn deserialize_parameter<T: serde::Deserialize<'de>>(
         &self,
         parameter: &Parameter,
-    ) -> DDSResult<T> {
+    ) -> DdsResult<T> {
         Ok(match self.representation_identifier {
             RepresentationIdentifier::PlCdrBe => {
                 let mut deserializer = cdr::Deserializer::<_, _, byteorder::BigEndian>::new(

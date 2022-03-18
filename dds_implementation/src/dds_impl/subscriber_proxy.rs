@@ -16,7 +16,7 @@ use dds_api::{
         },
     },
     publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
-    return_type::{DdsError, DDSResult},
+    return_type::{DdsError, DdsResult},
     subscription::{
         data_reader::AnyDataReader,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
@@ -133,7 +133,7 @@ where
         qos: Option<DataReaderQos>,
         listener: Option<<Self::DataReaderType as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<Self::DataReaderType> {
+    ) -> DdsResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
 
         let topic_shared = topic.as_ref().upgrade()?;
@@ -282,7 +282,7 @@ where
     fn datareader_factory_delete_datareader(
         &self,
         datareader: &Self::DataReaderType,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
         let datareader_shared = datareader.as_ref().upgrade()?;
 
@@ -301,7 +301,7 @@ where
     fn datareader_factory_lookup_datareader(
         &self,
         topic: &Self::TopicType,
-    ) -> DDSResult<Self::DataReaderType> {
+    ) -> DdsResult<Self::DataReaderType> {
         let subscriber_shared = self.subscriber_impl.upgrade()?;
         let data_reader_list = &subscriber_shared.data_reader_list.write_lock();
 
@@ -330,11 +330,11 @@ where
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 
-    fn begin_access(&self) -> DDSResult<()> {
+    fn begin_access(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn end_access(&self) -> DDSResult<()> {
+    fn end_access(&self) -> DdsResult<()> {
         todo!()
     }
 
@@ -344,27 +344,27 @@ where
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn notify_datareaders(&self) -> DDSResult<()> {
+    fn notify_datareaders(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DDSResult<()> {
+    fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DDSResult<()> {
+    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos> {
+    fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         todo!()
     }
 
@@ -372,11 +372,11 @@ where
         &self,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         Ok(self.participant.clone())
     }
 }
@@ -388,12 +388,12 @@ where
     type Qos = SubscriberQos;
     type Listener = &'static dyn SubscriberListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_qos()
         todo!()
     }
@@ -402,33 +402,33 @@ where
         &self,
         _a_listener: Option<Self::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?)
         // .set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).enable()
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.subscriber_impl)?).get_instance_handle()
         todo!()
     }
@@ -455,7 +455,7 @@ mod tests {
             struct $type_name {}
 
             impl<'de> DdsDeserialize<'de> for $type_name {
-                fn deserialize(_buf: &mut &'de [u8]) -> DDSResult<Self> {
+                fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
                     Ok($type_name {})
                 }
             }

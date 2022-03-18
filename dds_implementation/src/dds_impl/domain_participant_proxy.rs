@@ -15,7 +15,7 @@ use dds_api::{
         data_writer::DataWriter,
         publisher::{Publisher, PublisherDataWriterFactory},
     },
-    return_type::{DdsError, DDSResult},
+    return_type::{DdsError, DdsResult},
     subscription::subscriber::Subscriber,
 };
 use rtps_pim::{
@@ -162,7 +162,7 @@ where
         qos: Option<TopicQos>,
         _a_listener: Option<<Self::TopicType as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<Self::TopicType> {
+    ) -> DdsResult<Self::TopicType> {
         let participant_shared = self.domain_participant.upgrade()?;
 
         let qos = qos.unwrap_or(participant_shared.default_topic_qos.clone());
@@ -230,7 +230,7 @@ where
         Ok(TopicProxy::new(topic_shared.downgrade()))
     }
 
-    fn topic_factory_delete_topic(&self, topic: &Self::TopicType) -> DDSResult<()> {
+    fn topic_factory_delete_topic(&self, topic: &Self::TopicType) -> DdsResult<()> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let topic_shared = topic.as_ref().upgrade()?;
 
@@ -250,7 +250,7 @@ where
         &self,
         topic_name: &str,
         _timeout: Duration,
-    ) -> DDSResult<Self::TopicType> {
+    ) -> DdsResult<Self::TopicType> {
         self.domain_participant
             .upgrade()?
             .topic_list
@@ -269,7 +269,7 @@ where
     fn topic_factory_lookup_topicdescription(
         &self,
         topic_name: &str,
-    ) -> DDSResult<Self::TopicType> {
+    ) -> DdsResult<Self::TopicType> {
         self.domain_participant
             .upgrade()?
             .topic_list
@@ -298,7 +298,7 @@ where
         qos: Option<PublisherQos>,
         _a_listener: Option<<Self::PublisherType as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<Self::PublisherType> {
+    ) -> DdsResult<Self::PublisherType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
         let publisher_qos =
             qos.unwrap_or(domain_participant_attributes.default_publisher_qos.clone());
@@ -332,7 +332,7 @@ where
         Ok(PublisherProxy::new(publisher_weak))
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DdsResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
         let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
@@ -354,7 +354,7 @@ where
         qos: Option<SubscriberQos>,
         _a_listener: Option<<Self::SubscriberType as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<Self::SubscriberType> {
+    ) -> DdsResult<Self::SubscriberType> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
         let subscriber_qos =
             qos.unwrap_or(domain_participant_attributes.default_subscriber_qos.clone());
@@ -382,7 +382,7 @@ where
         Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
     }
 
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DdsResult<()> {
         let domain_participant_attributes = self.domain_participant.upgrade()?;
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant()?, self) {
@@ -398,7 +398,7 @@ where
         }
     }
 
-    fn get_builtin_subscriber(&self) -> DDSResult<Self::SubscriberType> {
+    fn get_builtin_subscriber(&self) -> DdsResult<Self::SubscriberType> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         let subscriber = domain_participant_shared
             .builtin_subscriber
@@ -409,91 +409,91 @@ where
         Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
     }
 
-    fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
+    fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.ignore_participant(handle)
         todo!()
     }
 
-    fn ignore_topic(&self, _handle: InstanceHandle) -> DDSResult<()> {
+    fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.ignore_topic(handle)
         todo!()
     }
 
-    fn ignore_publication(&self, _handle: InstanceHandle) -> DDSResult<()> {
+    fn ignore_publication(&self, _handle: InstanceHandle) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.ignore_publication(handle)
         todo!()
     }
 
-    fn ignore_subscription(&self, _handle: InstanceHandle) -> DDSResult<()> {
+    fn ignore_subscription(&self, _handle: InstanceHandle) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.ignore_subscription(handle)
         todo!()
     }
 
-    fn get_domain_id(&self) -> DDSResult<DomainId> {
+    fn get_domain_id(&self) -> DdsResult<DomainId> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_domain_id()
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DDSResult<()> {
+    fn delete_contained_entities(&self) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.delete_contained_entities()
         todo!()
     }
 
-    fn assert_liveliness(&self) -> DDSResult<()> {
+    fn assert_liveliness(&self) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.assert_liveliness()
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
+    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_publisher_qos(qos)
         todo!()
     }
 
-    fn get_default_publisher_qos(&self) -> DDSResult<PublisherQos> {
+    fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_default_publisher_qos()
         todo!()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
+    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_subscriber_qos(qos)
         todo!()
     }
 
-    fn get_default_subscriber_qos(&self) -> DDSResult<SubscriberQos> {
+    fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_default_subscriber_qos()
         todo!()
     }
 
-    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
+    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_default_topic_qos(qos)
         todo!()
     }
 
-    fn get_default_topic_qos(&self) -> DDSResult<TopicQos> {
+    fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_default_topic_qos()
@@ -503,7 +503,7 @@ where
     fn get_discovered_participants(
         &self,
         _participant_handles: &mut [InstanceHandle],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_discovered_participants(participant_handles)
@@ -514,7 +514,7 @@ where
         &self,
         _participant_data: ParticipantBuiltinTopicData,
         _participant_handle: InstanceHandle,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock
@@ -522,7 +522,7 @@ where
         todo!()
     }
 
-    fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
+    fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_discovered_topics(topic_handles)
@@ -533,21 +533,21 @@ where
         &self,
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_discovered_topic_data(topic_data, topic_handle)
         todo!()
     }
 
-    fn contains_entity(&self, _a_handle: InstanceHandle) -> DDSResult<bool> {
+    fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.contains_entity(a_handle)
         todo!()
     }
 
-    fn get_current_time(&self) -> DDSResult<Time> {
+    fn get_current_time(&self) -> DdsResult<Time> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_current_time()
@@ -562,14 +562,14 @@ where
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let mut domain_participant_lock = rtps_shared_write_lock(&domain_participant_shared);
         // domain_participant_lock.set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_qos()
@@ -580,41 +580,41 @@ where
         &self,
         _a_listener: Option<Self::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         let domain_participant_shared = self.domain_participant.upgrade()?;
         *domain_participant_shared.enabled.write_lock() = true;
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_instance_handle()
@@ -634,7 +634,7 @@ mod tests {
             struct $type_name {}
 
             impl DdsSerialize for $type_name {
-                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+                fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
                     Ok(())
                 }
             }
@@ -672,7 +672,7 @@ mod tests {
         let len_before = domain_participant.topic_list.read_lock().len();
 
         let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
-            as DDSResult<Topic>;
+            as DdsResult<Topic>;
 
         assert!(topic.is_ok());
         assert_eq!(
@@ -786,7 +786,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<Topic>)
+                as DdsResult<Topic>)
                 .is_err()
         );
     }
@@ -813,7 +813,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<Topic>)
+                as DdsResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -847,7 +847,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<TopicFoo>)
+                as DdsResult<TopicFoo>)
                 .is_err()
         );
     }
@@ -874,7 +874,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<Topic>)
+                as DdsResult<Topic>)
                 .is_err()
         );
     }
@@ -905,7 +905,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<TopicFoo>)
+                as DdsResult<TopicFoo>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -915,7 +915,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DDSResult<TopicBar>)
+                as DdsResult<TopicBar>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -949,7 +949,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1")
-                as DDSResult<Topic>)
+                as DdsResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()
@@ -959,7 +959,7 @@ mod tests {
 
         assert!(
             (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2")
-                as DDSResult<Topic>)
+                as DdsResult<Topic>)
                 .unwrap()
                 .as_ref()
                 .upgrade()

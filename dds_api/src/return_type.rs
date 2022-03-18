@@ -1,4 +1,4 @@
-pub type DDSResult<T> = Result<T, DdsError>;
+pub type DdsResult<T> = Result<T, DdsError>;
 
 #[derive(Debug, PartialEq)]
 pub enum DdsError {

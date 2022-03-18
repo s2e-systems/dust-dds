@@ -10,5 +10,5 @@ pub use dds_api::dcps_psm as types;
 pub use dds_api::domain;
 pub use dds_api::infrastructure;
 pub use dds_api::publication;
-pub use dds_api::return_type::{DdsError, DDSResult};
+pub use dds_api::return_type::{DdsError, DdsResult};
 pub use dds_api::subscription;

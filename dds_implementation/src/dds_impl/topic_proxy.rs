@@ -7,7 +7,7 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
-    return_type::DDSResult,
+    return_type::DdsResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
@@ -88,7 +88,7 @@ impl<Foo, Rtps> Topic for TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    fn get_inconsistent_topic_status(&self) -> DDSResult<InconsistentTopicStatus> {
+    fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
@@ -100,16 +100,16 @@ where
 {
     type DomainParticipant = DomainParticipantProxy<Rtps>;
 
-    fn get_participant(&self) -> DDSResult<Self::DomainParticipant> {
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         todo!()
         // self.participant.clone()
     }
 
-    fn get_type_name(&self) -> DDSResult<&'static str> {
+    fn get_type_name(&self) -> DdsResult<&'static str> {
         Ok(self.topic_impl.upgrade()?.type_name)
     }
 
-    fn get_name(&self) -> DDSResult<String> {
+    fn get_name(&self) -> DdsResult<String> {
         Ok(self.topic_impl.upgrade()?.topic_name.clone())
     }
 }
@@ -121,12 +121,12 @@ where
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_qos()
         todo!()
     }
@@ -135,32 +135,32 @@ where
         &self,
         _a_listener: Option<Self::Listener>,
         _mask: StatusMask,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).enable()
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_instance_handle()
         todo!()
     }

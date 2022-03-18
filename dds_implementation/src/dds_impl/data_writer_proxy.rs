@@ -21,7 +21,7 @@ use dds_api::{
     publication::{
         data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
     },
-    return_type::{DdsError, DDSResult},
+    return_type::{DdsError, DdsResult},
 };
 use rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -45,7 +45,7 @@ impl<Rtps> RtpsWriter<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut Rtps::StatelessWriter> {
+    pub fn try_as_stateless_writer(&mut self) -> DdsResult<&mut Rtps::StatelessWriter> {
         match self {
             RtpsWriter::Stateless(x) => Ok(x),
             RtpsWriter::Stateful(_) => Err(DdsError::PreconditionNotMet(
@@ -53,7 +53,7 @@ where
             )),
         }
     }
-    pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut Rtps::StatefulWriter> {
+    pub fn try_as_stateful_writer(&mut self) -> DdsResult<&mut Rtps::StatefulWriter> {
         match self {
             RtpsWriter::Stateless(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateful writer".to_string(),
@@ -153,7 +153,7 @@ where
     type Publisher = PublisherProxy<Rtps>;
     type Topic = TopicProxy<Foo, Rtps>;
 
-    fn register_instance(&self, _instance: Foo) -> DDSResult<Option<InstanceHandle>> {
+    fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.register_instance_w_timestamp(instance, timestamp)
         todo!()
@@ -163,7 +163,7 @@ where
         &self,
         _instance: Foo,
         _timestamp: Time,
-    ) -> DDSResult<Option<InstanceHandle>> {
+    ) -> DdsResult<Option<InstanceHandle>> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
         // .register_instance_w_timestamp(instance, timestamp)
         todo!()
@@ -173,7 +173,7 @@ where
         &self,
         _instance: Foo,
         _handle: Option<InstanceHandle>,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
         // let timestamp = self.publisher.get_participant()?.get_current_time()?;
         // self.unregister_instance_w_timestamp(instance, handle, timestamp)
@@ -184,21 +184,21 @@ where
         _instance: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?)
         // .unregister_instance_w_timestamp(instance, handle, timestamp)
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DDSResult<()> {
+    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &Foo) -> DDSResult<Option<InstanceHandle>> {
+    fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .get_publisher()?
             .get_participant()?
@@ -211,7 +211,7 @@ where
         data: &Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
@@ -231,7 +231,7 @@ where
         Ok(())
     }
 
-    fn dispose(&self, _data: Foo, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+    fn dispose(&self, _data: Foo, _handle: Option<InstanceHandle>) -> DdsResult<()> {
         todo!()
     }
 
@@ -240,50 +240,50 @@ where
         _data: Foo,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DDSResult<()> {
+    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DdsResult<()> {
         todo!()
     }
 
     fn get_offered_deadline_missed_status(
         &self,
         _status: &mut OfferedDeadlineMissedStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     fn get_offered_incompatible_qos_status(
         &self,
         _status: &mut OfferedIncompatibleQosStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     fn get_publication_matched_status(
         &self,
         _status: &mut PublicationMatchedStatus,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_topic(&self) -> DDSResult<Self::Topic> {
+    fn get_topic(&self) -> DdsResult<Self::Topic> {
         // Ok(self.topic.clone())
         todo!()
     }
 
-    fn get_publisher(&self) -> DDSResult<Self::Publisher> {
+    fn get_publisher(&self) -> DdsResult<Self::Publisher> {
         // Ok(self.publisher.clone())
         todo!()
     }
 
-    fn assert_liveliness(&self) -> DDSResult<()> {
+    fn assert_liveliness(&self) -> DdsResult<()> {
         todo!()
     }
 
@@ -291,14 +291,14 @@ where
         &self,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 
     fn get_matched_subscriptions(
         &self,
         _subscription_handles: &mut [InstanceHandle],
-    ) -> DDSResult<()> {
+    ) -> DdsResult<()> {
         todo!()
     }
 }
@@ -310,42 +310,42 @@ where
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener + Send + Sync>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).set_qos(qos)
         todo!()
     }
 
-    fn get_qos(&self) -> DDSResult<Self::Qos> {
+    fn get_qos(&self) -> DdsResult<Self::Qos> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_qos()
         todo!()
     }
 
-    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {
         *self.as_ref().upgrade()?.listener.write_lock() = listener;
         Ok(())
     }
 
-    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DDSResult<StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DDSResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<StatusMask> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DDSResult<()> {
+    fn enable(&self) -> DdsResult<()> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).enable()
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_writer_impl)?).get_instance_handle()
         todo!()
     }
@@ -372,7 +372,7 @@ mod test {
     struct MockFoo {}
 
     impl DdsSerialize for MockFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DDSResult<()> {
+        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
     }

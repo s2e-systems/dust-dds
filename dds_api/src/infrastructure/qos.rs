@@ -1,6 +1,6 @@
 use crate::{
     dcps_psm::{Duration, LENGTH_UNLIMITED},
-    return_type::{DdsError, DDSResult},
+    return_type::{DdsError, DdsResult},
 };
 
 use super::qos_policy::{
@@ -77,7 +77,7 @@ impl Default for DataWriterQos {
 }
 
 impl DataWriterQos {
-    pub fn is_consistent(&self) -> DDSResult<()> {
+    pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
@@ -151,7 +151,7 @@ impl Default for DataReaderQos {
 }
 
 impl DataReaderQos {
-    pub fn is_consistent(&self) -> DDSResult<()> {
+    pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
@@ -225,7 +225,7 @@ impl Default for TopicQos {
 }
 
 impl TopicQos {
-    pub fn is_consistent(&self) -> DDSResult<()> {
+    pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {

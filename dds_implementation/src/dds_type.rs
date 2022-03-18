@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use byteorder::ByteOrder;
-use dds_api::return_type::DDSResult;
+use dds_api::return_type::DdsResult;
 
 type RepresentationType = [u8; 2];
 pub trait Endianness {
@@ -34,18 +34,18 @@ pub trait DdsType {
 }
 
 pub trait DdsSerialize {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()>;
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()>;
 }
 
 pub trait DdsDeserialize<'de>: Sized {
-    fn deserialize(buf: &mut &'de [u8]) -> DDSResult<Self>;
+    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
 }
 
 impl<Foo> DdsSerialize for &'_ Foo
 where
     Foo: DdsSerialize,
 {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DDSResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         (*self).serialize::<W, E>(writer)
     }
 }

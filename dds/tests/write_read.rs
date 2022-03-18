@@ -25,7 +25,7 @@ impl DdsSerialize for UserData {
     fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
-    ) -> dds::DDSResult<()> {
+    ) -> dds::DdsResult<()> {
         writer
             .write(&[self.0])
             .map(|_| ())
@@ -34,7 +34,7 @@ impl DdsSerialize for UserData {
 }
 
 impl<'de> DdsDeserialize<'de> for UserData {
-    fn deserialize(buf: &mut &'de [u8]) -> dds::DDSResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
         Ok(UserData(buf[0]))
     }
 }
