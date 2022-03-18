@@ -49,13 +49,13 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<'a>(
+    pub fn process_message(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &'a [DdsShared<PublisherAttributes<RtpsStructureImpl>>],
-        subscriber_list: &'a [DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
+        publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
+        subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
-        message: &'a RtpsMessage<'a>,
+        message: &RtpsMessage<'_>,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
