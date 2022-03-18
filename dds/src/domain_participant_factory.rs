@@ -17,9 +17,9 @@ use dds_api::{
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        sedp_discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-        sedp_discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
     },
     dds_impl::{
@@ -850,9 +850,9 @@ mod tests {
     };
     use dds_implementation::{
         data_representation_builtin_endpoints::{
-            sedp_discovered_reader_data::DiscoveredReaderData,
-            sedp_discovered_topic_data::DiscoveredTopicData,
-            sedp_discovered_writer_data::DiscoveredWriterData,
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds_impl::{

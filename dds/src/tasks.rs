@@ -18,9 +18,9 @@ use dds_api::{
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        sedp_discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-        sedp_discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         spdp_discovered_participant_data::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
@@ -526,9 +526,9 @@ mod tests {
     };
     use dds_implementation::{
         data_representation_builtin_endpoints::{
-            sedp_discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-            sedp_discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-            sedp_discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
         dds_impl::{
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},

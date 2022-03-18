@@ -32,7 +32,7 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_topic_data::{
+    data_representation_builtin_endpoints::discovered_topic_data::{
         DiscoveredTopicData, DCPS_TOPIC,
     },
     dds_type::{DdsSerialize, DdsType},

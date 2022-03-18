@@ -37,7 +37,7 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_reader_data::{
+    data_representation_builtin_endpoints::discovered_reader_data::{
         RtpsReaderProxy, DiscoveredReaderData, DCPS_SUBSCRIPTION,
     },
     dds_type::{DdsDeserialize, DdsType},

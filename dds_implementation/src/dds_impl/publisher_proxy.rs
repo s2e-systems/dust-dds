@@ -36,7 +36,7 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_writer_data::{
+    data_representation_builtin_endpoints::discovered_writer_data::{
         RtpsWriterProxy, DiscoveredWriterData, DCPS_PUBLICATION,
     },
     dds_type::{DdsSerialize, DdsType},
