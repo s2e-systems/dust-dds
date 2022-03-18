@@ -20,7 +20,7 @@ use dds_api::{
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
     subscription::{
         data_reader::{DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription},
         data_reader_listener::DataReaderListener,
@@ -157,7 +157,7 @@ where
     pub fn try_as_stateless_reader(&mut self) -> DDSResult<&mut Rtps::StatelessReader> {
         match self {
             RtpsReader::Stateless(x) => Ok(x),
-            RtpsReader::Stateful(_) => Err(DDSError::PreconditionNotMet(
+            RtpsReader::Stateful(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateless reader".to_string(),
             )),
         }
@@ -165,7 +165,7 @@ where
 
     pub fn try_as_stateful_reader(&mut self) -> DDSResult<&mut Rtps::StatefulReader> {
         match self {
-            RtpsReader::Stateless(_) => Err(DDSError::PreconditionNotMet(
+            RtpsReader::Stateless(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateful reader".to_string(),
             )),
             RtpsReader::Stateful(x) => Ok(x),
@@ -322,7 +322,7 @@ where
                     .collect::<Vec<_>>();
 
                 if samples.is_empty() {
-                    Err(DDSError::NoData)
+                    Err(DdsError::NoData)
                 } else {
                     Ok(samples)
                 }
@@ -357,7 +357,7 @@ where
                     .collect::<Vec<_>>();
 
                 if samples.is_empty() {
-                    Err(DDSError::NoData)
+                    Err(DdsError::NoData)
                 } else {
                     Ok(samples)
                 }
@@ -379,7 +379,7 @@ where
                 let seq_num = rtps_reader
                     .reader_cache()
                     .get_seq_num_min()
-                    .ok_or(DDSError::NoData)?;
+                    .ok_or(DdsError::NoData)?;
 
                 let samples = rtps_reader
                     .reader_cache()
@@ -418,7 +418,7 @@ where
                 let seq_num = rtps_reader
                     .reader_cache()
                     .get_seq_num_min()
-                    .ok_or(DDSError::NoData)?;
+                    .ok_or(DdsError::NoData)?;
 
                 let samples = rtps_reader
                     .reader_cache()

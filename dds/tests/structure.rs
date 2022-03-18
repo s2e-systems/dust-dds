@@ -47,10 +47,10 @@ fn create_delete_publisher() {
     // std::thread::sleep(std::time::Duration::from_secs(2));
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
-    // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));
+    // assert_eq!(publisher.get_qos(), Err(DdsError::AlreadyDeleted));
     // assert_eq!(
     //     participant.delete_publisher(&publisher),
-    //     Err(DDSError::AlreadyDeleted)
+    //     Err(DdsError::AlreadyDeleted)
     // );
 }
 
@@ -59,10 +59,10 @@ fn create_delete_publisher() {
 //     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
 //     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
 //     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
-//     assert_eq!(subscriber.get_qos(), Err(DDSError::AlreadyDeleted));
+//     assert_eq!(subscriber.get_qos(), Err(DdsError::AlreadyDeleted));
 //     assert_eq!(
 //         participant.delete_subscriber(&subscriber),
-//         Err(DDSError::AlreadyDeleted)
+//         Err(DdsError::AlreadyDeleted)
 //     );
 // }
 
@@ -74,10 +74,10 @@ fn create_delete_publisher() {
 //         .unwrap();
 
 //     assert_eq!(participant.delete_topic(&topic), Ok(()));
-//     assert_eq!(topic.get_qos(), Err(DDSError::AlreadyDeleted));
+//     assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
 //     assert_eq!(
 //         participant.delete_topic(&topic),
-//         Err(DDSError::AlreadyDeleted)
+//         Err(DdsError::AlreadyDeleted)
 //     );
 // }
 
@@ -88,7 +88,7 @@ fn create_delete_publisher() {
 //     let publisher = participant.create_publisher(None, None, 0).unwrap();
 //     assert_eq!(
 //         other_participant.delete_publisher(&publisher),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Publisher can only be deleted from its parent participant".to_string()
 //         ))
 //     );
@@ -101,7 +101,7 @@ fn create_delete_publisher() {
 //     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
 //     assert_eq!(
 //         other_participant.delete_subscriber(&subscriber),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Subscriber can only be deleted from its parent participant".to_string()
 //         ))
 //     );
@@ -116,7 +116,7 @@ fn create_delete_publisher() {
 //         .unwrap();
 //     assert_eq!(
 //         other_participant.delete_topic(&topic),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Topic can only be deleted from its parent participant".to_string()
 //         ))
 //     );
@@ -135,7 +135,7 @@ fn create_delete_publisher() {
 
 //     assert_eq!(
 //         participant.delete_publisher(&publisher),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Publisher still contains data writers".to_string()
 //         ))
 //     );
@@ -154,7 +154,7 @@ fn create_delete_publisher() {
 
 //     assert_eq!(
 //         participant.delete_subscriber(&subscriber),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Subscriber still contains data readers".to_string()
 //         ))
 //     );
@@ -173,7 +173,7 @@ fn create_delete_publisher() {
 
 //     assert_eq!(
 //         participant.delete_topic(&reader_topic),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Topic still attached to some data reader or data writer".to_string()
 //         ))
 //     );
@@ -192,7 +192,7 @@ fn create_delete_publisher() {
 
 //     assert_eq!(
 //         participant.delete_topic(&writer_topic),
-//         Err(DDSError::PreconditionNotMet(
+//         Err(DdsError::PreconditionNotMet(
 //             "Topic still attached to some data reader or data writer".to_string()
 //         ))
 //     );

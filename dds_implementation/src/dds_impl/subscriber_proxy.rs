@@ -16,7 +16,7 @@ use dds_api::{
         },
     },
     publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
     subscription::{
         data_reader::AnyDataReader,
         subscriber::{Subscriber, SubscriberDataReaderFactory},
@@ -290,7 +290,7 @@ where
         let data_reader_list_position = data_reader_list
             .iter()
             .position(|x| x == &datareader_shared)
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Data reader can only be deleted from its parent subscriber".to_string(),
             ))?;
         data_reader_list.remove(data_reader_list_position);
@@ -320,7 +320,7 @@ where
                     None
                 }
             })
-            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -689,7 +689,7 @@ mod tests {
 
         assert!(matches!(
             subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),
-            Err(DDSError::PreconditionNotMet(_))
+            Err(DdsError::PreconditionNotMet(_))
         ));
         assert!(data_reader.as_ref().upgrade().is_ok());
     }

@@ -15,7 +15,7 @@ use dds_api::{
         data_writer::DataWriter,
         publisher::{Publisher, PublisherDataWriterFactory},
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
     subscription::subscriber::Subscriber,
 };
 use rtps_pim::{
@@ -238,7 +238,7 @@ where
         let topic_list_position = topic_list
             .iter()
             .position(|topic| topic == &topic_shared)
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Topic can only be deleted from its parent publisher".to_string(),
             ))?;
         topic_list.remove(topic_list_position);
@@ -263,7 +263,7 @@ where
                     None
                 }
             })
-            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 
     fn topic_factory_lookup_topicdescription(
@@ -282,7 +282,7 @@ where
                     None
                 }
             })
-            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -343,7 +343,7 @@ where
                 .retain(|x| *x != publisher_shared);
             Ok(())
         } else {
-            Err(DDSError::PreconditionNotMet(
+            Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ))
         }
@@ -392,7 +392,7 @@ where
                 .retain(|x| *x != subscriber_shared);
             Ok(())
         } else {
-            Err(DDSError::PreconditionNotMet(
+            Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ))
         }
@@ -763,7 +763,7 @@ mod tests {
 
         assert!(matches!(
             domain_participant2_proxy.topic_factory_delete_topic(&topic),
-            Err(DDSError::PreconditionNotMet(_))
+            Err(DdsError::PreconditionNotMet(_))
         ));
         assert!(topic.as_ref().upgrade().is_ok());
     }

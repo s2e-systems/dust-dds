@@ -13,7 +13,7 @@ use dds_api::{
     dcps_psm::{BuiltInTopicKey, Time},
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
 };
 use dds_implementation::{
@@ -136,7 +136,7 @@ pub fn task_spdp_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -146,7 +146,7 @@ pub fn task_spdp_discovery(
             .builtin_publisher
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin publisher".to_string(),
             ))?
             .downgrade(),
@@ -316,7 +316,7 @@ pub fn task_sedp_writer_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -393,7 +393,7 @@ pub fn task_sedp_reader_discovery(
             .builtin_subscriber
             .read_lock()
             .as_ref()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Domain participant has no builtin subscriber".to_string(),
             ))?
             .downgrade(),
@@ -462,7 +462,7 @@ pub fn task_announce_participant(
                 .builtin_publisher
                 .read_lock()
                 .as_ref()
-                .ok_or(DDSError::PreconditionNotMet(
+                .ok_or(DdsError::PreconditionNotMet(
                     "Domain participant has no builtin publisher".to_string(),
                 ))?
                 .downgrade(),
@@ -521,7 +521,7 @@ mod tests {
         domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
         publication::publisher::Publisher,
-        return_type::{DDSError, DDSResult},
+        return_type::{DdsError, DDSResult},
         subscription::subscriber::Subscriber,
     };
     use dds_implementation::{
@@ -566,7 +566,7 @@ mod tests {
             writer
                 .write(&[self.0])
                 .map(|_| ())
-                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
         }
     }
 

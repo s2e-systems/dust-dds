@@ -20,7 +20,7 @@ use dds_api::{
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
 };
 
 use rtps_pim::{
@@ -282,7 +282,7 @@ where
         let data_writer_list_position = data_writer_list
             .iter()
             .position(|x| x == &datawriter_shared)
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher".to_string(),
             ))?;
         data_writer_list.remove(data_writer_list_position);
@@ -312,7 +312,7 @@ where
                     None
                 }
             })
-            .ok_or(DDSError::PreconditionNotMet("Not found".to_string()))
+            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -669,7 +669,7 @@ mod tests {
 
         assert!(matches!(
             publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
-            Err(DDSError::PreconditionNotMet(_))
+            Err(DdsError::PreconditionNotMet(_))
         ));
         assert!(data_writer.as_ref().upgrade().is_ok())
     }

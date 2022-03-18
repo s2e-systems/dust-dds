@@ -13,7 +13,7 @@ use dds_api::{
         DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
         PublisherQos, SubscriberQos,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
@@ -204,7 +204,7 @@ impl Communications {
             multicast_address,
             port_builtin_multicast(domain_id as u16),
         )
-        .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+        .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
             .map(
@@ -234,7 +234,7 @@ impl Communications {
             })
             .next()
             .unwrap()
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         #[rustfmt::skip]
         let guid_prefix = GuidPrefix([
@@ -335,12 +335,12 @@ impl DomainParticipantFactory {
                 SocketAddr::V6(_) => None,
             })
             .next()
-            .ok_or(DDSError::PreconditionNotMet(
+            .ok_or(DdsError::PreconditionNotMet(
                 "No Ipv4 address for interface".to_string(),
             ))?;
 
         let mac_address = MacAddress::from_str(&interface.mac)
-            .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))?;
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         let communications = Communications::find_available(
             domain_id,
@@ -840,7 +840,7 @@ mod tests {
             data_writer_listener::DataWriterListener,
             publisher::{Publisher, PublisherDataWriterFactory},
         },
-        return_type::DDSError,
+        return_type::DdsError,
         subscription::{
             data_reader::DataReader,
             data_reader_listener::DataReaderListener,
@@ -1173,7 +1173,7 @@ mod tests {
             writer
                 .write(&[self.0])
                 .map(|_| ())
-                .map_err(|e| DDSError::PreconditionNotMet(format!("{}", e)))
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
         }
     }
 

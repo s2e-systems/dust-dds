@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
 
-use dds_api::return_type::{DDSError, DDSResult};
+use dds_api::return_type::{DdsError, DDSResult};
 
 pub struct DdsShared<T: ?Sized>(Arc<T>);
 
@@ -64,7 +64,7 @@ impl<T> DdsWeak<T> {
         self.0
             .upgrade()
             .map(|x| DdsShared(x))
-            .ok_or(DDSError::AlreadyDeleted)
+            .ok_or(DdsError::AlreadyDeleted)
     }
 }
 

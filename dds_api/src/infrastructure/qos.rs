@@ -1,6 +1,6 @@
 use crate::{
     dcps_psm::{Duration, LENGTH_UNLIMITED},
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
 };
 
 use super::qos_policy::{
@@ -84,7 +84,7 @@ impl DataWriterQos {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 
@@ -96,7 +96,7 @@ impl DataWriterQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 
@@ -158,7 +158,7 @@ impl DataReaderQos {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 
@@ -170,14 +170,14 @@ impl DataReaderQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 
         // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
         // to be consistent the settings must be such that “deadline period>= minimum_separation.”
         if self.deadline.period < self.time_based_filter.minimum_separation {
-            return Err(DDSError::InconsistentPolicy);
+            return Err(DdsError::InconsistentPolicy);
         }
 
         Ok(())
@@ -232,7 +232,7 @@ impl TopicQos {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 
@@ -244,7 +244,7 @@ impl TopicQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(DDSError::InconsistentPolicy);
+                return Err(DdsError::InconsistentPolicy);
             }
         }
 

@@ -21,7 +21,7 @@ use dds_api::{
     publication::{
         data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::{DdsError, DDSResult},
 };
 use rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
@@ -48,14 +48,14 @@ where
     pub fn try_as_stateless_writer(&mut self) -> DDSResult<&mut Rtps::StatelessWriter> {
         match self {
             RtpsWriter::Stateless(x) => Ok(x),
-            RtpsWriter::Stateful(_) => Err(DDSError::PreconditionNotMet(
+            RtpsWriter::Stateful(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateless writer".to_string(),
             )),
         }
     }
     pub fn try_as_stateful_writer(&mut self) -> DDSResult<&mut Rtps::StatefulWriter> {
         match self {
-            RtpsWriter::Stateless(_) => Err(DDSError::PreconditionNotMet(
+            RtpsWriter::Stateless(_) => Err(DdsError::PreconditionNotMet(
                 "Not a stateful writer".to_string(),
             )),
             RtpsWriter::Stateful(x) => Ok(x),

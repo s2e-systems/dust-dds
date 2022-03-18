@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
-use dds_api::return_type::{DDSError, DDSResult};
+use dds_api::return_type::{DdsError, DDSResult};
 
 use crate::dds_type::{BigEndian, Endianness, LittleEndian};
 
@@ -17,10 +17,10 @@ impl<'de: 'a, 'a> Parameter<'a> {
     fn read<B: ByteOrder>(buf: &mut &'de [u8]) -> DDSResult<Self> {
         let parameter_id = buf
             .read_u16::<B>()
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
         let length = buf
             .read_i16::<B>()
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
         let (value, following) = buf.split_at(length as usize);
         *buf = following;
         Ok(Self {
@@ -40,11 +40,11 @@ impl RepresentationIdentifier {
     fn read(buf: &mut &[u8]) -> DDSResult<Self> {
         let mut representation_identifier = [0; 2];
         buf.read(&mut representation_identifier)
-            .map_err(|err| DDSError::PreconditionNotMet(err.to_string()))?;
+            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
         match representation_identifier {
             BigEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrBe),
             LittleEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrLe),
-            _ => Err(DDSError::PreconditionNotMet(
+            _ => Err(DdsError::PreconditionNotMet(
                 "Invalid representation identifier".to_string(),
             )),
         }
@@ -56,13 +56,13 @@ impl RepresentationOptions {
     fn read(buf: &mut &[u8]) -> DDSResult<Self> {
         Ok(Self([
             buf.read_u8().map_err(|err| {
-                DDSError::PreconditionNotMet(format!(
+                DdsError::PreconditionNotMet(format!(
                     "read of representation options[0] failed with: {}",
                     err.to_string()
                 ))
             })?,
             buf.read_u8().map_err(|err| {
-                DDSError::PreconditionNotMet(format!(
+                DdsError::PreconditionNotMet(format!(
                     "read of representation options[1] failed with: {}",
                     err.to_string()
                 ))
@@ -114,7 +114,7 @@ impl<'de> ParameterListDeserializer<'de> {
                 return Ok(self.deserialize_parameter::<T>(parameter)?.into());
             }
         }
-        Err(DDSError::PreconditionNotMet(format!(
+        Err(DdsError::PreconditionNotMet(format!(
             "Parameter with id {:#06x} not found",
             parameter_id
         )))
@@ -156,7 +156,7 @@ impl<'de> ParameterListDeserializer<'de> {
                     cdr::Infinite,
                 );
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
-                    DDSError::PreconditionNotMet(format!(
+                    DdsError::PreconditionNotMet(format!(
                         "deserialize_parameter big endian failed with: {}",
                         err.to_string()
                     ))
@@ -168,7 +168,7 @@ impl<'de> ParameterListDeserializer<'de> {
                     cdr::Infinite,
                 );
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
-                    DDSError::PreconditionNotMet(format!(
+                    DdsError::PreconditionNotMet(format!(
                         "deserialize_parameter little endian failed with: {}",
                         err.to_string()
                     ))
