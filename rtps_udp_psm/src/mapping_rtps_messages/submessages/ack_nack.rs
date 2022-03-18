@@ -40,13 +40,13 @@ impl MappingWriteSubmessage for AckNackSubmessage<Vec<SequenceNumber>> {
         mut writer: W,
     ) -> Result<(), Error> {
         self.reader_id
-            .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.writer_id
-            .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.reader_sn_state
-            .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.count
-            .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
 
         Ok(())
     }
