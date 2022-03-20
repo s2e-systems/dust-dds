@@ -16,6 +16,7 @@ pub struct RtpsWriterProxyImpl {
     last_available_seq_num: SequenceNumber,
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
+    pub must_send_acknacks: bool,
 }
 
 impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
@@ -36,6 +37,7 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             last_available_seq_num: 0,
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
+            must_send_acknacks: false,
         }
     }
 }

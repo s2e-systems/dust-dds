@@ -35,7 +35,6 @@ use super::{
 pub struct RtpsStatefulReaderImpl {
     pub reader: RtpsReaderImpl,
     pub matched_writers: Vec<RtpsWriterProxyImpl>,
-    pub must_send_acknacks: bool,
     pub acknack_count: Count,
 }
 
@@ -106,11 +105,11 @@ impl RtpsStatefulReaderImpl {
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
                 if !heartbeat_submessage.final_flag {
-                    self.must_send_acknacks = true;
+                    writer_proxy.must_send_acknacks = true;
                 } else {
                     if heartbeat_submessage.liveliness_flag {
                         if !writer_proxy.missing_changes().is_empty() {
-                            self.must_send_acknacks = true;
+                            writer_proxy.must_send_acknacks = true;
                         }
                     }
                 }
@@ -131,8 +130,8 @@ impl RtpsStatefulReaderImpl {
     )> {
         let mut destined_submessages = Vec::new();
 
-        if self.must_send_acknacks {
-            for writer_proxy in self.matched_writers.iter_mut() {
+        for writer_proxy in self.matched_writers.iter_mut() {
+            if writer_proxy.must_send_acknacks {
                 let acknacks = RefCell::new(Vec::new());
 
                 if !writer_proxy.missing_changes().is_empty() {
@@ -145,13 +144,13 @@ impl RtpsStatefulReaderImpl {
                         |acknack| acknacks.borrow_mut().push(acknack),
                     );
                 }
+                writer_proxy.must_send_acknacks = false;
 
                 let acknacks = acknacks.take();
                 if !acknacks.is_empty() {
                     destined_submessages.push((writer_proxy, acknacks));
                 }
             }
-            self.must_send_acknacks = false;
         }
 
         destined_submessages
@@ -235,7 +234,6 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
                 expects_inline_qos,
             ),
             matched_writers: Vec::new(),
-            must_send_acknacks: false,
             acknack_count: Count(0),
         }
     }
