@@ -32,13 +32,13 @@ use super::{
 pub const DCPS_TOPIC: &'static str = "DCPSTopic";
 
 #[derive(Debug, PartialEq)]
-pub struct SedpDiscoveredTopicData {
+pub struct DiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
 }
 
-impl DdsType for SedpDiscoveredTopicData {
+impl DdsType for DiscoveredTopicData {
     fn type_name() -> &'static str {
-        "SedpDiscoveredTopicData"
+        "DiscoveredTopicData"
     }
 
     fn has_key() -> bool {
@@ -46,7 +46,7 @@ impl DdsType for SedpDiscoveredTopicData {
     }
 }
 
-impl DdsSerialize for SedpDiscoveredTopicData {
+impl DdsSerialize for DiscoveredTopicData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
@@ -135,7 +135,7 @@ impl DdsSerialize for SedpDiscoveredTopicData {
     }
 }
 
-impl DdsDeserialize<'_> for SedpDiscoveredTopicData {
+impl DdsDeserialize<'_> for DiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> dds_api::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn serialize_all_default() {
-        let data = SedpDiscoveredTopicData {
+        let data = DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn deserialize_all_default() {
-        let expected = SedpDiscoveredTopicData {
+        let expected = DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
@@ -299,7 +299,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: SedpDiscoveredTopicData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredTopicData = DdsDeserialize::deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

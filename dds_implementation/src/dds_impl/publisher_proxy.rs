@@ -36,8 +36,8 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_writer_data::{
-        RtpsWriterProxy, SedpDiscoveredWriterData, DCPS_PUBLICATION,
+    data_representation_builtin_endpoints::discovered_writer_data::{
+        RtpsWriterProxy, DiscoveredWriterData, DCPS_PUBLICATION,
     },
     dds_type::{DdsSerialize, DdsType},
     utils::{
@@ -215,7 +215,7 @@ where
                     if let Ok(sedp_builtin_publications_announcer) = builtin_publisher_proxy
                         .datawriter_factory_lookup_datawriter(&publication_topic)
                     {
-                        let sedp_discovered_writer_data = SedpDiscoveredWriterData {
+                        let sedp_discovered_writer_data = DiscoveredWriterData {
                             writer_proxy: RtpsWriterProxy {
                                 remote_writer_guid: guid,
                                 unicast_locator_list: domain_participant
