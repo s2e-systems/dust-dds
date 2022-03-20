@@ -35,7 +35,6 @@ use super::{
 pub struct RtpsStatefulReaderImpl {
     pub reader: RtpsReaderImpl,
     pub matched_writers: Vec<RtpsWriterProxyImpl>,
-    pub acknack_count: Count,
 }
 
 impl RtpsStatefulReaderImpl {
@@ -135,12 +134,12 @@ impl RtpsStatefulReaderImpl {
                 let acknacks = RefCell::new(Vec::new());
 
                 if !writer_proxy.missing_changes().is_empty() {
-                    self.acknack_count = Count(self.acknack_count.0 + 1);
+                    writer_proxy.acknack_count = Count(writer_proxy.acknack_count.0 + 1);
 
                     ReliableStatefulReaderBehavior::send_ack_nack(
                         writer_proxy,
                         self.reader.endpoint.entity.guid.entity_id,
-                        self.acknack_count,
+                        writer_proxy.acknack_count,
                         |acknack| acknacks.borrow_mut().push(acknack),
                     );
                 }
@@ -234,7 +233,6 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
                 expects_inline_qos,
             ),
             matched_writers: Vec::new(),
-            acknack_count: Count(0),
         }
     }
 }
