@@ -87,7 +87,8 @@ where
                                                         invalidate_flag: false,
                                                         timestamp: TimestampSubmessageElement {
                                                             value: rtps_pim::messages::types::Time(
-                                                                1,
+                                                                ((time.sec as u64) << 32)
+                                                                    + time.nanosec as u64,
                                                             ),
                                                         },
                                                     }
@@ -144,7 +145,8 @@ where
                                                         invalidate_flag: false,
                                                         timestamp: TimestampSubmessageElement {
                                                             value: rtps_pim::messages::types::Time(
-                                                                1,
+                                                                ((time.sec as u64) << 32)
+                                                                    + time.nanosec as u64,
                                                             ),
                                                         },
                                                     }
