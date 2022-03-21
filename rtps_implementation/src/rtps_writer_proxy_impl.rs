@@ -2,6 +2,7 @@ use rtps_pim::{
     behavior::reader::writer_proxy::{
         RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
     },
+    messages::types::Count,
     structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
@@ -16,6 +17,8 @@ pub struct RtpsWriterProxyImpl {
     last_available_seq_num: SequenceNumber,
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
+    pub must_send_acknacks: bool,
+    pub acknack_count: Count,
 }
 
 impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
@@ -36,6 +39,8 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             last_available_seq_num: 0,
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
+            must_send_acknacks: false,
+            acknack_count: Count(0),
         }
     }
 }
