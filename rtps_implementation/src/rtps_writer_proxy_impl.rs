@@ -17,6 +17,7 @@ pub struct RtpsWriterProxyImpl {
     last_available_seq_num: SequenceNumber,
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
+    pub last_received_heartbeat_count: Count,
     pub must_send_acknacks: bool,
     pub acknack_count: Count,
 }
@@ -41,6 +42,7 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             received_changes: Vec::new(),
             must_send_acknacks: false,
             acknack_count: Count(0),
+            last_received_heartbeat_count: Count(0),
         }
     }
 }

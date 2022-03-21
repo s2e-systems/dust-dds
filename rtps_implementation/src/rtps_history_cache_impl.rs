@@ -1,5 +1,5 @@
 use rtps_pim::{
-    messages::{submessage_elements::Parameter, types::ParameterId},
+    messages::{submessage_elements::Parameter, types::{ParameterId, Count}},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -121,12 +121,20 @@ impl RtpsCacheChangeAttributes<'_> for RtpsCacheChangeImpl {
 
 pub struct RtpsHistoryCacheImpl {
     changes: Vec<RtpsCacheChangeImpl>,
+    heartbeat_count: Count,
+}
+
+impl RtpsHistoryCacheImpl {
+    pub fn heartbeat_count(&self) -> Count {
+        self.heartbeat_count
+    }
 }
 
 impl RtpsHistoryCacheConstructor for RtpsHistoryCacheImpl {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
+            heartbeat_count: Count(0),
         }
     }
 }
@@ -143,14 +151,16 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
     type CacheChangeType = RtpsCacheChangeImpl;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
+        self.changes.push(change);
+        self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
     }
 
     fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&Self::CacheChangeType) -> bool,
     {
-        self.changes.retain(|cc| !f(cc))
+        self.changes.retain(|cc| !f(cc));
+        self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
