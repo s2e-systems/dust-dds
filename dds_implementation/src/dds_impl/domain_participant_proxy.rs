@@ -32,8 +32,8 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::sedp_discovered_topic_data::{
-        SedpDiscoveredTopicData, DCPS_TOPIC,
+    data_representation_builtin_endpoints::discovered_topic_data::{
+        DiscoveredTopicData, DCPS_TOPIC,
     },
     dds_type::{DdsSerialize, DdsType},
     utils::{
@@ -194,7 +194,7 @@ where
                     if let Ok(sedp_builtin_topic_announcer) = builtin_publisher_proxy
                         .datawriter_factory_lookup_datawriter(&topic_creation_topic)
                     {
-                        let sedp_discovered_topic_data = SedpDiscoveredTopicData {
+                        let sedp_discovered_topic_data = DiscoveredTopicData {
                             topic_builtin_topic_data: TopicBuiltinTopicData {
                                 key: BuiltInTopicKey { value: [1; 16] },
                                 name: topic_name.to_string(),
@@ -318,7 +318,7 @@ where
         // rtps_shared_new(TopicAttributes::new(TopicQos::default(), "", ""));
         // let sedp_builtin_publications_announcer =
         //     rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
-        //         .lookup_datawriter::<SedpDiscoveredWriterData>(&sedp_builtin_publications_topic);
+        //         .lookup_datawriter::<DiscoveredWriterData>(&sedp_builtin_publications_topic);
         let publisher_impl =
             PublisherAttributes::new(publisher_qos, rtps_group, self.domain_participant.clone());
         let publisher_impl_shared = DdsShared::new(publisher_impl);

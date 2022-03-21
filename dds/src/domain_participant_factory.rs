@@ -17,9 +17,9 @@ use dds_api::{
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
-        sedp_discovered_reader_data::{SedpDiscoveredReaderData, DCPS_SUBSCRIPTION},
-        sedp_discovered_topic_data::{SedpDiscoveredTopicData, DCPS_TOPIC},
-        sedp_discovered_writer_data::{SedpDiscoveredWriterData, DCPS_PUBLICATION},
+        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
     },
     dds_impl::{
@@ -688,7 +688,7 @@ pub fn create_builtins(
     {
         let sedp_topic_publication = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
-            SedpDiscoveredWriterData::type_name(),
+            DiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
             domain_participant.downgrade(),
         ));
@@ -731,7 +731,7 @@ pub fn create_builtins(
     {
         let sedp_topic_subscription = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
-            SedpDiscoveredReaderData::type_name(),
+            DiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
             domain_participant.downgrade(),
         ));
@@ -774,7 +774,7 @@ pub fn create_builtins(
     {
         let sedp_topic_topic = DdsShared::new(TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
-            SedpDiscoveredTopicData::type_name(),
+            DiscoveredTopicData::type_name(),
             DCPS_TOPIC,
             domain_participant.downgrade(),
         ));
@@ -844,9 +844,9 @@ mod tests {
     };
     use dds_implementation::{
         data_representation_builtin_endpoints::{
-            sedp_discovered_reader_data::SedpDiscoveredReaderData,
-            sedp_discovered_topic_data::SedpDiscoveredTopicData,
-            sedp_discovered_writer_data::SedpDiscoveredWriterData,
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         dds_impl::{
@@ -948,13 +948,13 @@ mod tests {
             .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
             .unwrap();
         let publication_topic = participant_proxy
-            .lookup_topicdescription::<SedpDiscoveredWriterData>(DCPS_PUBLICATION)
+            .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
             .unwrap();
         let subscription_topic = participant_proxy
-            .lookup_topicdescription::<SedpDiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
             .unwrap();
         let topic_topic = participant_proxy
-            .lookup_topicdescription::<SedpDiscoveredTopicData>(DCPS_TOPIC)
+            .lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
             .unwrap();
 
         let builtin_subscriber = SubscriberProxy::new(
@@ -1309,13 +1309,13 @@ mod tests {
 
         // ////////// Check that the received data corresponds to the sent data
 
-        let sedp_topic_publication: TopicProxy<SedpDiscoveredWriterData, _> = participant2_proxy
+        let sedp_topic_publication: TopicProxy<DiscoveredWriterData, _> = participant2_proxy
             .lookup_topicdescription(DCPS_PUBLICATION)
             .unwrap();
-        let sedp_topic_subscription: TopicProxy<SedpDiscoveredReaderData, _> = participant2_proxy
+        let sedp_topic_subscription: TopicProxy<DiscoveredReaderData, _> = participant2_proxy
             .lookup_topicdescription(DCPS_SUBSCRIPTION)
             .unwrap();
-        let sedp_topic_topic: TopicProxy<SedpDiscoveredTopicData, _> = participant2_proxy
+        let sedp_topic_topic: TopicProxy<DiscoveredTopicData, _> = participant2_proxy
             .lookup_topicdescription(DCPS_TOPIC)
             .unwrap();
 
