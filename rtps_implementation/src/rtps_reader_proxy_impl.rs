@@ -14,7 +14,7 @@ use rtps_pim::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
         types::{EntityId, Guid, Locator, SequenceNumber},
-    },
+    }, messages::types::Count,
 };
 
 use crate::rtps_history_cache_impl::RtpsCacheChangeImpl;
@@ -30,6 +30,7 @@ pub struct RtpsReaderProxyImpl {
     changes_for_reader: Vec<RtpsChangeForReaderImpl>,
     expects_inline_qos: bool,
     is_active: bool,
+    pub last_received_acknack_count: Count,
 }
 
 impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
@@ -49,6 +50,7 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
             changes_for_reader: vec![],
             expects_inline_qos,
             is_active,
+            last_received_acknack_count: Count(0),
         }
     }
 }
