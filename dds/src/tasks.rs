@@ -10,7 +10,7 @@ use std::{
 use async_std::prelude::StreamExt;
 use dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, Time},
+    dcps_psm::BuiltInTopicKey,
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
@@ -506,11 +506,7 @@ pub fn task_announce_participant(
         lease_duration: domain_participant.lease_duration,
     };
 
-    spdp_participant_writer.write_w_timestamp(
-        &discovered_participant_data,
-        None,
-        Time { sec: 0, nanosec: 0 },
-    )?;
+    spdp_participant_writer.write(&discovered_participant_data, None)?;
 
     Ok(())
 }

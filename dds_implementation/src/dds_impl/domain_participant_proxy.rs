@@ -216,11 +216,7 @@ where
                         };
 
                         sedp_builtin_topic_announcer
-                            .write_w_timestamp(
-                                &sedp_discovered_topic_data,
-                                None,
-                                dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-                            )
+                            .write(&sedp_discovered_topic_data, None)
                             .unwrap();
                     }
                 }

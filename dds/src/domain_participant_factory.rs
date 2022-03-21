@@ -822,7 +822,7 @@ mod tests {
 
     use dds_api::{
         dcps_psm::{
-            BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus, Time,
+            BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus,
         },
         domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         infrastructure::qos::DomainParticipantQos,
@@ -1745,9 +1745,7 @@ mod tests {
         }
 
         // ////////// Write user data
-        user_writer
-            .write_w_timestamp(&UserData(8), None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
+        user_writer.write(&UserData(8), None).unwrap();
 
         // ////////// Send user data
         {
