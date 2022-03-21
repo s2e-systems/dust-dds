@@ -102,23 +102,17 @@ impl RtpsStatefulReaderImpl {
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                let is_new_heartbeat =
-                    heartbeat_submessage.count.value != writer_proxy.last_received_heartbeat_count;
                 let acknack_required = !heartbeat_submessage.final_flag
                     || (heartbeat_submessage.liveliness_flag
                         && !writer_proxy.missing_changes().is_empty());
 
-                if is_new_heartbeat {
-                    ReliableStatefulReaderBehavior::receive_heartbeat(
-                        writer_proxy,
-                        heartbeat_submessage,
-                    );
+                ReliableStatefulReaderBehavior::receive_heartbeat(
+                    writer_proxy,
+                    heartbeat_submessage,
+                );
 
-                    if acknack_required {
-                        writer_proxy.must_send_acknacks = true;
-                    }
-
-                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
+                if acknack_required {
+                    writer_proxy.must_send_acknacks = true;
                 }
             }
         }
@@ -613,10 +607,6 @@ mod tests {
         assert_eq!(missing_changes, acknacks[0].reader_sn_state.set);
 
         // doesn't send a second time
-        assert!(reader.produce_acknack_submessages().is_empty());
-
-        // doesn't resend when receiving the same heartbeat
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
         assert!(reader.produce_acknack_submessages().is_empty());
 
         // resend when new heartbeat
