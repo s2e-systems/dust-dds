@@ -14,8 +14,8 @@ use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 impl MappingWriteSubmessage for InfoTimestampSubmessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = match self.invalidate_flag {
-            true => 4,
-            false => 12,
+            true => 0,
+            false => 8,
         };
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::INFO_TS,
@@ -89,7 +89,7 @@ mod tests {
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
-                0x09_u8, 0b_0000_0001, 12, 0, // Submessage header
+                0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
                 0, 0, 0, 0, // Time
                 4, 0, 0, 0, // Time
             ]
@@ -107,7 +107,7 @@ mod tests {
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
-                0x09_u8, 0b_0000_0011, 4, 0, // Submessage header
+                0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
             ]
         );
     }
@@ -116,7 +116,7 @@ mod tests {
     fn deserialize_info_timestamp_valid_time() {
         #[rustfmt::skip]
         let buf = [
-            0x09_u8, 0b_0000_0001, 12, 0, // Submessage header
+            0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
             0, 0, 0, 0, // Time
             4, 0, 0, 0, // Time
         ];
@@ -137,7 +137,7 @@ mod tests {
     fn deserialize_info_timestamp_invalid_time() {
         #[rustfmt::skip]
         let buf = [
-            0x09_u8, 0b_0000_0011, 4, 0, // Submessage header
+            0x09_u8, 0b_0000_0011, 0, 0, // Submessage header
         ];
 
         assert_eq!(
