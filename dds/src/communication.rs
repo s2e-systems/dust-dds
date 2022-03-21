@@ -16,7 +16,10 @@ use rtps_pim::{
         reader::writer_proxy::RtpsWriterProxyAttributes,
         writer::reader_proxy::RtpsReaderProxyAttributes,
     },
-    messages::overall_structure::RtpsMessageHeader,
+    messages::{
+        overall_structure::RtpsMessageHeader, submessage_elements::TimestampSubmessageElement,
+        submessages::InfoTimestampSubmessage, types::TIME_INVALID,
+    },
     structure::{
         entity::RtpsEntityAttributes,
         types::{GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -72,15 +75,42 @@ where
                                     message_header.clone(),
                                     submessages
                                         .into_iter()
-                                        .map(|submessage| match submessage {
+                                        .flat_map(|submessage| match submessage {
                                             RtpsStatelessSubmessage::Data(data) => {
-                                                RtpsSubmessageType::Data(data)
+                                                let info_ts = if let Some(time) = any_data_writer
+                                                    .sample_info
+                                                    .read_lock()
+                                                    .get(&data.writer_sn.value)
+                                                {
+                                                    InfoTimestampSubmessage {
+                                                        endianness_flag: true,
+                                                        invalidate_flag: false,
+                                                        timestamp: TimestampSubmessageElement {
+                                                            value: rtps_pim::messages::types::Time(
+                                                                ((time.sec as u64) << 32)
+                                                                    + time.nanosec as u64,
+                                                            ),
+                                                        },
+                                                    }
+                                                } else {
+                                                    InfoTimestampSubmessage {
+                                                        endianness_flag: true,
+                                                        invalidate_flag: true,
+                                                        timestamp: TimestampSubmessageElement {
+                                                            value: TIME_INVALID,
+                                                        },
+                                                    }
+                                                };
+                                                vec![
+                                                    RtpsSubmessageType::InfoTimestamp(info_ts),
+                                                    RtpsSubmessageType::Data(data),
+                                                ]
                                             }
                                             RtpsStatelessSubmessage::Gap(gap) => {
-                                                RtpsSubmessageType::Gap(gap)
+                                                vec![RtpsSubmessageType::Gap(gap)]
                                             }
                                             RtpsStatelessSubmessage::Heartbeat(heartbeat) => {
-                                                RtpsSubmessageType::Heartbeat(heartbeat)
+                                                vec![RtpsSubmessageType::Heartbeat(heartbeat)]
                                             }
                                         })
                                         .collect(),
@@ -103,15 +133,43 @@ where
                                     message_header.clone(),
                                     submessages
                                         .into_iter()
-                                        .map(|submessage| match submessage {
+                                        .flat_map(|submessage| match submessage {
                                             RtpsStatefulSubmessage::Data(data) => {
-                                                RtpsSubmessageType::Data(data)
+                                                let info_ts = if let Some(time) = any_data_writer
+                                                    .sample_info
+                                                    .read_lock()
+                                                    .get(&data.writer_sn.value)
+                                                {
+                                                    InfoTimestampSubmessage {
+                                                        endianness_flag: true,
+                                                        invalidate_flag: false,
+                                                        timestamp: TimestampSubmessageElement {
+                                                            value: rtps_pim::messages::types::Time(
+                                                                ((time.sec as u64) << 32)
+                                                                    + time.nanosec as u64,
+                                                            ),
+                                                        },
+                                                    }
+                                                } else {
+                                                    InfoTimestampSubmessage {
+                                                        endianness_flag: true,
+                                                        invalidate_flag: true,
+                                                        timestamp: TimestampSubmessageElement {
+                                                            value: TIME_INVALID,
+                                                        },
+                                                    }
+                                                };
+
+                                                vec![
+                                                    RtpsSubmessageType::InfoTimestamp(info_ts),
+                                                    RtpsSubmessageType::Data(data),
+                                                ]
                                             }
                                             RtpsStatefulSubmessage::Gap(gap) => {
-                                                RtpsSubmessageType::Gap(gap)
+                                                vec![RtpsSubmessageType::Gap(gap)]
                                             }
                                             RtpsStatefulSubmessage::Heartbeat(heartbeat) => {
-                                                RtpsSubmessageType::Heartbeat(heartbeat)
+                                                vec![RtpsSubmessageType::Heartbeat(heartbeat)]
                                             }
                                         })
                                         .collect(),
