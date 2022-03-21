@@ -293,8 +293,8 @@ where
     }
 
     fn get_publisher(&self) -> DdsResult<Self::Publisher> {
-        // Ok(self.publisher.clone())
-        todo!()
+        let publisher_impl = self.data_writer_impl.upgrade()?.publisher.clone();
+        Ok(PublisherProxy::new(publisher_impl))
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
