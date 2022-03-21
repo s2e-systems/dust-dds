@@ -18,7 +18,6 @@ use rtps_pim::{
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
-        types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -46,7 +45,6 @@ pub struct RtpsStatelessWriterImpl<T> {
     pub writer: RtpsWriterImpl,
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
     pub heartbeat_timer: T,
-    pub heartbeat_count: Count,
 }
 
 pub enum RtpsStatelessSubmessage<'a> {
@@ -99,11 +97,10 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
 
                     if time_for_heartbeat
                     {
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
                         ReliableStatelessWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
-                            self.heartbeat_count,
+                            self.writer.writer_cache.heartbeat_count(),
                             |heartbeat| {
                                 submessages
                                     .borrow_mut()
@@ -267,7 +264,6 @@ impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriter
             ),
             reader_locators: Vec::new(),
             heartbeat_timer: T::new(),
-            heartbeat_count: Count(0),
         }
     }
 }
