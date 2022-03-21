@@ -6,11 +6,11 @@ use rtps_pim::{
     structure::types::SequenceNumber,
 };
 
-use crate::mapping_traits::{MappingRead, MappingWriteByteOrdered, NumberOfBytes};
+use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 use std::io::{Error, Write};
 
-use super::submessage::MappingWriteSubmessage;
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for AckNackSubmessage<Vec<SequenceNumber>> {
     fn submessage_header(&self) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
@@ -44,16 +44,32 @@ impl MappingWriteSubmessage for AckNackSubmessage<Vec<SequenceNumber>> {
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.reader_sn_state
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        self.count
-            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.count.mapping_write_byte_ordered::<_, B>(&mut writer)?;
 
         Ok(())
     }
 }
 
-impl<'de, S> MappingRead<'de> for AckNackSubmessage<S> {
-    fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
+impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage<Vec<SequenceNumber>> {
+    fn mapping_read_submessage<B: byteorder::ByteOrder>(
+        buf: &mut &'de [u8],
+        header: RtpsSubmessageHeader,
+    ) -> Result<Self, Error> {
+        let endianness_flag = header.flags[0];
+        let final_flag = header.flags[1];
+        let reader_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let writer_id = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let reader_sn_state = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let count = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+
+        Ok(Self {
+            endianness_flag,
+            final_flag,
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
+        })
     }
 }
 
@@ -71,10 +87,10 @@ mod tests {
         structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
     };
 
-    use crate::mapping_traits::to_bytes;
+    use crate::mapping_traits::{from_bytes, to_bytes};
 
     #[test]
-    fn acknack() {
+    fn serialize_acknack() {
         let endianness_flag = true;
         let final_flag = false;
         let reader_id = EntityIdSubmessageElement {
@@ -104,6 +120,39 @@ mod tests {
                 0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
                 0, 0, 0, 0, // count
             ]
+        );
+    }
+
+    #[test]
+    fn deserialize_acknack() {
+        #[rustfmt::skip]
+        let buf = [
+                0x06_u8, 0b_0000_0001, 24, 0, // Submessage header
+                1, 2, 3, 4, // readerId: value[4]
+                6, 7, 8, 9, // writerId: value[4]
+                0, 0, 0, 0, // reader_sn_state.base
+               10, 0, 0, 0, // reader_sn_state.base
+                0, 0, 0, 0, // reader_sn_state.set: numBits (ULong)
+                0, 0, 0, 0, // count
+        ];
+
+        assert_eq!(
+            AckNackSubmessage {
+                endianness_flag: true,
+                final_flag: false,
+                reader_id: EntityIdSubmessageElement {
+                    value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+                },
+                writer_id: EntityIdSubmessageElement {
+                    value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+                },
+                reader_sn_state: SequenceNumberSetSubmessageElement {
+                    base: 10,
+                    set: vec![],
+                },
+                count: CountSubmessageElement { value: Count(0) },
+            },
+            from_bytes(&buf).unwrap()
         );
     }
 }

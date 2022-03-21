@@ -397,17 +397,11 @@ impl DomainParticipantFactory {
             spawner.spawn_enabled_periodic_task(
                 "builtin multicast communication",
                 move || {
-                    if let (
-                        Some(builtin_participant_publisher),
-                        Some(builtin_participant_subscriber),
-                    ) = (
-                        domain_participant.builtin_publisher.read_lock().deref(),
-                        domain_participant.builtin_subscriber.read_lock().deref(),
-                    ) {
-                        metatraffic_multicast_communication.receive(
-                            core::slice::from_ref(builtin_participant_publisher),
-                            core::slice::from_ref(builtin_participant_subscriber),
-                        );
+                    if let Some(builtin_participant_subscriber) =
+                        domain_participant.builtin_subscriber.read_lock().deref()
+                    {
+                        metatraffic_multicast_communication
+                            .receive(&[], core::slice::from_ref(builtin_participant_subscriber));
                     } else {
                         println!("/!\\ Participant has no builtin subscriber");
                     }
@@ -1533,24 +1527,26 @@ mod tests {
                 &[],
             );
 
-            communications1
-                .metatraffic_unicast
-                .receive(&[], core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .receive(&[], core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
         }
 
         // ////////// Process SEDP data
@@ -1651,24 +1647,26 @@ mod tests {
                 &[],
             );
 
-            communications1
-                .metatraffic_multicast
-                .receive(&[], core::slice::from_ref(
+            communications1.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_multicast
-                .receive(&[], core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_multicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             task_spdp_discovery(participant1.clone()).unwrap();
             task_spdp_discovery(participant2.clone()).unwrap();
@@ -1707,24 +1705,26 @@ mod tests {
                 &[],
             );
 
-            communications1
-                .metatraffic_unicast
-                .receive(&[], core::slice::from_ref(
+            communications1.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant1
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
-            communications2
-                .metatraffic_unicast
-                .receive(&[], core::slice::from_ref(
+                ),
+            );
+            communications2.metatraffic_unicast.receive(
+                &[],
+                core::slice::from_ref(
                     participant2
                         .builtin_subscriber
                         .read_lock()
                         .as_ref()
                         .unwrap(),
-                ));
+                ),
+            );
 
             // ////////// Process SEDP data
             task_sedp_reader_discovery(participant1.clone()).unwrap();
