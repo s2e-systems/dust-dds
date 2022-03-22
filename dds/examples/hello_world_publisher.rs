@@ -3,7 +3,6 @@ use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    types::Time,
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
@@ -109,9 +108,7 @@ fn main() {
         id: 8,
         msg: "Hello world!".to_string(),
     };
-    writer
-        .write_w_timestamp(&hello_world, None, Time { sec: 0, nanosec: 0 })
-        .unwrap();
+    writer.write(&hello_world, None).unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(15));
 }

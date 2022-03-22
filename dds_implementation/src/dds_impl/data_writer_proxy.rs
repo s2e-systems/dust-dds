@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::DerefMut};
+use std::{collections::HashMap, marker::PhantomData, ops::DerefMut};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
@@ -25,7 +25,11 @@ use dds_api::{
 };
 use rtps_pim::{
     behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
-    structure::{history_cache::RtpsHistoryCacheOperations, types::ChangeKind},
+    structure::{
+        cache_change::RtpsCacheChangeAttributes,
+        history_cache::RtpsHistoryCacheOperations,
+        types::{ChangeKind, SequenceNumber},
+    },
 };
 
 use super::{
@@ -73,6 +77,7 @@ where
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub publisher: DdsWeak<PublisherAttributes<Rtps>>,
     pub status: DdsRwLock<PublicationMatchedStatus>,
+    pub sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -99,6 +104,7 @@ where
                 current_count: 0,
                 current_count_change: 0,
             }),
+            sample_info: DdsRwLock::new(HashMap::new()),
         }
     }
 }
@@ -210,7 +216,7 @@ where
         &self,
         data: &Foo,
         _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<()> {
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
@@ -220,10 +226,18 @@ where
         match data_writer_shared.rtps_writer.write_lock().deref_mut() {
             RtpsWriter::Stateless(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                data_writer_shared
+                    .sample_info
+                    .write_lock()
+                    .insert(change.sequence_number(), timestamp);
                 rtps_writer.writer_cache().add_change(change);
             }
             RtpsWriter::Stateful(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                data_writer_shared
+                    .sample_info
+                    .write_lock()
+                    .insert(change.sequence_number(), timestamp);
                 rtps_writer.writer_cache().add_change(change);
             }
         }
@@ -279,8 +293,8 @@ where
     }
 
     fn get_publisher(&self) -> DdsResult<Self::Publisher> {
-        // Ok(self.publisher.clone())
-        todo!()
+        let publisher_impl = self.data_writer_impl.upgrade()?.publisher.clone();
+        Ok(PublisherProxy::new(publisher_impl))
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
@@ -425,7 +439,11 @@ mod test {
         mock_writer
             .expect_new_change()
             .once()
-            .return_once(|_, _, _, _| MockRtpsCacheChange::new());
+            .return_once(|_, _, _, _| {
+                let mut mock_cache_change = MockRtpsCacheChange::new();
+                mock_cache_change.expect_sequence_number().return_const(1);
+                mock_cache_change
+            });
         mock_writer
             .expect_writer_cache()
             .once()
@@ -467,7 +485,11 @@ mod test {
         mock_writer
             .expect_new_change()
             .once()
-            .return_once(|_, _, _, _| MockRtpsCacheChange::new());
+            .return_once(|_, _, _, _| {
+                let mut mock_cache_change = MockRtpsCacheChange::new();
+                mock_cache_change.expect_sequence_number().return_const(1);
+                mock_cache_change
+            });
         mock_writer
             .expect_writer_cache()
             .once()

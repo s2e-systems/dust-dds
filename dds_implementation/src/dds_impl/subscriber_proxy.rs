@@ -38,7 +38,7 @@ use rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::discovered_reader_data::{
-        RtpsReaderProxy, DiscoveredReaderData, DCPS_SUBSCRIPTION,
+        DiscoveredReaderData, RtpsReaderProxy, DCPS_SUBSCRIPTION,
     },
     dds_type::{DdsDeserialize, DdsType},
     utils::{
@@ -265,11 +265,7 @@ where
                         };
 
                         sedp_builtin_subscription_announcer
-                            .write_w_timestamp(
-                                &sedp_discovered_reader_data,
-                                None,
-                                dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-                            )
+                            .write(&sedp_discovered_reader_data, None)
                             .unwrap();
                     }
                 }
