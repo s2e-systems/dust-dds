@@ -2,6 +2,7 @@ use rtps_pim::{
     behavior::writer::reader_locator::{
         RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
     },
+    messages::types::Count,
     structure::{
         history_cache::RtpsHistoryCacheAttributes,
         types::{Locator, SequenceNumber},
@@ -15,6 +16,7 @@ pub struct RtpsReaderLocatorAttributesImpl {
     locator: Locator,
     expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,
+    pub last_received_acknack_count: Count,
 }
 
 impl RtpsReaderLocatorAttributesImpl {
@@ -32,6 +34,7 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
             requested_changes: vec![],
             unsent_changes: vec![],
             last_sent_sequence_number: 0,
+            last_received_acknack_count: Count(0),
         }
     }
 }

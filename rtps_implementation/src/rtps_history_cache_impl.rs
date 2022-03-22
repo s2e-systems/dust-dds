@@ -143,14 +143,14 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
     type CacheChangeType = RtpsCacheChangeImpl;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
+        self.changes.push(change);
     }
 
     fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&Self::CacheChangeType) -> bool,
     {
-        self.changes.retain(|cc| !f(cc))
+        self.changes.retain(|cc| !f(cc));
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {

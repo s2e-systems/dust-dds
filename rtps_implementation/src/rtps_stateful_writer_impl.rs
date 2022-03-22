@@ -17,8 +17,7 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
-        types::Count,
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage}, types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -103,9 +102,9 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
 
-                    if time_for_heartbeat
-                    {
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
+                    if time_for_heartbeat {
+                        self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+
                         ReliableStatefulWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
@@ -183,14 +182,18 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                ReliableStatefulWriterBehavior::receive_acknack(
-                    &mut RtpsReaderProxyOperationsImpl::new(
-                        reader_proxy,
-                        &self.writer.writer_cache,
-                        self.writer.push_mode,
-                    ),
-                    acknack,
-                );
+                if reader_proxy.last_received_acknack_count != acknack.count.value {
+                    ReliableStatefulWriterBehavior::receive_acknack(
+                        &mut RtpsReaderProxyOperationsImpl::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                            self.writer.push_mode,
+                        ),
+                        acknack,
+                    );
+
+                    reader_proxy.last_received_acknack_count = acknack.count.value;
+                }
             }
         }
     }

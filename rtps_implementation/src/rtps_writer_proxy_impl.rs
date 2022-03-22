@@ -18,6 +18,7 @@ pub struct RtpsWriterProxyImpl {
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
     pub must_send_acknacks: bool,
+    pub last_received_heartbeat_count: Count,
     pub acknack_count: Count,
 }
 
@@ -40,6 +41,7 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
             must_send_acknacks: false,
+            last_received_heartbeat_count: Count(0),
             acknack_count: Count(0),
         }
     }
@@ -99,7 +101,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // FIND change FROM this.changes_from_writer SUCH-THAT
         // (change.sequenceNumber == a_seq_num);
         // change.status := RECEIVED; change.is_relevant := FALSE;
-        self.irrelevant_changes.push(a_seq_num)
+        self.irrelevant_changes.push(a_seq_num);
     }
 
     fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
@@ -108,7 +110,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // AND seq_num < first_available_seq_num ) DO {
         // change.status := LOST;
         // }
-        self.first_available_seq_num = first_available_seq_num
+        self.first_available_seq_num = first_available_seq_num;
     }
 
     fn missing_changes(&self) -> Self::SequenceNumberListType {

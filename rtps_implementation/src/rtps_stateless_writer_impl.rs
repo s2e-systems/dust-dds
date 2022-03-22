@@ -97,9 +97,9 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                 ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
 
-                    if time_for_heartbeat
-                    {
-                        self.heartbeat_count = Count(self.heartbeat_count.0 + 1);
+                    if time_for_heartbeat {
+                        self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+
                         ReliableStatelessWriterBehavior::send_heartbeat(
                             &self.writer.writer_cache,
                             self.writer.endpoint.entity.guid.entity_id,
@@ -160,13 +160,17 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                 || acknack.reader_id.value == self.writer.endpoint.entity.guid.entity_id()
             {
                 for reader_locator in self.reader_locators.iter_mut() {
-                    ReliableStatelessWriterBehavior::receive_acknack(
-                        &mut RtpsReaderLocatorOperationsImpl::new(
-                            reader_locator,
-                            &self.writer.writer_cache,
-                        ),
-                        acknack,
-                    );
+                    if reader_locator.last_received_acknack_count != acknack.count.value {
+                        ReliableStatelessWriterBehavior::receive_acknack(
+                            &mut RtpsReaderLocatorOperationsImpl::new(
+                                reader_locator,
+                                &self.writer.writer_cache,
+                            ),
+                            acknack,
+                        );
+
+                        reader_locator.last_received_acknack_count = acknack.count.value;
+                    }
                 }
             }
         }

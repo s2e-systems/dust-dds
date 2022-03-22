@@ -284,7 +284,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         .collect();
     data.sort();
     assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], data);
-    
+
     // Send and receive third heartbeat (no new data)
     {
         stateful_writer.heartbeat_timer.checkpoint();
