@@ -18,6 +18,7 @@ use rtps_pim::{
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
         endpoint::RtpsEndpointAttributes,
@@ -102,17 +103,17 @@ impl RtpsStatefulReaderImpl {
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                let acknack_required = !heartbeat_submessage.final_flag
-                    || (heartbeat_submessage.liveliness_flag
-                        && !writer_proxy.missing_changes().is_empty());
+                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
+                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
 
-                ReliableStatefulReaderBehavior::receive_heartbeat(
-                    writer_proxy,
-                    heartbeat_submessage,
-                );
+                    writer_proxy.must_send_acknacks = !heartbeat_submessage.final_flag
+                        || (!heartbeat_submessage.liveliness_flag
+                            && !writer_proxy.missing_changes().is_empty());
 
-                if acknack_required {
-                    writer_proxy.must_send_acknacks = true;
+                    ReliableStatefulReaderBehavior::receive_heartbeat(
+                        writer_proxy,
+                        heartbeat_submessage,
+                    );
                 }
             }
         }
@@ -131,10 +132,13 @@ impl RtpsStatefulReaderImpl {
                 let acknacks = RefCell::new(Vec::new());
 
                 if !writer_proxy.missing_changes().is_empty() {
+                    writer_proxy.acknack_count =
+                        Count(writer_proxy.acknack_count.0.wrapping_add(1));
+
                     ReliableStatefulReaderBehavior::send_ack_nack(
                         writer_proxy,
                         self.reader.endpoint.entity.guid.entity_id,
-                        writer_proxy.acknack_count(),
+                        writer_proxy.acknack_count,
                         |acknack| acknacks.borrow_mut().push(acknack),
                     );
                 }

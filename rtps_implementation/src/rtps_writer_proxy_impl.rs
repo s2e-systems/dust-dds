@@ -18,13 +18,8 @@ pub struct RtpsWriterProxyImpl {
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
     pub must_send_acknacks: bool,
-    acknack_count: Count,
-}
-
-impl RtpsWriterProxyImpl {
-    pub fn acknack_count(&self) -> Count {
-        self.acknack_count
-    }
+    pub last_received_heartbeat_count: Count,
+    pub acknack_count: Count,
 }
 
 impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
@@ -46,6 +41,7 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
             must_send_acknacks: false,
+            last_received_heartbeat_count: Count(0),
             acknack_count: Count(0),
         }
     }
@@ -106,7 +102,6 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // (change.sequenceNumber == a_seq_num);
         // change.status := RECEIVED; change.is_relevant := FALSE;
         self.irrelevant_changes.push(a_seq_num);
-        self.acknack_count = Count(self.acknack_count.0.wrapping_add(1));
     }
 
     fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
@@ -116,7 +111,6 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // change.status := LOST;
         // }
         self.first_available_seq_num = first_available_seq_num;
-        self.acknack_count = Count(self.acknack_count.0.wrapping_add(1));
     }
 
     fn missing_changes(&self) -> Self::SequenceNumberListType {
@@ -150,7 +144,6 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         // change.status := MISSING;
         // }
         self.last_available_seq_num = last_available_seq_num;
-        self.acknack_count = Count(self.acknack_count.0.wrapping_add(1));
     }
 
     fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
@@ -158,7 +151,6 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED
         self.received_changes.push(a_seq_num);
-        self.acknack_count = Count(self.acknack_count.0.wrapping_add(1));
     }
 }
 
