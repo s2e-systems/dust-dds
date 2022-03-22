@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::{
+    sync::atomic::{AtomicU8, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -216,11 +219,7 @@ where
                         };
 
                         sedp_builtin_topic_announcer
-                            .write_w_timestamp(
-                                &sedp_discovered_topic_data,
-                                None,
-                                dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-                            )
+                            .write(&sedp_discovered_topic_data, None)
                             .unwrap();
                     }
                 }
@@ -548,10 +547,14 @@ where
     }
 
     fn get_current_time(&self) -> DdsResult<Time> {
-        // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
-        // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
-        // domain_participant_lock.get_current_time()
-        todo!()
+        let now_system_time = SystemTime::now();
+        match now_system_time.duration_since(UNIX_EPOCH) {
+            Ok(unix_time) => Ok(Time {
+                sec: unix_time.as_secs() as i32,
+                nanosec: unix_time.subsec_nanos(),
+            }),
+            Err(_) => Err(DdsError::Error),
+        }
     }
 }
 

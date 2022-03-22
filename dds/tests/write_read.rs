@@ -3,7 +3,6 @@ use dds::{
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
-    types::Time,
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
@@ -120,9 +119,7 @@ fn user_defined_write_read_auto_enable() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
-    writer
-        .write_w_timestamp(&UserData(8), None, Time { sec: 0, nanosec: 0 })
-        .unwrap();
+    writer.write(&UserData(8), None).unwrap();
 
     let mut samples = reader.read(1, &[], &[], &[]);
     while let Err(DdsError::NoData) = samples {

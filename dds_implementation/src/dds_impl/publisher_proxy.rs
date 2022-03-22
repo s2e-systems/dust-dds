@@ -37,7 +37,7 @@ use rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::{
-        RtpsWriterProxy, DiscoveredWriterData, DCPS_PUBLICATION,
+        DiscoveredWriterData, RtpsWriterProxy, DCPS_PUBLICATION,
     },
     dds_type::{DdsSerialize, DdsType},
     utils::{
@@ -257,11 +257,7 @@ where
                         };
 
                         sedp_builtin_publications_announcer
-                            .write_w_timestamp(
-                                &sedp_discovered_writer_data,
-                                None,
-                                dds_api::dcps_psm::Time { sec: 0, nanosec: 0 },
-                            )
+                            .write(&sedp_discovered_writer_data, None)
                             .unwrap();
                     }
                 }
