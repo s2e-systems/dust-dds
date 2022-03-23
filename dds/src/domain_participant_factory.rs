@@ -141,7 +141,7 @@ pub fn get_multicast_socket(
     multicast_address: Ipv4Addr,
     port: u16,
 ) -> io::Result<UdpSocket> {
-    let socket_addr = SocketAddr::from((address, port));
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
