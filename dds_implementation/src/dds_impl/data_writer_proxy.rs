@@ -238,7 +238,7 @@ where
                     .sample_info
                     .write_lock()
                     .insert(change.sequence_number(), timestamp);
-                rtps_writer.writer_cache().add_change(change);
+                rtps_writer.add_change(change);
             }
         }
 
@@ -475,11 +475,7 @@ mod test {
 
     #[test]
     fn write_w_timestamp_stateful() {
-        let mut mock_writer_history_cache = MockRtpsHistoryCache::new();
-        mock_writer_history_cache
-            .expect_add_change_()
-            .once()
-            .return_const(());
+        let mock_writer_history_cache = MockRtpsHistoryCache::new();
 
         let mut mock_writer = MockRtpsStatefulWriter::new();
         mock_writer
@@ -492,9 +488,8 @@ mod test {
             });
         mock_writer
             .expect_writer_cache()
-            .once()
             .return_var(mock_writer_history_cache);
-
+        mock_writer.expect_add_change_().once().return_const(());
         let dummy_topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
             "",

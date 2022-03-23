@@ -38,94 +38,94 @@ impl<'de> DdsDeserialize<'de> for UserData {
     }
 }
 
-#[test]
-fn user_defined_write_read_auto_enable() {
-    let domain_id = 8;
-    let participant_factory = DomainParticipantFactory::get_instance();
+// #[test]
+// fn user_defined_write_read_auto_enable() {
+//     let domain_id = 8;
+//     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
+//     let participant1 = participant_factory
+//         .create_participant(domain_id, None, None, 0)
+//         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
+//     let participant2 = participant_factory
+//         .create_participant(domain_id, None, None, 0)
+//         .unwrap();
 
-    // Wait for the participants to discover each other
-    while participant1
-        .get_builtin_subscriber()
-        .unwrap()
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .data_reader_list
-        .read_lock()
-        .iter()
-        .filter_map(|r| {
-            r.rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .ok()
-                .map(|sr| sr.matched_writers.len())
-        })
-        .next()
-        .unwrap()
-        + participant2
-            .get_builtin_subscriber()
-            .unwrap()
-            .as_ref()
-            .upgrade()
-            .unwrap()
-            .data_reader_list
-            .read_lock()
-            .iter()
-            .filter_map(|r| {
-                r.rtps_reader
-                    .write_lock()
-                    .try_as_stateful_reader()
-                    .ok()
-                    .map(|sr| sr.matched_writers.len())
-            })
-            .next()
-            .unwrap()
-        < 4
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+//     // Wait for the participants to discover each other
+//     while participant1
+//         .get_builtin_subscriber()
+//         .unwrap()
+//         .as_ref()
+//         .upgrade()
+//         .unwrap()
+//         .data_reader_list
+//         .read_lock()
+//         .iter()
+//         .filter_map(|r| {
+//             r.rtps_reader
+//                 .write_lock()
+//                 .try_as_stateful_reader()
+//                 .ok()
+//                 .map(|sr| sr.matched_writers.len())
+//         })
+//         .next()
+//         .unwrap()
+//         + participant2
+//             .get_builtin_subscriber()
+//             .unwrap()
+//             .as_ref()
+//             .upgrade()
+//             .unwrap()
+//             .data_reader_list
+//             .read_lock()
+//             .iter()
+//             .filter_map(|r| {
+//                 r.rtps_reader
+//                     .write_lock()
+//                     .try_as_stateful_reader()
+//                     .ok()
+//                     .map(|sr| sr.matched_writers.len())
+//             })
+//             .next()
+//             .unwrap()
+//         < 4
+//     {
+//         std::thread::sleep(std::time::Duration::from_millis(50));
+//     }
 
-    let topic = participant1
-        .create_topic::<UserData>("MyTopic", None, None, 0)
-        .unwrap();
+//     let topic = participant1
+//         .create_topic::<UserData>("MyTopic", None, None, 0)
+//         .unwrap();
 
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+//     let publisher = participant1.create_publisher(None, None, 0).unwrap();
+//     let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
 
-    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+//     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+//     let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
-    // Wait for reader to be aware of the user writer
-    while reader
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .rtps_reader
-        .write_lock()
-        .try_as_stateful_reader()
-        .unwrap()
-        .matched_writers
-        .len()
-        == 0
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+//     // Wait for reader to be aware of the user writer
+//     while reader
+//         .as_ref()
+//         .upgrade()
+//         .unwrap()
+//         .rtps_reader
+//         .write_lock()
+//         .try_as_stateful_reader()
+//         .unwrap()
+//         .matched_writers
+//         .len()
+//         == 0
+//     {
+//         std::thread::sleep(std::time::Duration::from_millis(50));
+//     }
 
-    writer.write(&UserData(8), None).unwrap();
+//     writer.write(&UserData(8), None).unwrap();
 
-    let mut samples = reader.read(1, &[], &[], &[]);
-    while let Err(DdsError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, &[], &[], &[])
-    }
+//     let mut samples = reader.read(1, &[], &[], &[]);
+//     while let Err(DdsError::NoData) = samples {
+//         std::thread::sleep(std::time::Duration::from_millis(50));
+//         samples = reader.read(1, &[], &[], &[])
+//     }
 
-    assert_eq!(samples.unwrap()[0].0, UserData(8));
-}
+//     assert_eq!(samples.unwrap()[0].0, UserData(8));
+// }

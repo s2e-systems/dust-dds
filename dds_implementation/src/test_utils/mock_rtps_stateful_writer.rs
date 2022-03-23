@@ -7,8 +7,11 @@ use rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    structure::types::{
-        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+    structure::{
+        history_cache::RtpsHistoryCacheOperations,
+        types::{
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+        },
     },
 };
 
@@ -17,7 +20,11 @@ use super::{
 };
 
 mock! {
-    pub RtpsStatefulWriter{}
+    pub RtpsStatefulWriter{
+        pub fn add_change_(&mut self, change: MockRtpsCacheChange);
+        pub fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
+        pub fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
+    }
 
     impl RtpsWriterAttributes for RtpsStatefulWriter {
         type HistoryCacheType = MockRtpsHistoryCache;
@@ -43,6 +50,28 @@ mock! {
             inline_qos: Vec<u8>,
             handle: InstanceHandle,
         ) -> MockRtpsCacheChange;
+    }
+}
+
+impl RtpsHistoryCacheOperations for MockRtpsStatefulWriter {
+    type CacheChangeType = MockRtpsCacheChange;
+    fn add_change(&mut self, change: MockRtpsCacheChange) {
+        self.add_change_(change)
+    }
+
+    fn remove_change<F>(&mut self, _f: F)
+    where
+        F: FnMut(&MockRtpsCacheChange) -> bool,
+    {
+        todo!()
+    }
+
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        self.get_seq_num_min_()
+    }
+
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        self.get_seq_num_max_()
     }
 }
 
