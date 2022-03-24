@@ -310,7 +310,7 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
         };
         for change in self.writer.writer_cache().changes() {
             a_reader_proxy
-            .changes_for_reader
+            .changes_for_reader_mut()
             .push(RtpsChangeForReaderImpl {
                 status,
                 is_relevant: true,
@@ -368,7 +368,7 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
                 Unacknowledged
             };
             reader_proxy
-                .changes_for_reader
+                .changes_for_reader_mut()
                 .push(RtpsChangeForReaderImpl {
                     status,
                     is_relevant: true,

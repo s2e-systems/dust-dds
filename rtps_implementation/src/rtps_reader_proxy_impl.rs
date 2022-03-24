@@ -28,10 +28,16 @@ pub struct RtpsReaderProxyImpl {
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    pub changes_for_reader: Vec<RtpsChangeForReaderImpl>,
+    changes_for_reader: Vec<RtpsChangeForReaderImpl>,
     expects_inline_qos: bool,
     is_active: bool,
     pub last_received_acknack_count: Count,
+}
+
+impl RtpsReaderProxyImpl {
+    pub fn changes_for_reader_mut(&mut self) -> &mut Vec<RtpsChangeForReaderImpl> {
+        &mut self.changes_for_reader
+    }
 }
 
 impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
