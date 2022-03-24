@@ -33,4 +33,4 @@ DEBUG:no netplan generated networkd configuration exists
 DEBUG:no netplan generated NM configuration exists
 ```
 
-[^3] https://askubuntu.com/a/1356147
+[^3]: https://askubuntu.com/a/1356147
