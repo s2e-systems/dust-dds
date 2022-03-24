@@ -324,7 +324,7 @@ impl DomainParticipantFactory {
         let interface = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
             .into_iter()
-            .find(|i| i.name == "Wi-Fi")
+            .find(|i| i.name == "Wi-Fi" || i.name == "eth0")
             .expect("Could not find wi-fi interface");
 
         let unicast_address = interface
