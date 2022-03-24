@@ -319,7 +319,7 @@ mod tests {
 
     use super::*;
 
-    fn add_new_change(
+    fn add_new_change_push_mode_true(
         writer_cache: &mut RtpsHistoryCacheImpl,
         reader_proxy: &mut RtpsReaderProxyImpl,
         sequence_number: SequenceNumber,
@@ -338,6 +338,28 @@ mod tests {
                 status: Unsent,
                 is_relevant: true,
                 sequence_number,
+            });
+    }
+
+    fn add_new_change_push_mode_false(
+        writer_cache: &mut RtpsHistoryCacheImpl,
+        reader_proxy: &mut RtpsReaderProxyImpl,
+        sequence_number: SequenceNumber,
+    ) {
+        writer_cache.add_change(RtpsCacheChangeImpl::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            sequence_number,
+            RtpsData(vec![]),
+            RtpsParameterList(vec![]),
+        ));
+        reader_proxy
+            .changes_for_reader
+            .push(RtpsChangeForReaderImpl {
+                status: Unacknowledged,
+                is_relevant: true,
+                sequence_number,
             })
     }
 
@@ -347,10 +369,10 @@ mod tests {
             RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
 
         let mut writer_cache = RtpsHistoryCacheImpl::new();
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 1);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 2);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 4);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 6);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 1);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 2);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 4);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 6);
 
         let mut reader_proxy =
             RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
@@ -371,9 +393,9 @@ mod tests {
         let mut reader_proxy_attributes =
             RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = RtpsHistoryCacheImpl::new();
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 1);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 3);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 4);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy_attributes, 1);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy_attributes, 3);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy_attributes, 4);
 
         let reader_proxy =
             RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
@@ -386,8 +408,8 @@ mod tests {
         let mut reader_proxy_attributes =
             RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = RtpsHistoryCacheImpl::new();
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 1);
-        add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 2);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy_attributes, 1);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy_attributes, 2);
 
         let mut reader_proxy =
             RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
@@ -401,20 +423,20 @@ mod tests {
         assert!(reader_proxy.next_unsent_change().is_none());
     }
 
-    // #[test]
-    // fn unacked_changes() {
-    //     let mut reader_proxy_attributes =
-    //         RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-    //     let mut writer_cache = RtpsHistoryCacheImpl::new();
-    //     add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 1);
-    //     add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 2);
-    //     add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 4);
-    //     add_new_change(&mut writer_cache, &mut reader_proxy_attributes, 6);
+    #[test]
+    fn unacked_changes() {
+        let mut reader_proxy_attributes =
+            RtpsReaderProxyImpl::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 1);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 2);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 4);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy_attributes, 6);
 
-    //     let mut reader_proxy =
-    //         RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
-    //     reader_proxy.acked_changes_set(2);
+        let mut reader_proxy =
+            RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
+        reader_proxy.acked_changes_set(2);
 
-    //     assert_eq!(reader_proxy.unacked_changes(), vec![4, 6]);
-    // }
+        assert_eq!(reader_proxy.unacked_changes(), vec![4, 6]);
+    }
 }

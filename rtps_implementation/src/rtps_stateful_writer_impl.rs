@@ -6,7 +6,7 @@ use rtps_pim::{
             BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
         },
         types::{
-            ChangeForReaderStatusKind::{Unacknowledged, Unsent},
+            ChangeForReaderStatusKind::{Unacknowledged, Unsent, self},
             Duration,
         },
         writer::{
@@ -26,7 +26,7 @@ use rtps_pim::{
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheOperations,
+        history_cache::{RtpsHistoryCacheOperations, RtpsHistoryCacheAttributes},
         types::{
             ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
             TopicKind,
@@ -302,7 +302,22 @@ impl<T: TimerConstructor> RtpsStatefulWriterConstructor for RtpsStatefulWriterIm
 impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
-    fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType) {
+    fn matched_reader_add(&mut self, mut a_reader_proxy: Self::ReaderProxyType) {
+        let status = if self.push_mode() {
+            ChangeForReaderStatusKind::Unsent
+        } else {
+            ChangeForReaderStatusKind::Unacknowledged
+        };
+        for change in self.writer.writer_cache().changes() {
+            a_reader_proxy
+            .changes_for_reader
+            .push(RtpsChangeForReaderImpl {
+                status,
+                is_relevant: true,
+                sequence_number: change.sequence_number,
+            });
+        }
+
         self.matched_readers.push(a_reader_proxy)
     }
 
