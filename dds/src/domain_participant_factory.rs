@@ -325,7 +325,7 @@ impl DomainParticipantFactory {
             .expect("Could not scan interfaces")
             .into_iter()
             .find(|i| i.name == "Wi-Fi" || i.name == "eth0")
-            .expect("Could not find wi-fi interface");
+            .expect("Could not find 'Wi-Fi' or 'eth0' interface");
 
         let unicast_address = interface
             .addresses
