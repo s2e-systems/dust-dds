@@ -158,8 +158,8 @@ pub fn get_multicast_socket(multicast_address: Ipv4Addr, port: u16) -> io::Resul
     Ok(socket.into())
 }
 
-pub fn get_unicast_socket(address: SocketAddr) -> io::Result<UdpSocket> {
-    let socket = UdpSocket::bind(address)?;
+pub fn get_unicast_socket(port: u16) -> io::Result<UdpSocket> {
+    let socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)))?;
     socket.set_nonblocking(true)?;
 
     Ok(socket.into())
@@ -204,20 +204,14 @@ impl Communications {
                 |participant_id| -> io::Result<(usize, UdpSocket, UdpSocket)> {
                     Ok((
                         participant_id,
-                        get_unicast_socket(
-                            (
-                                Ipv4Addr::UNSPECIFIED,
-                                port_builtin_unicast(domain_id as u16, participant_id as u16),
-                            )
-                                .into(),
-                        )?,
-                        get_unicast_socket(
-                            (
-                                Ipv4Addr::UNSPECIFIED,
-                                port_user_unicast(domain_id as u16, participant_id as u16),
-                            )
-                                .into(),
-                        )?,
+                        get_unicast_socket(port_builtin_unicast(
+                            domain_id as u16,
+                            participant_id as u16,
+                        ))?,
+                        get_unicast_socket(port_user_unicast(
+                            domain_id as u16,
+                            participant_id as u16,
+                        ))?,
                     ))
                 },
             )
