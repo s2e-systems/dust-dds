@@ -136,11 +136,7 @@ pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
     PB + DG * domain_id + d3 + PG * participant_id
 }
 
-pub fn get_multicast_socket(
-    address: Ipv4Addr,
-    multicast_address: Ipv4Addr,
-    port: u16,
-) -> io::Result<UdpSocket> {
+pub fn get_multicast_socket(multicast_address: Ipv4Addr, port: u16) -> io::Result<UdpSocket> {
     let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
 
     let socket = Socket::new(
@@ -156,7 +152,7 @@ pub fn get_multicast_socket(
 
     socket.bind(&socket_addr.into())?;
 
-    socket.join_multicast_v4(&multicast_address, &address)?;
+    socket.join_multicast_v4(&multicast_address, &Ipv4Addr::UNSPECIFIED)?;
     socket.set_multicast_loop_v4(true)?;
 
     Ok(socket.into())
@@ -199,12 +195,9 @@ impl Communications {
         unicast_address: Ipv4Addr,
         multicast_address: Ipv4Addr,
     ) -> DdsResult<Self> {
-        let metatraffic_multicast_socket = get_multicast_socket(
-            unicast_address,
-            multicast_address,
-            port_builtin_multicast(domain_id as u16),
-        )
-        .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
+        let metatraffic_multicast_socket =
+            get_multicast_socket(multicast_address, port_builtin_multicast(domain_id as u16))
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
         let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
             .map(
@@ -213,14 +206,14 @@ impl Communications {
                         participant_id,
                         get_unicast_socket(
                             (
-                                unicast_address,
+                                Ipv4Addr::UNSPECIFIED,
                                 port_builtin_unicast(domain_id as u16, participant_id as u16),
                             )
                                 .into(),
                         )?,
                         get_unicast_socket(
                             (
-                                unicast_address,
+                                Ipv4Addr::UNSPECIFIED,
                                 port_user_unicast(domain_id as u16, participant_id as u16),
                             )
                                 .into(),
@@ -898,16 +891,12 @@ mod tests {
     #[test]
     fn multicast_socket_behaviour() {
         let port = 6000;
-        let interface_addr = [127, 0, 0, 1];
         let multicast_ip = [239, 255, 0, 1];
         let multicast_addr = SocketAddr::from((multicast_ip, port));
 
-        let socket1 =
-            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
-        let socket2 =
-            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
-        let socket3 =
-            get_multicast_socket(interface_addr.into(), multicast_ip.into(), port).unwrap();
+        let socket1 = get_multicast_socket(multicast_ip.into(), port).unwrap();
+        let socket2 = get_multicast_socket(multicast_ip.into(), port).unwrap();
+        let socket3 = get_multicast_socket(multicast_ip.into(), port).unwrap();
 
         socket1.send_to(&[1, 2, 3, 4], multicast_addr).unwrap();
 
