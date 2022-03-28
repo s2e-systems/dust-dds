@@ -777,13 +777,11 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant1.builtin_publisher.read_lock().as_ref().unwrap(),
             );
-            communications2.metatraffic_unicast.send(
-                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications2.metatraffic_unicast.send_publisher_message(
+                participant2.builtin_publisher.read_lock().as_ref().unwrap(),
             );
 
             communications1.metatraffic_multicast.receive(
@@ -904,13 +902,11 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant1.builtin_publisher.read_lock().as_ref().unwrap(),
             );
-            communications2.metatraffic_unicast.send(
-                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications2.metatraffic_unicast.send_publisher_message(
+                participant2.builtin_publisher.read_lock().as_ref().unwrap(),
             );
 
             communications1.metatraffic_multicast.receive(
@@ -962,13 +958,11 @@ mod tests {
 
         // Send SEDP data
         {
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant1.builtin_publisher.read_lock().as_ref().unwrap(),
             );
-            communications2.metatraffic_unicast.send(
-                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications2.metatraffic_unicast.send_publisher_message(
+                participant2.builtin_publisher.read_lock().as_ref().unwrap(),
             );
 
             communications1.metatraffic_unicast.receive(
@@ -1068,13 +1062,11 @@ mod tests {
             task_announce_participant(participant1.clone()).unwrap();
             task_announce_participant(participant2.clone()).unwrap();
 
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant1.builtin_publisher.read_lock().as_ref().unwrap(),
             );
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant2.builtin_publisher.read_lock().as_ref().unwrap(),
             );
 
             communications1.metatraffic_multicast.receive(
@@ -1129,13 +1121,11 @@ mod tests {
 
         // Send SEDP data
         {
-            communications1.metatraffic_unicast.send(
-                core::slice::from_ref(participant1.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications1.metatraffic_unicast.send_publisher_message(
+                participant1.builtin_publisher.read_lock().as_ref().unwrap(),
             );
-            communications2.metatraffic_unicast.send(
-                core::slice::from_ref(participant2.builtin_publisher.read_lock().as_ref().unwrap()),
-                &[],
+            communications2.metatraffic_unicast.send_publisher_message(
+                participant2.builtin_publisher.read_lock().as_ref().unwrap(),
             );
 
             communications1.metatraffic_unicast.receive(
