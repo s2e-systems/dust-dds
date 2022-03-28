@@ -19,7 +19,7 @@ use rtps_pim::{
         writer::{
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
             stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
-            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+            writer::RtpsWriterOperations,
         },
     },
     messages::{submessages::DataSubmessage, types::Count},
@@ -149,7 +149,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         ];
 
         for change in changes {
-            stateful_writer.writer_cache().add_change(change);
+            stateful_writer.add_change(change);
         }
     }
 
