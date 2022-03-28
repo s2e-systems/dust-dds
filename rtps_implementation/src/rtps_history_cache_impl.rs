@@ -90,7 +90,7 @@ impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
     }
 }
 
-impl RtpsCacheChangeAttributes<'_> for RtpsCacheChangeImpl {
+impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
     type DataType = [u8];
     type ParameterListType = RtpsParameterList;
 

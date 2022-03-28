@@ -141,10 +141,9 @@ impl<'a> RtpsChangeForReaderAttributes for RtpsChangeForReaderCacheChange<'a> {
     }
 }
 
-impl<'a> RtpsCacheChangeAttributes<'a> for RtpsChangeForReaderCacheChange<'a> {
-    type DataType = <RtpsCacheChangeImpl as RtpsCacheChangeAttributes<'a>>::DataType;
-    type ParameterListType =
-        <RtpsCacheChangeImpl as RtpsCacheChangeAttributes<'a>>::ParameterListType;
+impl<'a> RtpsCacheChangeAttributes for RtpsChangeForReaderCacheChange<'a> {
+    type DataType = <RtpsCacheChangeImpl as RtpsCacheChangeAttributes>::DataType;
+    type ParameterListType = <RtpsCacheChangeImpl as RtpsCacheChangeAttributes>::ParameterListType;
 
     fn kind(&self) -> rtps_pim::structure::types::ChangeKind {
         self.cache_change.kind()

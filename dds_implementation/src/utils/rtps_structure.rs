@@ -46,6 +46,5 @@ pub trait RtpsStructure {
     type HistoryCache: RtpsHistoryCacheConstructor
         + RtpsHistoryCacheAttributes<CacheChangeType = Self::CacheChange>
         + RtpsHistoryCacheOperations<CacheChangeType = Self::CacheChange>;
-    type CacheChange: RtpsCacheChangeConstructor
-        + for<'a> RtpsCacheChangeAttributes<'a, DataType = [u8]>;
+    type CacheChange: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<DataType = [u8]>;
 }

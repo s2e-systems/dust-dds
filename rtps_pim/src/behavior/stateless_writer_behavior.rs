@@ -30,9 +30,9 @@ impl BestEffortStatelessWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = reader_locator.next_unsent_change() {
@@ -117,9 +117,9 @@ impl ReliableStatelessWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = reader_locator.next_unsent_change() {
@@ -247,9 +247,9 @@ impl ReliableStatelessWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(seq_num) = reader_locator.next_requested_change() {
@@ -355,7 +355,7 @@ mod tests {
         inline_qos: MockParameterList,
     }
 
-    impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
+    impl RtpsCacheChangeAttributes for MockCacheChange {
         type DataType = MockData;
         type ParameterListType = MockParameterList;
 
