@@ -25,7 +25,7 @@ impl BestEffortStatefulReaderBehavior {
         source_guid_prefix: GuidPrefix,
         data: &'a DataSubmessage<P, D>,
     ) where
-        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
+        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
         for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
         for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
     {
@@ -82,7 +82,7 @@ impl ReliableStatefulReaderBehavior {
         source_guid_prefix: GuidPrefix,
         data: &'a DataSubmessage<P, D>,
     ) where
-        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes<'a>,
+        C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
         for<'b> <C as RtpsCacheChangeConstructor>::DataType: From<&'b D>,
         for<'b> <C as RtpsCacheChangeConstructor>::ParameterListType: From<&'b P>,
     {
@@ -224,7 +224,7 @@ mod tests {
         }
     }
 
-    impl<'a> RtpsCacheChangeAttributes<'a> for MockCacheChange {
+    impl RtpsCacheChangeAttributes for MockCacheChange {
         type DataType = MockData;
         type ParameterListType = MockParameterList;
 

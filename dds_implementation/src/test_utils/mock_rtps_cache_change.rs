@@ -7,7 +7,7 @@ use rtps_pim::structure::{
 mock! {
     pub RtpsCacheChange{}
 
-    impl RtpsCacheChangeAttributes<'_> for RtpsCacheChange {
+    impl RtpsCacheChangeAttributes for RtpsCacheChange {
         type DataType = [u8];
         type ParameterListType = [u8];
 

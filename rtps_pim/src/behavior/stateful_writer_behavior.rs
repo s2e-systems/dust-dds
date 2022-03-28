@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-use super::writer::{reader_proxy::RtpsReaderProxyOperations};
+use super::writer::reader_proxy::RtpsReaderProxyOperations;
 
 pub struct BestEffortStatefulWriterBehavior;
 
@@ -31,10 +31,10 @@ impl BestEffortStatefulWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         ChangeForReader: Into<SequenceNumber>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
@@ -117,10 +117,10 @@ impl ReliableStatefulWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         ChangeForReader: Into<SequenceNumber>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
@@ -245,10 +245,10 @@ impl ReliableStatefulWriterBehavior {
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes<'a> + 'a,
+        CacheChange: RtpsCacheChangeAttributes + 'a,
         ChangeForReader: Into<SequenceNumber>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes<'a>>::ParameterListType: Into<P>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
+        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change_for_reader) = reader_proxy.next_requested_change() {
