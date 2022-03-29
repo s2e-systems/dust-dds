@@ -10,11 +10,11 @@ use rtps_pim::{
             },
         },
     },
-    messages::types::Count,
+    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, submessages::DataSubmessage, types::Count},
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
-        types::{EntityId, Guid, Locator, SequenceNumber},
+        types::{EntityId, Guid, Locator, SequenceNumber, ChangeKind, ENTITYID_UNKNOWN},
     },
 };
 
@@ -183,6 +183,44 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
             change_for_reader,
             cache_change,
         })
+    }
+}
+
+impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForReaderCacheChange<'a> {
+    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let (data_flag, key_flag) = match self.cache_change.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement { value: ENTITYID_UNKNOWN };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.cache_change.writer_guid().entity_id(),
+        };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: self.cache_change.sequence_number(),
+        };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: self.cache_change.inline_qos().into(),
+        };
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: self.cache_change.data_value().into(),
+        };
+        DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
     }
 }
 

@@ -62,7 +62,7 @@ pub struct RtpsStatefulWriterImpl<T> {
 impl<T: Timer> RtpsStatefulWriterImpl<T> {
     pub fn produce_destined_submessages<'a>(
         &'a mut self,
-    ) -> Vec<(&mut RtpsReaderProxyImpl, Vec<RtpsStatefulSubmessage<'a>>)> {
+    ) -> Vec<(Locator, Vec<RtpsStatefulSubmessage<'a>>)> {
         let mut destined_submessages = Vec::new();
 
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
@@ -73,34 +73,36 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
         }
 
         for reader_proxy in &mut self.matched_readers {
+            let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id().clone();
+
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
-                    let submessages = RefCell::new(Vec::new());
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    BestEffortStatefulWriterBehavior::send_unsent_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
-                            reader_proxy,
-                            &self.writer.writer_cache,
-                        ),
-                        &self.writer.writer_cache,
-                        reader_id,
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Gap(gap))
-                        },
-                    );
+                    // let submessages = RefCell::new(Vec::new());
+                    // let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    // BestEffortStatefulWriterBehavior::send_unsent_changes(
+                    //     &mut RtpsReaderProxyOperationsImpl::new(
+                    //         reader_proxy,
+                    //         &self.writer.writer_cache,
+                    //     ),
+                    //     reader_id,
+                    //     |data| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatefulSubmessage::Data(data))
+                    //     },
+                    //     |gap| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatefulSubmessage::Gap(gap))
+                    //     },
+                    // );
 
-                    let submessages = submessages.take();
+                    // let submessages = submessages.take();
 
-                    if !submessages.is_empty() {
-                        destined_submessages.push((reader_proxy, submessages));
-                    }
+                    // if !submessages.is_empty() {
+                    //     destined_submessages.push((unicast_locator_list[0], submessages));
+                    // }
                 }
 
                 ReliabilityKind::Reliable => {
@@ -121,13 +123,11 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                         );
                     }
 
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                         ),
-                        &self.writer.writer_cache,
                         reader_id,
                         |data| {
                             submessages
@@ -140,29 +140,29 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                                 .push(RtpsStatefulSubmessage::Gap(gap))
                         },
                     );
-                    ReliableStatefulWriterBehavior::send_requested_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
-                            reader_proxy,
-                            &self.writer.writer_cache,
-                        ),
-                        &self.writer.writer_cache,
-                        reader_id,
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Gap(gap))
-                        },
-                    );
+                    // ReliableStatefulWriterBehavior::send_requested_changes(
+                    //     &mut RtpsReaderProxyOperationsImpl::new(
+                    //         reader_proxy,
+                    //         &self.writer.writer_cache,
+                    //     ),
+                    //     &self.writer.writer_cache,
+                    //     reader_id,
+                    //     |data| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatefulSubmessage::Data(data))
+                    //     },
+                    //     |gap| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatefulSubmessage::Gap(gap))
+                    //     },
+                    // );
 
                     let submessages = submessages.take();
 
                     if !submessages.is_empty() {
-                        destined_submessages.push((reader_proxy, submessages));
+                        destined_submessages.push((unicast_locator_list[0], submessages));
                     }
                 }
             }
@@ -502,10 +502,10 @@ mod tests {
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len());
-        let (reader_proxy, submessages) = &destined_submessages[0];
+        let (locator, submessages) = &destined_submessages[0];
         assert_eq!(
-            matched_reader_proxy.unicast_locator_list(),
-            reader_proxy.unicast_locator_list()
+            &matched_reader_proxy.unicast_locator_list()[0],
+            locator
         );
         assert_eq!(1, submessages.len());
 

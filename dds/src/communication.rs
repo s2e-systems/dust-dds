@@ -120,7 +120,7 @@ where
                         ..message_header.clone()
                     };
 
-                    for (reader_proxy, submessages) in
+                    for (locator, submessages) in
                         stateful_rtps_writer.produce_destined_submessages()
                     {
                         self.transport.write(
@@ -169,7 +169,7 @@ where
                                     })
                                     .collect(),
                             ),
-                            reader_proxy.unicast_locator_list()[0],
+                            locator,
                         );
                     }
                 }
