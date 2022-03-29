@@ -39,7 +39,8 @@ impl BestEffortStatefulWriterBehavior {
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
             if change_for_reader.is_relevant() {
-                let data_submessage = change_for_reader.into();
+                let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
+                data_submessage.reader_id = EntityIdSubmessageElement { value: reader_id };
                 send_data(data_submessage)
             } else {
                 let seq_num = change_for_reader.into();
@@ -83,7 +84,8 @@ impl ReliableStatefulWriterBehavior {
     {
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
             if change_for_reader.is_relevant() {
-                let data_submessage = change_for_reader.into();
+                let mut data_submessage = change_for_reader.into();
+                data_submessage.reader_id = EntityIdSubmessageElement { value: reader_id };
                 send_data(data_submessage)
             } else {
                 let seq_num = change_for_reader.sequence_number();

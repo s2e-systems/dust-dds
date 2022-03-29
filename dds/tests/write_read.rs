@@ -103,7 +103,7 @@ fn user_defined_write_read_auto_enable() {
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
     let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
 
-    // Wait for reader to be aware of the user writer
+    //Wait for reader to be aware of the user writer
     while reader
         .as_ref()
         .upgrade()
