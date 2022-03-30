@@ -257,7 +257,7 @@ impl Communications {
         })
     }
 
-    pub fn metatraffic_multicast_locators(&self) -> Vec<Locator> {
+    pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
         vec![Locator::new(
             LOCATOR_KIND_UDPv4,
             port_builtin_multicast(self.domain_id as u16) as u32,
@@ -318,7 +318,7 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
 
-        let unicast_addresses: Vec<_> = ifcfg::IfCfg::get()
+        let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
             .into_iter()
             .flat_map(|i| {
@@ -330,7 +330,7 @@ impl DomainParticipantFactory {
             .collect();
 
         assert!(
-            !unicast_addresses.is_empty(),
+            !unicast_address_list.is_empty(),
             "Could not find any IPv4 address"
         );
 
@@ -345,7 +345,7 @@ impl DomainParticipantFactory {
         let communications = Communications::find_available(
             domain_id,
             mac_address.bytes(),
-            unicast_addresses,
+            unicast_address_list,
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
@@ -355,7 +355,7 @@ impl DomainParticipantFactory {
             "".to_string(),
             qos.clone(),
             communications.metatraffic_unicast_locator_list(),
-            communications.metatraffic_multicast_locators(),
+            communications.metatraffic_multicast_locator_list(),
             communications.default_unicast_locator_list(),
             vec![],
         ));
@@ -1024,7 +1024,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locators(),
+            communications1.metatraffic_multicast_locator_list(),
             communications1.default_unicast_locator_list(),
             vec![],
         ));
@@ -1044,7 +1044,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locators(),
+            communications2.metatraffic_multicast_locator_list(),
             communications2.default_unicast_locator_list(),
             vec![],
         ));
@@ -1193,7 +1193,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locators(),
+            communications1.metatraffic_multicast_locator_list(),
             communications1.default_unicast_locator_list(),
             vec![],
         ));
@@ -1214,7 +1214,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locators(),
+            communications2.metatraffic_multicast_locator_list(),
             communications2.default_unicast_locator_list(),
             vec![],
         ));
@@ -1421,7 +1421,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locators(),
+            communications1.metatraffic_multicast_locator_list(),
             communications1.default_unicast_locator_list(),
             vec![],
         ));
@@ -1442,7 +1442,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locators(),
+            communications2.metatraffic_multicast_locator_list(),
             communications2.default_unicast_locator_list(),
             vec![],
         ));
@@ -1597,7 +1597,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locators(),
+            communications1.metatraffic_multicast_locator_list(),
             communications1.default_unicast_locator_list(),
             vec![],
         ));
@@ -1618,7 +1618,7 @@ mod tests {
             "".to_string(),
             DomainParticipantQos::default(),
             communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locators(),
+            communications2.metatraffic_multicast_locator_list(),
             communications2.default_unicast_locator_list(),
             vec![],
         ));
