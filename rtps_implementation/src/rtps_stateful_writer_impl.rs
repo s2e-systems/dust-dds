@@ -169,7 +169,6 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                             reader_proxy,
                             &self.writer.writer_cache,
                         ),
-                        reader_id,
                         |data| {
                             submessages
                                 .borrow_mut()

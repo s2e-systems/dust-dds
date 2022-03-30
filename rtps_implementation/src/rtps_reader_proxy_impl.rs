@@ -224,6 +224,38 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForRea
     }
 }
 
+impl<'a> RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'a> {
+    type ChangeForReaderType = <RtpsReaderProxyImpl as RtpsReaderProxyAttributes>::ChangeForReaderType;
+
+    fn remote_reader_guid(&self) -> Guid {
+        self.reader_proxy.remote_reader_guid()
+    }
+
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.reader_proxy.remote_group_entity_id()
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy.unicast_locator_list()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy.multicast_locator_list()
+    }
+
+    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType] {
+        self.reader_proxy.changes_for_reader()
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        self.reader_proxy.expects_inline_qos()
+    }
+
+    fn is_active(&self) -> bool {
+        self.reader_proxy.is_active()
+    }
+}
+
 impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
     type ChangeForReaderType = RtpsChangeForReaderCacheChange<'a>;
     type ChangeForReaderListType = Vec<SequenceNumber>;
