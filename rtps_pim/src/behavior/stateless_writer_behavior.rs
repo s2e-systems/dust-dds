@@ -21,18 +21,22 @@ pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<CacheChange, WriterCacheChange, P, D>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
-        writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = WriterCacheChange>,
+    pub fn send_unsent_changes<C, P, D, S>(
+        reader_locator: &mut impl RtpsReaderLocatorOperations<
+            CacheChangeType = impl Borrow<C> + Into<DataSubmessage<P, D>>,
+        >,
+        writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
+        mut _send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: Into<DataSubmessage<P, D>> + Borrow<WriterCacheChange>,
-        WriterCacheChange: PartialEq,
+        C: PartialEq,
     {
         while let Some(change) = reader_locator.next_unsent_change() {
-            if writer_cache.changes().iter().any(|c| c == change.borrow()) {
+            if writer_cache.changes().contains(change.borrow()) {
                 let data_submessage = change.into();
                 send_data(data_submessage);
+            } else {
+                todo!()
             }
         }
     }
@@ -92,7 +96,7 @@ impl ReliableStatelessWriterBehavior {
     }
 
     /// 8.4.8.2.5 Transition T6
-    /// Implementation does not include the part correponding to searching the reader locator
+    /// Implementation does not include the part corresponding to searching the reader locator
     /// on the stateless writer
     pub fn receive_acknack<S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations,
@@ -175,9 +179,9 @@ mod tests {
         let mut data_message_sender = MockDataMessageSender::new();
         let mut writer_cache = MockHistoryCache::new();
         writer_cache.expect_changes().return_const({
-            let mut c = MockCacheChange::new();
-            c.expect_eq().return_const(true);
-            vec![MockCacheChange::new()]
+            let mut cache_change = MockCacheChange::new();
+            cache_change.expect_eq().return_const(true);
+            vec![cache_change]
         });
 
         const DATA_SUBMESSAGE: DataSubmessage<(), ()> = DataSubmessage {
@@ -201,10 +205,9 @@ mod tests {
             .expect_next_unsent_change()
             .once()
             .returning(|| {
-                let mut c = MockCacheChange::new();
-                c.expect_eq().return_const(true);
-                c.expect_into().returning(|| DATA_SUBMESSAGE);
-                Some(c)
+                let mut cache_change = MockCacheChange::new();
+                cache_change.expect_into().returning(|| DATA_SUBMESSAGE);
+                Some(cache_change)
             })
             .in_sequence(&mut seq);
 
@@ -225,6 +228,7 @@ mod tests {
             &mut reader_locator,
             &writer_cache,
             |data| data_message_sender.send_data(data),
+            |_: GapSubmessage<()>| {},
         )
     }
 }

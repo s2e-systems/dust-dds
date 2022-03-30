@@ -84,6 +84,11 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                                 .borrow_mut()
                                 .push(RtpsStatelessSubmessage::Data(data))
                         },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatelessSubmessage::Gap(gap))
+                        },
                     );
 
                     let submessages = submessages.take();
