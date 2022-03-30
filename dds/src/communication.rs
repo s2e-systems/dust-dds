@@ -123,54 +123,55 @@ where
                     for (reader_proxy, submessages) in
                         stateful_rtps_writer.produce_destined_submessages()
                     {
-                        self.transport.write(
-                            &RtpsMessage::new(
-                                message_header.clone(),
-                                submessages
-                                    .into_iter()
-                                    .flat_map(|submessage| match submessage {
-                                        RtpsStatefulSubmessage::Data(data) => {
-                                            let info_ts = if let Some(time) = any_data_writer
-                                                .sample_info
-                                                .read_lock()
-                                                .get(&data.writer_sn.value)
-                                            {
-                                                InfoTimestampSubmessage {
-                                                    endianness_flag: true,
-                                                    invalidate_flag: false,
-                                                    timestamp: TimestampSubmessageElement {
-                                                        value: rtps_pim::messages::types::Time(
-                                                            ((time.sec as u64) << 32)
-                                                                + time.nanosec as u64,
-                                                        ),
-                                                    },
-                                                }
-                                            } else {
-                                                InfoTimestampSubmessage {
-                                                    endianness_flag: true,
-                                                    invalidate_flag: true,
-                                                    timestamp: TimestampSubmessageElement {
-                                                        value: TIME_INVALID,
-                                                    },
-                                                }
-                                            };
+                        let message = RtpsMessage::new(
+                            message_header.clone(),
+                            submessages
+                                .into_iter()
+                                .flat_map(|submessage| match submessage {
+                                    RtpsStatefulSubmessage::Data(data) => {
+                                        let info_ts = if let Some(time) = any_data_writer
+                                            .sample_info
+                                            .read_lock()
+                                            .get(&data.writer_sn.value)
+                                        {
+                                            InfoTimestampSubmessage {
+                                                endianness_flag: true,
+                                                invalidate_flag: false,
+                                                timestamp: TimestampSubmessageElement {
+                                                    value: rtps_pim::messages::types::Time(
+                                                        ((time.sec as u64) << 32)
+                                                            + time.nanosec as u64,
+                                                    ),
+                                                },
+                                            }
+                                        } else {
+                                            InfoTimestampSubmessage {
+                                                endianness_flag: true,
+                                                invalidate_flag: true,
+                                                timestamp: TimestampSubmessageElement {
+                                                    value: TIME_INVALID,
+                                                },
+                                            }
+                                        };
 
-                                            vec![
-                                                RtpsSubmessageType::InfoTimestamp(info_ts),
-                                                RtpsSubmessageType::Data(data),
-                                            ]
-                                        }
-                                        RtpsStatefulSubmessage::Gap(gap) => {
-                                            vec![RtpsSubmessageType::Gap(gap)]
-                                        }
-                                        RtpsStatefulSubmessage::Heartbeat(heartbeat) => {
-                                            vec![RtpsSubmessageType::Heartbeat(heartbeat)]
-                                        }
-                                    })
-                                    .collect(),
-                            ),
-                            reader_proxy.unicast_locator_list()[0],
+                                        vec![
+                                            RtpsSubmessageType::InfoTimestamp(info_ts),
+                                            RtpsSubmessageType::Data(data),
+                                        ]
+                                    }
+                                    RtpsStatefulSubmessage::Gap(gap) => {
+                                        vec![RtpsSubmessageType::Gap(gap)]
+                                    }
+                                    RtpsStatefulSubmessage::Heartbeat(heartbeat) => {
+                                        vec![RtpsSubmessageType::Heartbeat(heartbeat)]
+                                    }
+                                })
+                                .collect(),
                         );
+
+                        for locator in reader_proxy.unicast_locator_list().iter() {
+                            self.transport.write(&message, *locator);
+                        }
                     }
                 }
             }

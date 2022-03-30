@@ -75,11 +75,11 @@ impl<'a> TransportWrite for UdpTransport {
     fn write(&mut self, message: &RtpsMessage, destination_locator: Locator) {
         let buf = to_bytes(message).unwrap();
         self.socket
-            .send_to(buf.as_slice(), UdpLocator(destination_locator))
-            .expect(&format!(
-                "Error sending message to {:?}",
-                destination_locator
-            ));
+            .send_to(buf.as_slice(), UdpLocator(destination_locator)).unwrap_or_default();
+            // .expect(&format!(
+            //     "Error sending message to {:?}",
+            //     destination_locator
+            // ));
     }
 }
 
