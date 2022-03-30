@@ -1,11 +1,11 @@
 use rtps_pim::{
-    messages::{submessage_elements::Parameter, types::ParameterId},
+    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, types::ParameterId, submessages::DataSubmessage},
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
             RtpsHistoryCacheAttributes, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
         },
-        types::{ChangeKind, Guid, InstanceHandle, SequenceNumber},
+        types::{ChangeKind, Guid, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -90,6 +90,35 @@ impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
     }
 }
 
+impl RtpsCacheChangeAttributes for &RtpsCacheChangeImpl {
+    type DataType = [u8];
+    type ParameterListType = RtpsParameterList;
+
+    fn kind(&self) -> ChangeKind {
+        self.kind
+    }
+
+    fn writer_guid(&self) -> Guid {
+        todo!()
+    }
+
+    fn instance_handle(&self) -> InstanceHandle {
+        todo!()
+    }
+
+    fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
+    }
+
+    fn data_value(&self) -> &Self::DataType {
+        todo!()
+    }
+
+    fn inline_qos(&self) -> &Self::ParameterListType {
+        todo!()
+    }
+}
+
 impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
     type DataType = [u8];
     type ParameterListType = RtpsParameterList;
@@ -118,6 +147,46 @@ impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
         &self.inline_qos
     }
 }
+
+
+impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheChangeImpl {
+    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let (data_flag, key_flag) = match self.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement { value: ENTITYID_UNKNOWN };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.writer_guid().entity_id(),
+        };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: self.sequence_number(),
+        };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: self.inline_qos().into(),
+        };
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: self.data_value().into(),
+        };
+        DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
+    }
+}
+
 
 pub struct RtpsHistoryCacheImpl {
     changes: Vec<RtpsCacheChangeImpl>,

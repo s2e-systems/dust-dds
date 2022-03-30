@@ -69,6 +69,8 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
         }
 
         for reader_locator in self.reader_locators.iter_mut() {
+            let locator = reader_locator.locator();
+
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
                     let submessages = RefCell::new(Vec::new());
@@ -90,7 +92,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
 
                     let submessages = submessages.take();
                     if !submessages.is_empty() {
-                        destined_submessages.push((reader_locator.locator(), submessages));
+                        destined_submessages.push((locator, submessages));
                     }
                 }
 
@@ -145,7 +147,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
 
                     let submessages = submessages.take();
                     if !submessages.is_empty() {
-                        destined_submessages.push((reader_locator.locator(), submessages));
+                        destined_submessages.push((locator, submessages));
                     }
                 }
             }
