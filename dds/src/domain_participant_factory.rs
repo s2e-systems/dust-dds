@@ -181,7 +181,7 @@ pub struct Communications {
     pub domain_id: DomainId,
     pub participant_id: usize,
     pub guid_prefix: GuidPrefix,
-    pub unicast_addresses: Vec<Ipv4Addr>,
+    pub unicast_address_list: Vec<Ipv4Addr>,
     pub multicast_address: Ipv4Addr,
     pub metatraffic_multicast: Communication<UdpTransport>,
     pub metatraffic_unicast: Communication<UdpTransport>,
@@ -192,7 +192,7 @@ impl Communications {
     pub fn find_available(
         domain_id: DomainId,
         mac_address: [u8; 6],
-        unicast_addresses: Vec<Ipv4Addr>,
+        unicast_address_list: Vec<Ipv4Addr>,
         multicast_address: Ipv4Addr,
     ) -> DdsResult<Self> {
         let metatraffic_multicast_socket =
@@ -234,7 +234,7 @@ impl Communications {
             domain_id,
             participant_id,
             guid_prefix,
-            unicast_addresses,
+            unicast_address_list,
             multicast_address,
             metatraffic_multicast: Communication {
                 version: PROTOCOLVERSION,
@@ -265,8 +265,8 @@ impl Communications {
         )]
     }
 
-    pub fn metatraffic_unicast_locators(&self) -> Vec<Locator> {
-        self.unicast_addresses
+    pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+        self.unicast_address_list
             .iter()
             .map(|&address| {
                 Locator::new(
@@ -278,8 +278,8 @@ impl Communications {
             .collect()
     }
 
-    pub fn default_unicast_locators(&self) -> Vec<Locator> {
-        self.unicast_addresses
+    pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
+        self.unicast_address_list
             .iter()
             .map(|&address| {
                 Locator::new(
@@ -354,9 +354,9 @@ impl DomainParticipantFactory {
             domain_id,
             "".to_string(),
             qos.clone(),
-            communications.metatraffic_unicast_locators(),
+            communications.metatraffic_unicast_locator_list(),
             communications.metatraffic_multicast_locators(),
-            communications.default_unicast_locators(),
+            communications.default_unicast_locator_list(),
             vec![],
         ));
 
@@ -1023,9 +1023,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -1043,9 +1043,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -1192,9 +1192,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1213,9 +1213,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
@@ -1420,9 +1420,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1441,9 +1441,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
@@ -1596,9 +1596,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1617,9 +1617,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());

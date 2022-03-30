@@ -619,9 +619,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -639,9 +639,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -869,9 +869,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -889,9 +889,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -1029,9 +1029,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_unicast_locator_list(),
             communications1.metatraffic_multicast_locators(),
-            communications1.default_unicast_locators(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -1049,9 +1049,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_unicast_locator_list(),
             communications2.metatraffic_multicast_locators(),
-            communications2.default_unicast_locators(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
