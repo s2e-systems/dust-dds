@@ -12,10 +12,7 @@ use rtps_implementation::{
     rtps_stateless_writer_impl::RtpsStatelessSubmessage,
 };
 use rtps_pim::{
-    behavior::{
-        reader::writer_proxy::RtpsWriterProxyAttributes,
-        writer::reader_proxy::RtpsReaderProxyAttributes,
-    },
+    behavior::reader::writer_proxy::RtpsWriterProxyAttributes,
     messages::{
         overall_structure::RtpsMessageHeader, submessage_elements::TimestampSubmessageElement,
         submessages::InfoTimestampSubmessage, types::TIME_INVALID,
@@ -120,7 +117,30 @@ where
                         ..message_header.clone()
                     };
 
-                    for (reader_proxy, submessages) in
+                    for (locator_list, submessages) in
+                        stateful_rtps_writer.produce_destined_requested_submessages()
+                    {
+                        self.transport.write(
+                            &RtpsMessage::new(
+                                message_header.clone(),
+                                submessages
+                                    .into_iter()
+                                    .flat_map(|submessage| match submessage {
+                                        RtpsStatefulSubmessage::Data(data) => {
+                                            vec![RtpsSubmessageType::Data(data)]
+                                        }
+                                        RtpsStatefulSubmessage::Gap(gap) => {
+                                            vec![RtpsSubmessageType::Gap(gap)]
+                                        }
+                                        RtpsStatefulSubmessage::Heartbeat(_) => unimplemented!(),
+                                    })
+                                    .collect(),
+                            ),
+                            locator_list[0],
+                        )
+                    }
+
+                    for (locator_list, submessages) in
                         stateful_rtps_writer.produce_destined_submessages()
                     {
                         let message = RtpsMessage::new(
@@ -169,8 +189,8 @@ where
                                 .collect(),
                         );
 
-                        for locator in reader_proxy.unicast_locator_list().iter() {
-                            self.transport.write(&message, *locator);
+                        for locator in locator_list {
+                            self.transport.write(&message, locator);
                         }
                     }
                 }
