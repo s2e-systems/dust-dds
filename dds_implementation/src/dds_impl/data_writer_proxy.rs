@@ -24,7 +24,7 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
 };
 use rtps_pim::{
-    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    behavior::writer::writer::RtpsWriterOperations,
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
@@ -230,7 +230,7 @@ where
                     .sample_info
                     .write_lock()
                     .insert(change.sequence_number(), timestamp);
-                rtps_writer.writer_cache().add_change(change);
+                rtps_writer.add_change(change);
             }
             RtpsWriter::Stateful(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
@@ -429,12 +429,6 @@ mod test {
 
     #[test]
     fn write_w_timestamp_stateless() {
-        let mut mock_writer_history_cache = MockRtpsHistoryCache::new();
-        mock_writer_history_cache
-            .expect_add_change_()
-            .once()
-            .return_const(());
-
         let mut mock_writer = MockRtpsStatelessWriter::new();
         mock_writer
             .expect_new_change()
@@ -444,10 +438,7 @@ mod test {
                 mock_cache_change.expect_sequence_number().return_const(1);
                 mock_cache_change
             });
-        mock_writer
-            .expect_writer_cache()
-            .once()
-            .return_var(mock_writer_history_cache);
+        mock_writer.expect_add_change_().once().return_const(());
 
         let dummy_topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
