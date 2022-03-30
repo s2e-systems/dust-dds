@@ -76,10 +76,6 @@ impl<'a> TransportWrite for UdpTransport {
         let buf = to_bytes(message).unwrap();
         self.socket
             .send_to(buf.as_slice(), UdpLocator(destination_locator)).unwrap_or_default();
-            // .expect(&format!(
-            //     "Error sending message to {:?}",
-            //     destination_locator
-            // ));
     }
 }
 
