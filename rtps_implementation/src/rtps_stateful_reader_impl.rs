@@ -50,19 +50,26 @@ impl RtpsStatefulReaderImpl {
             .iter_mut()
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
-            match self.reader.endpoint.reliability_level {
-                ReliabilityKind::BestEffort => BestEffortStatefulReaderBehavior::receive_data(
-                    writer_proxy,
-                    &mut self.reader.reader_cache,
-                    source_guid_prefix,
-                    data_submessage,
-                ),
-                ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::receive_data(
-                    writer_proxy,
-                    &mut self.reader.reader_cache,
-                    source_guid_prefix,
-                    data_submessage,
-                ),
+            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
+                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
+                || writer_proxy
+                    .missing_changes()
+                    .contains(&data_submessage.writer_sn.value)
+            {
+                match self.reader.endpoint.reliability_level {
+                    ReliabilityKind::BestEffort => BestEffortStatefulReaderBehavior::receive_data(
+                        writer_proxy,
+                        &mut self.reader.reader_cache,
+                        source_guid_prefix,
+                        data_submessage,
+                    ),
+                    ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::receive_data(
+                        writer_proxy,
+                        &mut self.reader.reader_cache,
+                        source_guid_prefix,
+                        data_submessage,
+                    ),
+                }
             }
         }
     }
