@@ -118,33 +118,27 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                     let writer_cache = &self.writer.writer_cache;
                     ReliableStatelessWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
-                        writer_cache,
                         |data| {
                             submessages
                                 .borrow_mut()
                                 .push(RtpsStatelessSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatelessSubmessage::Gap(gap))
                         },
                     );
 
-                    ReliableStatelessWriterBehavior::send_requested_changes(
-                        &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
-                        writer_cache,
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatelessSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatelessSubmessage::Gap(gap))
-                        },
-                    );
+                    // ReliableStatelessWriterBehavior::send_requested_changes(
+                    //     &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                    //     writer_cache,
+                    //     |data| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatelessSubmessage::Data(data))
+                    //     },
+                    //     |gap| {
+                    //         submessages
+                    //             .borrow_mut()
+                    //             .push(RtpsStatelessSubmessage::Gap(gap))
+                    //     },
+                    // );
 
                     let submessages = submessages.take();
                     if !submessages.is_empty() {
@@ -412,7 +406,7 @@ mod tests {
             }]),
         );
 
-        writer.writer.writer_cache.add_change(change);
+        writer.add_change(change);
 
         let change = RtpsCacheChangeImpl::new(
             ChangeKind::Alive,

@@ -4,9 +4,8 @@ use core::iter::FromIterator;
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+            SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
@@ -14,7 +13,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{ChangeKind, EntityId, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -75,86 +74,17 @@ pub struct ReliableStatelessWriterBehavior;
 
 impl ReliableStatelessWriterBehavior {
     /// 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<'a, CacheChange, S, P, D>(
+    pub fn send_unsent_changes<'a, CacheChange, P, D>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
-        writer_cache: &'a impl RtpsHistoryCacheAttributes,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         // CacheChange: RtpsCacheChangeAttributes + 'a,
-        // &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
-        // &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
-        // S: FromIterator<SequenceNumber>,
+        CacheChange: Into<DataSubmessage<P, D>>,
     {
-        // while let Some(seq_num) = reader_locator.next_unsent_change() {
-        //     let change = writer_cache
-        //         .changes()
-        //         .iter()
-        //         .filter(|cc| cc.sequence_number() == seq_num)
-        //         .next();
-        //     if let Some(change) = change {
-        //         let endianness_flag = true;
-        //         let inline_qos_flag = true;
-        //         let (data_flag, key_flag) = match change.kind() {
-        //             ChangeKind::Alive => (true, false),
-        //             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-        //                 (false, true)
-        //             }
-        //             _ => todo!(),
-        //         };
-        //         let non_standard_payload_flag = false;
-        //         let reader_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let writer_id = EntityIdSubmessageElement {
-        //             value: change.writer_guid().entity_id(),
-        //         };
-        //         let writer_sn = SequenceNumberSubmessageElement {
-        //             value: change.sequence_number(),
-        //         };
-        //         let inline_qos = ParameterListSubmessageElement {
-        //             parameter: change.inline_qos().into(),
-        //         };
-        //         let serialized_payload = SerializedDataSubmessageElement {
-        //             value: change.data_value().into(),
-        //         };
-        //         let data_submessage = DataSubmessage {
-        //             endianness_flag,
-        //             inline_qos_flag,
-        //             data_flag,
-        //             key_flag,
-        //             non_standard_payload_flag,
-        //             reader_id,
-        //             writer_id,
-        //             writer_sn,
-        //             inline_qos,
-        //             serialized_payload,
-        //         };
-        //         send_data(data_submessage);
-        //     } else {
-        //         let endianness_flag = true;
-        //         let reader_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let writer_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-        //         let gap_list = SequenceNumberSetSubmessageElement {
-        //             base: seq_num,
-        //             set: core::iter::empty().collect(),
-        //         };
-        //         let gap_submessage = GapSubmessage {
-        //             endianness_flag,
-        //             reader_id,
-        //             writer_id,
-        //             gap_start,
-        //             gap_list,
-        //         };
-        //         send_gap(gap_submessage);
-        //     }
-        // }
-        todo!()
+        while let Some(change) = reader_locator.next_unsent_change() {
+            let data_submessage = change.into();
+            send_data(data_submessage)
+        }
     }
 
     /// 8.4.8.2.5 Transition T5
@@ -207,84 +137,11 @@ impl ReliableStatelessWriterBehavior {
 
     /// 8.4.9.2.12 Transition T10
     pub fn send_requested_changes<'a, P, D, CacheChange, S>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations,
-        writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-    //     CacheChange: RtpsCacheChangeAttributes + 'a,
-    //     &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
-    //     &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
-    //     S: FromIterator<SequenceNumber>,
-    {
-        // while let Some(seq_num) = reader_locator.next_requested_change() {
-        //     let change = writer_cache
-        //         .changes()
-        //         .iter()
-        //         .filter(|cc| cc.sequence_number() == seq_num)
-        //         .next();
-        //     if let Some(change) = change {
-        //         let endianness_flag = true;
-        //         let inline_qos_flag = true;
-        //         let (data_flag, key_flag) = match change.kind() {
-        //             ChangeKind::Alive => (true, false),
-        //             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-        //                 (false, true)
-        //             }
-        //             _ => todo!(),
-        //         };
-        //         let non_standard_payload_flag = false;
-        //         let reader_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let writer_id = EntityIdSubmessageElement {
-        //             value: change.writer_guid().entity_id(),
-        //         };
-        //         let writer_sn = SequenceNumberSubmessageElement {
-        //             value: change.sequence_number(),
-        //         };
-        //         let inline_qos = ParameterListSubmessageElement {
-        //             parameter: change.inline_qos().into(),
-        //         };
-        //         let serialized_payload = SerializedDataSubmessageElement {
-        //             value: change.data_value().into(),
-        //         };
-        //         let data_submessage = DataSubmessage {
-        //             endianness_flag,
-        //             inline_qos_flag,
-        //             data_flag,
-        //             key_flag,
-        //             non_standard_payload_flag,
-        //             reader_id,
-        //             writer_id,
-        //             writer_sn,
-        //             inline_qos,
-        //             serialized_payload,
-        //         };
-        //         send_data(data_submessage)
-        //     } else {
-        //         let endianness_flag = true;
-        //         let reader_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let writer_id = EntityIdSubmessageElement {
-        //             value: ENTITYID_UNKNOWN,
-        //         };
-        //         let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-        //         let gap_list = SequenceNumberSetSubmessageElement {
-        //             base: seq_num,
-        //             set: core::iter::empty().collect(),
-        //         };
-        //         let gap_submessage = GapSubmessage {
-        //             endianness_flag,
-        //             reader_id,
-        //             writer_id,
-        //             gap_start,
-        //             gap_list,
-        //         };
-        //         send_gap(gap_submessage)
-        //     }
-        // }
+        _reader_locator: &mut impl RtpsReaderLocatorOperations,
+        _writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
+        mut _send_data: impl FnMut(DataSubmessage<P, D>),
+        mut _send_gap: impl FnMut(GapSubmessage<S>),
+    ) {
         todo!()
     }
 }
@@ -294,7 +151,7 @@ mod tests {
 
     use mockall::mock;
 
-    use crate::structure::types::{Guid, GuidPrefix, InstanceHandle};
+    use crate::structure::types::{ChangeKind, Guid, InstanceHandle};
 
     use super::*;
 

@@ -24,7 +24,7 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
 };
 use rtps_pim::{
-    behavior::writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+    behavior::writer::writer::RtpsWriterOperations,
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
@@ -429,7 +429,6 @@ mod test {
 
     #[test]
     fn write_w_timestamp_stateless() {
-
         let mut mock_writer = MockRtpsStatelessWriter::new();
         mock_writer
             .expect_new_change()
@@ -439,10 +438,7 @@ mod test {
                 mock_cache_change.expect_sequence_number().return_const(1);
                 mock_cache_change
             });
-        mock_writer
-            .expect_add_change_()
-            .once()
-            .return_const(());
+        mock_writer.expect_add_change_().once().return_const(());
 
         let dummy_topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),

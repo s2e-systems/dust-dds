@@ -17,7 +17,6 @@ pub struct RtpsReaderLocatorAttributesImpl {
     pub unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
     expects_inline_qos: bool,
-    last_sent_sequence_number: SequenceNumber,
     pub last_received_acknack_count: Count,
 }
 
@@ -35,7 +34,6 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
             expects_inline_qos,
             requested_changes: vec![],
             unsent_changes: vec![],
-            last_sent_sequence_number: 0,
             last_received_acknack_count: Count(0),
         }
     }
@@ -168,14 +166,27 @@ mod tests {
         ));
         let mut reader_locator_attributes =
             RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
+        reader_locator_attributes.unsent_changes = vec![1, 2];
         let mut reader_locator_operations = RtpsReaderLocatorOperationsImpl {
             reader_locator_attributes: &mut reader_locator_attributes,
             writer_cache: &hc,
         };
 
-        // assert_eq!(reader_locator_operations.next_unsent_change(), Some(1));
-        // assert_eq!(reader_locator_operations.next_unsent_change(), Some(2));
-        // assert_eq!(reader_locator_operations.next_unsent_change(), None);
+        assert_eq!(
+            reader_locator_operations
+                .next_unsent_change()
+                .unwrap()
+                .sequence_number,
+            1
+        );
+        assert_eq!(
+            reader_locator_operations
+                .next_unsent_change()
+                .unwrap()
+                .sequence_number,
+            2
+        );
+        assert!(reader_locator_operations.next_unsent_change().is_none());
     }
 
     #[test]
