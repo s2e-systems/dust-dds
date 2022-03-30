@@ -610,7 +610,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -619,9 +619,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_multicast_locators(),
+            communications1.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -630,7 +630,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -639,9 +639,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_multicast_locators(),
+            communications2.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -860,7 +860,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -869,9 +869,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_multicast_locators(),
+            communications1.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -880,7 +880,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -889,9 +889,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_multicast_locators(),
+            communications2.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -1020,7 +1020,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1029,9 +1029,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locators(),
+            communications1.metatraffic_multicast_locators(),
+            communications1.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -1040,7 +1040,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1049,9 +1049,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locators(),
+            communications2.metatraffic_multicast_locators(),
+            communications2.default_unicast_locators(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
