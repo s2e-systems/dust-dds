@@ -78,16 +78,10 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                     let writer_cache = &self.writer.writer_cache;
                     BestEffortStatelessWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
-                        writer_cache,
                         |data| {
                             submessages
                                 .borrow_mut()
                                 .push(RtpsStatelessSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatelessSubmessage::Gap(gap))
                         },
                     );
 

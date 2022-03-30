@@ -1,5 +1,12 @@
 use rtps_pim::{
-    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, types::ParameterId, submessages::DataSubmessage},
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        },
+        submessages::DataSubmessage,
+        types::ParameterId,
+    },
     structure::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         history_cache::{
@@ -49,7 +56,14 @@ pub struct RtpsCacheChangeImpl {
     pub data: RtpsData,
     pub inline_qos: RtpsParameterList,
 }
-
+impl PartialEq for RtpsCacheChangeImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.writer_guid == other.writer_guid
+            && self.sequence_number == other.sequence_number
+            && self.instance_handle == other.instance_handle
+    }
+}
 pub struct RtpsData(pub Vec<u8>);
 impl From<&&[u8]> for RtpsData {
     fn from(v: &&[u8]) -> Self {
@@ -148,7 +162,6 @@ impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
     }
 }
 
-
 impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheChangeImpl {
     fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
         let endianness_flag = true;
@@ -159,7 +172,9 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheCha
             _ => todo!(),
         };
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement { value: ENTITYID_UNKNOWN };
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
         let writer_id = EntityIdSubmessageElement {
             value: self.writer_guid().entity_id(),
         };
@@ -186,7 +201,6 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheCha
         }
     }
 }
-
 
 pub struct RtpsHistoryCacheImpl {
     changes: Vec<RtpsCacheChangeImpl>,

@@ -1,17 +1,13 @@
-use core::iter::FromIterator;
-
 /// This file implements the behaviors described in 8.4.8 RTPS StatelessWriter Behavior
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
-        cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     },
@@ -23,48 +19,15 @@ pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<LocatorCacheChange, WriterCacheChange, S, P, D>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = LocatorCacheChange>,
-        writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = WriterCacheChange>,
+    pub fn send_unsent_changes<CacheChange, P, D>(
+        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        LocatorCacheChange: RtpsCacheChangeAttributes,
-        WriterCacheChange: RtpsCacheChangeAttributes,
-        LocatorCacheChange: Into<DataSubmessage<P, D>>,
-        S: FromIterator<SequenceNumber>,
+        CacheChange: Into<DataSubmessage<P, D>>,
     {
         while let Some(change) = reader_locator.next_unsent_change() {
-            let seq_num = change.sequence_number();
-            if writer_cache
-                .changes()
-                .iter()
-                .any(|cc| cc.sequence_number() == seq_num)
-            {
-                let data_submessage = change.into();
-                send_data(data_submessage);
-            } else {
-                let endianness_flag = true;
-                let reader_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-                let gap_list = SequenceNumberSetSubmessageElement {
-                    base: seq_num,
-                    set: core::iter::empty().collect(),
-                };
-                let gap_submessage = GapSubmessage {
-                    endianness_flag,
-                    reader_id,
-                    writer_id,
-                    gap_start,
-                    gap_list,
-                };
-                send_gap(gap_submessage);
-            }
+            let data_submessage = change.into();
+            send_data(data_submessage);
         }
     }
 }
@@ -78,7 +41,6 @@ impl ReliableStatelessWriterBehavior {
         reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
     ) where
-        // CacheChange: RtpsCacheChangeAttributes + 'a,
         CacheChange: Into<DataSubmessage<P, D>>,
     {
         while let Some(change) = reader_locator.next_unsent_change() {
@@ -151,95 +113,17 @@ mod tests {
 
     use mockall::mock;
 
-    use crate::structure::types::{ChangeKind, Guid, InstanceHandle};
+    use crate::messages::submessage_elements::{
+        ParameterListSubmessageElement, SerializedDataSubmessageElement,
+    };
 
     use super::*;
 
-    struct MockData;
-    impl From<&MockData> for () {
-        fn from(_: &MockData) -> Self {
-            ()
-        }
-    }
-
-    struct MockParameterList;
-    impl From<&MockParameterList> for () {
-        fn from(_: &MockParameterList) -> Self {
-            ()
-        }
-    }
-
-    struct MockCacheChange {
-        kind: ChangeKind,
-        writer_guid: Guid,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        data_value: MockData,
-        inline_qos: MockParameterList,
-    }
-
-    impl RtpsCacheChangeAttributes for MockCacheChange {
-        type DataType = MockData;
-        type ParameterListType = MockParameterList;
-
-        fn kind(&self) -> ChangeKind {
-            self.kind
-        }
-
-        fn writer_guid(&self) -> Guid {
-            self.writer_guid
-        }
-
-        fn instance_handle(&self) -> InstanceHandle {
-            self.instance_handle
-        }
-
-        fn sequence_number(&self) -> SequenceNumber {
-            self.sequence_number
-        }
-
-        fn data_value(&self) -> &Self::DataType {
-            &self.data_value
-        }
-
-        fn inline_qos(&self) -> &Self::ParameterListType {
-            &self.inline_qos
-        }
-    }
-
     mock! {
-        HistoryCache{
-            fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
-            fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
-        }
+        CacheChange{}
 
-        impl RtpsHistoryCacheAttributes for HistoryCache{
-            type CacheChangeType = MockCacheChange;
-
-            fn changes(&self) -> &[MockCacheChange];
-        }
-    }
-
-    impl RtpsHistoryCacheOperations for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-
-        fn add_change(&mut self, _change: Self::CacheChangeType) {
-            todo!()
-        }
-
-        fn remove_change<F>(&mut self, _f: F)
-        where
-            F: FnMut(&Self::CacheChangeType) -> bool,
-        {
-            todo!()
-        }
-
-        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            self.get_seq_num_min_()
-        }
-
-        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-            self.get_seq_num_max_()
+        impl Into<DataSubmessage<(), ()>> for CacheChange {
+            fn into(self) -> DataSubmessage<(), ()>;
         }
     }
 
@@ -247,11 +131,11 @@ mod tests {
         ReaderLocator{}
 
         impl RtpsReaderLocatorOperations for ReaderLocator {
-            type CacheChangeType = i64;
+            type CacheChangeType = MockCacheChange;
             type CacheChangeListType = Vec<i64>;
 
-            fn next_requested_change(&mut self) -> Option<i64>;
-            fn next_unsent_change(&mut self) -> Option<i64>;
+            fn next_requested_change(&mut self) -> Option<MockCacheChange>;
+            fn next_unsent_change(&mut self) -> Option<MockCacheChange>;
             fn requested_changes(&self) -> Vec<i64>;
             fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
             fn unsent_changes(&self) -> Vec<i64>;
@@ -263,398 +147,56 @@ mod tests {
             fn send_data(&mut self, data: DataSubmessage<(), ()> );
         }
     }
-    mock! {
-        GapMessageSender {
-            fn send_gap(&mut self, gap: GapSubmessage<Vec<SequenceNumber>>);
-        }
+
+    #[test]
+    fn best_effort_stateless_writer_send_unsent_changes_single_data_submessage() {
+        let mut seq = mockall::Sequence::new();
+
+        let mut reader_locator = MockReaderLocator::new();
+        let mut data_message_sender = MockDataMessageSender::new();
+
+        const DATA_SUBMESSAGE: DataSubmessage<(), ()> = DataSubmessage {
+            endianness_flag: false,
+            inline_qos_flag: false,
+            data_flag: false,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: 1 },
+            inline_qos: ParameterListSubmessageElement { parameter: () },
+            serialized_payload: SerializedDataSubmessageElement { value: () },
+        };
+
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .returning(|| {
+                let mut c = MockCacheChange::new();
+                c.expect_into().returning(|| DATA_SUBMESSAGE);
+                Some(c)
+            })
+            .in_sequence(&mut seq);
+
+        data_message_sender
+            .expect_send_data()
+            .once()
+            .withf(|data| data.writer_sn.value == 1)
+            .return_const(())
+            .in_sequence(&mut seq);
+
+        reader_locator
+            .expect_next_unsent_change()
+            .once()
+            .returning(|| None)
+            .in_sequence(&mut seq);
+
+        BestEffortStatelessWriterBehavior::send_unsent_changes(&mut reader_locator, |data| {
+            data_message_sender.send_data(data)
+        })
     }
-
-    mock! {
-        HeartbeatMessageSender {
-            fn send_heartbeat(&mut self, heartbeat: HeartbeatSubmessage);
-        }
-    }
-
-    // #[test]
-    // fn best_effort_stateless_writer_send_unsent_changes_single_data_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![MockCacheChange {
-    //             kind: ChangeKind::Alive,
-    //             writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
-    //             instance_handle: 1,
-    //             sequence_number: 1,
-    //             data_value: MockData,
-    //             inline_qos: MockParameterList,
-    //         }])
-    //         .in_sequence(&mut seq);
-    //     data_message_sender
-    //         .expect_send_data()
-    //         // Can't use a complete expected DataSubmessage due to issues with the lifetime.
-    //         .withf(|data| {
-    //             data.data_flag == true
-    //                 && data.key_flag == false
-    //                 && data.non_standard_payload_flag == false
-    //                 && data.writer_sn.value == 1
-    //         })
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     BestEffortStatelessWriterBehavior::send_unsent_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
-
-    // #[test]
-    // fn best_effort_stateless_writer_send_unsent_changes_single_gap_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![])
-    //         .in_sequence(&mut seq);
-    //     gap_message_sender
-    //         .expect_send_gap()
-    //         .with(mockall::predicate::eq(GapSubmessage {
-    //             endianness_flag: true,
-    //             reader_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             writer_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             gap_start: SequenceNumberSubmessageElement { value: 1 },
-    //             gap_list: SequenceNumberSetSubmessageElement {
-    //                 base: 1,
-    //                 set: vec![],
-    //             },
-    //         }))
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     BestEffortStatelessWriterBehavior::send_unsent_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_send_unsent_changes_single_data_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![MockCacheChange {
-    //             kind: ChangeKind::Alive,
-    //             writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
-    //             instance_handle: 1,
-    //             sequence_number: 1,
-    //             data_value: MockData,
-    //             inline_qos: MockParameterList,
-    //         }])
-    //         .in_sequence(&mut seq);
-    //     data_message_sender
-    //         .expect_send_data()
-    //         // Can't use a complete expected DataSubmessage due to issues with the lifetime.
-    //         .withf(|data| {
-    //             data.data_flag == true
-    //                 && data.key_flag == false
-    //                 && data.non_standard_payload_flag == false
-    //                 && data.writer_sn.value == 1
-    //         })
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     ReliableStatelessWriterBehavior::send_unsent_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_send_unsent_changes_single_gap_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![])
-    //         .in_sequence(&mut seq);
-    //     gap_message_sender
-    //         .expect_send_gap()
-    //         .with(mockall::predicate::eq(GapSubmessage {
-    //             endianness_flag: true,
-    //             reader_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             writer_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             gap_start: SequenceNumberSubmessageElement { value: 1 },
-    //             gap_list: SequenceNumberSetSubmessageElement {
-    //                 base: 1,
-    //                 set: vec![],
-    //             },
-    //         }))
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_unsent_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     ReliableStatelessWriterBehavior::send_unsent_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_send_heartbeat() {
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut heartbeat_submessage_sender = MockHeartbeatMessageSender::new();
-    //     let writer_id = EntityId::new([1; 3], 1);
-    //     let heartbeat_count = Count(1);
-
-    //     writer_cache
-    //         .expect_get_seq_num_min_()
-    //         .once()
-    //         .return_const(Some(1));
-    //     writer_cache
-    //         .expect_get_seq_num_max_()
-    //         .once()
-    //         .return_const(Some(4));
-
-    //     heartbeat_submessage_sender
-    //         .expect_send_heartbeat()
-    //         .once()
-    //         .with(mockall::predicate::eq(HeartbeatSubmessage {
-    //             endianness_flag: true,
-    //             final_flag: false,
-    //             liveliness_flag: false,
-    //             reader_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             writer_id: EntityIdSubmessageElement { value: writer_id },
-    //             first_sn: SequenceNumberSubmessageElement { value: 1 },
-    //             last_sn: SequenceNumberSubmessageElement { value: 4 },
-    //             count: CountSubmessageElement {
-    //                 value: heartbeat_count,
-    //             },
-    //         }))
-    //         .return_const(());
-
-    //     ReliableStatelessWriterBehavior::send_heartbeat(
-    //         &mut writer_cache,
-    //         writer_id,
-    //         heartbeat_count,
-    //         |heartbeat| heartbeat_submessage_sender.send_heartbeat(heartbeat),
-    //     );
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_receive_acknack() {
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let acknack = AckNackSubmessage {
-    //         endianness_flag: true,
-    //         final_flag: true,
-    //         reader_id: EntityIdSubmessageElement {
-    //             value: ENTITYID_UNKNOWN,
-    //         },
-    //         writer_id: EntityIdSubmessageElement {
-    //             value: ENTITYID_UNKNOWN,
-    //         },
-    //         reader_sn_state: SequenceNumberSetSubmessageElement {
-    //             base: 1,
-    //             set: vec![2, 3],
-    //         },
-    //         count: CountSubmessageElement { value: Count(1) },
-    //     };
-
-    //     reader_locator
-    //         .expect_requested_changes_set()
-    //         .with(mockall::predicate::eq(&[2, 3][..]))
-    //         .once()
-    //         .return_const(());
-
-    //     ReliableStatelessWriterBehavior::receive_acknack(&mut reader_locator, &acknack);
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_send_requested_changes_single_data_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_requested_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![MockCacheChange {
-    //             kind: ChangeKind::Alive,
-    //             writer_guid: Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)),
-    //             instance_handle: 1,
-    //             sequence_number: 1,
-    //             data_value: MockData,
-    //             inline_qos: MockParameterList,
-    //         }])
-    //         .in_sequence(&mut seq);
-    //     data_message_sender
-    //         .expect_send_data()
-    //         // Can't use a complete expected DataSubmessage due to issues with the lifetime.
-    //         .withf(|data| {
-    //             data.data_flag == true
-    //                 && data.key_flag == false
-    //                 && data.non_standard_payload_flag == false
-    //                 && data.writer_sn.value == 1
-    //         })
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_requested_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     ReliableStatelessWriterBehavior::send_requested_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
-
-    // #[test]
-    // fn reliable_stateless_writer_send_requested_changes_single_gap_submessage() {
-    //     let mut seq = mockall::Sequence::new();
-
-    //     let mut reader_locator = MockReaderLocator::new();
-    //     let mut writer_cache = MockHistoryCache::new();
-    //     let mut data_message_sender = MockDataMessageSender::new();
-    //     let mut gap_message_sender = MockGapMessageSender::new();
-
-    //     reader_locator
-    //         .expect_next_requested_change()
-    //         .once()
-    //         .return_const(Some(1))
-    //         .in_sequence(&mut seq);
-    //     writer_cache
-    //         .expect_changes()
-    //         .once()
-    //         .return_const(vec![])
-    //         .in_sequence(&mut seq);
-    //     gap_message_sender
-    //         .expect_send_gap()
-    //         .with(mockall::predicate::eq(GapSubmessage {
-    //             endianness_flag: true,
-    //             reader_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             writer_id: EntityIdSubmessageElement {
-    //                 value: ENTITYID_UNKNOWN,
-    //             },
-    //             gap_start: SequenceNumberSubmessageElement { value: 1 },
-    //             gap_list: SequenceNumberSetSubmessageElement {
-    //                 base: 1,
-    //                 set: vec![],
-    //             },
-    //         }))
-    //         .once()
-    //         .return_const(())
-    //         .in_sequence(&mut seq);
-    //     reader_locator
-    //         .expect_next_requested_change()
-    //         .once()
-    //         .return_const(None)
-    //         .in_sequence(&mut seq);
-
-    //     ReliableStatelessWriterBehavior::send_requested_changes(
-    //         &mut reader_locator,
-    //         &writer_cache,
-    //         |data| data_message_sender.send_data(data),
-    //         |gap| gap_message_sender.send_gap(gap),
-    //     )
-    // }
 }
