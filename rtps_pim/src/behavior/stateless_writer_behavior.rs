@@ -24,23 +24,23 @@ pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<'a, CacheChange, S, P, D>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
-        writer_cache: &'a impl RtpsHistoryCacheAttributes,
+    pub fn send_unsent_changes<LocatorCacheChange, WriterCacheChange, S, P, D>(
+        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = LocatorCacheChange>,
+        writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = WriterCacheChange>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes,
-        CacheChange: Into<DataSubmessage<P, D>>,
+        LocatorCacheChange: RtpsCacheChangeAttributes,
+        WriterCacheChange: RtpsCacheChangeAttributes,
+        LocatorCacheChange: Into<DataSubmessage<P, D>>,
         S: FromIterator<SequenceNumber>,
     {
         while let Some(change) = reader_locator.next_unsent_change() {
             let seq_num = change.sequence_number();
-            // if writer_cache
-            //     .changes()
-            //     .iter()
-            //     .any(|cc| cc.sequence_number() == seq_num)
-            if true
+            if writer_cache
+                .changes()
+                .iter()
+                .any(|cc| cc.sequence_number() == seq_num)
             {
                 let data_submessage = change.into();
                 send_data(data_submessage);
@@ -154,6 +154,7 @@ impl ReliableStatelessWriterBehavior {
         //         send_gap(gap_submessage);
         //     }
         // }
+        todo!()
     }
 
     /// 8.4.8.2.5 Transition T5
@@ -284,6 +285,7 @@ impl ReliableStatelessWriterBehavior {
         //         send_gap(gap_submessage)
         //     }
         // }
+        todo!()
     }
 }
 

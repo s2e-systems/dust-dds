@@ -23,6 +23,7 @@ use rtps_pim::{
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{
             ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
             ENTITYID_UNKNOWN,
@@ -281,7 +282,13 @@ impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriter
 impl<T> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<T> {
     type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
+    fn reader_locator_add(&mut self, mut a_locator: Self::ReaderLocatorType) {
+        a_locator.unsent_changes = self
+            .writer_cache()
+            .changes()
+            .iter()
+            .map(|c| c.sequence_number)
+            .collect();
         self.reader_locators.push(a_locator);
     }
 
@@ -311,6 +318,31 @@ impl<T> RtpsWriterOperations for RtpsStatelessWriterImpl<T> {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.writer.new_change(kind, data, _inline_qos, handle)
+    }
+}
+
+impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
+    type CacheChangeType = RtpsCacheChangeImpl;
+
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        for reader_locator in &mut self.reader_locators {
+            reader_locator.unsent_changes.push(change.sequence_number);
+        }
+        self.writer.writer_cache.add_change(change);
+    }
+
+    fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&Self::CacheChangeType) -> bool {
+            self.writer.writer_cache.remove_change(f)
+    }
+
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        self.writer.writer_cache.get_seq_num_min()
+    }
+
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        self.writer.writer_cache.get_seq_num_max()
     }
 }
 

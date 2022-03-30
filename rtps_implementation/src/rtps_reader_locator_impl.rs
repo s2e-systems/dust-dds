@@ -13,8 +13,8 @@ use crate::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
 use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 pub struct RtpsReaderLocatorAttributesImpl {
-    requested_changes: Vec<SequenceNumber>,
-    unsent_changes: Vec<SequenceNumber>,
+    pub requested_changes: Vec<SequenceNumber>,
+    pub unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
     expects_inline_qos: bool,
     last_sent_sequence_number: SequenceNumber,

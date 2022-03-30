@@ -30,7 +30,8 @@ pub trait RtpsStructure {
             DataType = Vec<u8>,
             ParameterListType = Vec<u8>,
             CacheChangeType = Self::CacheChange,
-        > + RtpsWriterAttributes<HistoryCacheType = Self::HistoryCache>;
+        > + RtpsWriterAttributes<HistoryCacheType = Self::HistoryCache>
+        + RtpsHistoryCacheOperations<CacheChangeType = Self::CacheChange>;
     type StatefulWriter: RtpsStatefulWriterConstructor
         + RtpsWriterOperations<
             DataType = Vec<u8>,
