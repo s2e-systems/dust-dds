@@ -207,46 +207,4 @@ mod tests {
             expected_requested_changes
         )
     }
-
-    // #[test]
-    // fn reader_locator_unsent_changes() {
-    //     let mut hc = RtpsHistoryCacheImpl::new();
-    //     hc.add_change(RtpsCacheChangeImpl::new(
-    //         ChangeKind::Alive,
-    //         GUID_UNKNOWN,
-    //         0,
-    //         2,
-    //         RtpsData(vec![]),
-    //         RtpsParameterList(vec![]),
-    //     ));
-    //     hc.add_change(RtpsCacheChangeImpl::new(
-    //         ChangeKind::Alive,
-    //         GUID_UNKNOWN,
-    //         0,
-    //         4,
-    //         RtpsData(vec![]),
-    //         RtpsParameterList(vec![]),
-    //     ));
-    //     hc.add_change(RtpsCacheChangeImpl::new(
-    //         ChangeKind::Alive,
-    //         GUID_UNKNOWN,
-    //         0,
-    //         6,
-    //         RtpsData(vec![]),
-    //         RtpsParameterList(vec![]),
-    //     ));
-    //     let mut reader_locator_attributes =
-    //         RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
-    //     let mut reader_locator_operations = RtpsReaderLocatorOperationsImpl {
-    //         reader_locator_attributes: &mut reader_locator_attributes,
-    //         writer_cache: &hc,
-    //     };
-
-    //     let unsent_changes = reader_locator_operations.unsent_changes();
-    //     assert_eq!(unsent_changes, vec![2, 4, 6]);
-
-    //     reader_locator_operations.next_unsent_change();
-    //     let unsent_changes = reader_locator_operations.unsent_changes();
-    //     assert_eq!(unsent_changes, vec![4, 6]);
-    // }
 }
