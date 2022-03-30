@@ -181,7 +181,7 @@ pub struct Communications {
     pub domain_id: DomainId,
     pub participant_id: usize,
     pub guid_prefix: GuidPrefix,
-    pub unicast_address: Ipv4Addr,
+    pub unicast_address_list: Vec<Ipv4Addr>,
     pub multicast_address: Ipv4Addr,
     pub metatraffic_multicast: Communication<UdpTransport>,
     pub metatraffic_unicast: Communication<UdpTransport>,
@@ -192,7 +192,7 @@ impl Communications {
     pub fn find_available(
         domain_id: DomainId,
         mac_address: [u8; 6],
-        unicast_address: Ipv4Addr,
+        unicast_address_list: Vec<Ipv4Addr>,
         multicast_address: Ipv4Addr,
     ) -> DdsResult<Self> {
         let metatraffic_multicast_socket =
@@ -234,7 +234,7 @@ impl Communications {
             domain_id,
             participant_id,
             guid_prefix,
-            unicast_address,
+            unicast_address_list,
             multicast_address,
             metatraffic_multicast: Communication {
                 version: PROTOCOLVERSION,
@@ -257,28 +257,38 @@ impl Communications {
         })
     }
 
-    pub fn metatraffic_multicast_locator(&self) -> Locator {
-        Locator::new(
+    pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
+        vec![Locator::new(
             LOCATOR_KIND_UDPv4,
             port_builtin_multicast(self.domain_id as u16) as u32,
             locator_from_ipv4(self.multicast_address),
-        )
+        )]
     }
 
-    pub fn metatraffic_unicast_locator(&self) -> Locator {
-        Locator::new(
-            LOCATOR_KIND_UDPv4,
-            port_builtin_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
-            locator_from_ipv4(self.unicast_address),
-        )
+    pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
+        self.unicast_address_list
+            .iter()
+            .map(|&address| {
+                Locator::new(
+                    LOCATOR_KIND_UDPv4,
+                    port_builtin_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
+                    locator_from_ipv4(address),
+                )
+            })
+            .collect()
     }
 
-    pub fn default_unicast_locator(&self) -> Locator {
-        Locator::new(
-            LOCATOR_KIND_UDPv4,
-            port_user_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
-            locator_from_ipv4(self.unicast_address),
-        )
+    pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
+        self.unicast_address_list
+            .iter()
+            .map(|&address| {
+                Locator::new(
+                    LOCATOR_KIND_UDPv4,
+                    port_user_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
+                    locator_from_ipv4(address),
+                )
+            })
+            .collect()
     }
 }
 
@@ -308,31 +318,34 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipantProxy<RtpsStructureImpl>> {
         let qos = qos.unwrap_or_default();
 
-        let interface = ifcfg::IfCfg::get()
+        let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
             .into_iter()
-            .find(|i| i.name == "Wi-Fi" || i.name == "eth0")
-            .expect("Could not find 'Wi-Fi' or 'eth0' interface");
-
-        let unicast_address = interface
-            .addresses
-            .into_iter()
-            .filter_map(|a| match a.address? {
-                SocketAddr::V4(v4) => Some(*v4.ip()),
-                SocketAddr::V6(_) => None,
+            .flat_map(|i| {
+                i.addresses.into_iter().filter_map(|a| match a.address? {
+                    SocketAddr::V4(v4) => Some(*v4.ip()),
+                    SocketAddr::V6(_) => None,
+                })
             })
-            .next()
-            .ok_or(DdsError::PreconditionNotMet(
-                "No Ipv4 address for interface".to_string(),
-            ))?;
+            .collect();
 
-        let mac_address = MacAddress::from_str(&interface.mac)
-            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
+        assert!(
+            !unicast_address_list.is_empty(),
+            "Could not find any IPv4 address"
+        );
+
+        let mac_address = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
+            .filter(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
+            .next()
+            .expect("Could not find any mac address");
 
         let communications = Communications::find_available(
             domain_id,
             mac_address.bytes(),
-            unicast_address,
+            unicast_address_list,
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
@@ -341,9 +354,9 @@ impl DomainParticipantFactory {
             domain_id,
             "".to_string(),
             qos.clone(),
-            vec![communications.metatraffic_unicast_locator()],
-            vec![communications.metatraffic_multicast_locator()],
-            vec![communications.default_unicast_locator()],
+            communications.metatraffic_unicast_locator_list(),
+            communications.metatraffic_multicast_locator_list(),
+            communications.default_unicast_locator_list(),
             vec![],
         ));
 
@@ -871,7 +884,7 @@ mod tests {
         let comm1 = Communications::find_available(
             0,
             [0; 6],
-            [127, 0, 0, 1].into(),
+            vec![[127, 0, 0, 1].into()],
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
@@ -879,7 +892,7 @@ mod tests {
         let comm2 = Communications::find_available(
             0,
             [0; 6],
-            [127, 0, 0, 1].into(),
+            vec![[127, 0, 0, 1].into()],
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
@@ -1001,7 +1014,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            interface_address.into(),
+            vec![interface_address.into()],
             multicast_ip.into(),
         )
         .unwrap();
@@ -1010,9 +1023,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant1.clone()).unwrap();
@@ -1020,7 +1033,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            interface_address.into(),
+            vec![interface_address.into()],
             multicast_ip.into(),
         )
         .unwrap();
@@ -1030,9 +1043,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
@@ -1169,7 +1182,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1179,9 +1192,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1190,7 +1203,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            [127, 0, 0, 1].into(),
+            vec![[127, 0, 0, 1].into()],
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )
         .unwrap();
@@ -1200,9 +1213,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
@@ -1397,7 +1410,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1407,9 +1420,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1418,7 +1431,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1428,9 +1441,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
@@ -1573,7 +1586,7 @@ mod tests {
         let mut communications1 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1583,9 +1596,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications1.metatraffic_unicast_locator()],
-            vec![communications1.metatraffic_multicast_locator()],
-            vec![communications1.default_unicast_locator()],
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
             vec![],
         ));
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
@@ -1594,7 +1607,7 @@ mod tests {
         let mut communications2 = Communications::find_available(
             domain_id,
             [0; 6],
-            unicast_address.into(),
+            vec![unicast_address.into()],
             multicast_address.into(),
         )
         .unwrap();
@@ -1604,9 +1617,9 @@ mod tests {
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            vec![communications2.metatraffic_unicast_locator()],
-            vec![communications2.metatraffic_multicast_locator()],
-            vec![communications2.default_unicast_locator()],
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
             vec![],
         ));
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
