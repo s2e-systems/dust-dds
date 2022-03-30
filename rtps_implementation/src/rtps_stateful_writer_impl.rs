@@ -6,7 +6,7 @@ use rtps_pim::{
             BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
         },
         types::{
-            ChangeForReaderStatusKind::{Unacknowledged, Unsent, self},
+            ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
             Duration,
         },
         writer::{
@@ -26,7 +26,7 @@ use rtps_pim::{
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheOperations, RtpsHistoryCacheAttributes},
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{
             ChangeKind, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
             TopicKind,
@@ -60,24 +60,19 @@ pub struct RtpsStatefulWriterImpl<T> {
 }
 
 impl<T: Timer> RtpsStatefulWriterImpl<T> {
-    pub fn produce_destined_submessages<'a>(
+    pub fn produce_destined_requested_submessages<'a>(
         &'a mut self,
-    ) -> Vec<(&mut RtpsReaderProxyImpl, Vec<RtpsStatefulSubmessage<'a>>)> {
+    ) -> Vec<(Vec<Locator>, Vec<RtpsStatefulSubmessage<'a>>)> {
         let mut destined_submessages = Vec::new();
 
-        let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
-                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
-        if time_for_heartbeat {
-            self.heartbeat_timer.reset();
-        }
-
         for reader_proxy in &mut self.matched_readers {
+            let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id().clone();
             match self.writer.endpoint.reliability_level {
-                ReliabilityKind::BestEffort => {
+                ReliabilityKind::BestEffort => todo!(),
+                ReliabilityKind::Reliable => {
                     let submessages = RefCell::new(Vec::new());
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                    BestEffortStatefulWriterBehavior::send_unsent_changes(
+                    ReliableStatefulWriterBehavior::send_requested_changes(
                         &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
@@ -95,11 +90,59 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                                 .push(RtpsStatefulSubmessage::Gap(gap))
                         },
                     );
+                    let submessages = submessages.take();
+
+                    if !submessages.is_empty() {
+                        destined_submessages.push((unicast_locator_list, submessages));
+                    }
+                }
+            }
+        }
+        destined_submessages
+    }
+
+    pub fn produce_destined_submessages<'a>(
+        &'a mut self,
+    ) -> Vec<(Vec<Locator>, Vec<RtpsStatefulSubmessage<'a>>)> {
+        let mut destined_submessages = Vec::new();
+
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+        }
+
+        for reader_proxy in &mut self.matched_readers {
+            let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id().clone();
+
+            match self.writer.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => {
+                    let submessages = RefCell::new(Vec::new());
+                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    BestEffortStatefulWriterBehavior::send_unsent_changes(
+                        &mut RtpsReaderProxyOperationsImpl::new(
+                            reader_proxy,
+                            &self.writer.writer_cache,
+                        ),
+                        reader_id,
+                        |data| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Data(data))
+                        },
+                        |gap| {
+                            submessages
+                                .borrow_mut()
+                                .push(RtpsStatefulSubmessage::Gap(gap))
+                        },
+                    );
 
                     let submessages = submessages.take();
 
                     if !submessages.is_empty() {
-                        destined_submessages.push((reader_proxy, submessages));
+                        destined_submessages.push((unicast_locator_list, submessages));
                     }
                 }
 
@@ -121,32 +164,11 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                         );
                     }
 
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     ReliableStatefulWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                         ),
-                        &self.writer.writer_cache,
-                        reader_id,
-                        |data| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Data(data))
-                        },
-                        |gap| {
-                            submessages
-                                .borrow_mut()
-                                .push(RtpsStatefulSubmessage::Gap(gap))
-                        },
-                    );
-                    ReliableStatefulWriterBehavior::send_requested_changes(
-                        &mut RtpsReaderProxyOperationsImpl::new(
-                            reader_proxy,
-                            &self.writer.writer_cache,
-                        ),
-                        &self.writer.writer_cache,
-                        reader_id,
                         |data| {
                             submessages
                                 .borrow_mut()
@@ -162,7 +184,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                     let submessages = submessages.take();
 
                     if !submessages.is_empty() {
-                        destined_submessages.push((reader_proxy, submessages));
+                        destined_submessages.push((unicast_locator_list, submessages));
                     }
                 }
             }
@@ -310,12 +332,12 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
         };
         for change in self.writer.writer_cache().changes() {
             a_reader_proxy
-            .changes_for_reader_mut()
-            .push(RtpsChangeForReaderImpl {
-                status,
-                is_relevant: true,
-                sequence_number: change.sequence_number,
-            });
+                .changes_for_reader_mut()
+                .push(RtpsChangeForReaderImpl {
+                    status,
+                    is_relevant: true,
+                    sequence_number: change.sequence_number,
+                });
         }
 
         self.matched_readers.push(a_reader_proxy)
@@ -502,11 +524,8 @@ mod tests {
 
         let destined_submessages = writer.produce_destined_submessages();
         assert_eq!(1, destined_submessages.len());
-        let (reader_proxy, submessages) = &destined_submessages[0];
-        assert_eq!(
-            matched_reader_proxy.unicast_locator_list(),
-            reader_proxy.unicast_locator_list()
-        );
+        let (locator, submessages) = &destined_submessages[0];
+        assert_eq!(matched_reader_proxy.unicast_locator_list(), locator);
         assert_eq!(1, submessages.len());
 
         if let RtpsStatefulSubmessage::Data(data) = &submessages[0] {
