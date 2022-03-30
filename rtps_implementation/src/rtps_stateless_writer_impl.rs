@@ -78,6 +78,7 @@ impl<T: Timer> RtpsStatelessWriterImpl<T> {
                     let writer_cache = &self.writer.writer_cache;
                     BestEffortStatelessWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                        writer_cache,
                         |data| {
                             submessages
                                 .borrow_mut()
@@ -321,8 +322,9 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
 
     fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool {
-            self.writer.writer_cache.remove_change(f)
+        F: FnMut(&Self::CacheChangeType) -> bool,
+    {
+        self.writer.writer_cache.remove_change(f)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
