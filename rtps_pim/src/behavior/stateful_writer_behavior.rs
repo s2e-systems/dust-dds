@@ -26,24 +26,23 @@ pub struct BestEffortStatefulWriterBehavior;
 
 impl BestEffortStatefulWriterBehavior {
     /// 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<S, P, D, ChangeForReader>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader>,
-        reader_id: EntityId,
+    pub fn send_unsent_changes<C, P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        ChangeForReader: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        ChangeForReader: Into<SequenceNumber>,
-        ChangeForReader: Into<DataSubmessage<P, D>>,
+        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
+        C: Into<DataSubmessage<P, D>>,
         S: FromIterator<SequenceNumber>,
     {
+        let reader_id = reader_proxy.remote_reader_guid().entity_id();
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
             if change_for_reader.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id = EntityIdSubmessageElement { value: reader_id };
                 send_data(data_submessage)
             } else {
-                let seq_num = change_for_reader.into();
+                let seq_num = change_for_reader.sequence_number();
                 let endianness_flag = true;
                 let reader_id = EntityIdSubmessageElement { value: reader_id };
                 let writer_id = EntityIdSubmessageElement {
@@ -72,13 +71,13 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<'a, S, P, D, ChangeForReader>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader> + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<C, P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        ChangeForReader: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        ChangeForReader: Into<DataSubmessage<P, D>>,
+        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
+        C: Into<DataSubmessage<P, D>>,
         S: FromIterator<SequenceNumber>,
     {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
