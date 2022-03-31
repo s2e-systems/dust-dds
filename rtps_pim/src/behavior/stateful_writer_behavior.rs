@@ -56,6 +56,16 @@ impl BestEffortStatefulWriterBehavior {
     }
 }
 
+trait IsEmpty {
+    fn is_empty(self) -> bool;
+}
+
+impl<T: IntoIterator> IsEmpty for T {
+    fn is_empty(self) -> bool {
+        self.into_iter().next().is_none()
+    }
+}
+
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.9.2 Reliable StatefulWriter Behavior
 pub struct ReliableStatefulWriterBehavior;
 
@@ -75,7 +85,7 @@ impl ReliableStatefulWriterBehavior {
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        while reader_proxy.unsent_changes().into_iter().next().is_some() {
+        while !reader_proxy.unsent_changes().is_empty() {
             let change = reader_proxy.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -154,7 +164,7 @@ impl ReliableStatefulWriterBehavior {
     ) {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        while reader_proxy.requested_changes().into_iter().next().is_some() {
+        while !reader_proxy.requested_changes().is_empty() {
             let change_for_reader = reader_proxy.next_requested_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference

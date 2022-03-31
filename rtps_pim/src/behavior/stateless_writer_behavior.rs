@@ -17,6 +17,16 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
+trait IsEmpty {
+    fn is_empty(self) -> bool;
+}
+
+impl<T: IntoIterator> IsEmpty for T {
+    fn is_empty(self) -> bool {
+        self.into_iter().next().is_none()
+    }
+}
+
 pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
@@ -32,7 +42,7 @@ impl BestEffortStatelessWriterBehavior {
     ) where
         C: PartialEq,
     {
-        while reader_locator.unsent_changes().into_iter().next().is_some() {
+        while !reader_locator.unsent_changes().is_empty() {
             let change = reader_locator.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
@@ -60,7 +70,7 @@ impl ReliableStatelessWriterBehavior {
         >,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
     ) {
-        while reader_locator.unsent_changes().into_iter().next().is_some() {
+        while !reader_locator.unsent_changes().is_empty() {
             let change = reader_locator.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
