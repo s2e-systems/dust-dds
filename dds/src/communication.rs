@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{cell::RefCell, ops::DerefMut};
 
 use dds_implementation::{
     dds_impl::{
@@ -8,18 +8,28 @@ use dds_implementation::{
     utils::shared_object::DdsShared,
 };
 use rtps_implementation::{
-    rtps_stateful_writer_impl::RtpsStatefulSubmessage,
-    rtps_stateless_writer_impl::RtpsStatelessSubmessage,
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    rtps_stateful_writer_impl::RtpsStatefulSubmessage, utils::clock::Timer,
 };
 use rtps_pim::{
-    behavior::reader::writer_proxy::RtpsWriterProxyAttributes,
+    behavior::{
+        reader::writer_proxy::RtpsWriterProxyAttributes,
+        stateless_writer_behavior::{
+            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
+        },
+        writer::reader_locator::RtpsReaderLocatorAttributes,
+    },
     messages::{
-        overall_structure::RtpsMessageHeader, submessage_elements::TimestampSubmessageElement,
-        submessages::InfoTimestampSubmessage, types::TIME_INVALID,
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::TimestampSubmessageElement,
+        submessages::InfoTimestampSubmessage,
+        types::{Count, TIME_INVALID},
     },
     structure::{
         entity::RtpsEntityAttributes,
-        types::{GuidPrefix, ProtocolVersion, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{
+            GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
+        },
     },
 };
 use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
@@ -59,54 +69,133 @@ where
                         ..message_header.clone()
                     };
 
-                    for (locator, submessages) in
-                        stateless_rtps_writer.produce_destined_submessages()
-                    {
+                    let mut destined_submessages = Vec::new();
+
+                    let time_for_heartbeat = stateless_rtps_writer.heartbeat_timer.elapsed()
+                        >= std::time::Duration::from_secs(
+                            stateless_rtps_writer.writer.heartbeat_period.seconds as u64,
+                        ) + std::time::Duration::from_nanos(
+                            stateless_rtps_writer.writer.heartbeat_period.fraction as u64,
+                        );
+                    if time_for_heartbeat {
+                        stateless_rtps_writer.heartbeat_timer.reset();
+                    }
+
+                    for reader_locator in stateless_rtps_writer.reader_locators.iter_mut() {
+                        let locator = reader_locator.locator();
+
+                        match stateless_rtps_writer.writer.endpoint.reliability_level {
+                            ReliabilityKind::BestEffort => {
+                                let submessages = RefCell::new(Vec::new());
+                                let writer_cache = &stateless_rtps_writer.writer.writer_cache;
+                                BestEffortStatelessWriterBehavior::send_unsent_changes(
+                                    &mut RtpsReaderLocatorOperationsImpl::new(
+                                        reader_locator,
+                                        writer_cache,
+                                    ),
+                                    writer_cache,
+                                    |data| {
+                                        let info_ts = if let Some(time) = any_data_writer
+                                            .sample_info
+                                            .read_lock()
+                                            .get(&data.writer_sn.value)
+                                        {
+                                            InfoTimestampSubmessage {
+                                                endianness_flag: true,
+                                                invalidate_flag: false,
+                                                timestamp: TimestampSubmessageElement {
+                                                    value: rtps_pim::messages::types::Time(
+                                                        ((time.sec as u64) << 32)
+                                                            + time.nanosec as u64,
+                                                    ),
+                                                },
+                                            }
+                                        } else {
+                                            InfoTimestampSubmessage {
+                                                endianness_flag: true,
+                                                invalidate_flag: true,
+                                                timestamp: TimestampSubmessageElement {
+                                                    value: TIME_INVALID,
+                                                },
+                                            }
+                                        };
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::InfoTimestamp(info_ts));
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::Data(data));
+                                    },
+                                    |gap| {
+                                        submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap));
+                                    },
+                                );
+
+                                let submessages = submessages.take();
+                                if !submessages.is_empty() {
+                                    destined_submessages.push((locator, submessages));
+                                }
+                            }
+
+                            ReliabilityKind::Reliable => {
+                                let submessages = RefCell::new(Vec::new());
+
+                                if time_for_heartbeat {
+                                    stateless_rtps_writer.heartbeat_count = Count(
+                                        stateless_rtps_writer.heartbeat_count.0.wrapping_add(1),
+                                    );
+
+                                    ReliableStatelessWriterBehavior::send_heartbeat(
+                                        &stateless_rtps_writer.writer.writer_cache,
+                                        stateless_rtps_writer.writer.endpoint.entity.guid.entity_id,
+                                        stateless_rtps_writer.heartbeat_count,
+                                        |heartbeat| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                        },
+                                    );
+                                }
+
+                                let writer_cache = &stateless_rtps_writer.writer.writer_cache;
+                                ReliableStatelessWriterBehavior::send_unsent_changes(
+                                    &mut RtpsReaderLocatorOperationsImpl::new(
+                                        reader_locator,
+                                        writer_cache,
+                                    ),
+                                    |data| {
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::Data(data));
+                                    },
+                                );
+
+                                // ReliableStatelessWriterBehavior::send_requested_changes(
+                                //     &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
+                                //     writer_cache,
+                                //     |data| {
+                                //         submessages
+                                //             .borrow_mut()
+                                //             .push(RtpsStatelessSubmessage::Data(data))
+                                //     },
+                                //     |gap| {
+                                //         submessages
+                                //             .borrow_mut()
+                                //             .push(RtpsStatelessSubmessage::Gap(gap))
+                                //     },
+                                // );
+
+                                let submessages = submessages.take();
+                                if !submessages.is_empty() {
+                                    destined_submessages.push((locator, submessages));
+                                }
+                            }
+                        }
+                    }
+
+                    for (locator, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(
-                                message_header.clone(),
-                                submessages
-                                    .into_iter()
-                                    .flat_map(|submessage| match submessage {
-                                        RtpsStatelessSubmessage::Data(data) => {
-                                            let info_ts = if let Some(time) = any_data_writer
-                                                .sample_info
-                                                .read_lock()
-                                                .get(&data.writer_sn.value)
-                                            {
-                                                InfoTimestampSubmessage {
-                                                    endianness_flag: true,
-                                                    invalidate_flag: false,
-                                                    timestamp: TimestampSubmessageElement {
-                                                        value: rtps_pim::messages::types::Time(
-                                                            ((time.sec as u64) << 32)
-                                                                + time.nanosec as u64,
-                                                        ),
-                                                    },
-                                                }
-                                            } else {
-                                                InfoTimestampSubmessage {
-                                                    endianness_flag: true,
-                                                    invalidate_flag: true,
-                                                    timestamp: TimestampSubmessageElement {
-                                                        value: TIME_INVALID,
-                                                    },
-                                                }
-                                            };
-                                            vec![
-                                                RtpsSubmessageType::InfoTimestamp(info_ts),
-                                                RtpsSubmessageType::Data(data),
-                                            ]
-                                        }
-                                        RtpsStatelessSubmessage::Gap(gap) => {
-                                            vec![RtpsSubmessageType::Gap(gap)]
-                                        }
-                                        RtpsStatelessSubmessage::Heartbeat(heartbeat) => {
-                                            vec![RtpsSubmessageType::Heartbeat(heartbeat)]
-                                        }
-                                    })
-                                    .collect(),
-                            ),
+                            &RtpsMessage::new(message_header.clone(), submessages),
                             locator,
                         );
                     }
