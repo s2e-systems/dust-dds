@@ -18,32 +18,31 @@ use crate::{
     },
 };
 
-use super::writer::{
+use super::{writer::{
     change_for_reader::RtpsChangeForReaderAttributes, reader_proxy::{RtpsReaderProxyOperations, RtpsReaderProxyAttributes},
-};
+}, reader::reader::RtpsReaderAttributes};
 
 pub struct BestEffortStatefulWriterBehavior;
 
 impl BestEffortStatefulWriterBehavior {
     /// 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<S, P, D, ChangeForReader>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader>,
-        reader_id: EntityId,
+    pub fn send_unsent_changes<C, P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        ChangeForReader: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        ChangeForReader: Into<SequenceNumber>,
-        ChangeForReader: Into<DataSubmessage<P, D>>,
+        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
+        C: Into<DataSubmessage<P, D>>,
         S: FromIterator<SequenceNumber>,
     {
+        let reader_id = reader_proxy.remote_reader_guid().entity_id();
         while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
             if change_for_reader.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id = EntityIdSubmessageElement { value: reader_id };
                 send_data(data_submessage)
             } else {
-                let seq_num = change_for_reader.into();
+                let seq_num = change_for_reader.sequence_number();
                 let endianness_flag = true;
                 let reader_id = EntityIdSubmessageElement { value: reader_id };
                 let writer_id = EntityIdSubmessageElement {
@@ -72,13 +71,13 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<'a, S, P, D, ChangeForReader>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader> + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<C, P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        ChangeForReader: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        ChangeForReader: Into<DataSubmessage<P, D>>,
+        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
+        C: Into<DataSubmessage<P, D>>,
         S: FromIterator<SequenceNumber>,
     {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -158,65 +157,23 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 
-    /// 8.4.8.2.10 Transition T10
-    pub fn send_requested_changes<'a, CacheChange, S, P, D, ChangeForReader>(
-        reader_proxy: &mut impl RtpsReaderProxyOperations<ChangeForReaderType = ChangeForReader>,
-        writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
-        reader_id: EntityId,
+    /// 8.4.9.2.10 Transition T12
+    pub fn send_requested_changes<'a, C, P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
-        CacheChange: RtpsCacheChangeAttributes + 'a,
-        ChangeForReader: Into<SequenceNumber>,
-        &'a <CacheChange as RtpsCacheChangeAttributes>::DataType: Into<D>,
-        &'a <CacheChange as RtpsCacheChangeAttributes>::ParameterListType: Into<P>,
+        C: Into<DataSubmessage<P, D>> + RtpsChangeForReaderAttributes + RtpsCacheChangeAttributes,
         S: FromIterator<SequenceNumber>,
     {
+        let reader_id = reader_proxy.remote_reader_guid().entity_id();
         while let Some(change_for_reader) = reader_proxy.next_requested_change() {
-            let seq_num = change_for_reader.into();
-            let change = writer_cache
-                .changes()
-                .iter()
-                .filter(|cc| cc.sequence_number() == seq_num)
-                .next();
-            if let Some(change) = change {
-                let endianness_flag = true;
-                let inline_qos_flag = true;
-                let (data_flag, key_flag) = match change.kind() {
-                    ChangeKind::Alive => (true, false),
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                        (false, true)
-                    }
-                    _ => todo!(),
-                };
-                let non_standard_payload_flag = false;
-                let reader_id = EntityIdSubmessageElement { value: reader_id };
-                let writer_id = EntityIdSubmessageElement {
-                    value: change.writer_guid().entity_id(),
-                };
-                let writer_sn = SequenceNumberSubmessageElement {
-                    value: change.sequence_number(),
-                };
-                let inline_qos = ParameterListSubmessageElement {
-                    parameter: change.inline_qos().into(),
-                };
-                let serialized_payload = SerializedDataSubmessageElement {
-                    value: change.data_value().into(),
-                };
-                let data_submessage = DataSubmessage {
-                    endianness_flag,
-                    inline_qos_flag,
-                    data_flag,
-                    key_flag,
-                    non_standard_payload_flag,
-                    reader_id,
-                    writer_id,
-                    writer_sn,
-                    inline_qos,
-                    serialized_payload,
-                };
+            if change_for_reader.is_relevant() {
+                let mut data_submessage = change_for_reader.into();
+                data_submessage.reader_id.value = reader_id;
                 send_data(data_submessage)
             } else {
+                let seq_num = change_for_reader.sequence_number();
                 let endianness_flag = true;
                 let reader_id = EntityIdSubmessageElement { value: reader_id };
                 let writer_id = EntityIdSubmessageElement {

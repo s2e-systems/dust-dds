@@ -67,7 +67,6 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
 
         for reader_proxy in &mut self.matched_readers {
             let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
-            let reader_id = reader_proxy.remote_reader_guid().entity_id().clone();
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => todo!(),
                 ReliabilityKind::Reliable => {
@@ -77,8 +76,6 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                             reader_proxy,
                             &self.writer.writer_cache,
                         ),
-                        &self.writer.writer_cache,
-                        reader_id,
                         |data| {
                             submessages
                                 .borrow_mut()
@@ -119,13 +116,11 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
             match self.writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
                     let submessages = RefCell::new(Vec::new());
-                    let reader_id = reader_proxy.remote_reader_guid().entity_id();
                     BestEffortStatefulWriterBehavior::send_unsent_changes(
                         &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,
                         ),
-                        reader_id,
                         |data| {
                             submessages
                                 .borrow_mut()

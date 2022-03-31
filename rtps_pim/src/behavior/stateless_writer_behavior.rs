@@ -110,7 +110,6 @@ impl ReliableStatelessWriterBehavior {
     /// 8.4.9.2.12 Transition T10
     pub fn send_requested_changes<'a, P, D, CacheChange, S>(
         _reader_locator: &mut impl RtpsReaderLocatorOperations,
-        _writer_cache: &'a impl RtpsHistoryCacheAttributes<CacheChangeType = CacheChange>,
         mut _send_data: impl FnMut(DataSubmessage<P, D>),
         mut _send_gap: impl FnMut(GapSubmessage<S>),
     ) {
