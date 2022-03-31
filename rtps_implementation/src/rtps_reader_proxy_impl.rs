@@ -10,7 +10,7 @@ use rtps_pim::{
             },
         },
     },
-    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, submessages::DataSubmessage, types::Count},
+    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, submessages::{DataSubmessage, GapSubmessage}, types::Count},
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
@@ -185,7 +185,16 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         })
     }
 }
-
+impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsChangeForReaderCacheChange<'a> {
+    fn into(self) -> GapSubmessage<Vec<SequenceNumber>> {
+        todo!()
+    }
+}
+impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for &RtpsCacheChangeImpl {
+    fn into(self) -> GapSubmessage<Vec<SequenceNumber>> {
+        todo!()
+    }
+}
 impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForReaderCacheChange<'a> {
     fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
         let endianness_flag = true;

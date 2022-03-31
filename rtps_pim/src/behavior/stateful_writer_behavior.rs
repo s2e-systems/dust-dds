@@ -1,65 +1,49 @@
-use core::iter::FromIterator;
-
 /// This file implements the behaviors described in 8.4.9 RTPS StatefulWriter Behavior
 use crate::{
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-            SerializedDataSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
     structure::{
-        cache_change::RtpsCacheChangeAttributes,
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{ChangeKind, EntityId, SequenceNumber, ENTITYID_UNKNOWN},
+        history_cache::RtpsHistoryCacheOperations,
+        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
-use super::{writer::{
-    change_for_reader::RtpsChangeForReaderAttributes, reader_proxy::{RtpsReaderProxyOperations, RtpsReaderProxyAttributes},
-}, reader::reader::RtpsReaderAttributes};
+use super::writer::{
+    change_for_reader::RtpsChangeForReaderAttributes,
+    reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
+};
 
 pub struct BestEffortStatefulWriterBehavior;
 
 impl BestEffortStatefulWriterBehavior {
     /// 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        C: Into<DataSubmessage<P, D>>,
-        S: FromIterator<SequenceNumber>,
-    {
+    ) {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            if change_for_reader.is_relevant() {
-                let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
-                data_submessage.reader_id = EntityIdSubmessageElement { value: reader_id };
+        while let Some(change) = reader_proxy.next_unsent_change() {
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            if change.is_relevant() {
+                let mut data_submessage: DataSubmessage<P, D> = change.into();
+                data_submessage.reader_id.value = reader_id;
                 send_data(data_submessage)
             } else {
-                let seq_num = change_for_reader.sequence_number();
-                let endianness_flag = true;
-                let reader_id = EntityIdSubmessageElement { value: reader_id };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-                let gap_list = SequenceNumberSetSubmessageElement {
-                    base: seq_num,
-                    set: core::iter::empty().collect(),
-                };
-                let gap_submessage = GapSubmessage {
-                    endianness_flag,
-                    reader_id,
-                    writer_id,
-                    gap_start,
-                    gap_list,
-                };
+                let mut gap_submessage: GapSubmessage<S> = change.into();
+                gap_submessage.reader_id.value = reader_id;
                 send_gap(gap_submessage)
             }
         }
@@ -71,40 +55,29 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: RtpsCacheChangeAttributes + RtpsChangeForReaderAttributes,
-        C: Into<DataSubmessage<P, D>>,
-        S: FromIterator<SequenceNumber>,
-    {
+    ) {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        while let Some(change_for_reader) = reader_proxy.next_unsent_change() {
-            if change_for_reader.is_relevant() {
-                let mut data_submessage = change_for_reader.into();
+
+        while let Some(change) = reader_proxy.next_unsent_change() {
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            if change.is_relevant() {
+                let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
                 send_data(data_submessage)
             } else {
-                let seq_num = change_for_reader.sequence_number();
-                let endianness_flag = true;
-                let reader_id = EntityIdSubmessageElement { value: reader_id };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-                let gap_list = SequenceNumberSetSubmessageElement {
-                    base: seq_num,
-                    set: core::iter::empty().collect(),
-                };
-                let gap_submessage = GapSubmessage {
-                    endianness_flag,
-                    reader_id,
-                    writer_id,
-                    gap_start,
-                    gap_list,
-                };
+                let mut gap_submessage: GapSubmessage<S> = change.into();
+                gap_submessage.reader_id.value = reader_id;
                 send_gap(gap_submessage)
             }
         }
@@ -157,40 +130,27 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 
-    /// 8.4.9.2.10 Transition T12
-    pub fn send_requested_changes<'a, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C> + RtpsReaderProxyAttributes),
+    /// 8.4.9.2.12 Transition T12
+    pub fn send_requested_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: Into<DataSubmessage<P, D>> + RtpsChangeForReaderAttributes + RtpsCacheChangeAttributes,
-        S: FromIterator<SequenceNumber>,
-    {
+    ) {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
         while let Some(change_for_reader) = reader_proxy.next_requested_change() {
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
             if change_for_reader.is_relevant() {
-                let mut data_submessage = change_for_reader.into();
+                let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id.value = reader_id;
                 send_data(data_submessage)
             } else {
-                let seq_num = change_for_reader.sequence_number();
-                let endianness_flag = true;
-                let reader_id = EntityIdSubmessageElement { value: reader_id };
-                let writer_id = EntityIdSubmessageElement {
-                    value: ENTITYID_UNKNOWN,
-                };
-                let gap_start = SequenceNumberSubmessageElement { value: seq_num };
-                let gap_list = SequenceNumberSetSubmessageElement {
-                    base: seq_num,
-                    set: core::iter::empty().collect(),
-                };
-                let gap_submessage = GapSubmessage {
-                    endianness_flag,
-                    reader_id,
-                    writer_id,
-                    gap_start,
-                    gap_list,
-                };
+                let mut gap_submessage: GapSubmessage<S> = change_for_reader.into();
+                gap_submessage.reader_id.value = reader_id;
                 send_gap(gap_submessage)
             }
         }
