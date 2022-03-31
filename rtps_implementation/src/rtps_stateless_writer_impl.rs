@@ -1,6 +1,5 @@
 use rtps_pim::{
     behavior::{
-        stateless_writer_behavior::ReliableStatelessWriterBehavior,
         types::Duration,
         writer::{
             stateless_writer::{
@@ -10,22 +9,18 @@ use rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    messages::{submessages::AckNackSubmessage, types::Count},
+    messages::types::Count,
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{
             ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-            ENTITYID_UNKNOWN,
         },
     },
 };
 
-use crate::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-    utils::clock::{Timer, TimerConstructor},
-};
+use crate::utils::clock::TimerConstructor;
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -39,30 +34,6 @@ pub struct RtpsStatelessWriterImpl<T> {
     pub reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
     pub heartbeat_timer: T,
     pub heartbeat_count: Count,
-}
-
-impl<T: Timer> RtpsStatelessWriterImpl<T> {
-    pub fn process_acknack_submessage(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
-        if self.writer.endpoint.reliability_level == ReliabilityKind::Reliable {
-            if acknack.reader_id.value == ENTITYID_UNKNOWN
-                || acknack.reader_id.value == self.writer.endpoint.entity.guid.entity_id()
-            {
-                for reader_locator in self.reader_locators.iter_mut() {
-                    if reader_locator.last_received_acknack_count != acknack.count.value {
-                        ReliableStatelessWriterBehavior::receive_acknack(
-                            &mut RtpsReaderLocatorOperationsImpl::new(
-                                reader_locator,
-                                &self.writer.writer_cache,
-                            ),
-                            acknack,
-                        );
-
-                        reader_locator.last_received_acknack_count = acknack.count.value;
-                    }
-                }
-            }
-        }
-    }
 }
 
 impl<T> RtpsEntityAttributes for RtpsStatelessWriterImpl<T> {

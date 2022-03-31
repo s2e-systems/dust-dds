@@ -9,15 +9,20 @@ use dds_implementation::{
 };
 use rtps_implementation::{
     rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-    rtps_stateful_writer_impl::RtpsStatefulSubmessage, utils::clock::Timer,
+    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::Timer,
 };
 use rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxyAttributes,
+        stateful_writer_behavior::{
+            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+        },
         stateless_writer_behavior::{
             BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
         },
-        writer::reader_locator::RtpsReaderLocatorAttributes,
+        writer::{
+            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+        },
     },
     messages::{
         overall_structure::RtpsMessageHeader,
@@ -206,38 +211,110 @@ where
                         ..message_header.clone()
                     };
 
-                    for (locator_list, submessages) in
-                        stateful_rtps_writer.produce_destined_requested_submessages()
-                    {
+                    let mut destined_submessages = Vec::new();
+
+                    for reader_proxy in &mut stateful_rtps_writer.matched_readers {
+                        let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
+                        match stateful_rtps_writer.writer.endpoint.reliability_level {
+                            ReliabilityKind::BestEffort => todo!(),
+                            ReliabilityKind::Reliable => {
+                                let submessages = RefCell::new(Vec::new());
+                                ReliableStatefulWriterBehavior::send_requested_changes(
+                                    &mut RtpsReaderProxyOperationsImpl::new(
+                                        reader_proxy,
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                    ),
+                                    |data| {
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::Data(data))
+                                    },
+                                    |gap| {
+                                        submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap))
+                                    },
+                                );
+                                let submessages = submessages.take();
+
+                                if !submessages.is_empty() {
+                                    destined_submessages.push((unicast_locator_list, submessages));
+                                }
+                            }
+                        }
+                    }
+
+                    for (locator_list, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(
-                                message_header.clone(),
-                                submessages
-                                    .into_iter()
-                                    .flat_map(|submessage| match submessage {
-                                        RtpsStatefulSubmessage::Data(data) => {
-                                            vec![RtpsSubmessageType::Data(data)]
-                                        }
-                                        RtpsStatefulSubmessage::Gap(gap) => {
-                                            vec![RtpsSubmessageType::Gap(gap)]
-                                        }
-                                        RtpsStatefulSubmessage::Heartbeat(_) => unimplemented!(),
-                                    })
-                                    .collect(),
-                            ),
+                            &RtpsMessage::new(message_header.clone(), submessages),
                             locator_list[0],
                         )
                     }
 
-                    for (locator_list, submessages) in
-                        stateful_rtps_writer.produce_destined_submessages()
-                    {
-                        let message = RtpsMessage::new(
-                            message_header.clone(),
-                            submessages
-                                .into_iter()
-                                .flat_map(|submessage| match submessage {
-                                    RtpsStatefulSubmessage::Data(data) => {
+                    let mut destined_submessages = Vec::new();
+
+                    let time_for_heartbeat = stateful_rtps_writer.heartbeat_timer.elapsed()
+                        >= std::time::Duration::from_secs(
+                            stateful_rtps_writer.writer.heartbeat_period.seconds as u64,
+                        ) + std::time::Duration::from_nanos(
+                            stateful_rtps_writer.writer.heartbeat_period.fraction as u64,
+                        );
+                    if time_for_heartbeat {
+                        stateful_rtps_writer.heartbeat_timer.reset();
+                    }
+
+                    for reader_proxy in &mut stateful_rtps_writer.matched_readers {
+                        let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
+
+                        match stateful_rtps_writer.writer.endpoint.reliability_level {
+                            ReliabilityKind::BestEffort => {
+                                let submessages = RefCell::new(Vec::new());
+                                BestEffortStatefulWriterBehavior::send_unsent_changes(
+                                    &mut RtpsReaderProxyOperationsImpl::new(
+                                        reader_proxy,
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                    ),
+                                    |data| {
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::Data(data))
+                                    },
+                                    |gap| {
+                                        submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap))
+                                    },
+                                );
+
+                                let submessages = submessages.take();
+
+                                if !submessages.is_empty() {
+                                    destined_submessages.push((unicast_locator_list, submessages));
+                                }
+                            }
+
+                            ReliabilityKind::Reliable => {
+                                let submessages = RefCell::new(Vec::new());
+
+                                if time_for_heartbeat {
+                                    stateful_rtps_writer.heartbeat_count = Count(
+                                        stateful_rtps_writer.heartbeat_count.0.wrapping_add(1),
+                                    );
+
+                                    ReliableStatefulWriterBehavior::send_heartbeat(
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                        stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
+                                        stateful_rtps_writer.heartbeat_count,
+                                        |heartbeat| {
+                                            submessages
+                                                .borrow_mut()
+                                                .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                        },
+                                    );
+                                }
+
+                                ReliableStatefulWriterBehavior::send_unsent_changes(
+                                    &mut RtpsReaderProxyOperationsImpl::new(
+                                        reader_proxy,
+                                        &stateful_rtps_writer.writer.writer_cache,
+                                    ),
+                                    |data| {
                                         let info_ts = if let Some(time) = any_data_writer
                                             .sample_info
                                             .read_lock()
@@ -262,21 +339,29 @@ where
                                                 },
                                             }
                                         };
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::InfoTimestamp(info_ts));
+                                        submessages
+                                            .borrow_mut()
+                                            .push(RtpsSubmessageType::Data(data));
+                                    },
+                                    |gap| {
+                                        submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap));
+                                    },
+                                );
 
-                                        vec![
-                                            RtpsSubmessageType::InfoTimestamp(info_ts),
-                                            RtpsSubmessageType::Data(data),
-                                        ]
-                                    }
-                                    RtpsStatefulSubmessage::Gap(gap) => {
-                                        vec![RtpsSubmessageType::Gap(gap)]
-                                    }
-                                    RtpsStatefulSubmessage::Heartbeat(heartbeat) => {
-                                        vec![RtpsSubmessageType::Heartbeat(heartbeat)]
-                                    }
-                                })
-                                .collect(),
-                        );
+                                let submessages = submessages.take();
+
+                                if !submessages.is_empty() {
+                                    destined_submessages.push((unicast_locator_list, submessages));
+                                }
+                            }
+                        }
+                    }
+
+                    for (locator_list, submessages) in destined_submessages {
+                        let message = RtpsMessage::new(message_header.clone(), submessages);
 
                         for locator in locator_list {
                             self.transport.write(&message, locator);
