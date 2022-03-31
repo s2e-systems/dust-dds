@@ -158,7 +158,7 @@ impl<T: Timer> RtpsStatefulWriterImpl<T> {
                         );
                     }
 
-                    ReliableStatefulWriterBehavior::send_unsent_changes(
+                    ReliableStatefulWriterBehavior::on_reader_proxy_can_send(
                         &mut RtpsReaderProxyOperationsImpl::new(
                             reader_proxy,
                             &self.writer.writer_cache,

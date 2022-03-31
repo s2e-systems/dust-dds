@@ -24,6 +24,7 @@ impl BestEffortStatefulWriterBehavior {
     /// 8.4.9.1.4 Transition T4
     pub fn send_unsent_changes<P, D, S>(
         reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderListType = impl IntoIterator,
             ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
                                        + Into<GapSubmessage<S>>
                                        + RtpsChangeForReaderAttributes),
@@ -34,7 +35,9 @@ impl BestEffortStatefulWriterBehavior {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        while let Some(change) = reader_proxy.next_unsent_change() {
+
+        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+            let change = reader_proxy.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
             if change.is_relevant() {
@@ -55,8 +58,9 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<P, D, S>(
+    pub fn on_reader_proxy_can_send<P, D, S>(
         reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderListType = impl IntoIterator,
             ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
                                        + Into<GapSubmessage<S>>
                                        + RtpsChangeForReaderAttributes),
@@ -68,7 +72,8 @@ impl ReliableStatefulWriterBehavior {
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        while let Some(change) = reader_proxy.next_unsent_change() {
+        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+            let change = reader_proxy.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
             if change.is_relevant() {
@@ -133,6 +138,7 @@ impl ReliableStatefulWriterBehavior {
     /// 8.4.9.2.12 Transition T12
     pub fn send_requested_changes<P, D, S>(
         reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderListType = impl IntoIterator,
             ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
                                        + Into<GapSubmessage<S>>
                                        + RtpsChangeForReaderAttributes),
@@ -141,7 +147,9 @@ impl ReliableStatefulWriterBehavior {
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        while let Some(change_for_reader) = reader_proxy.next_requested_change() {
+
+        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+            let change_for_reader = reader_proxy.next_requested_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
             if change_for_reader.is_relevant() {

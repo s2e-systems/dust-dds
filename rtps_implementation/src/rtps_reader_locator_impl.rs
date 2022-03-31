@@ -69,7 +69,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
     type CacheChangeType = &'a RtpsCacheChangeImpl;
     type CacheChangeListType = Vec<SequenceNumber>;
 
-    fn next_requested_change(&mut self) -> Option<Self::CacheChangeType> {
+    fn next_requested_change(&mut self) -> Self::CacheChangeType {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()};
         // return change IN this.requested_changes()
@@ -80,7 +80,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .requested_changes
             .iter()
             .min()
-            .cloned()?;
+            .cloned().unwrap();
 
         // 8.4.8.2.4 Transition T4
         // "After the transition, the following post-conditions hold:
@@ -92,10 +92,10 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
         self.writer_cache
             .changes()
             .iter()
-            .find(|c| c.sequence_number == next_seq_num)
+            .find(|c| c.sequence_number == next_seq_num).unwrap()
     }
 
-    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType> {
+    fn next_unsent_change(&mut self) -> Self::CacheChangeType {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
@@ -106,7 +106,8 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .unsent_changes
             .iter()
             .min()
-            .cloned()?;
+            .cloned()
+            .unwrap();
 
         // 8.4.8.2.10 Transition T10
         // "After the transition, the following post-conditions hold:
@@ -119,6 +120,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .changes()
             .iter()
             .find(|c| c.sequence_number == next_seq_num)
+            .unwrap()
     }
 
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
@@ -175,18 +177,15 @@ mod tests {
         assert_eq!(
             reader_locator_operations
                 .next_unsent_change()
-                .unwrap()
                 .sequence_number,
             1
         );
         assert_eq!(
             reader_locator_operations
                 .next_unsent_change()
-                .unwrap()
                 .sequence_number,
             2
         );
-        assert!(reader_locator_operations.next_unsent_change().is_none());
     }
 
     #[test]
