@@ -23,11 +23,11 @@ impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
     pub fn send_unsent_changes<C, P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<
-            CacheChangeType = impl Borrow<C> + Into<DataSubmessage<P, D>>,
+            CacheChangeType = impl Borrow<C> + Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>>,
         >,
         writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut _send_gap: impl FnMut(GapSubmessage<S>),
+        mut send_gap: impl FnMut(GapSubmessage<S>),
     ) where
         C: PartialEq,
     {
@@ -36,7 +36,8 @@ impl BestEffortStatelessWriterBehavior {
                 let data_submessage = change.into();
                 send_data(data_submessage);
             } else {
-                todo!()
+                let gap_submessage = change.into();
+                send_gap(gap_submessage);
             }
         }
     }
@@ -47,12 +48,12 @@ pub struct ReliableStatelessWriterBehavior;
 
 impl ReliableStatelessWriterBehavior {
     /// 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<'a, CacheChange, P, D>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<CacheChangeType = CacheChange>,
+    pub fn send_unsent_changes<P, D>(
+        reader_locator: &mut impl RtpsReaderLocatorOperations<
+            CacheChangeType = impl Into<DataSubmessage<P, D>>,
+        >,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
-    ) where
-        CacheChange: Into<DataSubmessage<P, D>>,
-    {
+    ) {
         while let Some(change) = reader_locator.next_unsent_change() {
             let data_submessage = change.into();
             send_data(data_submessage)
@@ -107,9 +108,10 @@ impl ReliableStatelessWriterBehavior {
         reader_locator.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 
-    /// 8.4.9.2.12 Transition T10
-    pub fn send_requested_changes<'a, P, D, CacheChange, S>(
+    /// 8.4.8.2.10 Transition T10
+    pub fn send_requested_changes<C, P, D, S>(
         _reader_locator: &mut impl RtpsReaderLocatorOperations,
+        _writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
         mut _send_data: impl FnMut(DataSubmessage<P, D>),
         mut _send_gap: impl FnMut(GapSubmessage<S>),
     ) {
@@ -137,6 +139,12 @@ mod tests {
 
         impl PartialEq<MockCacheChange> for CacheChange {
             fn eq(&self, other: &MockCacheChange) -> bool;
+        }
+    }
+
+    impl Into<GapSubmessage<()>> for MockCacheChange {
+        fn into(self) -> GapSubmessage<()> {
+            todo!()
         }
     }
 
