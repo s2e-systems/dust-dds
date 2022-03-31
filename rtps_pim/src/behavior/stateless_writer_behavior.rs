@@ -32,8 +32,11 @@ impl BestEffortStatelessWriterBehavior {
     ) where
         C: PartialEq,
     {
-        if reader_locator.unsent_changes().into_iter().next().is_some() {
+        while reader_locator.unsent_changes().into_iter().next().is_some() {
             let change = reader_locator.next_unsent_change();
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             if writer_cache.changes().contains(change.borrow()) {
                 let data_submessage = change.into();
                 send_data(data_submessage);
@@ -57,8 +60,11 @@ impl ReliableStatelessWriterBehavior {
         >,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
     ) {
-        if reader_locator.unsent_changes().into_iter().next().is_some() {
+        while reader_locator.unsent_changes().into_iter().next().is_some() {
             let change = reader_locator.next_unsent_change();
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             let data_submessage = change.into();
             send_data(data_submessage)
         }
@@ -211,6 +217,11 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement { value: () },
         };
+        reader_locator
+            .expect_unsent_changes()
+            .once()
+            .returning(|| vec![1])
+            .in_sequence(&mut seq);
 
         reader_locator
             .expect_next_unsent_change()

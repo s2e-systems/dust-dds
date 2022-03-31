@@ -36,10 +36,13 @@ impl BestEffortStatefulWriterBehavior {
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+        while reader_proxy.unsent_changes().into_iter().next().is_some() {
             let change = reader_proxy.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
@@ -72,10 +75,13 @@ impl ReliableStatefulWriterBehavior {
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+        while reader_proxy.unsent_changes().into_iter().next().is_some() {
             let change = reader_proxy.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
@@ -148,10 +154,13 @@ impl ReliableStatefulWriterBehavior {
     ) {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
 
-        if reader_proxy.unsent_changes().into_iter().next().is_some() {
+        while reader_proxy.requested_changes().into_iter().next().is_some() {
             let change_for_reader = reader_proxy.next_requested_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
+            // should be full-filled by next_requested_change()
             if change_for_reader.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id.value = reader_id;
