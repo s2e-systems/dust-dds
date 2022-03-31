@@ -22,14 +22,15 @@ pub struct BestEffortStatefulWriterBehavior;
 
 impl BestEffortStatefulWriterBehavior {
     /// 8.4.9.1.4 Transition T4
-    pub fn send_unsent_changes<C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C>
-                  + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
-    {
+    ) {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -54,14 +55,15 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn send_unsent_changes<C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C>
-                  + RtpsReaderProxyAttributes),
+    pub fn send_unsent_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
-    {
+    ) {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -129,14 +131,15 @@ impl ReliableStatefulWriterBehavior {
     }
 
     /// 8.4.9.2.12 Transition T12
-    pub fn send_requested_changes<'a, C, P, D, S>(
-        reader_proxy: &mut (impl RtpsReaderProxyOperations<ChangeForReaderType = C>
-                  + RtpsReaderProxyAttributes),
+    pub fn send_requested_changes<P, D, S>(
+        reader_proxy: &mut (impl RtpsReaderProxyOperations<
+            ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
+                                       + Into<GapSubmessage<S>>
+                                       + RtpsChangeForReaderAttributes),
+        > + RtpsReaderProxyAttributes),
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
-    {
+    ) {
         let reader_id = reader_proxy.remote_reader_guid().entity_id();
         while let Some(change_for_reader) = reader_proxy.next_requested_change() {
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
