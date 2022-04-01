@@ -28,7 +28,10 @@ use rtps_pim::{
     },
 };
 
-use crate::{rtps_reader_proxy_impl::RtpsChangeForReaderImpl, utils::clock::TimerConstructor};
+use crate::{
+    rtps_reader_proxy_impl::{RtpsChangeForReaderImpl, RtpsReaderProxyOperationsImpl},
+    utils::clock::TimerConstructor,
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -106,11 +109,18 @@ impl<T> RtpsWriterAttributes for RtpsStatefulWriterImpl<T> {
     }
 }
 
-impl<T> RtpsStatefulWriterAttributes for RtpsStatefulWriterImpl<T> {
-    type ReaderProxyType = RtpsReaderProxyImpl;
+impl<'a, T> RtpsStatefulWriterAttributes<'a> for RtpsStatefulWriterImpl<T> {
+    type ReaderProxyListType = Vec<RtpsReaderProxyOperationsImpl<'a>>;
 
-    fn matched_readers(&self) -> &[Self::ReaderProxyType] {
-        &self.matched_readers
+    fn matched_readers(&'a mut self) -> Self::ReaderProxyListType {
+        let writer_cache = &self.writer.writer_cache;
+        self.matched_readers
+            .iter_mut()
+            .map(|reader_proxy| RtpsReaderProxyOperationsImpl {
+                reader_proxy,
+                writer_cache,
+            })
+            .collect()
     }
 }
 
