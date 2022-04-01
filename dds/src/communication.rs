@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::write, ops::DerefMut};
+use std::{cell::RefCell, ops::DerefMut};
 
 use dds_implementation::{
     dds_impl::{
