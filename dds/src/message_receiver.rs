@@ -7,16 +7,26 @@ use dds_implementation::{
     },
     utils::shared_object::DdsShared,
 };
+use rtps_implementation::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
+};
 use rtps_pim::{
+    behavior::{
+        stateful_writer_behavior::ReliableStatefulWriterBehavior,
+        stateless_writer_behavior::ReliableStatelessWriterBehavior,
+        writer::reader_proxy::RtpsReaderProxyAttributes,
+    },
     messages::{
-        submessages::{AckNackSubmessage, InfoTimestampSubmessage},
+        submessages::InfoTimestampSubmessage,
         types::{Time, TIME_INVALID},
     },
     structure::{
         history_cache::RtpsHistoryCacheAttributes,
         types::{
-            GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
-            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+            ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
+            PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
     },
 };
@@ -79,13 +89,69 @@ impl MessageReceiver {
                         for data_writer in publisher.data_writer_list.read_lock().iter() {
                             match data_writer.rtps_writer.write_lock().deref_mut() {
                                 RtpsWriter::Stateless(stateless_rtps_writer) => {
-                                    stateless_rtps_writer.process_acknack_submessage(acknack);
+                                    if stateless_rtps_writer.writer.endpoint.reliability_level
+                                        == ReliabilityKind::Reliable
+                                    {
+                                        if acknack.reader_id.value == ENTITYID_UNKNOWN
+                                            || acknack.reader_id.value
+                                                == stateless_rtps_writer
+                                                    .writer
+                                                    .endpoint
+                                                    .entity
+                                                    .guid
+                                                    .entity_id()
+                                        {
+                                            for reader_locator in
+                                                stateless_rtps_writer.reader_locators.iter_mut()
+                                            {
+                                                if reader_locator.last_received_acknack_count
+                                                    != acknack.count.value
+                                                {
+                                                    ReliableStatelessWriterBehavior::receive_acknack(
+                                                        &mut RtpsReaderLocatorOperationsImpl::new(
+                                                            reader_locator,
+                                                            &stateless_rtps_writer.writer.writer_cache,
+                                                        ),
+                                                        acknack,
+                                                    );
+
+                                                    reader_locator.last_received_acknack_count =
+                                                        acknack.count.value;
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 RtpsWriter::Stateful(stateful_rtps_writer) => {
-                                    stateful_rtps_writer.process_acknack_submessage(
-                                        acknack,
-                                        self.source_guid_prefix,
-                                    );
+                                    if stateful_rtps_writer.writer.endpoint.reliability_level
+                                        == ReliabilityKind::Reliable
+                                    {
+                                        let reader_guid = Guid::new(
+                                            self.source_guid_prefix,
+                                            acknack.reader_id.value,
+                                        );
+
+                                        if let Some(reader_proxy) = stateful_rtps_writer
+                                            .matched_readers
+                                            .iter_mut()
+                                            .find(|x| x.remote_reader_guid() == reader_guid)
+                                        {
+                                            if reader_proxy.last_received_acknack_count
+                                                != acknack.count.value
+                                            {
+                                                ReliableStatefulWriterBehavior::receive_acknack(
+                                                    &mut RtpsReaderProxyOperationsImpl::new(
+                                                        reader_proxy,
+                                                        &stateful_rtps_writer.writer.writer_cache,
+                                                    ),
+                                                    acknack,
+                                                );
+
+                                                reader_proxy.last_received_acknack_count =
+                                                    acknack.count.value;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -170,14 +236,6 @@ impl MessageReceiver {
             self.timestamp = TIME_INVALID;
         }
     }
-}
-
-pub trait ProcessAckNackSubmessage {
-    fn process_acknack_submessage(
-        &self,
-        source_guid_prefix: GuidPrefix,
-        _acknack: &AckNackSubmessage<Vec<SequenceNumber>>,
-    );
 }
 
 #[cfg(test)]
