@@ -153,6 +153,7 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
     type ReaderProxyType = RtpsReaderProxyImpl;
 
     fn matched_reader_add(&mut self, mut a_reader_proxy: Self::ReaderProxyType) {
+        println!("{:?}", a_reader_proxy.unicast_locator_list());
         let status = if self.push_mode() {
             ChangeForReaderStatusKind::Unsent
         } else {
