@@ -1,11 +1,22 @@
 use rtps_pim::{
-    behavior::writer::reader_locator::{
-        RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
+    behavior::{
+        stateless_writer_behavior::ChangeInHistoryCache,
+        writer::reader_locator::{
+            RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor, RtpsReaderLocatorOperations,
+        },
     },
-    messages::types::Count,
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        },
+        submessages::{DataSubmessage, GapSubmessage},
+        types::Count,
+    },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
-        types::{Locator, SequenceNumber},
+        types::{ChangeKind, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -65,8 +76,77 @@ impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
     }
 }
 
+impl RtpsReaderLocatorAttributes for RtpsReaderLocatorOperationsImpl<'_> {
+    fn locator(&self) -> Locator {
+        self.reader_locator_attributes.locator()
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        self.reader_locator_attributes.expects_inline_qos()
+    }
+}
+
+pub struct RtpsReaderLocatorCacheChange<'a> {
+    cache_change: Option<&'a RtpsCacheChangeImpl>,
+}
+
+impl ChangeInHistoryCache for RtpsReaderLocatorCacheChange<'_> {
+    fn is_in_cache(&self) -> bool {
+        self.cache_change.is_some()
+    }
+}
+
+impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsReaderLocatorCacheChange<'a> {
+    fn into(self) -> GapSubmessage<Vec<SequenceNumber>> {
+        todo!()
+    }
+}
+
+impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsReaderLocatorCacheChange<'a> {
+    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+        let cache_change = self
+            .cache_change
+            .expect("Can only convert to data if it exists in the writer cache");
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let (data_flag, key_flag) = match cache_change.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: cache_change.writer_guid().entity_id(),
+        };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: cache_change.sequence_number(),
+        };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: cache_change.inline_qos().into(),
+        };
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: cache_change.data_value().into(),
+        };
+        DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
+    }
+}
+
 impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
-    type CacheChangeType = &'a RtpsCacheChangeImpl;
+    type CacheChangeType = RtpsReaderLocatorCacheChange<'a>;
     type CacheChangeListType = Vec<SequenceNumber>;
 
     fn next_requested_change(&mut self) -> Self::CacheChangeType {
@@ -80,7 +160,8 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .requested_changes
             .iter()
             .min()
-            .cloned().unwrap();
+            .cloned()
+            .unwrap();
 
         // 8.4.8.2.4 Transition T4
         // "After the transition, the following post-conditions hold:
@@ -89,10 +170,13 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .unsent_changes
             .retain(|c| *c != next_seq_num);
 
-        self.writer_cache
+        let cache_change = self
+            .writer_cache
             .changes()
             .iter()
-            .find(|c| c.sequence_number == next_seq_num).unwrap()
+            .find(|c| c.sequence_number == next_seq_num);
+
+        RtpsReaderLocatorCacheChange { cache_change }
     }
 
     fn next_unsent_change(&mut self) -> Self::CacheChangeType {
@@ -116,11 +200,13 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .unsent_changes
             .retain(|c| *c != next_seq_num);
 
-        self.writer_cache
+        let cache_change = self
+            .writer_cache
             .changes()
             .iter()
-            .find(|c| c.sequence_number == next_seq_num)
-            .unwrap()
+            .find(|c| c.sequence_number == next_seq_num);
+
+        RtpsReaderLocatorCacheChange { cache_change }
     }
 
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
@@ -177,12 +263,16 @@ mod tests {
         assert_eq!(
             reader_locator_operations
                 .next_unsent_change()
+                .cache_change
+                .unwrap()
                 .sequence_number,
             1
         );
         assert_eq!(
             reader_locator_operations
                 .next_unsent_change()
+                .cache_change
+                .unwrap()
                 .sequence_number,
             2
         );

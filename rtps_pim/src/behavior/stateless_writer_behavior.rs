@@ -1,5 +1,3 @@
-use core::borrow::Borrow;
-
 /// This file implements the behaviors described in 8.4.8 RTPS StatelessWriter Behavior
 use crate::{
     messages::{
@@ -27,27 +25,30 @@ impl<T: IntoIterator> IsEmpty for T {
     }
 }
 
+pub trait ChangeInHistoryCache {
+    fn is_in_cache(&self) -> bool;
+}
+
 pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<C, P, D, S>(
+    pub fn send_unsent_changes<P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<
             CacheChangeListType = impl IntoIterator,
-            CacheChangeType = impl Borrow<C> + Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>>,
+            CacheChangeType = impl Into<DataSubmessage<P, D>>
+                                  + Into<GapSubmessage<S>>
+                                  + ChangeInHistoryCache,
         >,
-        writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
-    ) where
-        C: PartialEq,
-    {
+    ) {
         while !reader_locator.unsent_changes().is_empty() {
             let change = reader_locator.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
-            if writer_cache.changes().contains(change.borrow()) {
+            if change.is_in_cache() {
                 let data_submessage = change.into();
                 send_data(data_submessage);
             } else {
@@ -157,8 +158,8 @@ mod tests {
             fn into(self) -> DataSubmessage<(), ()>;
         }
 
-        impl PartialEq<MockCacheChange> for CacheChange {
-            fn eq(&self, other: &MockCacheChange) -> bool;
+        impl ChangeInHistoryCache for CacheChange {
+            fn is_in_cache(&self) -> bool;
         }
     }
 
@@ -189,27 +190,12 @@ mod tests {
         }
     }
 
-    mock! {
-        HistoryCache{}
-        impl RtpsHistoryCacheAttributes for HistoryCache{
-            type CacheChangeType = MockCacheChange;
-
-            fn changes(&self) -> &[MockCacheChange];
-        }
-    }
-
     #[test]
     fn best_effort_stateless_writer_send_unsent_changes_single_data_submessage() {
         let mut seq = mockall::Sequence::new();
 
         let mut reader_locator = MockReaderLocator::new();
         let mut data_message_sender = MockDataMessageSender::new();
-        let mut writer_cache = MockHistoryCache::new();
-        writer_cache.expect_changes().return_const({
-            let mut cache_change = MockCacheChange::new();
-            cache_change.expect_eq().return_const(true);
-            vec![cache_change]
-        });
 
         const DATA_SUBMESSAGE: DataSubmessage<(), ()> = DataSubmessage {
             endianness_flag: false,
@@ -238,6 +224,7 @@ mod tests {
             .once()
             .returning(|| {
                 let mut cache_change = MockCacheChange::new();
+                cache_change.expect_is_in_cache().return_const(true);
                 cache_change.expect_into().returning(|| DATA_SUBMESSAGE);
                 cache_change
             })
@@ -258,7 +245,6 @@ mod tests {
 
         BestEffortStatelessWriterBehavior::send_unsent_changes(
             &mut reader_locator,
-            &writer_cache,
             |data| data_message_sender.send_data(data),
             |_: GapSubmessage<()>| {},
         )
