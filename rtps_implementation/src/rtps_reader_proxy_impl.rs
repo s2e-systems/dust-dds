@@ -7,7 +7,7 @@ use rtps_pim::{
             change_for_reader::RtpsChangeForReaderAttributes,
             reader_proxy::{
                 RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
-            },
+            }, writer::RtpsWriterAttributes,
         },
     },
     messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, submessages::{DataSubmessage, GapSubmessage}, types::Count},
@@ -95,7 +95,6 @@ impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
 }
 
 pub struct RtpsReaderProxyOperationsImpl<'a> {
-    pub sequence_number: SequenceNumber,
     pub reader_proxy: &'a mut RtpsReaderProxyImpl,
     pub writer_cache: &'a RtpsHistoryCacheImpl,
 }
@@ -106,7 +105,6 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
         writer_cache: &'a RtpsHistoryCacheImpl,
     ) -> Self {
         Self {
-            sequence_number: 0,
             reader_proxy,
             writer_cache,
         }

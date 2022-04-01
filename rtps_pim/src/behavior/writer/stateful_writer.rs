@@ -3,12 +3,10 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::writer::RtpsWriterAttributes;
+pub trait RtpsStatefulWriterAttributes<'a> {
+    type ReaderProxyListType;
 
-pub trait RtpsStatefulWriterAttributes: RtpsWriterAttributes {
-    type ReaderProxyType;
-
-    fn matched_readers(&self) -> &[Self::ReaderProxyType];
+    fn matched_readers(&'a mut self) -> Self::ReaderProxyListType;
 }
 
 pub trait RtpsStatefulWriterConstructor {

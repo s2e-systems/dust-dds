@@ -22,6 +22,7 @@ use rtps_pim::{
         },
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            stateful_writer::RtpsStatefulWriterAttributes,
         },
     },
     messages::{
@@ -213,17 +214,15 @@ where
 
                     let mut destined_submessages = Vec::new();
 
-                    for reader_proxy in &mut stateful_rtps_writer.matched_readers {
+                    let reliability_level = stateful_rtps_writer.writer.endpoint.reliability_level;
+                    for reader_proxy in &mut stateful_rtps_writer.matched_readers() {
                         let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
-                        match stateful_rtps_writer.writer.endpoint.reliability_level {
+                        match reliability_level {
                             ReliabilityKind::BestEffort => todo!(),
                             ReliabilityKind::Reliable => {
                                 let submessages = RefCell::new(Vec::new());
                                 ReliableStatefulWriterBehavior::send_requested_changes(
-                                    &mut RtpsReaderProxyOperationsImpl::new(
-                                        reader_proxy,
-                                        &stateful_rtps_writer.writer.writer_cache,
-                                    ),
+                                    reader_proxy,
                                     |data| {
                                         submessages
                                             .borrow_mut()
