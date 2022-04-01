@@ -71,7 +71,7 @@ pub struct ReliableStatefulWriterBehavior;
 
 impl ReliableStatefulWriterBehavior {
     /// Implement 8.4.9.2.4 Transition T4
-    pub fn on_reader_proxy_can_send<P, D, S>(
+    pub fn send_unsent_changes<P, D, S>(
         reader_proxy: &mut (impl RtpsReaderProxyOperations<
             ChangeForReaderListType = impl IntoIterator,
             ChangeForReaderType = (impl Into<DataSubmessage<P, D>>
