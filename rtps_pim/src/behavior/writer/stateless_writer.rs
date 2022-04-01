@@ -3,10 +3,10 @@ use crate::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-pub trait RtpsStatelessWriterAttributes {
-    type ReaderLocatorType;
+pub trait RtpsStatelessWriterAttributes<'a> {
+    type ReaderLocatorListType;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorType];
+    fn reader_locators(&'a mut self) -> Self::ReaderLocatorListType;
 }
 
 pub trait RtpsStatelessWriterConstructor {

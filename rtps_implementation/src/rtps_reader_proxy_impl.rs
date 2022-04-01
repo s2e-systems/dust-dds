@@ -7,14 +7,21 @@ use rtps_pim::{
             change_for_reader::RtpsChangeForReaderAttributes,
             reader_proxy::{
                 RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
-            }, writer::RtpsWriterAttributes,
+            },
         },
     },
-    messages::{submessage_elements::{Parameter, EntityIdSubmessageElement, SequenceNumberSubmessageElement, ParameterListSubmessageElement, SerializedDataSubmessageElement}, submessages::{DataSubmessage, GapSubmessage}, types::Count},
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        },
+        submessages::{DataSubmessage, GapSubmessage},
+        types::Count,
+    },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
-        types::{EntityId, Guid, Locator, SequenceNumber, ChangeKind, ENTITYID_UNKNOWN},
+        types::{ChangeKind, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -176,7 +183,8 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         let cache_change = writer_cache
             .changes()
             .iter()
-            .find(|cc| cc.sequence_number == change_for_reader.sequence_number).unwrap();
+            .find(|cc| cc.sequence_number == change_for_reader.sequence_number)
+            .unwrap();
         RtpsChangeForReaderCacheChange {
             change_for_reader,
             cache_change,
@@ -203,7 +211,9 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForRea
             _ => todo!(),
         };
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement { value: ENTITYID_UNKNOWN };
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
         let writer_id = EntityIdSubmessageElement {
             value: self.cache_change.writer_guid().entity_id(),
         };
@@ -232,7 +242,8 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForRea
 }
 
 impl<'a> RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'a> {
-    type ChangeForReaderType = <RtpsReaderProxyImpl as RtpsReaderProxyAttributes>::ChangeForReaderType;
+    type ChangeForReaderType =
+        <RtpsReaderProxyImpl as RtpsReaderProxyAttributes>::ChangeForReaderType;
 
     fn remote_reader_guid(&self) -> Guid {
         self.reader_proxy.remote_reader_guid()
@@ -289,7 +300,8 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
             .reader_proxy
             .changes_for_reader
             .iter_mut()
-            .find(|c| c.sequence_number == next_seq_num).unwrap();
+            .find(|c| c.sequence_number == next_seq_num)
+            .unwrap();
 
         // Following 8.4.9.2.12 Transition T12 of Reliable Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_requested_change();
@@ -312,7 +324,8 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
             .reader_proxy
             .changes_for_reader
             .iter_mut()
-            .find(|c| c.sequence_number == next_seq_num).unwrap();
+            .find(|c| c.sequence_number == next_seq_num)
+            .unwrap();
 
         // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_unsent_change();
