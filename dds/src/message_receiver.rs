@@ -131,6 +131,12 @@ impl MessageReceiver {
                                             acknack.reader_id.value,
                                         );
 
+                                        println!("reader guid = {:?}", reader_guid);
+                                        for proxy in stateful_rtps_writer.matched_readers.iter() {
+                                            println!("remote reader guid: {:?}", proxy.remote_reader_guid());
+                                        }
+                                        println!("---");
+
                                         if let Some(reader_proxy) = stateful_rtps_writer
                                             .matched_readers
                                             .iter_mut()
