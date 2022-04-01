@@ -17,8 +17,8 @@ pub trait RtpsReaderLocatorOperations {
     type CacheChangeType;
     type CacheChangeListType;
 
-    fn next_requested_change(&mut self) -> Option<Self::CacheChangeType>;
-    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeType>;
+    fn next_requested_change(&mut self) -> Self::CacheChangeType;
+    fn next_unsent_change(&mut self) -> Self::CacheChangeType;
     fn requested_changes(&self) -> Self::CacheChangeListType;
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
     fn unsent_changes(&self) -> Self::CacheChangeListType;

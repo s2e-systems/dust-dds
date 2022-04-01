@@ -174,15 +174,15 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn new(
         change_for_reader: RtpsChangeForReaderImpl,
         writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Option<Self> {
+    ) -> Self {
         let cache_change = writer_cache
             .changes()
             .iter()
-            .find(|cc| cc.sequence_number == change_for_reader.sequence_number)?;
-        Some(RtpsChangeForReaderCacheChange {
+            .find(|cc| cc.sequence_number == change_for_reader.sequence_number).unwrap();
+        RtpsChangeForReaderCacheChange {
             change_for_reader,
             cache_change,
-        })
+        }
     }
 }
 impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsChangeForReaderCacheChange<'a> {
@@ -280,18 +280,18 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         }
     }
 
-    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
+    fn next_requested_change(&mut self) -> Self::ChangeForReaderType {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
         //  return change IN this.requested_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-        let next_seq_num = self.requested_changes().iter().min().cloned()?;
+        let next_seq_num = self.requested_changes().iter().min().cloned().unwrap();
 
         let change = self
             .reader_proxy
             .changes_for_reader
             .iter_mut()
-            .find(|c| c.sequence_number == next_seq_num)?;
+            .find(|c| c.sequence_number == next_seq_num).unwrap();
 
         // Following 8.4.9.2.12 Transition T12 of Reliable Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_requested_change();
@@ -303,18 +303,18 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         RtpsChangeForReaderCacheChange::new(change.clone(), self.writer_cache)
     }
 
-    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
+    fn next_unsent_change(&mut self) -> Self::ChangeForReaderType {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-        let next_seq_num = self.unsent_changes().iter().min().cloned()?;
+        let next_seq_num = self.unsent_changes().iter().min().cloned().unwrap();
 
         let change = self
             .reader_proxy
             .changes_for_reader
             .iter_mut()
-            .find(|c| c.sequence_number == next_seq_num)?;
+            .find(|c| c.sequence_number == next_seq_num).unwrap();
 
         // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
         // a_change := the_reader_proxy.next_unsent_change();
@@ -464,12 +464,10 @@ mod tests {
         reader_proxy.requested_changes_set(&[2, 4]);
 
         let result = reader_proxy.next_requested_change();
-        assert_eq!(result.unwrap().change_for_reader.sequence_number, 2);
+        assert_eq!(result.change_for_reader.sequence_number, 2);
 
         let result = reader_proxy.next_requested_change();
-        assert_eq!(result.unwrap().change_for_reader.sequence_number, 4);
-
-        assert!(reader_proxy.next_requested_change().is_none());
+        assert_eq!(result.change_for_reader.sequence_number, 4);
     }
 
     #[test]
@@ -499,12 +497,13 @@ mod tests {
             RtpsReaderProxyOperationsImpl::new(&mut reader_proxy_attributes, &writer_cache);
 
         let result = reader_proxy.next_unsent_change();
-        assert_eq!(result.unwrap().change_for_reader.sequence_number, 1);
+        assert_eq!(result.change_for_reader.sequence_number, 1);
 
         let result = reader_proxy.next_unsent_change();
-        assert_eq!(result.unwrap().change_for_reader.sequence_number, 2);
+        assert_eq!(result.change_for_reader.sequence_number, 2);
 
-        assert!(reader_proxy.next_unsent_change().is_none());
+        // let result = std::panic::catch_unwind(|| reader_proxy.next_unsent_change());
+        // assert!(result.is_err());
     }
 
     #[test]

@@ -17,12 +17,23 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
+trait IsEmpty {
+    fn is_empty(self) -> bool;
+}
+
+impl<T: IntoIterator> IsEmpty for T {
+    fn is_empty(self) -> bool {
+        self.into_iter().next().is_none()
+    }
+}
+
 pub struct BestEffortStatelessWriterBehavior;
 
 impl BestEffortStatelessWriterBehavior {
     /// 8.4.8.1.4 Transition T4
     pub fn send_unsent_changes<C, P, D, S>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<
+            CacheChangeListType = impl IntoIterator,
             CacheChangeType = impl Borrow<C> + Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>>,
         >,
         writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
@@ -31,7 +42,11 @@ impl BestEffortStatelessWriterBehavior {
     ) where
         C: PartialEq,
     {
-        while let Some(change) = reader_locator.next_unsent_change() {
+        while !reader_locator.unsent_changes().is_empty() {
+            let change = reader_locator.next_unsent_change();
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             if writer_cache.changes().contains(change.borrow()) {
                 let data_submessage = change.into();
                 send_data(data_submessage);
@@ -50,11 +65,16 @@ impl ReliableStatelessWriterBehavior {
     /// 8.4.8.2.4 Transition T4
     pub fn send_unsent_changes<P, D>(
         reader_locator: &mut impl RtpsReaderLocatorOperations<
+            CacheChangeListType = impl IntoIterator,
             CacheChangeType = impl Into<DataSubmessage<P, D>>,
         >,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
     ) {
-        while let Some(change) = reader_locator.next_unsent_change() {
+        while !reader_locator.unsent_changes().is_empty() {
+            let change = reader_locator.next_unsent_change();
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
             let data_submessage = change.into();
             send_data(data_submessage)
         }
@@ -155,8 +175,8 @@ mod tests {
             type CacheChangeType = MockCacheChange;
             type CacheChangeListType = Vec<i64>;
 
-            fn next_requested_change(&mut self) -> Option<MockCacheChange>;
-            fn next_unsent_change(&mut self) -> Option<MockCacheChange>;
+            fn next_requested_change(&mut self) -> MockCacheChange;
+            fn next_unsent_change(&mut self) -> MockCacheChange;
             fn requested_changes(&self) -> Vec<i64>;
             fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
             fn unsent_changes(&self) -> Vec<i64>;
@@ -207,6 +227,11 @@ mod tests {
             inline_qos: ParameterListSubmessageElement { parameter: () },
             serialized_payload: SerializedDataSubmessageElement { value: () },
         };
+        reader_locator
+            .expect_unsent_changes()
+            .once()
+            .returning(|| vec![1])
+            .in_sequence(&mut seq);
 
         reader_locator
             .expect_next_unsent_change()
@@ -214,7 +239,7 @@ mod tests {
             .returning(|| {
                 let mut cache_change = MockCacheChange::new();
                 cache_change.expect_into().returning(|| DATA_SUBMESSAGE);
-                Some(cache_change)
+                cache_change
             })
             .in_sequence(&mut seq);
 
@@ -226,9 +251,9 @@ mod tests {
             .in_sequence(&mut seq);
 
         reader_locator
-            .expect_next_unsent_change()
+            .expect_unsent_changes()
             .once()
-            .returning(|| None)
+            .returning(|| vec![])
             .in_sequence(&mut seq);
 
         BestEffortStatelessWriterBehavior::send_unsent_changes(
