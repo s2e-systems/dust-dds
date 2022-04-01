@@ -323,7 +323,7 @@ impl DomainParticipantFactory {
             .into_iter()
             .flat_map(|i| {
                 i.addresses.into_iter().filter_map(|a| match a.address? {
-                    SocketAddr::V4(v4) if ! v4.ip().is_loopback() => Some(*v4.ip()),
+                    SocketAddr::V4(v4) => Some(*v4.ip()),
                     _ => None,
                 })
             })
