@@ -329,7 +329,6 @@ pub fn task_sedp_writer_discovery(
     let samples = sedp_builtin_publication_reader.take(1, &[], &[], &[]);
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
-        println!("remote reader guid: {:?}", sample.writer_proxy.remote_writer_guid);
         let topic_name = &sample.publication_builtin_topic_data.topic_name;
         let type_name = &sample.publication_builtin_topic_data.type_name;
         for subscriber in domain_participant
@@ -407,7 +406,6 @@ pub fn task_sedp_reader_discovery(
     let samples = sedp_builtin_subscription_reader.take(1, &[], &[], &[]);
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
-        println!("remote reader guid: {:?}", sample.reader_proxy.remote_reader_guid);
         let topic_name = &sample.subscription_builtin_topic_data.topic_name;
         let type_name = &sample.subscription_builtin_topic_data.type_name;
         for publisher in domain_participant
