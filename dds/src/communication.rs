@@ -27,23 +27,21 @@ use rtps_pim::{
     },
     messages::{
         overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
-        submessage_elements::TimestampSubmessageElement,
+        submessage_elements::{Parameter, TimestampSubmessageElement},
         submessages::InfoTimestampSubmessage,
-        types::{Count, TIME_INVALID},
+        types::{Count, FragmentNumber, TIME_INVALID},
     },
     structure::{
         entity::RtpsEntityAttributes,
         types::{
-            GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
+            GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
+            PROTOCOLVERSION, VENDOR_ID_S2E,
         },
     },
-};
-
-use crate::{
-    domain_participant_factory::RtpsStructureImpl,
-    message_receiver::MessageReceiver,
     transport::{TransportRead, TransportWrite},
 };
+
+use crate::{domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver};
 
 pub struct Communication<T> {
     pub version: ProtocolVersion,
@@ -54,7 +52,17 @@ pub struct Communication<T> {
 
 impl<T> Communication<T>
 where
-    T: TransportWrite,
+    T: for<'a> TransportWrite<
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    >,
 {
     pub fn send_publisher_message(&mut self, publisher: &PublisherAttributes<RtpsStructureImpl>) {
         let message_header = RtpsMessageHeader {
@@ -405,7 +413,17 @@ where
 
 impl<T> Communication<T>
 where
-    T: TransportRead,
+    T: for<'a> TransportRead<'a,
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    >,
 {
     pub fn receive(
         &mut self,

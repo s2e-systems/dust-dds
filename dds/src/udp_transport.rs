@@ -7,10 +7,9 @@ use rtps_pim::{
         types::FragmentNumber,
     },
     structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber},
+    transport::{TransportRead, TransportWrite},
 };
 use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
-
-use crate::transport::{TransportRead, TransportWrite};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -75,7 +74,19 @@ impl UdpTransport {
     }
 }
 
-impl<'a> TransportWrite for UdpTransport {
+impl
+    TransportWrite<
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'_>>,
+                &'_ [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    > for UdpTransport
+{
     fn write(
         &mut self,
         message: &RtpsMessage<
@@ -98,17 +109,30 @@ impl<'a> TransportWrite for UdpTransport {
     }
 }
 
-impl TransportRead for UdpTransport {
+impl<'a>
+    TransportRead<
+        'a,
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    > for UdpTransport
+{
     fn read(
-        &mut self,
+        &'a mut self,
     ) -> Option<(
         Locator,
         RtpsMessage<
             Vec<
                 RtpsSubmessageType<
                     Vec<SequenceNumber>,
-                    Vec<Parameter<'_>>,
-                    &'_ [u8],
+                    Vec<Parameter<'a>>,
+                    &'a [u8],
                     Vec<Locator>,
                     Vec<FragmentNumber>,
                 >,

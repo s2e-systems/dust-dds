@@ -1,7 +1,6 @@
 pub mod communication;
 pub mod domain_participant_factory;
 pub mod message_receiver;
-pub mod transport;
 pub mod udp_transport;
 
 mod tasks;
