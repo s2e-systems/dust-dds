@@ -1,16 +1,27 @@
 use std::io::{BufRead, Error, Write};
 
-use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
-
-use crate::{
-    mapping_traits::{MappingRead, MappingWrite},
-    messages::overall_structure::RtpsSubmessageType,
+use rtps_pim::{
+    messages::{
+        overall_structure::RtpsSubmessageHeader, submessage_elements::Parameter,
+        types::FragmentNumber,
+    },
+    structure::types::{Locator, SequenceNumber},
 };
+
+use crate::mapping_traits::{MappingRead, MappingWrite};
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
     INFO_TS, NACK_FRAG, PAD,
 };
+
+pub type RtpsSubmessageType<'a> = rtps_pim::messages::overall_structure::RtpsSubmessageType<
+    Vec<SequenceNumber>,
+    Vec<Parameter<'a>>,
+    &'a [u8],
+    Vec<Locator>,
+    Vec<FragmentNumber>,
+>;
 
 pub type RtpsMessage<'a> =
     rtps_pim::messages::overall_structure::RtpsMessage<Vec<RtpsSubmessageType<'a>>>;

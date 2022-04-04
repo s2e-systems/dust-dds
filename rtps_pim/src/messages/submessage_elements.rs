@@ -102,8 +102,8 @@ pub struct SerializedDataSubmessageElement<D> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct SerializedDataFragmentSubmessageElement<'a> {
-    pub value: &'a [u8],
+pub struct SerializedDataFragmentSubmessageElement<D> {
+    pub value: D,
 }
 
 #[derive(Debug, PartialEq)]

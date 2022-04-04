@@ -36,7 +36,7 @@ pub struct DataSubmessage<P, D> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataFragSubmessage<'a, P> {
+pub struct DataFragSubmessage<P, D> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
@@ -49,7 +49,7 @@ pub struct DataFragSubmessage<'a, P> {
     pub data_size: ULongSubmessageElement,
     pub fragment_size: UShortSubmessageElement,
     pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataFragmentSubmessageElement<D>,
 }
 
 #[derive(Debug, PartialEq)]

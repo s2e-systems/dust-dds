@@ -26,7 +26,7 @@ use rtps_pim::{
         },
     },
     messages::{
-        overall_structure::{RtpsMessage, RtpsMessageHeader},
+        overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
         submessage_elements::TimestampSubmessageElement,
         submessages::InfoTimestampSubmessage,
         types::{Count, TIME_INVALID},
@@ -38,7 +38,6 @@ use rtps_pim::{
         },
     },
 };
-use rtps_udp_psm::messages::overall_structure::RtpsSubmessageType;
 
 use crate::{
     domain_participant_factory::RtpsStructureImpl,

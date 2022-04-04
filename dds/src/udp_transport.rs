@@ -1,13 +1,14 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
 use rtps_pim::{
-    messages::overall_structure::RtpsMessage,
-    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+    messages::{
+        overall_structure::{RtpsMessage, RtpsSubmessageType},
+        submessage_elements::Parameter,
+        types::FragmentNumber,
+    },
+    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber},
 };
-use rtps_udp_psm::{
-    mapping_traits::{from_bytes, to_bytes},
-    messages::overall_structure::RtpsSubmessageType,
-};
+use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
 
 use crate::transport::{TransportRead, TransportWrite};
 
@@ -77,7 +78,17 @@ impl UdpTransport {
 impl<'a> TransportWrite for UdpTransport {
     fn write(
         &mut self,
-        message: &RtpsMessage<Vec<RtpsSubmessageType<'_>>>,
+        message: &RtpsMessage<
+            Vec<
+                RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<Parameter<'_>>,
+                    &'_ [u8],
+                    Vec<Locator>,
+                    Vec<FragmentNumber>,
+                >,
+            >,
+        >,
         destination_locator: Locator,
     ) {
         let buf = to_bytes(message).unwrap();
@@ -88,7 +99,22 @@ impl<'a> TransportWrite for UdpTransport {
 }
 
 impl TransportRead for UdpTransport {
-    fn read(&mut self) -> Option<(Locator, RtpsMessage<Vec<RtpsSubmessageType<'_>>>)> {
+    fn read(
+        &mut self,
+    ) -> Option<(
+        Locator,
+        RtpsMessage<
+            Vec<
+                RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<Parameter<'_>>,
+                    &'_ [u8],
+                    Vec<Locator>,
+                    Vec<FragmentNumber>,
+                >,
+            >,
+        >,
+    )> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
