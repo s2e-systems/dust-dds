@@ -1,15 +1,13 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
+use crate::{
+    mapping_rtps_messages::overall_structure::{RtpsMessage, RtpsSubmessageType},
+    mapping_traits::{from_bytes, to_bytes},
+};
 use rtps_pim::{
-    messages::{
-        overall_structure::{RtpsMessage, RtpsSubmessageType},
-        submessage_elements::Parameter,
-        types::FragmentNumber,
-    },
-    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator, SequenceNumber},
+    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
     transport::{TransportRead, TransportWrite},
 };
-use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpTransport {
@@ -74,34 +72,8 @@ impl UdpTransport {
     }
 }
 
-impl
-    TransportWrite<
-        Vec<
-            RtpsSubmessageType<
-                Vec<SequenceNumber>,
-                Vec<Parameter<'_>>,
-                &'_ [u8],
-                Vec<Locator>,
-                Vec<FragmentNumber>,
-            >,
-        >,
-    > for UdpTransport
-{
-    fn write(
-        &mut self,
-        message: &RtpsMessage<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'_>>,
-                    &'_ [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-        destination_locator: Locator,
-    ) {
+impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpTransport {
+    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
         let buf = to_bytes(message).unwrap();
         self.socket
             .send_to(buf.as_slice(), UdpLocator(destination_locator))
@@ -109,36 +81,8 @@ impl
     }
 }
 
-impl<'a>
-    TransportRead<
-        'a,
-        Vec<
-            RtpsSubmessageType<
-                Vec<SequenceNumber>,
-                Vec<Parameter<'a>>,
-                &'a [u8],
-                Vec<Locator>,
-                Vec<FragmentNumber>,
-            >,
-        >,
-    > for UdpTransport
-{
-    fn read(
-        &'a mut self,
-    ) -> Option<(
-        Locator,
-        RtpsMessage<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    )> {
+impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpTransport {
+    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {

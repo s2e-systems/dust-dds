@@ -64,6 +64,7 @@ use rtps_pim::{
         },
     },
 };
+use rtps_udp_psm::udp_transport::UdpTransport;
 use socket2::Socket;
 
 use crate::{
@@ -72,7 +73,6 @@ use crate::{
         task_announce_participant, task_sedp_reader_discovery, task_sedp_writer_discovery,
         task_spdp_discovery, Executor, Spawner,
     },
-    udp_transport::UdpTransport,
 };
 
 pub struct RtpsStructureImpl;
@@ -323,7 +323,7 @@ impl DomainParticipantFactory {
             .into_iter()
             .flat_map(|i| {
                 i.addresses.into_iter().filter_map(|a| match a.address? {
-                    SocketAddr::V4(v4) if ! v4.ip().is_loopback() => Some(*v4.ip()),
+                    SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(*v4.ip()),
                     _ => None,
                 })
             })
