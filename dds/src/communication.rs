@@ -378,16 +378,17 @@ where
                 };
 
                 for (writer_proxy, acknacks) in stateful_rtps_reader.produce_acknack_submessages() {
-                    self.transport.write(
-                        &RtpsMessage::new(
-                            message_header.clone(),
-                            acknacks
-                                .into_iter()
-                                .map(|acknack| RtpsSubmessageType::AckNack(acknack))
-                                .collect(),
-                        ),
-                        writer_proxy.unicast_locator_list()[0],
+                    let message = RtpsMessage::new(
+                        message_header.clone(),
+                        acknacks
+                            .into_iter()
+                            .map(|acknack| RtpsSubmessageType::AckNack(acknack))
+                            .collect(),
                     );
+
+                    for &locator in writer_proxy.unicast_locator_list() {
+                        self.transport.write(&message, locator);
+                    }
                 }
             }
         }
