@@ -206,11 +206,11 @@ impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderAttributes for RtpsStatefulReaderImpl {
-    type WriterProxyType = RtpsWriterProxyImpl;
+impl<'a> RtpsStatefulReaderAttributes<'a> for RtpsStatefulReaderImpl {
+    type WriterProxyListType = &'a mut [RtpsWriterProxyImpl];
 
-    fn matched_writers(&self) -> &[Self::WriterProxyType] {
-        &self.matched_writers
+    fn matched_writers(&'a mut self) -> Self::WriterProxyListType {
+        self.matched_writers.as_mut_slice()
     }
 }
 

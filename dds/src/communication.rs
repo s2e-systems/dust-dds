@@ -8,7 +8,6 @@ use dds_implementation::{
     utils::shared_object::DdsShared,
 };
 use rtps_implementation::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
     rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl, utils::clock::Timer,
 };
 use rtps_pim::{
@@ -22,6 +21,8 @@ use rtps_pim::{
         },
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            stateful_writer::RtpsStatefulWriterAttributes,
+            stateless_writer::RtpsStatelessWriterAttributes,
         },
     },
     messages::{
@@ -85,20 +86,15 @@ where
                     if time_for_heartbeat {
                         stateless_rtps_writer.heartbeat_timer.reset();
                     }
-
-                    for reader_locator in stateless_rtps_writer.reader_locators.iter_mut() {
+                    let reliability_level = stateless_rtps_writer.writer.endpoint.reliability_level;
+                    for reader_locator in &mut stateless_rtps_writer.reader_locators() {
                         let locator = reader_locator.locator();
 
-                        match stateless_rtps_writer.writer.endpoint.reliability_level {
+                        match reliability_level {
                             ReliabilityKind::BestEffort => {
                                 let submessages = RefCell::new(Vec::new());
-                                let writer_cache = &stateless_rtps_writer.writer.writer_cache;
                                 BestEffortStatelessWriterBehavior::send_unsent_changes(
-                                    &mut RtpsReaderLocatorOperationsImpl::new(
-                                        reader_locator,
-                                        writer_cache,
-                                    ),
-                                    writer_cache,
+                                    reader_locator,
                                     |data| {
                                         let info_ts = if let Some(time) = any_data_writer
                                             .sample_info
@@ -145,29 +141,25 @@ where
                             ReliabilityKind::Reliable => {
                                 let submessages = RefCell::new(Vec::new());
 
-                                if time_for_heartbeat {
-                                    stateless_rtps_writer.heartbeat_count = Count(
-                                        stateless_rtps_writer.heartbeat_count.0.wrapping_add(1),
-                                    );
+                                // if time_for_heartbeat {
+                                //     stateless_rtps_writer.heartbeat_count = Count(
+                                //         stateless_rtps_writer.heartbeat_count.0.wrapping_add(1),
+                                //     );
 
-                                    ReliableStatelessWriterBehavior::send_heartbeat(
-                                        &stateless_rtps_writer.writer.writer_cache,
-                                        stateless_rtps_writer.writer.endpoint.entity.guid.entity_id,
-                                        stateless_rtps_writer.heartbeat_count,
-                                        |heartbeat| {
-                                            submessages
-                                                .borrow_mut()
-                                                .push(RtpsSubmessageType::Heartbeat(heartbeat));
-                                        },
-                                    );
-                                }
+                                //     ReliableStatelessWriterBehavior::send_heartbeat(
+                                //         &stateless_rtps_writer.writer.writer_cache,
+                                //         stateless_rtps_writer.writer.endpoint.entity.guid.entity_id,
+                                //         stateless_rtps_writer.heartbeat_count,
+                                //         |heartbeat| {
+                                //             submessages
+                                //                 .borrow_mut()
+                                //                 .push(RtpsSubmessageType::Heartbeat(heartbeat));
+                                //         },
+                                //     );
+                                // }
 
-                                let writer_cache = &stateless_rtps_writer.writer.writer_cache;
                                 ReliableStatelessWriterBehavior::send_unsent_changes(
-                                    &mut RtpsReaderLocatorOperationsImpl::new(
-                                        reader_locator,
-                                        writer_cache,
-                                    ),
+                                    reader_locator,
                                     |data| {
                                         submessages
                                             .borrow_mut()
@@ -213,17 +205,15 @@ where
 
                     let mut destined_submessages = Vec::new();
 
-                    for reader_proxy in &mut stateful_rtps_writer.matched_readers {
+                    let reliability_level = stateful_rtps_writer.writer.endpoint.reliability_level;
+                    for reader_proxy in &mut stateful_rtps_writer.matched_readers() {
                         let unicast_locator_list = reader_proxy.unicast_locator_list().to_vec();
-                        match stateful_rtps_writer.writer.endpoint.reliability_level {
+                        match reliability_level {
                             ReliabilityKind::BestEffort => todo!(),
                             ReliabilityKind::Reliable => {
                                 let submessages = RefCell::new(Vec::new());
                                 ReliableStatefulWriterBehavior::send_requested_changes(
-                                    &mut RtpsReaderProxyOperationsImpl::new(
-                                        reader_proxy,
-                                        &stateful_rtps_writer.writer.writer_cache,
-                                    ),
+                                    reader_proxy,
                                     |data| {
                                         submessages
                                             .borrow_mut()

@@ -20,7 +20,9 @@ use rtps_pim::{
     },
 };
 
-use crate::utils::clock::TimerConstructor;
+use crate::{
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl, utils::clock::TimerConstructor,
+};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -92,11 +94,17 @@ impl<T> RtpsWriterAttributes for RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<T> RtpsStatelessWriterAttributes for RtpsStatelessWriterImpl<T> {
-    type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
+impl<'a, T> RtpsStatelessWriterAttributes<'a> for RtpsStatelessWriterImpl<T> {
+    type ReaderLocatorListType = Vec<RtpsReaderLocatorOperationsImpl<'a>>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
-        &self.reader_locators
+    fn reader_locators(&'a mut self) -> Self::ReaderLocatorListType {
+        let writer_cache = &self.writer.writer_cache;
+        self.reader_locators
+            .iter_mut()
+            .map(|reader_locator_attributes| {
+                RtpsReaderLocatorOperationsImpl::new(reader_locator_attributes, writer_cache)
+            })
+            .collect()
     }
 }
 
