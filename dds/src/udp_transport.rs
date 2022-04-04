@@ -1,9 +1,12 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+use rtps_pim::{
+    messages::overall_structure::RtpsMessage,
+    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+};
 use rtps_udp_psm::{
     mapping_traits::{from_bytes, to_bytes},
-    messages::overall_structure::RtpsMessage,
+    messages::overall_structure::RtpsSubmessageType,
 };
 
 use crate::transport::{TransportRead, TransportWrite};
@@ -72,15 +75,20 @@ impl UdpTransport {
 }
 
 impl<'a> TransportWrite for UdpTransport {
-    fn write(&mut self, message: &RtpsMessage, destination_locator: Locator) {
+    fn write(
+        &mut self,
+        message: &RtpsMessage<Vec<RtpsSubmessageType<'_>>>,
+        destination_locator: Locator,
+    ) {
         let buf = to_bytes(message).unwrap();
         self.socket
-            .send_to(buf.as_slice(), UdpLocator(destination_locator)).ok();
+            .send_to(buf.as_slice(), UdpLocator(destination_locator))
+            .ok();
     }
 }
 
 impl TransportRead for UdpTransport {
-    fn read(&mut self) -> Option<(Locator, RtpsMessage)> {
+    fn read(&mut self) -> Option<(Locator, RtpsMessage<Vec<RtpsSubmessageType<'_>>>)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {

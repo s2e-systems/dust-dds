@@ -1,6 +1,5 @@
 use rtps_pim::{
     messages::{
-        overall_structure::RtpsMessageHeader,
         submessage_elements::Parameter,
         submessages::{
             AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
@@ -27,19 +26,4 @@ pub enum RtpsSubmessageType<'a> {
     InfoTimestamp(InfoTimestampSubmessage),
     NackFrag(NackFragSubmessage<Vec<FragmentNumber>>),
     Pad(PadSubmessage),
-}
-
-#[derive(Debug, PartialEq)]
-pub struct RtpsMessage<'a> {
-    pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageType<'a>>,
-}
-
-impl<'a> RtpsMessage<'a> {
-    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageType<'a>>) -> Self {
-        Self {
-            header,
-            submessages,
-        }
-    }
 }

@@ -18,6 +18,7 @@ use rtps_pim::{
         writer::reader_proxy::RtpsReaderProxyAttributes,
     },
     messages::{
+        overall_structure::RtpsMessage,
         submessages::InfoTimestampSubmessage,
         types::{Time, TIME_INVALID},
     },
@@ -30,7 +31,7 @@ use rtps_pim::{
         },
     },
 };
-use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
+use rtps_udp_psm::messages::overall_structure::RtpsSubmessageType;
 
 use crate::domain_participant_factory::RtpsStructureImpl;
 
@@ -65,7 +66,7 @@ impl MessageReceiver {
         publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
         subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
-        message: &RtpsMessage<'_>,
+        message: &RtpsMessage<Vec<RtpsSubmessageType<'_>>>,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;

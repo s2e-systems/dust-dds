@@ -4,13 +4,16 @@ use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 
 use crate::{
     mapping_traits::{MappingRead, MappingWrite},
-    messages::overall_structure::{RtpsMessage, RtpsSubmessageType},
+    messages::overall_structure::RtpsSubmessageType,
 };
 
 use super::submessages::submessage_header::{
     ACKNACK, DATA, DATA_FRAG, GAP, HEARTBEAT, HEARTBEAT_FRAG, INFO_DST, INFO_REPLY, INFO_SRC,
     INFO_TS, NACK_FRAG, PAD,
 };
+
+pub type RtpsMessage<'a> =
+    rtps_pim::messages::overall_structure::RtpsMessage<Vec<RtpsSubmessageType<'a>>>;
 
 impl MappingWrite for RtpsSubmessageType<'_> {
     fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
@@ -76,7 +79,10 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessage<'a> {
             };
             submessages.push(submessage);
         }
-        Ok(Self::new(header, submessages))
+        Ok(RtpsMessage {
+            header,
+            submessages,
+        })
     }
 }
 
@@ -107,7 +113,10 @@ mod tests {
             vendor_id: [9, 8],
             guid_prefix: GuidPrefix([3; 12]),
         };
-        let value = RtpsMessage::new(header, Vec::new());
+        let value = RtpsMessage {
+            header,
+            submessages: Vec::new(),
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -165,7 +174,10 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let value = RtpsMessage::new(header, vec![submessage]);
+        let value = RtpsMessage {
+            header,
+            submessages: vec![submessage],
+        };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -196,7 +208,10 @@ mod tests {
             guid_prefix: GuidPrefix([3; 12]),
         };
 
-        let expected = RtpsMessage::new(header, Vec::new());
+        let expected = RtpsMessage {
+            header,
+            submessages: Vec::new(),
+        };
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -255,7 +270,10 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage::new(header, vec![submessage]);
+        let expected = RtpsMessage {
+            header,
+            submessages: vec![submessage],
+        };
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -325,7 +343,10 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage::new(header, vec![submessage]);
+        let expected = RtpsMessage {
+            header,
+            submessages: vec![submessage],
+        };
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol

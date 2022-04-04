@@ -26,7 +26,7 @@ use rtps_pim::{
         },
     },
     messages::{
-        overall_structure::RtpsMessageHeader,
+        overall_structure::{RtpsMessage, RtpsMessageHeader},
         submessage_elements::TimestampSubmessageElement,
         submessages::InfoTimestampSubmessage,
         types::{Count, TIME_INVALID},
@@ -38,7 +38,7 @@ use rtps_pim::{
         },
     },
 };
-use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
+use rtps_udp_psm::messages::overall_structure::RtpsSubmessageType;
 
 use crate::{
     domain_participant_factory::RtpsStructureImpl,
@@ -192,7 +192,10 @@ where
 
                     for (locator, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(message_header.clone(), submessages),
+                            &RtpsMessage {
+                                header: message_header.clone(),
+                                submessages,
+                            },
                             locator,
                         );
                     }
@@ -234,7 +237,10 @@ where
 
                     for (locator_list, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(message_header.clone(), submessages),
+                            &RtpsMessage {
+                                header: message_header.clone(),
+                                submessages,
+                            },
                             locator_list[0],
                         )
                     }
@@ -351,7 +357,10 @@ where
                     }
 
                     for (locator_list, submessages) in destined_submessages {
-                        let message = RtpsMessage::new(message_header.clone(), submessages);
+                        let message = RtpsMessage {
+                            header: message_header.clone(),
+                            submessages,
+                        };
 
                         for locator in locator_list {
                             self.transport.write(&message, locator);
@@ -378,13 +387,13 @@ where
                 };
 
                 for (writer_proxy, acknacks) in stateful_rtps_reader.produce_acknack_submessages() {
-                    let message = RtpsMessage::new(
-                        message_header.clone(),
-                        acknacks
+                    let message = RtpsMessage {
+                        header: message_header.clone(),
+                        submessages: acknacks
                             .into_iter()
                             .map(|acknack| RtpsSubmessageType::AckNack(acknack))
                             .collect(),
-                    );
+                    };
 
                     for &locator in writer_proxy.unicast_locator_list() {
                         self.transport.write(&message, locator);
