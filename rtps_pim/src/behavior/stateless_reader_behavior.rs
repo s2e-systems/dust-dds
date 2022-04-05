@@ -7,18 +7,18 @@ use crate::{
     },
 };
 
-pub struct BestEffortStatelessReaderBehavior;
+pub trait BestEffortStatelessReaderReceiveDataBehavior<P, D> {
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>);
+}
 
-impl BestEffortStatelessReaderBehavior {
-    pub fn receive_data<C, P, D>(
-        reader_cache: &mut impl RtpsHistoryCacheOperations<CacheChangeType = C>,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<P, D>,
-    ) where
-        C: RtpsCacheChangeConstructor,
-        for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
-        for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
-    {
+impl<T, P, D, C> BestEffortStatelessReaderReceiveDataBehavior<P, D> for T
+where
+    T: RtpsHistoryCacheOperations<CacheChangeType = C>,
+    C: RtpsCacheChangeConstructor,
+    for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
+    for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
+{
+    fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
         let kind = match (data.data_flag, data.key_flag) {
             (true, false) => ChangeKind::Alive,
             (false, true) => ChangeKind::NotAliveDisposed,
@@ -37,7 +37,7 @@ impl BestEffortStatelessReaderBehavior {
             data_value,
             inline_qos,
         );
-        reader_cache.add_change(a_change);
+        self.add_change(a_change);
     }
 }
 
@@ -144,7 +144,7 @@ mod tests {
         };
         reader_cache.expect_add_change_().once().return_const(());
 
-        BestEffortStatelessReaderBehavior::receive_data(
+        BestEffortStatelessReaderReceiveDataBehavior::receive_data(
             &mut reader_cache,
             source_guid_prefix,
             &data,

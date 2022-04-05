@@ -1,11 +1,18 @@
 use rtps_pim::{
     behavior::{
-        reader::{stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor}, reader::RtpsReaderAttributes},
-        stateless_reader_behavior::BestEffortStatelessReaderBehavior,
+        reader::{
+            reader::RtpsReaderAttributes,
+            stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor},
+        },
+        stateless_reader_behavior::BestEffortStatelessReaderReceiveDataBehavior,
         types::Duration,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
-    structure::{types::{Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN}, entity::RtpsEntityAttributes, endpoint::RtpsEndpointAttributes},
+    structure::{
+        endpoint::RtpsEndpointAttributes,
+        entity::RtpsEntityAttributes,
+        types::{Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN},
+    },
 };
 
 use crate::rtps_history_cache_impl::RtpsHistoryCacheImpl;
@@ -23,7 +30,7 @@ impl RtpsStatelessReaderImpl {
         if data.reader_id.value == ENTITYID_UNKNOWN
             || data.reader_id.value == self.0.endpoint.entity.guid.entity_id()
         {
-            BestEffortStatelessReaderBehavior::receive_data(
+            BestEffortStatelessReaderReceiveDataBehavior::receive_data(
                 &mut self.0.reader_cache,
                 source_guid_prefix,
                 data,
