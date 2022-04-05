@@ -196,6 +196,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
+        behavior::types::Duration,
         messages::submessage_elements::{
             ParameterListSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
@@ -329,6 +330,48 @@ mod tests {
         }
     }
 
+    struct MockStatefulReader {
+        reader_cache: MockHistoryCache,
+        matched_writer: Option<MockWriterProxy>,
+    }
+
+    impl RtpsReaderAttributes for MockStatefulReader {
+        type HistoryCacheType = MockHistoryCache;
+
+        fn heartbeat_response_delay(&self) -> Duration {
+            todo!()
+        }
+        fn heartbeat_suppression_duration(&self) -> Duration {
+            todo!()
+        }
+        fn reader_cache(&mut self) -> &mut MockHistoryCache {
+            &mut self.reader_cache
+        }
+        fn expects_inline_qos(&self) -> bool {
+            todo!()
+        }
+    }
+
+    impl RtpsStatefulReaderOperations for MockStatefulReader {
+        type WriterProxyType = MockWriterProxy;
+
+        fn matched_writer_add(&mut self, _a_writer_proxy: Self::WriterProxyType) {
+            todo!()
+        }
+        fn matched_writer_remove<F>(&mut self, _f: F)
+        where
+            F: FnMut(&Self::WriterProxyType) -> bool,
+        {
+            todo!()
+        }
+        fn matched_writer_lookup(
+            &mut self,
+            _a_writer_guid: Guid,
+        ) -> Option<&mut Self::WriterProxyType> {
+            self.matched_writer.as_mut()
+        }
+    }
+
     #[test]
     fn best_effort_stateful_reader_receive_data_no_missed_samples() {
         let writer_sn = 1;
@@ -372,13 +415,16 @@ mod tests {
             .once()
             .return_const(());
 
-        todo!()
-        // BestEffortStatefulReaderBehavior::receive_data(
-        //     &mut writer_proxy,
-        //     &mut reader_cache,
-        //     source_guid_prefix,
-        //     &data,
-        // );
+        let mut stateful_reader = MockStatefulReader {
+            reader_cache,
+            matched_writer: Some(writer_proxy),
+        };
+
+        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
+            &mut stateful_reader,
+            source_guid_prefix,
+            &data,
+        );
     }
 
     #[test]
@@ -428,13 +474,16 @@ mod tests {
             .once()
             .return_const(());
 
-        todo!()
-        // BestEffortStatefulReaderBehavior::receive_data(
-        //     &mut writer_proxy,
-        //     &mut reader_cache,
-        //     source_guid_prefix,
-        //     &data,
-        // );
+        let mut stateful_reader = MockStatefulReader {
+            reader_cache,
+            matched_writer: Some(writer_proxy),
+        };
+
+        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
+            &mut stateful_reader,
+            source_guid_prefix,
+            &data,
+        );
     }
 
     #[test]
@@ -481,8 +530,7 @@ mod tests {
             .once()
             .return_const(());
 
-        todo!()
-        // BestEffortStatefulReaderBehavior::receive_gap(&mut writer_proxy, &gap)
+        BestEffortWriterProxyReceiveGapBehavior::receive_gap(&mut writer_proxy, &gap)
     }
 
     #[test]
@@ -523,13 +571,16 @@ mod tests {
             .once()
             .return_const(());
 
-        todo!()
-        // ReliableStatefulReaderBehavior::receive_data(
-        //     &mut writer_proxy,
-        //     &mut reader_cache,
-        //     source_guid_prefix,
-        //     &data,
-        // );
+        let mut stateful_reader = MockStatefulReader {
+            reader_cache,
+            matched_writer: Some(writer_proxy),
+        };
+
+        ReliableStatefulReaderReceiveDataBehavior::receive_data(
+            &mut stateful_reader,
+            source_guid_prefix,
+            &data,
+        );
     }
 
     #[test]
@@ -581,9 +632,8 @@ mod tests {
 
     #[test]
     fn reliable_stateful_reader_send_acknack_no_missing_changes() {
-        let reader_id = ENTITYID_UNKNOWN;
         let writer_id = EntityId::new([1; 3], 2);
-        let acknack_count = Count(2);
+        let acknack_count = Count(0);
         let writer_available_changes_max = 3;
         let missing_changes = vec![];
 
@@ -593,7 +643,9 @@ mod tests {
             reader_id: EntityIdSubmessageElement {
                 value: ENTITYID_UNKNOWN,
             },
-            writer_id: EntityIdSubmessageElement { value: writer_id },
+            writer_id: EntityIdSubmessageElement {
+                value: writer_id,
+            },
             reader_sn_state: SequenceNumberSetSubmessageElement {
                 base: writer_available_changes_max + 1,
                 set: missing_changes.clone(),
@@ -624,9 +676,8 @@ mod tests {
 
     #[test]
     fn reliable_stateful_reader_send_acknack_with_missing_changes() {
-        let reader_id = ENTITYID_UNKNOWN;
         let writer_id = EntityId::new([1; 3], 2);
-        let acknack_count = Count(2);
+        let acknack_count = Count(0);
         let writer_available_changes_max = 5;
         let missing_changes = vec![1, 2];
 
