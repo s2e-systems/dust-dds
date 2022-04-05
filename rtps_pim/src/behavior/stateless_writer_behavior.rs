@@ -29,22 +29,28 @@ pub trait ChangeInHistoryCache {
     fn is_in_cache(&self) -> bool;
 }
 
-pub struct BestEffortStatelessWriterBehavior;
+pub trait BestEffortStatelessWriterBehavior<P, D, S> {
+    fn send_unsent_changes(
+        &mut self,
+        send_data: impl FnMut(DataSubmessage<P, D>),
+        send_gap: impl FnMut(GapSubmessage<S>),
+    );
+}
 
-impl BestEffortStatelessWriterBehavior {
+impl<T, P, D, S> BestEffortStatelessWriterBehavior<P, D, S> for T
+where
+    T: RtpsReaderLocatorOperations,
+    T::CacheChangeListType: IntoIterator,
+    T::CacheChangeType: Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + ChangeInHistoryCache,
+{
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<P, D, S>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<
-            CacheChangeListType = impl IntoIterator,
-            CacheChangeType = impl Into<DataSubmessage<P, D>>
-                                  + Into<GapSubmessage<S>>
-                                  + ChangeInHistoryCache,
-        >,
+    fn send_unsent_changes(
+        &mut self,
         mut send_data: impl FnMut(DataSubmessage<P, D>),
         mut send_gap: impl FnMut(GapSubmessage<S>),
     ) {
-        while !reader_locator.unsent_changes().is_empty() {
-            let change = reader_locator.next_unsent_change();
+        while !self.unsent_changes().is_empty() {
+            let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
