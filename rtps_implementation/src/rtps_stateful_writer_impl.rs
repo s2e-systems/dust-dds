@@ -1,5 +1,10 @@
 use rtps_pim::{
     behavior::{
+        stateful_writer_behavior::{
+            BestEffortReaderProxyUnsentChangesBehavior,
+            ReliableReaderProxyRequestedChangesBehavior, ReliableReaderProxySendHeartbeatBehavior,
+            ReliableReaderProxyUnsentChangesBehavior, StatefulWriterSendSubmessages,
+        },
         types::{
             ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
             Duration,
@@ -30,7 +35,7 @@ use rtps_pim::{
 
 use crate::{
     rtps_reader_proxy_impl::{RtpsChangeForReaderImpl, RtpsReaderProxyOperationsImpl},
-    utils::clock::TimerConstructor,
+    utils::clock::{Timer, TimerConstructor},
 };
 
 use super::{
@@ -250,5 +255,61 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
 
     fn get_seq_num_max(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
         self.writer.writer_cache.get_seq_num_max()
+    }
+}
+
+impl<'a, T> StatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+    for RtpsStatefulWriterImpl<T>
+where
+    T: Timer,
+{
+    type ReaderProxyType = RtpsReaderProxyOperationsImpl<'a>;
+
+    fn send_submessages(
+        &'a mut self,
+        mut send_data: impl FnMut(&Self::ReaderProxyType, DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+        mut send_gap: impl FnMut(&Self::ReaderProxyType, GapSubmessage<Vec<SequenceNumber>>),
+        mut send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
+    ) {
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+            self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+        }
+
+        let reliability_level = self.reliability_level();
+        for reader_proxy in &mut self.matched_readers() {
+            match reliability_level {
+                ReliabilityKind::BestEffort => {
+                    BestEffortReaderProxyUnsentChangesBehavior::send_unsent_changes(
+                        reader_proxy,
+                        |rp, data| send_data(rp, data),
+                        |rp, gap| send_gap(rp, gap),
+                    )
+                }
+                ReliabilityKind::Reliable => {
+                    if time_for_heartbeat {
+                        ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
+                            reader_proxy,
+                            |rp, heartbeat| send_heartbeat(rp, heartbeat),
+                        );
+                    }
+
+                    ReliableReaderProxyUnsentChangesBehavior::send_unsent_changes(
+                        reader_proxy,
+                        |rp, data| send_data(rp, data),
+                        |rp, gap| send_gap(rp, gap),
+                    );
+
+                    ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
+                        reader_proxy,
+                        |rp, data| send_data(rp, data),
+                        |rp, gap| send_gap(rp, gap),
+                    );
+                }
+            }
+        }
     }
 }

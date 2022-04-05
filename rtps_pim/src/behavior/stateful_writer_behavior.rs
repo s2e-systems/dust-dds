@@ -18,6 +18,17 @@ use super::writer::{
     reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
 };
 
+pub trait StatefulWriterSendSubmessages<'a, P, D, S> {
+    type ReaderProxyType;
+
+    fn send_submessages(
+        &'a mut self,
+        send_data: impl FnMut(&Self::ReaderProxyType, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self::ReaderProxyType, GapSubmessage<S>),
+        send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
+    );
+}
+
 trait IsEmpty {
     fn is_empty(self) -> bool;
 }
