@@ -18,6 +18,17 @@ use super::writer::{
     reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
 };
 
+pub trait StatefulWriterSendSubmessages<'a, P, D, S> {
+    type ReaderProxyType;
+
+    fn send_submessages(
+        &'a mut self,
+        send_data: impl FnMut(&Self::ReaderProxyType, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self::ReaderProxyType, GapSubmessage<S>),
+        send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
+    );
+}
+
 trait IsEmpty {
     fn is_empty(self) -> bool;
 }
@@ -31,8 +42,8 @@ impl<T: IntoIterator> IsEmpty for T {
 pub trait BestEffortReaderProxyUnsentChangesBehavior<P, D, S> {
     fn send_unsent_changes(
         &mut self,
-        send_data: impl FnMut(DataSubmessage<P, D>),
-        send_gap: impl FnMut(GapSubmessage<S>),
+        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self, GapSubmessage<S>),
     );
 }
 
@@ -45,8 +56,8 @@ where
 {
     fn send_unsent_changes(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
+        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
     ) {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
@@ -62,11 +73,11 @@ where
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(data_submessage)
+                send_data(self, data_submessage)
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(gap_submessage)
+                send_gap(self, gap_submessage)
             }
         }
     }
@@ -75,8 +86,8 @@ where
 pub trait ReliableReaderProxyUnsentChangesBehavior<P, D, S> {
     fn send_unsent_changes(
         &mut self,
-        send_data: impl FnMut(DataSubmessage<P, D>),
-        send_gap: impl FnMut(GapSubmessage<S>),
+        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self, GapSubmessage<S>),
     );
 }
 
@@ -89,8 +100,8 @@ where
 {
     fn send_unsent_changes(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
+        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
     ) {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
@@ -106,25 +117,25 @@ where
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(data_submessage)
+                send_data(self, data_submessage)
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(gap_submessage)
+                send_gap(self, gap_submessage)
             }
         }
     }
 }
 
 pub trait ReliableReaderProxySendHeartbeatBehavior {
-    fn send_heartbeat(&self, send_heartbeat: impl FnMut(HeartbeatSubmessage));
+    fn send_heartbeat(&self, send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage));
 }
 
 impl<T> ReliableReaderProxySendHeartbeatBehavior for T
 where
     T: RtpsHistoryCacheOperations,
 {
-    fn send_heartbeat(&self, mut send_heartbeat: impl FnMut(HeartbeatSubmessage)) {
+    fn send_heartbeat(&self, mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage)) {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
@@ -151,7 +162,7 @@ where
             last_sn,
             count,
         };
-        send_heartbeat(heartbeat_submessage)
+        send_heartbeat(self, heartbeat_submessage)
     }
 }
 
@@ -172,8 +183,8 @@ where
 pub trait ReliableReaderProxyRequestedChangesBehavior<P, D, S> {
     fn send_requested_changes(
         &mut self,
-        send_data: impl FnMut(DataSubmessage<P, D>),
-        send_gap: impl FnMut(GapSubmessage<S>),
+        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self, GapSubmessage<S>),
     );
 }
 
@@ -186,8 +197,8 @@ where
 {
     fn send_requested_changes(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
+        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
     ) {
         let reader_id = self.remote_reader_guid().entity_id();
 
@@ -201,11 +212,11 @@ where
             if change_for_reader.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(data_submessage)
+                send_data(self, data_submessage)
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change_for_reader.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(gap_submessage)
+                send_gap(self, gap_submessage)
             }
         }
     }

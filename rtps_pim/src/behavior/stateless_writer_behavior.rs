@@ -15,6 +15,17 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
+pub trait StatelessWriterSendSubmessages<'a, P, D, S> {
+    type ReaderLocatorType;
+
+    fn send_submessages(
+        &'a mut self,
+        send_data: impl FnMut(&Self::ReaderLocatorType, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self::ReaderLocatorType, GapSubmessage<S>),
+        send_heartbeat: impl FnMut(&Self::ReaderLocatorType, HeartbeatSubmessage),
+    );
+}
+
 trait IsEmpty {
     fn is_empty(self) -> bool;
 }
@@ -32,8 +43,8 @@ pub trait ChangeInHistoryCache {
 pub trait BestEffortReaderLocatorUnsentChangesBehavior<P, D, S> {
     fn send_unsent_changes(
         &mut self,
-        send_data: impl FnMut(DataSubmessage<P, D>),
-        send_gap: impl FnMut(GapSubmessage<S>),
+        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self, GapSubmessage<S>),
     );
 }
 
@@ -46,8 +57,8 @@ where
     /// 8.4.8.1.4 Transition T4
     fn send_unsent_changes(
         &mut self,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(GapSubmessage<S>),
+        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
     ) {
         while !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
@@ -56,10 +67,10 @@ where
             // should be full-filled by next_unsent_change()
             if change.is_in_cache() {
                 let data_submessage = change.into();
-                send_data(data_submessage);
+                send_data(self, data_submessage);
             } else {
                 let gap_submessage = change.into();
-                send_gap(gap_submessage);
+                send_gap(self, gap_submessage);
             }
         }
     }
@@ -67,7 +78,7 @@ where
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.2 Reliable StatelessWriter Behavior
 pub trait ReliableReaderLocatorUnsentChangesBehavior<P, D> {
-    fn send_unsent_changes(&mut self, send_data: impl FnMut(DataSubmessage<P, D>));
+    fn send_unsent_changes(&mut self, send_data: impl FnMut(&Self, DataSubmessage<P, D>));
 }
 
 impl<T, P, D> ReliableReaderLocatorUnsentChangesBehavior<P, D> for T
@@ -77,27 +88,27 @@ where
     T::CacheChangeType: Into<DataSubmessage<P, D>>,
 {
     /// 8.4.8.2.4 Transition T4
-    fn send_unsent_changes(&mut self, mut send_data: impl FnMut(DataSubmessage<P, D>)) {
+    fn send_unsent_changes(&mut self, mut send_data: impl FnMut(&Self, DataSubmessage<P, D>)) {
         while !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             let data_submessage = change.into();
-            send_data(data_submessage)
+            send_data(self, data_submessage)
         }
     }
 }
 
 pub trait ReliableReaderLocatorSendHeartbeatBehavior {
-    fn send_heartbeat(&mut self, send_heartbeat: impl FnMut(HeartbeatSubmessage));
+    fn send_heartbeat(&mut self, send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage));
 }
 
 impl<T> ReliableReaderLocatorSendHeartbeatBehavior for T
 where
     T: RtpsHistoryCacheOperations,
 {
-    fn send_heartbeat(&mut self, mut send_heartbeat: impl FnMut(HeartbeatSubmessage)) {
+    fn send_heartbeat(&mut self, mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage)) {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
@@ -124,7 +135,7 @@ where
             last_sn,
             count,
         };
-        send_heartbeat(heartbeat_submessage)
+        send_heartbeat(self, heartbeat_submessage)
     }
 }
 
@@ -149,8 +160,8 @@ where
 pub trait ReliableReaderLocatorRequestedChangesBehavior<P, D, S> {
     fn send_requested_changes(
         &mut self,
-        send_data: impl FnMut(DataSubmessage<P, D>),
-        send_gap: impl FnMut(GapSubmessage<S>),
+        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self, GapSubmessage<S>),
     );
 }
 
@@ -259,8 +270,8 @@ mod tests {
 
         BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
             &mut reader_locator,
-            |data| data_message_sender.send_data(data),
-            |_: GapSubmessage<()>| {},
+            |_, data| data_message_sender.send_data(data),
+            |_, _: GapSubmessage<()>| {},
         )
     }
 }

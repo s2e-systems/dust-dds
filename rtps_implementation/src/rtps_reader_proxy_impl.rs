@@ -17,7 +17,7 @@ use rtps_pim::{
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
-        history_cache::RtpsHistoryCacheAttributes,
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{EntityId, Guid, Locator, SequenceNumber},
     },
 };
@@ -112,6 +112,29 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             reader_proxy,
             writer_cache,
         }
+    }
+}
+
+impl<'a> RtpsHistoryCacheOperations for RtpsReaderProxyOperationsImpl<'a> {
+    type CacheChangeType = RtpsCacheChangeImpl;
+
+    fn add_change(&mut self, _change: Self::CacheChangeType) {
+        unimplemented!()
+    }
+
+    fn remove_change<F>(&mut self, _f: F)
+    where
+        F: FnMut(&Self::CacheChangeType) -> bool,
+    {
+        unimplemented!()
+    }
+
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        self.writer_cache.get_seq_num_min()
+    }
+
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        self.writer_cache.get_seq_num_max()
     }
 }
 

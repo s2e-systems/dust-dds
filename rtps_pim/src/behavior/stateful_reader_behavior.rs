@@ -128,14 +128,14 @@ where
 }
 
 pub trait ReliableWriterProxySendAckNack<S> {
-    fn send_ack_nack(&mut self, send_acknack: impl FnMut(AckNackSubmessage<S>));
+    fn send_ack_nack(&mut self, send_acknack: impl FnMut(&Self, AckNackSubmessage<S>));
 }
 
 impl<T, S> ReliableWriterProxySendAckNack<S> for T
 where
     T: RtpsWriterProxyOperations<SequenceNumberListType = S> + RtpsWriterProxyAttributes,
 {
-    fn send_ack_nack(&mut self, mut send_acknack: impl FnMut(AckNackSubmessage<S>)) {
+    fn send_ack_nack(&mut self, mut send_acknack: impl FnMut(&Self, AckNackSubmessage<S>)) {
         let endianness_flag = true;
         let final_flag = true;
         let reader_id = EntityIdSubmessageElement {
@@ -160,7 +160,7 @@ where
             count,
         };
 
-        send_acknack(acknack_submessage);
+        send_acknack(self, acknack_submessage);
     }
 }
 
@@ -618,7 +618,7 @@ mod tests {
             .once()
             .return_const(missing_changes);
 
-        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |acknack| {
+        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |_, acknack| {
             assert_eq!(acknack, expected_acknack)
         })
     }
@@ -660,7 +660,7 @@ mod tests {
             .once()
             .return_const(missing_changes);
 
-        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |acknack| {
+        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |_, acknack| {
             assert_eq!(acknack, expected_acknack)
         })
     }
