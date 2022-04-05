@@ -26,25 +26,22 @@ use rtps_pim::{
         },
     },
     messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::TimestampSubmessageElement,
+        overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
+        submessage_elements::{Parameter, TimestampSubmessageElement},
         submessages::InfoTimestampSubmessage,
-        types::{Count, TIME_INVALID},
+        types::{Count, FragmentNumber, TIME_INVALID},
     },
     structure::{
         entity::RtpsEntityAttributes,
         types::{
-            GuidPrefix, ProtocolVersion, ReliabilityKind, VendorId, PROTOCOLVERSION, VENDOR_ID_S2E,
+            GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
+            PROTOCOLVERSION, VENDOR_ID_S2E,
         },
     },
-};
-use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
-
-use crate::{
-    domain_participant_factory::RtpsStructureImpl,
-    message_receiver::MessageReceiver,
     transport::{TransportRead, TransportWrite},
 };
+
+use crate::{domain_participant_factory::RtpsStructureImpl, message_receiver::MessageReceiver};
 
 pub struct Communication<T> {
     pub version: ProtocolVersion,
@@ -55,7 +52,17 @@ pub struct Communication<T> {
 
 impl<T> Communication<T>
 where
-    T: TransportWrite,
+    T: for<'a> TransportWrite<
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    >,
 {
     pub fn send_publisher_message(&mut self, publisher: &PublisherAttributes<RtpsStructureImpl>) {
         let message_header = RtpsMessageHeader {
@@ -192,7 +199,10 @@ where
 
                     for (locator, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(message_header.clone(), submessages),
+                            &RtpsMessage {
+                                header: message_header.clone(),
+                                submessages,
+                            },
                             locator,
                         );
                     }
@@ -234,7 +244,10 @@ where
 
                     for (locator_list, submessages) in destined_submessages {
                         self.transport.write(
-                            &RtpsMessage::new(message_header.clone(), submessages),
+                            &RtpsMessage {
+                                header: message_header.clone(),
+                                submessages,
+                            },
                             locator_list[0],
                         )
                     }
@@ -351,7 +364,10 @@ where
                     }
 
                     for (locator_list, submessages) in destined_submessages {
-                        let message = RtpsMessage::new(message_header.clone(), submessages);
+                        let message = RtpsMessage {
+                            header: message_header.clone(),
+                            submessages,
+                        };
 
                         for locator in locator_list {
                             self.transport.write(&message, locator);
@@ -378,13 +394,13 @@ where
                 };
 
                 for (writer_proxy, acknacks) in stateful_rtps_reader.produce_acknack_submessages() {
-                    let message = RtpsMessage::new(
-                        message_header.clone(),
-                        acknacks
+                    let message = RtpsMessage {
+                        header: message_header.clone(),
+                        submessages: acknacks
                             .into_iter()
                             .map(|acknack| RtpsSubmessageType::AckNack(acknack))
                             .collect(),
-                    );
+                    };
 
                     for &locator in writer_proxy.unicast_locator_list() {
                         self.transport.write(&message, locator);
@@ -397,7 +413,17 @@ where
 
 impl<T> Communication<T>
 where
-    T: TransportRead,
+    T: for<'a> TransportRead<'a,
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    >,
 {
     pub fn receive(
         &mut self,

@@ -18,19 +18,20 @@ use rtps_pim::{
         writer::reader_proxy::RtpsReaderProxyAttributes,
     },
     messages::{
+        overall_structure::{RtpsMessage, RtpsSubmessageType},
+        submessage_elements::Parameter,
         submessages::InfoTimestampSubmessage,
-        types::{Time, TIME_INVALID},
+        types::{FragmentNumber, Time, TIME_INVALID},
     },
     structure::{
         history_cache::RtpsHistoryCacheAttributes,
         types::{
-            Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, VendorId,
+            Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
             ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
             PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
     },
 };
-use rtps_udp_psm::messages::overall_structure::{RtpsMessage, RtpsSubmessageType};
 
 use crate::domain_participant_factory::RtpsStructureImpl;
 
@@ -65,7 +66,17 @@ impl MessageReceiver {
         publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
         subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
         source_locator: Locator,
-        message: &RtpsMessage<'_>,
+        message: &RtpsMessage<
+            Vec<
+                RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<Parameter<'_>>,
+                    &'_ [u8],
+                    Vec<Locator>,
+                    Vec<FragmentNumber>,
+                >,
+            >,
+        >,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
