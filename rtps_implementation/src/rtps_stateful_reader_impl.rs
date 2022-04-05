@@ -149,7 +149,7 @@ impl RtpsStatefulReaderImpl {
                     writer_proxy.acknack_count =
                         Count(writer_proxy.acknack_count.0.wrapping_add(1));
 
-                    ReliableWriterProxySendAckNack::send_ack_nack(writer_proxy, |acknack| {
+                    ReliableWriterProxySendAckNack::send_ack_nack(writer_proxy, |_, acknack| {
                         acknacks.borrow_mut().push(acknack)
                     });
                 }

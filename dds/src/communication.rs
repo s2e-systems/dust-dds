@@ -105,7 +105,7 @@ where
                                 let submessages = RefCell::new(Vec::new());
                                 BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
                                     reader_locator,
-                                    |data| {
+                                    |_, data| {
                                         let info_ts = if let Some(time) = any_data_writer
                                             .sample_info
                                             .read_lock()
@@ -137,7 +137,7 @@ where
                                             .borrow_mut()
                                             .push(RtpsSubmessageType::Data(data));
                                     },
-                                    |gap| {
+                                    |_, gap| {
                                         submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap));
                                     },
                                 );
@@ -170,7 +170,7 @@ where
 
                                 ReliableReaderLocatorUnsentChangesBehavior::send_unsent_changes(
                                     reader_locator,
-                                    |data| {
+                                    |_, data| {
                                         submessages
                                             .borrow_mut()
                                             .push(RtpsSubmessageType::Data(data));
@@ -227,12 +227,12 @@ where
                                 let submessages = RefCell::new(Vec::new());
                                 ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
                                     reader_proxy,
-                                    |data| {
+                                    |_, data| {
                                         submessages
                                             .borrow_mut()
                                             .push(RtpsSubmessageType::Data(data))
                                     },
-                                    |gap| {
+                                    |_, gap| {
                                         submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap))
                                     },
                                 );
@@ -278,12 +278,12 @@ where
                                         reader_proxy,
                                         &stateful_rtps_writer.writer.writer_cache,
                                     ),
-                                    |data| {
+                                    |_, data| {
                                         submessages
                                             .borrow_mut()
                                             .push(RtpsSubmessageType::Data(data))
                                     },
-                                    |gap| {
+                                    |_, gap| {
                                         submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap))
                                     },
                                 );
@@ -305,7 +305,7 @@ where
 
                                     ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
                                         &stateful_rtps_writer.writer.writer_cache,
-                                        |heartbeat| {
+                                        |_, heartbeat| {
                                             submessages
                                                 .borrow_mut()
                                                 .push(RtpsSubmessageType::Heartbeat(heartbeat));
@@ -318,7 +318,7 @@ where
                                         reader_proxy,
                                         &stateful_rtps_writer.writer.writer_cache,
                                     ),
-                                    |data| {
+                                    |_, data| {
                                         let info_ts = if let Some(time) = any_data_writer
                                             .sample_info
                                             .read_lock()
@@ -350,7 +350,7 @@ where
                                             .borrow_mut()
                                             .push(RtpsSubmessageType::Data(data));
                                     },
-                                    |gap| {
+                                    |_, gap| {
                                         submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap));
                                     },
                                 );
