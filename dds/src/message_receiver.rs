@@ -14,7 +14,7 @@ use rtps_implementation::{
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::ReliableStatefulWriterBehavior,
-        stateless_writer_behavior::ReliableStatelessWriterBehavior,
+        stateless_writer_behavior::ReliableReaderLocatorReceiveAcknackBehavior,
         writer::reader_proxy::RtpsReaderProxyAttributes,
     },
     messages::{
@@ -118,7 +118,7 @@ impl MessageReceiver {
                                                 if reader_locator.last_received_acknack_count
                                                     != acknack.count.value
                                                 {
-                                                    ReliableStatelessWriterBehavior::receive_acknack(
+                                                    ReliableReaderLocatorReceiveAcknackBehavior::receive_acknack(
                                                         &mut RtpsReaderLocatorOperationsImpl::new(
                                                             reader_locator,
                                                             &stateless_rtps_writer.writer.writer_cache,

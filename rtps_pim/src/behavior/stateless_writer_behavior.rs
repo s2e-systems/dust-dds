@@ -8,8 +8,8 @@ use crate::{
         types::Count,
     },
     structure::{
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
+        history_cache::RtpsHistoryCacheOperations,
+        types::{SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -29,7 +29,7 @@ pub trait ChangeInHistoryCache {
     fn is_in_cache(&self) -> bool;
 }
 
-pub trait BestEffortStatelessWriterBehavior<P, D, S> {
+pub trait BestEffortReaderLocatorUnsentChangesBehavior<P, D, S> {
     fn send_unsent_changes(
         &mut self,
         send_data: impl FnMut(DataSubmessage<P, D>),
@@ -37,7 +37,7 @@ pub trait BestEffortStatelessWriterBehavior<P, D, S> {
     );
 }
 
-impl<T, P, D, S> BestEffortStatelessWriterBehavior<P, D, S> for T
+impl<T, P, D, S> BestEffortReaderLocatorUnsentChangesBehavior<P, D, S> for T
 where
     T: RtpsReaderLocatorOperations,
     T::CacheChangeListType: IntoIterator,
@@ -66,19 +66,20 @@ where
 }
 
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.2 Reliable StatelessWriter Behavior
-pub struct ReliableStatelessWriterBehavior;
+pub trait ReliableReaderLocatorUnsentChangesBehavior<P, D> {
+    fn send_unsent_changes(&mut self, send_data: impl FnMut(DataSubmessage<P, D>));
+}
 
-impl ReliableStatelessWriterBehavior {
+impl<T, P, D> ReliableReaderLocatorUnsentChangesBehavior<P, D> for T
+where
+    T: RtpsReaderLocatorOperations,
+    T::CacheChangeListType: IntoIterator,
+    T::CacheChangeType: Into<DataSubmessage<P, D>>,
+{
     /// 8.4.8.2.4 Transition T4
-    pub fn send_unsent_changes<P, D>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations<
-            CacheChangeListType = impl IntoIterator,
-            CacheChangeType = impl Into<DataSubmessage<P, D>>,
-        >,
-        mut send_data: impl FnMut(DataSubmessage<P, D>),
-    ) {
-        while !reader_locator.unsent_changes().is_empty() {
-            let change = reader_locator.next_unsent_change();
+    fn send_unsent_changes(&mut self, mut send_data: impl FnMut(DataSubmessage<P, D>)) {
+        while !self.unsent_changes().is_empty() {
+            let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
@@ -86,30 +87,33 @@ impl ReliableStatelessWriterBehavior {
             send_data(data_submessage)
         }
     }
+}
 
-    /// 8.4.8.2.5 Transition T5
-    pub fn send_heartbeat(
-        writer_cache: &impl RtpsHistoryCacheOperations,
-        writer_id: EntityId,
-        heartbeat_count: Count,
-        mut send_heartbeat: impl FnMut(HeartbeatSubmessage),
-    ) {
+pub trait ReliableReaderLocatorSendHeartbeatBehavior {
+    fn send_heartbeat(&mut self, send_heartbeat: impl FnMut(HeartbeatSubmessage));
+}
+
+impl<T> ReliableReaderLocatorSendHeartbeatBehavior for T
+where
+    T: RtpsHistoryCacheOperations,
+{
+    fn send_heartbeat(&mut self, mut send_heartbeat: impl FnMut(HeartbeatSubmessage)) {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdSubmessageElement {
             value: ENTITYID_UNKNOWN,
         };
-        let writer_id = EntityIdSubmessageElement { value: writer_id };
+        let writer_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
         let first_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(0),
+            value: self.get_seq_num_min().unwrap_or(0),
         };
         let last_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_max().unwrap_or(0),
+            value: self.get_seq_num_max().unwrap_or(0),
         };
-        let count = CountSubmessageElement {
-            value: heartbeat_count,
-        };
+        let count = CountSubmessageElement { value: Count(0) };
         let heartbeat_submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -122,28 +126,32 @@ impl ReliableStatelessWriterBehavior {
         };
         send_heartbeat(heartbeat_submessage)
     }
+}
 
+pub trait ReliableReaderLocatorReceiveAcknackBehavior<S> {
+    fn receive_acknack(&mut self, acknack: &AckNackSubmessage<S>);
+}
+
+impl<S, T> ReliableReaderLocatorReceiveAcknackBehavior<S> for T
+where
+    T: RtpsReaderLocatorOperations,
+
+    S: AsRef<[SequenceNumber]>,
+{
     /// 8.4.8.2.5 Transition T6
     /// Implementation does not include the part corresponding to searching the reader locator
     /// on the stateless writer
-    pub fn receive_acknack<S>(
-        reader_locator: &mut impl RtpsReaderLocatorOperations,
-        acknack: &AckNackSubmessage<S>,
-    ) where
-        S: AsRef<[SequenceNumber]>,
-    {
-        reader_locator.requested_changes_set(acknack.reader_sn_state.set.as_ref());
+    fn receive_acknack(&mut self, acknack: &AckNackSubmessage<S>) {
+        self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
+}
 
-    /// 8.4.8.2.10 Transition T10
-    pub fn send_requested_changes<C, P, D, S>(
-        _reader_locator: &mut impl RtpsReaderLocatorOperations,
-        _writer_cache: &impl RtpsHistoryCacheAttributes<CacheChangeType = C>,
-        mut _send_data: impl FnMut(DataSubmessage<P, D>),
-        mut _send_gap: impl FnMut(GapSubmessage<S>),
-    ) {
-        todo!()
-    }
+pub trait ReliableReaderLocatorRequestedChangesBehavior<P, D, S> {
+    fn send_requested_changes(
+        &mut self,
+        send_data: impl FnMut(DataSubmessage<P, D>),
+        send_gap: impl FnMut(GapSubmessage<S>),
+    );
 }
 
 #[cfg(test)]
@@ -249,7 +257,7 @@ mod tests {
             .returning(|| vec![])
             .in_sequence(&mut seq);
 
-        BestEffortStatelessWriterBehavior::send_unsent_changes(
+        BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
             &mut reader_locator,
             |data| data_message_sender.send_data(data),
             |_: GapSubmessage<()>| {},

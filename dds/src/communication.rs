@@ -17,7 +17,7 @@ use rtps_pim::{
             BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
         },
         stateless_writer_behavior::{
-            BestEffortStatelessWriterBehavior, ReliableStatelessWriterBehavior,
+            BestEffortReaderLocatorUnsentChangesBehavior, ReliableReaderLocatorUnsentChangesBehavior,
         },
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
@@ -100,7 +100,7 @@ where
                         match reliability_level {
                             ReliabilityKind::BestEffort => {
                                 let submessages = RefCell::new(Vec::new());
-                                BestEffortStatelessWriterBehavior::send_unsent_changes(
+                                BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
                                     reader_locator,
                                     |data| {
                                         let info_ts = if let Some(time) = any_data_writer
@@ -165,7 +165,7 @@ where
                                 //     );
                                 // }
 
-                                ReliableStatelessWriterBehavior::send_unsent_changes(
+                                ReliableReaderLocatorUnsentChangesBehavior::send_unsent_changes(
                                     reader_locator,
                                     |data| {
                                         submessages
