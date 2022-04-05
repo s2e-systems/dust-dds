@@ -23,39 +23,13 @@ pub struct RtpsParameter {
     pub value: Vec<u8>,
 }
 
-pub struct RtpsParameterList(pub Vec<RtpsParameter>);
-
-impl<'a> From<&'a Vec<Parameter<'_>>> for RtpsParameterList {
-    fn from(p: &'a Vec<Parameter<'_>>) -> Self {
-        Self(
-            p.into_iter()
-                .map(|p| RtpsParameter {
-                    parameter_id: p.parameter_id,
-                    value: p.value.to_vec(),
-                })
-                .collect(),
-        )
-    }
-}
-impl<'a> From<&'a RtpsParameterList> for Vec<Parameter<'a>> {
-    fn from(v: &'a RtpsParameterList) -> Self {
-        v.0.iter()
-            .map(|p| Parameter {
-                parameter_id: p.parameter_id,
-                length: p.value.len() as i16,
-                value: p.value.as_ref(),
-            })
-            .collect()
-    }
-}
-
 pub struct RtpsCacheChangeImpl {
     pub kind: ChangeKind,
     pub writer_guid: Guid,
     pub sequence_number: SequenceNumber,
     pub instance_handle: InstanceHandle,
-    pub data: RtpsData,
-    pub inline_qos: RtpsParameterList,
+    pub data: Vec<u8>,
+    pub inline_qos: Vec<RtpsParameter>,
 }
 impl PartialEq for RtpsCacheChangeImpl {
     fn eq(&self, other: &Self) -> bool {
@@ -63,22 +37,6 @@ impl PartialEq for RtpsCacheChangeImpl {
             && self.writer_guid == other.writer_guid
             && self.sequence_number == other.sequence_number
             && self.instance_handle == other.instance_handle
-    }
-}
-pub struct RtpsData(pub Vec<u8>);
-impl From<&&[u8]> for RtpsData {
-    fn from(v: &&[u8]) -> Self {
-        Self(v.to_vec())
-    }
-}
-impl<'a> From<&'a RtpsData> for &'a [u8] {
-    fn from(v: &'a RtpsData) -> Self {
-        v.0.as_ref()
-    }
-}
-impl AsRef<[u8]> for RtpsData {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_ref()
     }
 }
 
@@ -95,8 +53,17 @@ impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheCha
         };
         let instance_handle = 0;
         let sequence_number = data.writer_sn.value;
-        let data_value = (&data.serialized_payload.value).into();
-        let inline_qos = (&data.inline_qos.parameter).into();
+        let data_value = data.serialized_payload.value.to_vec();
+
+        let inline_qos = data
+            .inline_qos
+            .parameter
+            .iter()
+            .map(|p| RtpsParameter {
+                parameter_id: p.parameter_id,
+                value: p.value.to_vec(),
+            })
+            .collect();
         RtpsCacheChangeImpl {
             kind,
             writer_guid,
@@ -108,9 +75,57 @@ impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheCha
     }
 }
 
+impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheChangeImpl {
+    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+        let endianness_flag = true;
+        let inline_qos_flag = true;
+        let (data_flag, key_flag) = match self.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let non_standard_payload_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.writer_guid().entity_id(),
+        };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: self.sequence_number(),
+        };
+        let inline_qos = ParameterListSubmessageElement {
+            parameter: self
+                .inline_qos()
+                .iter()
+                .map(|p| Parameter {
+                    parameter_id: p.parameter_id,
+                    length: p.value.len() as i16,
+                    value: p.value.as_ref(),
+                })
+                .collect(),
+        };
+        let serialized_payload = SerializedDataSubmessageElement {
+            value: self.data_value().as_ref(),
+        };
+        DataSubmessage {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos,
+            serialized_payload,
+        }
+    }
+}
+
 impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
-    type DataType = RtpsData;
-    type ParameterListType = RtpsParameterList;
+    type DataType = Vec<u8>;
+    type ParameterListType = Vec<RtpsParameter>;
 
     fn new(
         kind: ChangeKind,
@@ -133,7 +148,7 @@ impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
 
 impl RtpsCacheChangeAttributes for &RtpsCacheChangeImpl {
     type DataType = [u8];
-    type ParameterListType = RtpsParameterList;
+    type ParameterListType = Vec<RtpsParameter>;
 
     fn kind(&self) -> ChangeKind {
         self.kind
@@ -162,7 +177,7 @@ impl RtpsCacheChangeAttributes for &RtpsCacheChangeImpl {
 
 impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
     type DataType = [u8];
-    type ParameterListType = RtpsParameterList;
+    type ParameterListType = [RtpsParameter];
 
     fn kind(&self) -> ChangeKind {
         self.kind
@@ -186,46 +201,6 @@ impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
 
     fn inline_qos(&self) -> &Self::ParameterListType {
         &self.inline_qos
-    }
-}
-
-impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheChangeImpl {
-    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
-        let endianness_flag = true;
-        let inline_qos_flag = true;
-        let (data_flag, key_flag) = match self.kind() {
-            ChangeKind::Alive => (true, false),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
-            _ => todo!(),
-        };
-        let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: self.writer_guid().entity_id(),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: self.sequence_number(),
-        };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: self.inline_qos().into(),
-        };
-        let serialized_payload = SerializedDataSubmessageElement {
-            value: self.data_value().into(),
-        };
-        DataSubmessage {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
     }
 }
 
@@ -294,8 +269,8 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
@@ -310,16 +285,16 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         );
         hc.add_change(change1);
         hc.add_change(change2);
@@ -334,16 +309,16 @@ mod tests {
             GUID_UNKNOWN,
             0,
             1,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         );
         let change2 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
             0,
             2,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         );
         hc.add_change(change1);
         hc.add_change(change2);

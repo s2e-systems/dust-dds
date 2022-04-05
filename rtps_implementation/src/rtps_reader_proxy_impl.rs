@@ -11,17 +11,14 @@ use rtps_pim::{
         },
     },
     messages::{
-        submessage_elements::{
-            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
+        submessage_elements::Parameter,
         submessages::{DataSubmessage, GapSubmessage},
         types::Count,
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
-        types::{ChangeKind, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, Guid, Locator, SequenceNumber},
     },
 };
 
@@ -200,41 +197,7 @@ impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsChangeForReaderCacheCh
 
 impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForReaderCacheChange<'a> {
     fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
-        let endianness_flag = true;
-        let inline_qos_flag = true;
-        let (data_flag, key_flag) = match self.cache_change.kind() {
-            ChangeKind::Alive => (true, false),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
-            _ => todo!(),
-        };
-        let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: self.cache_change.writer_guid().entity_id(),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: self.cache_change.sequence_number(),
-        };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: self.cache_change.inline_qos().into(),
-        };
-        let serialized_payload = SerializedDataSubmessageElement {
-            value: self.cache_change.data_value().into(),
-        };
-        DataSubmessage {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
+        self.cache_change.into()
     }
 }
 
@@ -407,7 +370,7 @@ mod tests {
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
-    use crate::rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsData, RtpsParameterList};
+    use crate::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
     use super::*;
 
@@ -421,8 +384,8 @@ mod tests {
             GUID_UNKNOWN,
             0,
             sequence_number,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         ));
         reader_proxy
             .changes_for_reader
@@ -443,8 +406,8 @@ mod tests {
             GUID_UNKNOWN,
             0,
             sequence_number,
-            RtpsData(vec![]),
-            RtpsParameterList(vec![]),
+            vec![],
+            vec![],
         ));
         reader_proxy
             .changes_for_reader
