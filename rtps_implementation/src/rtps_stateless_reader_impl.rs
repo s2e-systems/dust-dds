@@ -31,7 +31,7 @@ impl RtpsStatelessReaderImpl {
             || data.reader_id.value == self.0.endpoint.entity.guid.entity_id()
         {
             BestEffortStatelessReaderReceiveDataBehavior::receive_data(
-                &mut self.0.reader_cache,
+                self,
                 source_guid_prefix,
                 data,
             )

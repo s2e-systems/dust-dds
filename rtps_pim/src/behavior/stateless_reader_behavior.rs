@@ -1,43 +1,26 @@
 use crate::{
     messages::submessages::DataSubmessage,
-    structure::{
-        cache_change::RtpsCacheChangeConstructor,
-        history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix},
-    },
+    structure::{history_cache::RtpsHistoryCacheOperations, types::GuidPrefix},
+};
+
+use super::{
+    reader::reader::RtpsReaderAttributes, stateful_reader_behavior::FromDataSubmessageAndGuidPrefix,
 };
 
 pub trait BestEffortStatelessReaderReceiveDataBehavior<P, D> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>);
 }
 
-impl<T, P, D, C> BestEffortStatelessReaderReceiveDataBehavior<P, D> for T
+impl<T, P, D> BestEffortStatelessReaderReceiveDataBehavior<P, D> for T
 where
-    T: RtpsHistoryCacheOperations<CacheChangeType = C>,
-    C: RtpsCacheChangeConstructor,
-    for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
-    for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
+    T: RtpsReaderAttributes,
+    T::HistoryCacheType: RtpsHistoryCacheOperations,
+    <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
+        FromDataSubmessageAndGuidPrefix<P, D>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => ChangeKind::Alive,
-            (false, true) => ChangeKind::NotAliveDisposed,
-            _ => todo!(),
-        };
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        let instance_handle = 0;
-        let sequence_number = data.writer_sn.value;
-        let data_value = (&data.serialized_payload.value).into();
-        let inline_qos = (&data.inline_qos.parameter).into();
-        let a_change = C::new(
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data_value,
-            inline_qos,
-        );
-        self.add_change(a_change);
+        let a_change = FromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data);
+        self.reader_cache().add_change(a_change);
     }
 }
 
@@ -49,45 +32,21 @@ mod tests {
             EntityIdSubmessageElement, ParameterListSubmessageElement,
             SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         },
-        structure::types::{InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
+        structure::types::{SequenceNumber, ENTITYID_UNKNOWN},
     };
 
     use super::*;
 
     use mockall::mock;
 
-    struct MockData;
-    impl<T> From<&T> for MockData {
-        fn from(_: &T) -> Self {
-            MockData
-        }
-    }
-
-    struct MockParameterList;
-    impl From<&()> for MockParameterList {
-        fn from(_: &()) -> Self {
-            MockParameterList
-        }
-    }
-
     // Cache change is not mocked with the mocking framework since
     // both the constructor and the attributes don't need to be defined as part of the test run
     #[derive(Debug, PartialEq)]
     struct MockCacheChange;
 
-    impl RtpsCacheChangeConstructor for MockCacheChange {
-        type DataType = MockData;
-        type ParameterListType = MockParameterList;
-
-        fn new(
-            _kind: ChangeKind,
-            _writer_guid: Guid,
-            _instance_handle: InstanceHandle,
-            _sequence_number: SequenceNumber,
-            _data_value: Self::DataType,
-            _inline_qos: Self::ParameterListType,
-        ) -> Self {
-            Self
+    impl<P, D> FromDataSubmessageAndGuidPrefix<P, D> for MockCacheChange {
+        fn from(_source_guid_prefix: GuidPrefix, _data: &DataSubmessage<P, D>) -> Self {
+            MockCacheChange
         }
     }
 
@@ -120,6 +79,30 @@ mod tests {
         }
     }
 
+    struct MockStatelessReader {
+        reader_cache: MockHistoryCache,
+    }
+
+    impl RtpsReaderAttributes for MockStatelessReader {
+        type HistoryCacheType = MockHistoryCache;
+
+        fn heartbeat_response_delay(&self) -> crate::behavior::types::Duration {
+            todo!()
+        }
+
+        fn heartbeat_suppression_duration(&self) -> crate::behavior::types::Duration {
+            todo!()
+        }
+
+        fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
+            &mut self.reader_cache
+        }
+
+        fn expects_inline_qos(&self) -> bool {
+            todo!()
+        }
+    }
+
     #[test]
     fn best_effort_stateless_reader_receive_data() {
         let mut reader_cache = MockHistoryCache::new();
@@ -143,9 +126,9 @@ mod tests {
             },
         };
         reader_cache.expect_add_change_().once().return_const(());
-
+        let mut stateless_reader = MockStatelessReader { reader_cache };
         BestEffortStatelessReaderReceiveDataBehavior::receive_data(
-            &mut reader_cache,
+            &mut stateless_reader,
             source_guid_prefix,
             &data,
         );
