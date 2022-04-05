@@ -11,7 +11,9 @@ use rtps_pim::{
             writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
         },
         stateful_reader_behavior::{
-            BestEffortStatefulReaderBehavior, ReliableStatefulReaderBehavior,
+            BestEffortStatefulReaderReceiveDataBehavior, BestEffortWriterProxyReceiveGapBehavior,
+            ReliableStatefulReaderReceiveDataBehavior, ReliableWriterProxyReceiveGapBehavior,
+            ReliableWriterProxyReceiveHeartbeat, ReliableWriterProxySendAckNack,
         },
         types::Duration,
     },
@@ -57,18 +59,20 @@ impl RtpsStatefulReaderImpl {
                     .contains(&data_submessage.writer_sn.value)
             {
                 match self.reader.endpoint.reliability_level {
-                    ReliabilityKind::BestEffort => BestEffortStatefulReaderBehavior::receive_data(
-                        writer_proxy,
-                        &mut self.reader.reader_cache,
-                        source_guid_prefix,
-                        data_submessage,
-                    ),
-                    ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::receive_data(
-                        writer_proxy,
-                        &mut self.reader.reader_cache,
-                        source_guid_prefix,
-                        data_submessage,
-                    ),
+                    ReliabilityKind::BestEffort => {
+                        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
+                            self,
+                            source_guid_prefix,
+                            data_submessage,
+                        )
+                    }
+                    ReliabilityKind::Reliable => {
+                        ReliableStatefulReaderReceiveDataBehavior::receive_data(
+                            self,
+                            source_guid_prefix,
+                            data_submessage,
+                        )
+                    }
                 }
             }
         }
@@ -88,10 +92,13 @@ impl RtpsStatefulReaderImpl {
         {
             match self.reader.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => {
-                    BestEffortStatefulReaderBehavior::receive_gap(writer_proxy, gap_submessage)
+                    BestEffortWriterProxyReceiveGapBehavior::receive_gap(
+                        writer_proxy,
+                        gap_submessage,
+                    )
                 }
                 ReliabilityKind::Reliable => {
-                    ReliableStatefulReaderBehavior::receive_gap(writer_proxy, gap_submessage)
+                    ReliableWriterProxyReceiveGapBehavior::receive_gap(writer_proxy, gap_submessage)
                 }
             }
         }
@@ -117,7 +124,7 @@ impl RtpsStatefulReaderImpl {
                         || (!heartbeat_submessage.liveliness_flag
                             && !writer_proxy.missing_changes().is_empty());
 
-                    ReliableStatefulReaderBehavior::receive_heartbeat(
+                    ReliableWriterProxyReceiveHeartbeat::receive_heartbeat(
                         writer_proxy,
                         heartbeat_submessage,
                     );
@@ -142,12 +149,9 @@ impl RtpsStatefulReaderImpl {
                     writer_proxy.acknack_count =
                         Count(writer_proxy.acknack_count.0.wrapping_add(1));
 
-                    ReliableStatefulReaderBehavior::send_ack_nack(
-                        writer_proxy,
-                        self.reader.endpoint.entity.guid.entity_id,
-                        writer_proxy.acknack_count,
-                        |acknack| acknacks.borrow_mut().push(acknack),
-                    );
+                    ReliableWriterProxySendAckNack::send_ack_nack(writer_proxy, |acknack| {
+                        acknacks.borrow_mut().push(acknack)
+                    });
                 }
                 writer_proxy.must_send_acknacks = false;
 
