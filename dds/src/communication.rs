@@ -14,10 +14,13 @@ use rtps_pim::{
     behavior::{
         reader::writer_proxy::RtpsWriterProxyAttributes,
         stateful_writer_behavior::{
-            BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior,
+            BestEffortReaderProxyUnsentChangesBehavior,
+            ReliableReaderProxyRequestedChangesBehavior, ReliableReaderProxySendHeartbeatBehavior,
+            ReliableReaderProxyUnsentChangesBehavior,
         },
         stateless_writer_behavior::{
-            BestEffortReaderLocatorUnsentChangesBehavior, ReliableReaderLocatorUnsentChangesBehavior,
+            BestEffortReaderLocatorUnsentChangesBehavior,
+            ReliableReaderLocatorUnsentChangesBehavior,
         },
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
@@ -222,7 +225,7 @@ where
                             ReliabilityKind::BestEffort => todo!(),
                             ReliabilityKind::Reliable => {
                                 let submessages = RefCell::new(Vec::new());
-                                ReliableStatefulWriterBehavior::send_requested_changes(
+                                ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
                                     reader_proxy,
                                     |data| {
                                         submessages
@@ -270,7 +273,7 @@ where
                         match stateful_rtps_writer.writer.endpoint.reliability_level {
                             ReliabilityKind::BestEffort => {
                                 let submessages = RefCell::new(Vec::new());
-                                BestEffortStatefulWriterBehavior::send_unsent_changes(
+                                BestEffortReaderProxyUnsentChangesBehavior::send_unsent_changes(
                                     &mut RtpsReaderProxyOperationsImpl::new(
                                         reader_proxy,
                                         &stateful_rtps_writer.writer.writer_cache,
@@ -300,10 +303,8 @@ where
                                         stateful_rtps_writer.heartbeat_count.0.wrapping_add(1),
                                     );
 
-                                    ReliableStatefulWriterBehavior::send_heartbeat(
+                                    ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
                                         &stateful_rtps_writer.writer.writer_cache,
-                                        stateful_rtps_writer.writer.endpoint.entity.guid.entity_id,
-                                        stateful_rtps_writer.heartbeat_count,
                                         |heartbeat| {
                                             submessages
                                                 .borrow_mut()
@@ -312,7 +313,7 @@ where
                                     );
                                 }
 
-                                ReliableStatefulWriterBehavior::send_unsent_changes(
+                                ReliableReaderProxyUnsentChangesBehavior::send_unsent_changes(
                                     &mut RtpsReaderProxyOperationsImpl::new(
                                         reader_proxy,
                                         &stateful_rtps_writer.writer.writer_cache,
@@ -413,7 +414,8 @@ where
 
 impl<T> Communication<T>
 where
-    T: for<'a> TransportRead<'a,
+    T: for<'a> TransportRead<
+        'a,
         Vec<
             RtpsSubmessageType<
                 Vec<SequenceNumber>,
