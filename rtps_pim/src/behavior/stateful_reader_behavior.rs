@@ -7,9 +7,9 @@ use crate::{
         types::Count,
     },
     structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
+        cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -19,44 +19,33 @@ use super::reader::{
     writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
 };
 
+pub trait FromDataSubmessageAndGuidPrefix<P, D> {
+    fn from(source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self;
+}
+
 pub trait BestEffortStatefulReaderReceiveDataBehavior<P, D> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>);
 }
 
-impl<T, P, D, C> BestEffortStatefulReaderReceiveDataBehavior<P, D> for T
+impl<T, P, D> BestEffortStatefulReaderReceiveDataBehavior<P, D> for T
 where
     T: RtpsStatefulReaderOperations + RtpsReaderAttributes,
-    T::HistoryCacheType: RtpsHistoryCacheOperations<CacheChangeType = C>,
+    T::HistoryCacheType: RtpsHistoryCacheOperations,
     T::WriterProxyType: RtpsWriterProxyOperations,
-    C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
-    for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
-    for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
+    <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
+        FromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => ChangeKind::Alive,
-            (false, true) => ChangeKind::NotAliveDisposed,
-            _ => todo!(),
-        };
-        let instance_handle = 0;
-        let sequence_number = data.writer_sn.value;
-        let data_value = (&data.serialized_payload.value).into();
-        let inline_qos = (&data.inline_qos.parameter).into();
-        let a_change: C = RtpsCacheChangeConstructor::new(
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data_value,
-            inline_qos,
-        );
+        let a_change = FromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data);
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
             let expected_seq_num = writer_proxy.available_changes_max() + 1;
-            if a_change.sequence_number() >= expected_seq_num {
-                writer_proxy.received_change_set(a_change.sequence_number());
-                if a_change.sequence_number() > expected_seq_num {
-                    writer_proxy.lost_changes_update(a_change.sequence_number());
+            if RtpsCacheChangeAttributes::sequence_number(&a_change) >= expected_seq_num {
+                writer_proxy
+                    .received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
+                if RtpsCacheChangeAttributes::sequence_number(&a_change) > expected_seq_num {
+                    writer_proxy
+                        .lost_changes_update(RtpsCacheChangeAttributes::sequence_number(&a_change));
                 }
                 self.reader_cache().add_change(a_change);
             }
@@ -92,32 +81,14 @@ where
     T: RtpsStatefulReaderOperations + RtpsReaderAttributes,
     T::HistoryCacheType: RtpsHistoryCacheOperations<CacheChangeType = C>,
     T::WriterProxyType: RtpsWriterProxyOperations,
-    C: RtpsCacheChangeConstructor + RtpsCacheChangeAttributes,
-    for<'b> &'b D: Into<<C as RtpsCacheChangeConstructor>::DataType>,
-    for<'b> &'b P: Into<<C as RtpsCacheChangeConstructor>::ParameterListType>,
+    <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
+        FromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => ChangeKind::Alive,
-            (false, true) => ChangeKind::NotAliveDisposed,
-            _ => todo!(),
-        };
-        let instance_handle = 0;
-        let sequence_number = data.writer_sn.value;
-        let data_value = (&data.serialized_payload.value).into();
-        let inline_qos = (&data.inline_qos.parameter).into();
-        let a_change = C::new(
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data_value,
-            inline_qos,
-        );
+        let a_change = FromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data);
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            writer_proxy.received_change_set(a_change.sequence_number());
+            writer_proxy.received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
             self.reader_cache().add_change(a_change);
         }
     }
@@ -201,7 +172,7 @@ mod tests {
             ParameterListSubmessageElement, SequenceNumberSubmessageElement,
             SerializedDataSubmessageElement,
         },
-        structure::types::{EntityId, InstanceHandle, Locator, ENTITYID_UNKNOWN},
+        structure::types::{ChangeKind, EntityId, InstanceHandle, Locator, ENTITYID_UNKNOWN},
     };
 
     use super::*;
@@ -216,38 +187,18 @@ mod tests {
         sequence_number: SequenceNumber,
     }
 
-    struct MockData;
-    impl From<&()> for MockData {
-        fn from(_: &()) -> Self {
-            MockData
-        }
-    }
-
-    struct MockParameterList;
-    impl From<&()> for MockParameterList {
-        fn from(_: &()) -> Self {
-            MockParameterList
-        }
-    }
-
-    impl RtpsCacheChangeConstructor for MockCacheChange {
-        type DataType = MockData;
-        type ParameterListType = MockParameterList;
-
-        fn new(
-            kind: ChangeKind,
-            _writer_guid: Guid,
-            _instance_handle: InstanceHandle,
-            sequence_number: SequenceNumber,
-            _data_value: Self::DataType,
-            _inline_qos: Self::ParameterListType,
-        ) -> Self {
-            Self {
-                kind,
-                sequence_number,
+    impl<P, D> FromDataSubmessageAndGuidPrefix<P, D> for MockCacheChange {
+        fn from(_source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self {
+            MockCacheChange {
+                kind: ChangeKind::Alive,
+                sequence_number: data.writer_sn.value,
             }
         }
     }
+
+    struct MockData;
+
+    struct MockParameterList;
 
     impl RtpsCacheChangeAttributes for MockCacheChange {
         type DataType = MockData;
@@ -643,9 +594,7 @@ mod tests {
             reader_id: EntityIdSubmessageElement {
                 value: ENTITYID_UNKNOWN,
             },
-            writer_id: EntityIdSubmessageElement {
-                value: writer_id,
-            },
+            writer_id: EntityIdSubmessageElement { value: writer_id },
             reader_sn_state: SequenceNumberSetSubmessageElement {
                 base: writer_available_changes_max + 1,
                 set: missing_changes.clone(),

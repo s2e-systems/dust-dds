@@ -1,4 +1,5 @@
 use rtps_pim::{
+    behavior::stateful_reader_behavior::FromDataSubmessageAndGuidPrefix,
     messages::{
         submessage_elements::{
             EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
@@ -12,7 +13,7 @@ use rtps_pim::{
         history_cache::{
             RtpsHistoryCacheAttributes, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
         },
-        types::{ChangeKind, Guid, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{ChangeKind, Guid, GuidPrefix, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -78,6 +79,32 @@ impl<'a> From<&'a RtpsData> for &'a [u8] {
 impl AsRef<[u8]> for RtpsData {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
+    }
+}
+
+impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheChangeImpl {
+    fn from(
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+    ) -> Self {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => ChangeKind::Alive,
+            (false, true) => ChangeKind::NotAliveDisposed,
+            _ => todo!(),
+        };
+        let instance_handle = 0;
+        let sequence_number = data.writer_sn.value;
+        let data_value = (&data.serialized_payload.value).into();
+        let inline_qos = (&data.inline_qos.parameter).into();
+        RtpsCacheChangeImpl {
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data: data_value,
+            inline_qos,
+        }
     }
 }
 
