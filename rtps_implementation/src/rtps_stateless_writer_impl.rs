@@ -1,5 +1,8 @@
 use rtps_pim::{
     behavior::{
+        stateless_writer_behavior::{
+            BestEffortReaderLocatorUnsentChangesBehavior, StatelessWriterSendSubmessages,
+        },
         types::Duration,
         writer::{
             stateless_writer::{
@@ -9,7 +12,7 @@ use rtps_pim::{
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
-    messages::types::Count,
+    messages::{submessage_elements::Parameter, types::Count},
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
@@ -21,7 +24,8 @@ use rtps_pim::{
 };
 
 use crate::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl, utils::clock::TimerConstructor,
+    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
+    utils::clock::{Timer, TimerConstructor},
 };
 
 use super::{
@@ -208,5 +212,46 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.writer.writer_cache.get_seq_num_max()
+    }
+}
+
+impl<'a, T> StatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+    for RtpsStatelessWriterImpl<T>
+where
+    T: Timer,
+{
+    type ReaderLocatorType = RtpsReaderLocatorOperationsImpl<'a>;
+
+    fn send_submessages(
+        &'a mut self,
+        mut send_data: impl FnMut(
+            &Self::ReaderLocatorType,
+            rtps_pim::messages::submessages::DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>,
+        ),
+        mut send_gap: impl FnMut(
+            &Self::ReaderLocatorType,
+            rtps_pim::messages::submessages::GapSubmessage<Vec<SequenceNumber>>,
+        ),
+        _send_heartbeat: impl FnMut(
+            &Self::ReaderLocatorType,
+            rtps_pim::messages::submessages::HeartbeatSubmessage,
+        ),
+    ) {
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(self.heartbeat_period().seconds as u64)
+                + std::time::Duration::from_nanos(self.heartbeat_period().fraction as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+        }
+        let reliability_level = self.reliability_level();
+        for reader_locator in &mut self.reader_locators() {
+            match reliability_level {
+                ReliabilityKind::BestEffort => reader_locator.send_unsent_changes(
+                    |rl, data| send_data(rl, data),
+                    |rl, gap| send_gap(rl, gap),
+                ),
+                ReliabilityKind::Reliable => todo!(),
+            }
+        }
     }
 }

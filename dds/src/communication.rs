@@ -18,14 +18,10 @@ use rtps_pim::{
             ReliableReaderProxyRequestedChangesBehavior, ReliableReaderProxySendHeartbeatBehavior,
             ReliableReaderProxyUnsentChangesBehavior,
         },
-        stateless_writer_behavior::{
-            BestEffortReaderLocatorUnsentChangesBehavior,
-            ReliableReaderLocatorUnsentChangesBehavior,
-        },
+        stateless_writer_behavior::StatelessWriterSendSubmessages,
         writer::{
             reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
             stateful_writer::RtpsStatefulWriterAttributes,
-            stateless_writer::RtpsStatelessWriterAttributes,
         },
     },
     messages::{
@@ -85,122 +81,51 @@ where
                         ..message_header.clone()
                     };
 
-                    let mut destined_submessages = Vec::new();
-
-                    let time_for_heartbeat = stateless_rtps_writer.heartbeat_timer.elapsed()
-                        >= std::time::Duration::from_secs(
-                            stateless_rtps_writer.writer.heartbeat_period.seconds as u64,
-                        ) + std::time::Duration::from_nanos(
-                            stateless_rtps_writer.writer.heartbeat_period.fraction as u64,
-                        );
-                    if time_for_heartbeat {
-                        stateless_rtps_writer.heartbeat_timer.reset();
-                    }
-                    let reliability_level = stateless_rtps_writer.writer.endpoint.reliability_level;
-                    for reader_locator in &mut stateless_rtps_writer.reader_locators() {
-                        let locator = reader_locator.locator();
-
-                        match reliability_level {
-                            ReliabilityKind::BestEffort => {
-                                let submessages = RefCell::new(Vec::new());
-                                BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
-                                    reader_locator,
-                                    |_, data| {
-                                        let info_ts = if let Some(time) = any_data_writer
-                                            .sample_info
-                                            .read_lock()
-                                            .get(&data.writer_sn.value)
-                                        {
-                                            InfoTimestampSubmessage {
-                                                endianness_flag: true,
-                                                invalidate_flag: false,
-                                                timestamp: TimestampSubmessageElement {
-                                                    value: rtps_pim::messages::types::Time(
-                                                        ((time.sec as u64) << 32)
-                                                            + time.nanosec as u64,
-                                                    ),
-                                                },
-                                            }
-                                        } else {
-                                            InfoTimestampSubmessage {
-                                                endianness_flag: true,
-                                                invalidate_flag: true,
-                                                timestamp: TimestampSubmessageElement {
-                                                    value: TIME_INVALID,
-                                                },
-                                            }
-                                        };
-                                        submessages
-                                            .borrow_mut()
-                                            .push(RtpsSubmessageType::InfoTimestamp(info_ts));
-                                        submessages
-                                            .borrow_mut()
-                                            .push(RtpsSubmessageType::Data(data));
+                    let destined_submessages = RefCell::new(Vec::new());
+                    stateless_rtps_writer.send_submessages(
+                        |reader_locator, data| {
+                            let info_ts = if let Some(time) = any_data_writer
+                                .sample_info
+                                .read_lock()
+                                .get(&data.writer_sn.value)
+                            {
+                                InfoTimestampSubmessage {
+                                    endianness_flag: true,
+                                    invalidate_flag: false,
+                                    timestamp: TimestampSubmessageElement {
+                                        value: rtps_pim::messages::types::Time(
+                                            ((time.sec as u64) << 32) + time.nanosec as u64,
+                                        ),
                                     },
-                                    |_, gap| {
-                                        submessages.borrow_mut().push(RtpsSubmessageType::Gap(gap));
-                                    },
-                                );
-
-                                let submessages = submessages.take();
-                                if !submessages.is_empty() {
-                                    destined_submessages.push((locator, submessages));
                                 }
-                            }
-
-                            ReliabilityKind::Reliable => {
-                                let submessages = RefCell::new(Vec::new());
-
-                                // if time_for_heartbeat {
-                                //     stateless_rtps_writer.heartbeat_count = Count(
-                                //         stateless_rtps_writer.heartbeat_count.0.wrapping_add(1),
-                                //     );
-
-                                //     ReliableStatelessWriterBehavior::send_heartbeat(
-                                //         &stateless_rtps_writer.writer.writer_cache,
-                                //         stateless_rtps_writer.writer.endpoint.entity.guid.entity_id,
-                                //         stateless_rtps_writer.heartbeat_count,
-                                //         |heartbeat| {
-                                //             submessages
-                                //                 .borrow_mut()
-                                //                 .push(RtpsSubmessageType::Heartbeat(heartbeat));
-                                //         },
-                                //     );
-                                // }
-
-                                ReliableReaderLocatorUnsentChangesBehavior::send_unsent_changes(
-                                    reader_locator,
-                                    |_, data| {
-                                        submessages
-                                            .borrow_mut()
-                                            .push(RtpsSubmessageType::Data(data));
+                            } else {
+                                InfoTimestampSubmessage {
+                                    endianness_flag: true,
+                                    invalidate_flag: true,
+                                    timestamp: TimestampSubmessageElement {
+                                        value: TIME_INVALID,
                                     },
-                                );
-
-                                // ReliableStatelessWriterBehavior::send_requested_changes(
-                                //     &mut RtpsReaderLocatorOperationsImpl::new(reader_locator, writer_cache),
-                                //     writer_cache,
-                                //     |data| {
-                                //         submessages
-                                //             .borrow_mut()
-                                //             .push(RtpsStatelessSubmessage::Data(data))
-                                //     },
-                                //     |gap| {
-                                //         submessages
-                                //             .borrow_mut()
-                                //             .push(RtpsStatelessSubmessage::Gap(gap))
-                                //     },
-                                // );
-
-                                let submessages = submessages.take();
-                                if !submessages.is_empty() {
-                                    destined_submessages.push((locator, submessages));
                                 }
-                            }
-                        }
-                    }
+                            };
+                            destined_submessages.borrow_mut().push((
+                                reader_locator.locator(),
+                                vec![RtpsSubmessageType::InfoTimestamp(info_ts)],
+                            ));
+                            destined_submessages.borrow_mut().push((
+                                reader_locator.locator(),
+                                vec![RtpsSubmessageType::Data(data)],
+                            ));
+                        },
+                        |reader_locator, gap| {
+                            destined_submessages.borrow_mut().push((
+                                reader_locator.locator(),
+                                vec![RtpsSubmessageType::Gap(gap)],
+                            ));
+                        },
+                        |_, _| (),
+                    );
 
-                    for (locator, submessages) in destined_submessages {
+                    for (locator, submessages) in destined_submessages.take() {
                         self.transport.write(
                             &RtpsMessage {
                                 header: message_header.clone(),

@@ -15,6 +15,17 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
+pub trait StatelessWriterSendSubmessages<'a, P, D, S> {
+    type ReaderLocatorType;
+
+    fn send_submessages(
+        &'a mut self,
+        send_data: impl FnMut(&Self::ReaderLocatorType, DataSubmessage<P, D>),
+        send_gap: impl FnMut(&Self::ReaderLocatorType, GapSubmessage<S>),
+        send_heartbeat: impl FnMut(&Self::ReaderLocatorType, HeartbeatSubmessage),
+    );
+}
+
 trait IsEmpty {
     fn is_empty(self) -> bool;
 }
