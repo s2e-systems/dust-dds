@@ -5,6 +5,7 @@ use crate::{
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        submessage_producer::SubmessageProducer,
     },
 };
 use dds_api::{
@@ -88,13 +89,27 @@ where
     pub sample_info: HashMap<SequenceNumber, Time>,
 }
 
-impl<Rtps> ExtendedRtpsWriter<Rtps>
+impl<'a, Rtps> SubmessageProducer<'a> for ExtendedRtpsWriter<Rtps>
 where
     Rtps: RtpsStructure,
+    Rtps::StatelessWriter:
+        RtpsStatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>,
+    <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
+        'a,
+        Vec<Parameter<'a>>,
+        &'a [u8],
+        Vec<SequenceNumber>,
+    >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
+    Rtps::StatefulWriter:
+        RtpsStatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>,
+    <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
+        'a,
+        Vec<Parameter<'a>>,
+        &'a [u8],
+        Vec<SequenceNumber>,
+    >>::ReaderProxyType: RtpsReaderProxyAttributes,
 {
-    pub fn produce_submessages<'a>(
-        &'a mut self,
-    ) -> Vec<(
+    type DestinedSubmessageType = Vec<(
         Locator,
         Vec<
             RtpsSubmessageType<
@@ -105,33 +120,9 @@ where
                 Vec<FragmentNumber>,
             >,
         >,
-    )>
-    where
-        Rtps::StatelessWriter: RtpsStatelessWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-        <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
-        Rtps::StatefulWriter: RtpsStatefulWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-        <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >>::ReaderProxyType: RtpsReaderProxyAttributes,
-    {
+    )>;
+
+    fn produce_submessages(&'a mut self) -> Self::DestinedSubmessageType {
         let destined_submessages = RefCell::new(Vec::new());
         // Borrowed before to allow usage inside the closure while part of self. is already borrowed
         let sample_info = &self.sample_info;

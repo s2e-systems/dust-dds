@@ -5,7 +5,7 @@ use dds_implementation::{
         data_reader_proxy::RtpsReader, publisher_proxy::PublisherAttributes,
         subscriber_proxy::SubscriberAttributes,
     },
-    utils::shared_object::DdsShared,
+    utils::{shared_object::DdsShared, submessage_producer::SubmessageProducer},
 };
 
 use rtps_pim::{
