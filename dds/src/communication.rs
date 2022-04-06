@@ -1,27 +1,19 @@
-use std::{cell::RefCell, ops::DerefMut};
+use std::ops::DerefMut;
 
 use dds_implementation::{
     dds_impl::{
-        data_reader_proxy::RtpsReader, data_writer_proxy::RtpsWriter,
-        publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
+        data_reader_proxy::RtpsReader, publisher_proxy::PublisherAttributes,
+        subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::DdsShared,
 };
 
 use rtps_pim::{
-    behavior::{
-        reader::writer_proxy::RtpsWriterProxyAttributes,
-        stateful_writer_behavior::StatefulWriterSendSubmessages,
-        stateless_writer_behavior::StatelessWriterSendSubmessages,
-        writer::{
-            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
-        },
-    },
+    behavior::reader::writer_proxy::RtpsWriterProxyAttributes,
     messages::{
         overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
-        submessage_elements::{Parameter, TimestampSubmessageElement},
-        submessages::InfoTimestampSubmessage,
-        types::{FragmentNumber, TIME_INVALID},
+        submessage_elements::Parameter,
+        types::FragmentNumber,
     },
     structure::{
         entity::RtpsEntityAttributes,
@@ -65,133 +57,16 @@ where
         };
 
         for any_data_writer in publisher.data_writer_list.write_lock().iter_mut() {
-            let mut rtps_writer = any_data_writer.rtps_writer.write_lock();
-
-            match rtps_writer.deref_mut() {
-                RtpsWriter::Stateless(stateless_rtps_writer) => {
-                    let message_header = RtpsMessageHeader {
-                        guid_prefix: stateless_rtps_writer.writer.endpoint.entity.guid.prefix,
-                        ..message_header.clone()
-                    };
-
-                    let destined_submessages = RefCell::new(Vec::new());
-                    stateless_rtps_writer.send_submessages(
-                        |reader_locator, data| {
-                            let info_ts = if let Some(time) = any_data_writer
-                                .sample_info
-                                .read_lock()
-                                .get(&data.writer_sn.value)
-                            {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: rtps_pim::messages::types::Time(
-                                            ((time.sec as u64) << 32) + time.nanosec as u64,
-                                        ),
-                                    },
-                                }
-                            } else {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: true,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID,
-                                    },
-                                }
-                            };
-                            destined_submessages.borrow_mut().push((
-                                reader_locator.locator(),
-                                vec![RtpsSubmessageType::InfoTimestamp(info_ts)],
-                            ));
-                            destined_submessages.borrow_mut().push((
-                                reader_locator.locator(),
-                                vec![RtpsSubmessageType::Data(data)],
-                            ));
-                        },
-                        |reader_locator, gap| {
-                            destined_submessages.borrow_mut().push((
-                                reader_locator.locator(),
-                                vec![RtpsSubmessageType::Gap(gap)],
-                            ));
-                        },
-                        |_, _| (),
-                    );
-
-                    for (locator, submessages) in destined_submessages.take() {
-                        self.transport.write(
-                            &RtpsMessage {
-                                header: message_header.clone(),
-                                submessages,
-                            },
-                            locator,
-                        );
-                    }
-                }
-                RtpsWriter::Stateful(stateful_rtps_writer) => {
-                    let message_header = RtpsMessageHeader {
-                        guid_prefix: stateful_rtps_writer.writer.endpoint.entity.guid.prefix,
-                        ..message_header.clone()
-                    };
-
-                    let destined_submessages = RefCell::new(Vec::new());
-                    stateful_rtps_writer.send_submessages(
-                        |reader_proxy, data| {
-                            let info_ts = if let Some(time) = any_data_writer
-                                .sample_info
-                                .read_lock()
-                                .get(&data.writer_sn.value)
-                            {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: rtps_pim::messages::types::Time(
-                                            ((time.sec as u64) << 32) + time.nanosec as u64,
-                                        ),
-                                    },
-                                }
-                            } else {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: true,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID,
-                                    },
-                                }
-                            };
-                            destined_submessages.borrow_mut().push((
-                                reader_proxy.unicast_locator_list()[0],
-                                vec![RtpsSubmessageType::InfoTimestamp(info_ts)],
-                            ));
-                            destined_submessages.borrow_mut().push((
-                                reader_proxy.unicast_locator_list()[0],
-                                vec![RtpsSubmessageType::Data(data)],
-                            ));
-                        },
-                        |reader_proxy, gap| {
-                            destined_submessages.borrow_mut().push((
-                                reader_proxy.unicast_locator_list()[0],
-                                vec![RtpsSubmessageType::Gap(gap)],
-                            ));
-                        },
-                        |reader_proxy, heartbeat| {
-                            destined_submessages.borrow_mut().push((
-                                reader_proxy.unicast_locator_list()[0],
-                                vec![RtpsSubmessageType::Heartbeat(heartbeat)],
-                            ));
-                        },
-                    );
-                    for (locator, submessages) in destined_submessages.take() {
-                        self.transport.write(
-                            &RtpsMessage {
-                                header: message_header.clone(),
-                                submessages,
-                            },
-                            locator,
-                        );
-                    }
-                }
+            let mut extended_rtps_writer = any_data_writer.extended_rtps_writer.write_lock();
+            let writer_destined_submessages = extended_rtps_writer.produce_submessages();
+            for (locator, submessages) in writer_destined_submessages {
+                self.transport.write(
+                    &RtpsMessage {
+                        header: message_header.clone(),
+                        submessages,
+                    },
+                    locator,
+                );
             }
         }
     }

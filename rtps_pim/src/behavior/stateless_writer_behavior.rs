@@ -15,7 +15,7 @@ use crate::{
 
 use super::writer::reader_locator::RtpsReaderLocatorOperations;
 
-pub trait StatelessWriterSendSubmessages<'a, P, D, S> {
+pub trait RtpsStatelessWriterSendSubmessages<'a, P, D, S> {
     type ReaderLocatorType;
 
     fn send_submessages(

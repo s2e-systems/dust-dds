@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData, ops::DerefMut};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use crate::{
     dds_type::{DdsSerialize, LittleEndian},
@@ -24,11 +24,24 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
 };
 use rtps_pim::{
-    behavior::writer::writer::RtpsWriterOperations,
+    behavior::{
+        stateful_writer_behavior::RtpsStatefulWriterSendSubmessages,
+        stateless_writer_behavior::RtpsStatelessWriterSendSubmessages,
+        writer::{
+            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            writer::RtpsWriterOperations,
+        },
+    },
+    messages::{
+        overall_structure::RtpsSubmessageType,
+        submessage_elements::{Parameter, TimestampSubmessageElement},
+        submessages::InfoTimestampSubmessage,
+        types::{FragmentNumber, TIME_INVALID},
+    },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, SequenceNumber},
+        types::{ChangeKind, Locator, SequenceNumber},
     },
 };
 
@@ -67,17 +80,161 @@ where
     }
 }
 
+pub struct ExtendedRtpsWriter<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub rtps_writer: RtpsWriter<Rtps>,
+    pub sample_info: HashMap<SequenceNumber, Time>,
+}
+
+impl<Rtps> ExtendedRtpsWriter<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    pub fn produce_submessages<'a>(
+        &'a mut self,
+    ) -> Vec<(
+        Locator,
+        Vec<
+            RtpsSubmessageType<
+                Vec<SequenceNumber>,
+                Vec<Parameter<'a>>,
+                &'a [u8],
+                Vec<Locator>,
+                Vec<FragmentNumber>,
+            >,
+        >,
+    )>
+    where
+        Rtps::StatelessWriter: RtpsStatelessWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >,
+        <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
+        Rtps::StatefulWriter: RtpsStatefulWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >,
+        <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >>::ReaderProxyType: RtpsReaderProxyAttributes,
+    {
+        let destined_submessages = RefCell::new(Vec::new());
+        // Borrowed before to allow usage inside the closure while part of self. is already borrowed
+        let sample_info = &self.sample_info;
+        match &mut self.rtps_writer {
+            RtpsWriter::Stateless(stateless_rtps_writer) => {
+                stateless_rtps_writer.send_submessages(
+                    |reader_locator, data| {
+                        let info_ts = if let Some(time) = sample_info.get(&data.writer_sn.value) {
+                            InfoTimestampSubmessage {
+                                endianness_flag: true,
+                                invalidate_flag: false,
+                                timestamp: TimestampSubmessageElement {
+                                    value: rtps_pim::messages::types::Time(
+                                        ((time.sec as u64) << 32) + time.nanosec as u64,
+                                    ),
+                                },
+                            }
+                        } else {
+                            InfoTimestampSubmessage {
+                                endianness_flag: true,
+                                invalidate_flag: true,
+                                timestamp: TimestampSubmessageElement {
+                                    value: TIME_INVALID,
+                                },
+                            }
+                        };
+                        destined_submessages.borrow_mut().push((
+                            reader_locator.locator(),
+                            vec![RtpsSubmessageType::InfoTimestamp(info_ts)],
+                        ));
+                        destined_submessages.borrow_mut().push((
+                            reader_locator.locator(),
+                            vec![RtpsSubmessageType::Data(data)],
+                        ));
+                    },
+                    |reader_locator, gap| {
+                        destined_submessages
+                            .borrow_mut()
+                            .push((reader_locator.locator(), vec![RtpsSubmessageType::Gap(gap)]));
+                    },
+                    |_, _| (),
+                );
+            }
+            RtpsWriter::Stateful(stateful_rtps_writer) => {
+                stateful_rtps_writer.send_submessages(
+                    |reader_proxy, data| {
+                        let info_ts = if let Some(time) = sample_info.get(&data.writer_sn.value) {
+                            InfoTimestampSubmessage {
+                                endianness_flag: true,
+                                invalidate_flag: false,
+                                timestamp: TimestampSubmessageElement {
+                                    value: rtps_pim::messages::types::Time(
+                                        ((time.sec as u64) << 32) + time.nanosec as u64,
+                                    ),
+                                },
+                            }
+                        } else {
+                            InfoTimestampSubmessage {
+                                endianness_flag: true,
+                                invalidate_flag: true,
+                                timestamp: TimestampSubmessageElement {
+                                    value: TIME_INVALID,
+                                },
+                            }
+                        };
+                        destined_submessages.borrow_mut().push((
+                            reader_proxy.unicast_locator_list()[0],
+                            vec![RtpsSubmessageType::InfoTimestamp(info_ts)],
+                        ));
+                        destined_submessages.borrow_mut().push((
+                            reader_proxy.unicast_locator_list()[0],
+                            vec![RtpsSubmessageType::Data(data)],
+                        ));
+                    },
+                    |reader_proxy, gap| {
+                        destined_submessages.borrow_mut().push((
+                            reader_proxy.unicast_locator_list()[0],
+                            vec![RtpsSubmessageType::Gap(gap)],
+                        ));
+                    },
+                    |reader_proxy, heartbeat| {
+                        destined_submessages.borrow_mut().push((
+                            reader_proxy.unicast_locator_list()[0],
+                            vec![RtpsSubmessageType::Heartbeat(heartbeat)],
+                        ));
+                    },
+                );
+            }
+        }
+        destined_submessages.take()
+    }
+}
+
 pub struct DataWriterAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
     pub _qos: DataWriterQos,
-    pub rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
+    pub extended_rtps_writer: DdsRwLock<ExtendedRtpsWriter<Rtps>>,
     pub listener: DdsRwLock<Option<Box<dyn DataWriterListener + Send + Sync>>>,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub publisher: DdsWeak<PublisherAttributes<Rtps>>,
     pub status: DdsRwLock<PublicationMatchedStatus>,
-    pub sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -91,9 +248,13 @@ where
         topic: DdsShared<TopicAttributes<Rtps>>,
         publisher: DdsWeak<PublisherAttributes<Rtps>>,
     ) -> Self {
+        let extended_rtps_writer = ExtendedRtpsWriter {
+            rtps_writer,
+            sample_info: HashMap::new(),
+        };
         Self {
             _qos: qos,
-            rtps_writer: DdsRwLock::new(rtps_writer),
+            extended_rtps_writer: DdsRwLock::new(extended_rtps_writer),
             listener: DdsRwLock::new(listener),
             topic,
             publisher,
@@ -104,7 +265,6 @@ where
                 current_count: 0,
                 current_count_change: 0,
             }),
-            sample_info: DdsRwLock::new(HashMap::new()),
         }
     }
 }
@@ -222,25 +382,23 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         let data_writer_shared = self.data_writer_impl.upgrade()?;
-
-        match data_writer_shared.rtps_writer.write_lock().deref_mut() {
+        let mut extended_rtps_writer_lock = data_writer_shared.extended_rtps_writer.write_lock();
+        let sequence_number;
+        match &mut extended_rtps_writer_lock.rtps_writer {
             RtpsWriter::Stateless(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
-                data_writer_shared
-                    .sample_info
-                    .write_lock()
-                    .insert(change.sequence_number(), timestamp);
+                sequence_number = change.sequence_number();
                 rtps_writer.add_change(change);
             }
             RtpsWriter::Stateful(rtps_writer) => {
                 let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
-                data_writer_shared
-                    .sample_info
-                    .write_lock()
-                    .insert(change.sequence_number(), timestamp);
+                sequence_number = change.sequence_number();
                 rtps_writer.add_change(change);
             }
         }
+        extended_rtps_writer_lock
+            .sample_info
+            .insert(sequence_number, timestamp);
 
         Ok(())
     }
