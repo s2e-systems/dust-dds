@@ -7,7 +7,7 @@ use dds::{
     },
     DdsError,
 };
-use dds_implementation::dds_type::{DdsType, DdsDeserializeDefault, DdsSerializeDefault};
+use dds_implementation::dds_type::{DdsType, DdsSerde};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -26,8 +26,7 @@ impl DdsType for HelloWorldType {
     }
 }
 
-impl DdsDeserializeDefault for HelloWorldType {}
-impl DdsSerializeDefault for HelloWorldType {}
+impl DdsSerde for HelloWorldType {}
 
 struct ExampleListener;
 

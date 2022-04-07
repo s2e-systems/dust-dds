@@ -4,7 +4,7 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{
-    DdsDeserializeDefault, DdsSerializeDefault, DdsType,
+    DdsSerde, DdsType,
 };
 use serde::{Deserialize, Serialize};
 
@@ -24,8 +24,7 @@ impl DdsType for HelloWorldType {
     }
 }
 
-impl DdsDeserializeDefault for HelloWorldType {}
-impl DdsSerializeDefault for HelloWorldType {}
+impl DdsSerde for HelloWorldType {}
 
 fn main() {
     let domain_id = 0;
