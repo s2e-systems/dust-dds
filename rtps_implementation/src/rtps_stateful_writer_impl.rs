@@ -280,6 +280,9 @@ where
         }
 
         let reliability_level = self.reliability_level();
+        let writer_id = self.writer.endpoint.entity.guid.entity_id;
+        let heartbeat_count = self.heartbeat_count;
+
         for reader_proxy in &mut self.matched_readers() {
             match reliability_level {
                 ReliabilityKind::BestEffort => {
@@ -293,6 +296,8 @@ where
                     if time_for_heartbeat {
                         ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
                             reader_proxy,
+                            writer_id,
+                            heartbeat_count,
                             |rp, heartbeat| send_heartbeat(rp, heartbeat),
                         );
                     }

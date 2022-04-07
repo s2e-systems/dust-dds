@@ -9,7 +9,7 @@ use crate::{
     },
     structure::{
         history_cache::RtpsHistoryCacheOperations,
-        types::{SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -128,30 +128,40 @@ where
 }
 
 pub trait ReliableReaderProxySendHeartbeatBehavior {
-    fn send_heartbeat(&self, send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage));
+    fn send_heartbeat(
+        &self,
+        writer_id: EntityId,
+        heartbeat_count: Count,
+        send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
+    );
 }
 
 impl<T> ReliableReaderProxySendHeartbeatBehavior for T
 where
     T: RtpsHistoryCacheOperations,
 {
-    fn send_heartbeat(&self, mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage)) {
+    fn send_heartbeat(
+        &self,
+        writer_id: EntityId,
+        heartbeat_count: Count,
+        mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
+    ) {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdSubmessageElement {
             value: ENTITYID_UNKNOWN,
         };
-        let writer_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
+        let writer_id = EntityIdSubmessageElement { value: writer_id };
         let first_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_min().unwrap_or(1),
         };
         let last_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_max().unwrap_or(0),
         };
-        let count = CountSubmessageElement { value: Count(0) };
+        let count = CountSubmessageElement {
+            value: heartbeat_count,
+        };
         let heartbeat_submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
