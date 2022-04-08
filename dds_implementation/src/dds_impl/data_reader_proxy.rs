@@ -385,7 +385,6 @@ where
                     .reader_cache()
                     .changes()
                     .iter()
-                    //.filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
                         (
@@ -424,7 +423,6 @@ where
                     .reader_cache()
                     .changes()
                     .iter()
-                    //.filter(|change| change.sequence_number() == seq_num)
                     .map(|change| {
                         let mut data_value = change.data_value();
                         (
