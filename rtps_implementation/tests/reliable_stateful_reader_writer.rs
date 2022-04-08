@@ -33,7 +33,7 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage}, types::Count,
     },
     structure::{
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
@@ -195,7 +195,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             let heartbeat = &destined_submessages.heartbeats[0];
             assert_eq!(1, heartbeat.first_sn.value);
             assert_eq!(0, heartbeat.last_sn.value);
-            //assert_eq!(Count(1), heartbeat.count.value);
+            assert_eq!(Count(1), heartbeat.count.value);
 
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
@@ -274,7 +274,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             let heartbeat = &destined_submessages.heartbeats[0];
             assert_eq!(1, heartbeat.first_sn.value);
             assert_eq!(5, heartbeat.last_sn.value);
-            //assert_eq!(Count(2), heartbeat.count.value);
+            assert_eq!(Count(2), heartbeat.count.value);
 
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
             assert_eq!(
@@ -299,6 +299,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         assert_eq!(1, acknacks.len());
 
         assert_eq!(vec![1, 3, 5], acknacks[0].reader_sn_state.set);
+        assert_eq!(Count(1), acknacks[0].count.value);
 
         for mut reader_proxy in stateful_writer.matched_readers() {
             if reader_proxy.remote_reader_guid().prefix == reader_guid.prefix {
@@ -358,7 +359,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             let heartbeat = &destined_submessages.heartbeats[0];
             assert_eq!(1, heartbeat.first_sn.value);
             assert_eq!(5, heartbeat.last_sn.value);
-            //assert_eq!(Count(3), heartbeat.count.value);
+            assert_eq!(Count(3), heartbeat.count.value);
 
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
