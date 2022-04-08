@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
 
@@ -130,6 +130,7 @@ where
 pub trait ReliableWriterProxySendAckNack<S> {
     fn send_ack_nack(
         &mut self,
+        reader_id: EntityId,
         acknack_count: Count,
         send_acknack: impl FnMut(&Self, AckNackSubmessage<S>),
     );
@@ -141,14 +142,13 @@ where
 {
     fn send_ack_nack(
         &mut self,
+        reader_id: EntityId,
         acknack_count: Count,
         mut send_acknack: impl FnMut(&Self, AckNackSubmessage<S>),
     ) {
         let endianness_flag = true;
         let final_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
+        let reader_id = EntityIdSubmessageElement { value: reader_id };
         let writer_id = EntityIdSubmessageElement {
             value: self.remote_writer_guid().entity_id,
         };
@@ -630,6 +630,7 @@ mod tests {
 
         ReliableWriterProxySendAckNack::send_ack_nack(
             &mut writer_proxy,
+            ENTITYID_UNKNOWN,
             acknack_count,
             |_, acknack| assert_eq!(acknack, expected_acknack),
         )
@@ -674,6 +675,7 @@ mod tests {
 
         ReliableWriterProxySendAckNack::send_ack_nack(
             &mut writer_proxy,
+            ENTITYID_UNKNOWN,
             acknack_count,
             |_, acknack| assert_eq!(acknack, expected_acknack),
         )

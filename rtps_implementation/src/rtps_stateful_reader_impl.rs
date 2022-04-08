@@ -151,6 +151,7 @@ impl RtpsStatefulReaderImpl {
 
                     ReliableWriterProxySendAckNack::send_ack_nack(
                         writer_proxy,
+                        self.reader.endpoint.entity.guid.entity_id,
                         writer_proxy.acknack_count,
                         |_, acknack| acknacks.borrow_mut().push(acknack),
                     );
