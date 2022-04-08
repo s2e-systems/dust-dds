@@ -9,7 +9,7 @@ use crate::{
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, Guid, GuidPrefix, SequenceNumber},
     },
 };
 
@@ -128,19 +128,27 @@ where
 }
 
 pub trait ReliableWriterProxySendAckNack<S> {
-    fn send_ack_nack(&mut self, send_acknack: impl FnMut(&Self, AckNackSubmessage<S>));
+    fn send_ack_nack(
+        &mut self,
+        reader_id: EntityId,
+        acknack_count: Count,
+        send_acknack: impl FnMut(&Self, AckNackSubmessage<S>),
+    );
 }
 
 impl<T, S> ReliableWriterProxySendAckNack<S> for T
 where
     T: RtpsWriterProxyOperations<SequenceNumberListType = S> + RtpsWriterProxyAttributes,
 {
-    fn send_ack_nack(&mut self, mut send_acknack: impl FnMut(&Self, AckNackSubmessage<S>)) {
+    fn send_ack_nack(
+        &mut self,
+        reader_id: EntityId,
+        acknack_count: Count,
+        mut send_acknack: impl FnMut(&Self, AckNackSubmessage<S>),
+    ) {
         let endianness_flag = true;
         let final_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
+        let reader_id = EntityIdSubmessageElement { value: reader_id };
         let writer_id = EntityIdSubmessageElement {
             value: self.remote_writer_guid().entity_id,
         };
@@ -149,7 +157,9 @@ where
             base: self.available_changes_max() + 1,
             set: self.missing_changes(),
         };
-        let count = CountSubmessageElement { value: Count(0) };
+        let count = CountSubmessageElement {
+            value: acknack_count,
+        };
 
         let acknack_submessage = AckNackSubmessage {
             endianness_flag,
@@ -618,9 +628,12 @@ mod tests {
             .once()
             .return_const(missing_changes);
 
-        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |_, acknack| {
-            assert_eq!(acknack, expected_acknack)
-        })
+        ReliableWriterProxySendAckNack::send_ack_nack(
+            &mut writer_proxy,
+            ENTITYID_UNKNOWN,
+            acknack_count,
+            |_, acknack| assert_eq!(acknack, expected_acknack),
+        )
     }
 
     #[test]
@@ -660,9 +673,12 @@ mod tests {
             .once()
             .return_const(missing_changes);
 
-        ReliableWriterProxySendAckNack::send_ack_nack(&mut writer_proxy, |_, acknack| {
-            assert_eq!(acknack, expected_acknack)
-        })
+        ReliableWriterProxySendAckNack::send_ack_nack(
+            &mut writer_proxy,
+            ENTITYID_UNKNOWN,
+            acknack_count,
+            |_, acknack| assert_eq!(acknack, expected_acknack),
+        )
     }
 
     #[test]

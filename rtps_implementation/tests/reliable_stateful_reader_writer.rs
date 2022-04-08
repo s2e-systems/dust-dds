@@ -1,321 +1,342 @@
-// use mockall::mock;
-// use rtps_implementation::{
-//     rtps_reader_proxy_impl::RtpsReaderProxyImpl,
-//     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-//     rtps_stateful_writer_impl::{RtpsStatefulSubmessage, RtpsStatefulWriterImpl},
-//     rtps_writer_proxy_impl::RtpsWriterProxyImpl,
-//     utils::clock::{Timer, TimerConstructor},
-// };
-// use rtps_pim::{
-//     behavior::{
-//         reader::{
-//             reader::RtpsReaderAttributes,
-//             stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
-//             writer_proxy::{
-//                 RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
-//             },
-//         },
-//         types::{Duration, DURATION_ZERO},
-//         writer::{
-//             reader_proxy::RtpsReaderProxyConstructor,
-//             stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
-//             writer::RtpsWriterOperations,
-//         },
-//     },
-//     messages::{submessages::DataSubmessage, types::Count},
-//     structure::{
-//         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-//         types::{
-//             ChangeKind, EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
-//         },
-//     },
-// };
+use std::cell::RefCell;
 
-// mock! {
-//     Timer {}
+use mockall::mock;
+use rtps_implementation::{
+    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
+    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    utils::clock::{Timer, TimerConstructor},
+};
+use rtps_pim::{
+    behavior::{
+        reader::{
+            reader::RtpsReaderAttributes,
+            stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
+            writer_proxy::{
+                RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
+            },
+        },
+        stateful_writer_behavior::{
+            ReliableReaderProxyReceiveAcknackBehavior,
+            StatefulWriterSendSubmessages,
+        },
+        types::{Duration, DURATION_ZERO},
+        writer::{
+            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
+            stateful_writer::{
+                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
+                RtpsStatefulWriterOperations,
+            },
+            writer::RtpsWriterOperations,
+        },
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage}, types::Count,
+    },
+    structure::{
+        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
+        types::{
+            ChangeKind, EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
+        },
+    },
+};
 
-//     impl Timer for Timer {
-//         fn reset(&mut self);
-//         fn elapsed(&self) -> std::time::Duration;
-//     }
-// }
+mock! {
+    Timer {}
 
-// impl TimerConstructor for MockTimer {
-//     fn new() -> Self {
-//         MockTimer::new()
-//     }
-// }
+    impl Timer for Timer {
+        fn reset(&mut self);
+        fn elapsed(&self) -> std::time::Duration;
+    }
+}
 
-// #[test]
-// fn reliable_stateful_reader_writer_dropped_data() {
-//     let writer_guid = Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1));
-//     let reader_guid = Guid::new(GuidPrefix([2; 12]), EntityId::new([2; 3], 2));
+impl TimerConstructor for MockTimer {
+    fn new() -> Self {
+        MockTimer::new()
+    }
+}
 
-//     let mut stateful_writer = RtpsStatefulWriterImpl::<MockTimer>::new(
-//         writer_guid,
-//         TopicKind::NoKey,
-//         ReliabilityKind::Reliable,
-//         &[],
-//         &[],
-//         true,
-//         Duration::new(1, 0),
-//         DURATION_ZERO,
-//         DURATION_ZERO,
-//         None,
-//     );
+struct SubmessageList<'a> {
+    data: Vec<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>>,
+    gaps: Vec<GapSubmessage<Vec<i64>>>,
+    heartbeats: Vec<HeartbeatSubmessage>,
+}
 
-//     let mut stateful_reader = RtpsStatefulReaderImpl::new(
-//         reader_guid,
-//         TopicKind::NoKey,
-//         ReliabilityKind::Reliable,
-//         &[],
-//         &[],
-//         Duration {
-//             seconds: 1,
-//             fraction: 0,
-//         },
-//         DURATION_ZERO,
-//         false,
-//     );
+impl<'a> SubmessageList<'a> {
+    fn len(&self) -> usize {
+        self.data.len() + self.gaps.len() + self.heartbeats.len()
+    }
+}
 
-//     let a_reader_proxy =
-//         RtpsReaderProxyImpl::new(reader_guid, ENTITYID_UNKNOWN, &[], &[], false, true);
-//     stateful_writer.matched_reader_add(a_reader_proxy);
+fn send_submessages<'a, T: Timer>(
+    stateful_writer: &'a mut RtpsStatefulWriterImpl<T>,
+) -> SubmessageList<'a> {
+    let data = RefCell::new(Vec::new());
+    let gaps = RefCell::new(Vec::new());
+    let heartbeats = RefCell::new(Vec::new());
 
-//     let a_writer_proxy = RtpsWriterProxyImpl::new(writer_guid, &[], &[], None, ENTITYID_UNKNOWN);
-//     stateful_reader.matched_writer_add(a_writer_proxy);
+    StatefulWriterSendSubmessages::send_submessages(
+        stateful_writer,
+        |_, datum| data.borrow_mut().push(datum),
+        |_, gap| gaps.borrow_mut().push(gap),
+        |_, heartbeat| heartbeats.borrow_mut().push(heartbeat),
+    );
 
-//     // Send and receive first heartbeat (no data sent)
-//     {
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(0));
+    SubmessageList {
+        data: data.take(),
+        gaps: gaps.take(),
+        heartbeats: heartbeats.take(),
+    }
+}
 
-//         // no heartbeat before delay
-//         assert_eq!(0, stateful_writer.produce_destined_submessages().len());
+#[test]
+fn reliable_stateful_reader_writer_dropped_data() {
+    let writer_guid = Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1));
+    let reader_guid = Guid::new(GuidPrefix([2; 12]), EntityId::new([2; 3], 2));
 
-//         stateful_writer.heartbeat_timer.checkpoint();
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(1));
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_reset()
-//             .once()
-//             .return_const(());
+    let mut stateful_writer = RtpsStatefulWriterImpl::<MockTimer>::new(
+        writer_guid,
+        TopicKind::NoKey,
+        ReliabilityKind::Reliable,
+        &[],
+        &[],
+        true,
+        Duration::new(1, 0),
+        DURATION_ZERO,
+        DURATION_ZERO,
+        None,
+    );
 
-//         // one heartbeat to send
-//         {
-//             let destined_submessages = stateful_writer.produce_destined_submessages();
-//             assert_eq!(1, destined_submessages.len());
+    let mut stateful_reader = RtpsStatefulReaderImpl::new(
+        reader_guid,
+        TopicKind::NoKey,
+        ReliabilityKind::Reliable,
+        &[],
+        &[],
+        Duration {
+            seconds: 1,
+            fraction: 0,
+        },
+        DURATION_ZERO,
+        false,
+    );
 
-//             let (_locator_list, heartbeats) = &destined_submessages[0];
-//             assert_eq!(1, heartbeats.len());
+    let a_reader_proxy =
+        RtpsReaderProxyImpl::new(reader_guid, ENTITYID_UNKNOWN, &[], &[], false, true);
+    stateful_writer.matched_reader_add(a_reader_proxy);
 
-//             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-//                 assert_eq!(1, heartbeat.first_sn.value);
-//                 assert_eq!(0, heartbeat.last_sn.value);
-//                 assert_eq!(Count(1), heartbeat.count.value);
+    let a_writer_proxy = RtpsWriterProxyImpl::new(writer_guid, &[], &[], None, ENTITYID_UNKNOWN);
+    stateful_reader.matched_writer_add(a_writer_proxy);
 
-//                 stateful_reader.process_heartbeat_submessage(heartbeat, writer_guid.prefix);
-//             } else {
-//                 panic!("Not a heartbeat (;_;)");
-//             }
+    // Send and receive first heartbeat (no data sent)
+    {
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(0));
 
-//             assert!(stateful_reader.matched_writers[0]
-//                 .missing_changes()
-//                 .is_empty());
-//             assert!(stateful_reader.produce_acknack_submessages().is_empty());
-//         }
+        // no heartbeat before delay
+        StatefulWriterSendSubmessages::send_submessages(
+            &mut stateful_writer,
+            |_, _| panic!("No data should be sent"),
+            |_, _| panic!("No gap should be sent"),
+            |_, _| panic!("No heartbeat should be sent"),
+        );
 
-//         stateful_writer.heartbeat_timer.checkpoint();
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(0));
-//     }
+        stateful_writer.heartbeat_timer.checkpoint();
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(1));
+        stateful_writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
 
-//     // Write 5 changes
-//     {
-//         let changes = vec![
-//             stateful_writer.new_change(ChangeKind::Alive, vec![0, 1], vec![], 0), // SN: 1
-//             stateful_writer.new_change(ChangeKind::Alive, vec![2, 3], vec![], 0), // SN: 2
-//             stateful_writer.new_change(ChangeKind::Alive, vec![4, 5], vec![], 0), // SN: 3
-//             stateful_writer.new_change(ChangeKind::Alive, vec![6, 7], vec![], 0), // SN: 4
-//             stateful_writer.new_change(ChangeKind::Alive, vec![8, 9], vec![], 0), // SN: 5
-//         ];
+        // one heartbeat to send
+        {
+            let destined_submessages = send_submessages(&mut stateful_writer);
+            assert_eq!(1, destined_submessages.len());
+            assert_eq!(1, destined_submessages.heartbeats.len());
 
-//         for change in changes {
-//             stateful_writer.add_change(change);
-//         }
-//     }
+            let heartbeat = &destined_submessages.heartbeats[0];
+            assert_eq!(1, heartbeat.first_sn.value);
+            assert_eq!(0, heartbeat.last_sn.value);
+            assert_eq!(Count(1), heartbeat.count.value);
 
-//     // Receive only messages 2 and 4
-//     {
-//         let mut destined_submessages = stateful_writer.produce_destined_submessages();
-//         assert_eq!(1, destined_submessages.len());
+            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
-//         let (_locator_list, submessages) = &mut destined_submessages[0];
-//         assert_eq!(5, submessages.len());
+            assert!(stateful_reader.matched_writers[0]
+                .missing_changes()
+                .is_empty());
+            assert!(stateful_reader.produce_acknack_submessages().is_empty());
+        }
 
-//         // drop messages 1, 3 and 5
-//         submessages.retain(|message| {
-//             matches!(
-//                 message,
-//                 RtpsStatefulSubmessage::Data(DataSubmessage{writer_sn, ..})
-//                 if writer_sn.value % 2 == 0
-//             )
-//         });
-//         assert_eq!(2, submessages.len()); // 2 and 4
+        stateful_writer.heartbeat_timer.checkpoint();
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(0));
+    }
 
-//         for submessage in submessages {
-//             match submessage {
-//                 RtpsStatefulSubmessage::Data(data) => {
-//                     stateful_reader.process_data_submessage(data, writer_guid.prefix)
-//                 }
-//                 _ => panic!("This is not data (;_;)"),
-//             }
-//         }
+    // Write 5 changes
+    {
+        let changes = vec![
+            stateful_writer.new_change(ChangeKind::Alive, vec![0, 1], vec![], 0), // SN: 1
+            stateful_writer.new_change(ChangeKind::Alive, vec![2, 3], vec![], 0), // SN: 2
+            stateful_writer.new_change(ChangeKind::Alive, vec![4, 5], vec![], 0), // SN: 3
+            stateful_writer.new_change(ChangeKind::Alive, vec![6, 7], vec![], 0), // SN: 4
+            stateful_writer.new_change(ChangeKind::Alive, vec![8, 9], vec![], 0), // SN: 5
+        ];
 
-//         assert_eq!(2, stateful_reader.reader_cache().changes().len()); // has received 2 and 4
-//         assert_eq!(
-//             vec![1, 3],
-//             stateful_reader.matched_writers[0].missing_changes()
-//         ); // knows at least 1 and 3 are missing
-//     }
+        for change in changes {
+            stateful_writer.add_change(change);
+        }
+    }
 
-//     // No AckNack sent before receiving the heartbeat
-//     assert!(stateful_reader.produce_acknack_submessages().is_empty());
+    // Receive only messages 2 and 4
+    {
+        let mut destined_submessages = send_submessages(&mut stateful_writer);
+        assert_eq!(5, destined_submessages.len());
+        assert_eq!(5, destined_submessages.data.len());
 
-//     // Send and receive second heartbeat
-//     {
-//         stateful_writer.heartbeat_timer.checkpoint();
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(1));
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_reset()
-//             .once()
-//             .return_const(());
+        // drop messages 1, 3 and 5
+        destined_submessages
+            .data
+            .retain(|message| message.writer_sn.value % 2 == 0);
+        assert_eq!(2, destined_submessages.data.len()); // 2 and 4
 
-//         // one heartbeat to send
-//         {
-//             let destined_submessages = stateful_writer.produce_destined_submessages();
-//             assert_eq!(1, destined_submessages.len());
+        for data_submessage in destined_submessages.data {
+            stateful_reader.process_data_submessage(&data_submessage, writer_guid.prefix)
+        }
+        assert_eq!(2, stateful_reader.reader_cache().changes().len()); // has received 2 and 4
+        assert_eq!(
+            vec![1, 3],
+            stateful_reader.matched_writers[0].missing_changes()
+        ); // knows at least 1 and 3 are missing
+    }
 
-//             let (_locator_list, heartbeats) = &destined_submessages[0];
-//             assert_eq!(1, heartbeats.len());
+    // No AckNack sent before receiving the heartbeat
+    assert!(stateful_reader.produce_acknack_submessages().is_empty());
 
-//             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-//                 assert_eq!(1, heartbeat.first_sn.value);
-//                 assert_eq!(5, heartbeat.last_sn.value);
-//                 assert_eq!(Count(2), heartbeat.count.value);
+    // Send and receive second heartbeat
+    {
+        stateful_writer.heartbeat_timer.checkpoint();
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(1));
+        stateful_writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
 
-//                 stateful_reader.process_heartbeat_submessage(heartbeat, writer_guid.prefix);
-//             } else {
-//                 panic!("Not a heartbeat (;_;)");
-//             }
+        // one heartbeat to send
+        {
+            let destined_submessages = send_submessages(&mut stateful_writer);
+            assert_eq!(1, destined_submessages.len());
+            assert_eq!(1, destined_submessages.heartbeats.len());
 
-//             assert_eq!(
-//                 vec![1, 3, 5],
-//                 stateful_reader.matched_writers[0].missing_changes()
-//             );
-//         }
+            let heartbeat = &destined_submessages.heartbeats[0];
+            assert_eq!(1, heartbeat.first_sn.value);
+            assert_eq!(5, heartbeat.last_sn.value);
+            assert_eq!(Count(2), heartbeat.count.value);
 
-//         stateful_writer.heartbeat_timer.checkpoint();
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(0));
-//     }
+            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
+            assert_eq!(
+                vec![1, 3, 5],
+                stateful_reader.matched_writers[0].missing_changes()
+            );
+        }
 
-//     // Send and receive AckNack
-//     {
-//         let messages = stateful_reader.produce_acknack_submessages();
-//         assert_eq!(1, messages.len());
-//         let (writer_proxy, acknacks) = &messages[0];
-//         assert_eq!(writer_guid, writer_proxy.remote_writer_guid());
-//         assert_eq!(1, acknacks.len());
+        stateful_writer.heartbeat_timer.checkpoint();
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(0));
+    }
 
-//         assert_eq!(vec![1, 3, 5], acknacks[0].reader_sn_state.set);
+    // Send and receive AckNack
+    {
+        let messages = stateful_reader.produce_acknack_submessages();
+        assert_eq!(1, messages.len());
+        let (writer_proxy, acknacks) = &messages[0];
+        assert_eq!(writer_guid, writer_proxy.remote_writer_guid());
+        assert_eq!(1, acknacks.len());
 
-//         stateful_writer.process_acknack_submessage(&acknacks[0], reader_guid.prefix);
-//     }
+        assert_eq!(vec![1, 3, 5], acknacks[0].reader_sn_state.set);
+        assert_eq!(Count(1), acknacks[0].count.value);
 
-//     // Do not resend the acknack
-//     assert!(stateful_reader.produce_acknack_submessages().is_empty());
+        for mut reader_proxy in stateful_writer.matched_readers() {
+            if reader_proxy.remote_reader_guid().prefix == reader_guid.prefix {
+                reader_proxy.receive_acknack(&acknacks[0]);
+            }
+        }
+    }
 
-//     // Re-send missing messages
-//     {
-//         let destined_submessages = stateful_writer.produce_destined_requested_submessages();
-//         assert_eq!(1, destined_submessages.len());
-//         let (_locator_list, submessages) = &destined_submessages[0];
-//         assert_eq!(3, submessages.len());
+    // Do not resend the acknack
+    assert!(stateful_reader.produce_acknack_submessages().is_empty());
 
-//         for submessage in submessages {
-//             match submessage {
-//                 RtpsStatefulSubmessage::Data(data) => {
-//                     stateful_reader.process_data_submessage(data, writer_guid.prefix)
-//                 }
-//                 _ => panic!("This is not data (;_;)"),
-//             }
-//         }
+    // Re-send missing messages
+    {
+        let requested_changes = send_submessages(&mut stateful_writer);
+        assert_eq!(3, requested_changes.len());
+        assert_eq!(3, requested_changes.data.len());
 
-//         assert_eq!(5, stateful_reader.reader_cache().changes().len());
-//         assert!(stateful_reader.matched_writers[0]
-//             .missing_changes()
-//             .is_empty());
-//     }
+        for data_submessage in requested_changes.data {
+            stateful_reader.process_data_submessage(&data_submessage, writer_guid.prefix)
+        }
 
-//     // Verify that all messages were received
-//     let mut data: Vec<u8> = stateful_reader
-//         .reader_cache()
-//         .changes()
-//         .iter()
-//         .flat_map(|change| change.data.0.iter().cloned())
-//         .collect();
-//     data.sort();
-//     assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], data);
+        assert_eq!(5, stateful_reader.reader_cache().changes().len());
+        assert!(stateful_reader.matched_writers[0]
+            .missing_changes()
+            .is_empty());
+    }
 
-//     // Send and receive third heartbeat (no new data)
-//     {
-//         stateful_writer.heartbeat_timer.checkpoint();
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_elapsed()
-//             .return_const(std::time::Duration::from_secs(1));
-//         stateful_writer
-//             .heartbeat_timer
-//             .expect_reset()
-//             .once()
-//             .return_const(());
+    // Verify that all messages were received
+    let mut data: Vec<u8> = stateful_reader
+        .reader_cache()
+        .changes()
+        .iter()
+        .flat_map(|change| change.data.iter().cloned())
+        .collect();
+    data.sort();
+    assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], data);
 
-//         // one heartbeat to send
-//         {
-//             let destined_submessages = stateful_writer.produce_destined_submessages();
-//             assert_eq!(1, destined_submessages.len());
+    // Send and receive third heartbeat (no new data)
+    {
+        stateful_writer.heartbeat_timer.checkpoint();
+        stateful_writer
+            .heartbeat_timer
+            .expect_elapsed()
+            .return_const(std::time::Duration::from_secs(1));
+        stateful_writer
+            .heartbeat_timer
+            .expect_reset()
+            .once()
+            .return_const(());
 
-//             let (_locator_list, heartbeats) = &destined_submessages[0];
-//             assert_eq!(1, heartbeats.len());
+        // one heartbeat to send
+        {
+            let destined_submessages = send_submessages(&mut stateful_writer);
+            assert_eq!(1, destined_submessages.len());
+            assert_eq!(1, destined_submessages.heartbeats.len());
 
-//             if let RtpsStatefulSubmessage::Heartbeat(heartbeat) = &heartbeats[0] {
-//                 assert_eq!(1, heartbeat.first_sn.value);
-//                 assert_eq!(5, heartbeat.last_sn.value);
-//                 assert_eq!(Count(3), heartbeat.count.value);
+            let heartbeat = &destined_submessages.heartbeats[0];
+            assert_eq!(1, heartbeat.first_sn.value);
+            assert_eq!(5, heartbeat.last_sn.value);
+            assert_eq!(Count(3), heartbeat.count.value);
 
-//                 stateful_reader.process_heartbeat_submessage(heartbeat, writer_guid.prefix);
-//             } else {
-//                 panic!("Not a heartbeat (;_;)");
-//             }
+            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
-//             assert!(stateful_reader.matched_writers[0]
-//                 .missing_changes()
-//                 .is_empty());
-//             assert!(stateful_reader.produce_acknack_submessages().is_empty());
-//         }
-//     }
-// }
+            assert!(stateful_reader.matched_writers[0]
+                .missing_changes()
+                .is_empty());
+            assert!(stateful_reader.produce_acknack_submessages().is_empty());
+        }
+    }
+}
