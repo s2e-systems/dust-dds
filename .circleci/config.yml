@@ -12,6 +12,7 @@ jobs:
           command: "cargo test"
       - run:
           name: Hello world example
+          no_output_timeout: 10s 
           command: |
             cargo run --example hello_world_publisher &
             cargo run --example hello_world_subscriber | grep 'Msg: "Hello world!"'
