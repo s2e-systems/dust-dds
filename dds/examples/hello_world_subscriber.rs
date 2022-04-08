@@ -96,7 +96,7 @@ fn main() {
         .unwrap()
         .matched_writers
         .len()
-        <= 1
+        < 1
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
