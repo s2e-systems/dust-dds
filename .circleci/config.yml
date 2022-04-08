@@ -18,4 +18,4 @@ jobs:
           name: Hello world subscriber
           no_output_timeout: 10s 
           command: |
-            cargo run --example hello_world_subscriber | tee $tty | grep 'Msg: "Hello world!"'
+            cargo run --example hello_world_subscriber | tee /dev/tty | grep 'Msg: "Hello world!"'
