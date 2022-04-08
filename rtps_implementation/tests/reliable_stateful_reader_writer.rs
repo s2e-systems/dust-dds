@@ -18,7 +18,7 @@ use rtps_pim::{
             },
         },
         stateful_writer_behavior::{
-            ReliableReaderProxyReceiveAcknackBehavior, ReliableReaderProxyRequestedChangesBehavior,
+            ReliableReaderProxyReceiveAcknackBehavior,
             StatefulWriterSendSubmessages,
         },
         types::{Duration, DURATION_ZERO},
@@ -58,21 +58,21 @@ impl TimerConstructor for MockTimer {
     }
 }
 
-struct DestinedSubmessages<'a> {
+struct SubmessageList<'a> {
     data: Vec<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>>,
     gaps: Vec<GapSubmessage<Vec<i64>>>,
     heartbeats: Vec<HeartbeatSubmessage>,
 }
 
-impl<'a> DestinedSubmessages<'a> {
+impl<'a> SubmessageList<'a> {
     fn len(&self) -> usize {
         self.data.len() + self.gaps.len() + self.heartbeats.len()
     }
 }
 
-fn produce_destined_submessages<'a, T: Timer>(
+fn send_submessages<'a, T: Timer>(
     stateful_writer: &'a mut RtpsStatefulWriterImpl<T>,
-) -> DestinedSubmessages<'a> {
+) -> SubmessageList<'a> {
     let data = RefCell::new(Vec::new());
     let gaps = RefCell::new(Vec::new());
     let heartbeats = RefCell::new(Vec::new());
@@ -84,40 +84,10 @@ fn produce_destined_submessages<'a, T: Timer>(
         |_, heartbeat| heartbeats.borrow_mut().push(heartbeat),
     );
 
-    DestinedSubmessages {
+    SubmessageList {
         data: data.take(),
         gaps: gaps.take(),
         heartbeats: heartbeats.take(),
-    }
-}
-
-struct RequestedChanges<'a> {
-    data: Vec<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>>,
-    gaps: Vec<GapSubmessage<Vec<i64>>>,
-}
-
-impl<'a> RequestedChanges<'a> {
-    fn len(&self) -> usize {
-        self.data.len() + self.gaps.len()
-    }
-}
-
-fn produce_requested_submessages<'a, T: Timer>(
-    stateful_writer: &'a mut RtpsStatefulWriterImpl<T>,
-) -> RequestedChanges<'a> {
-    let data = RefCell::new(Vec::new());
-    let gaps = RefCell::new(Vec::new());
-
-    for mut reader_proxy in stateful_writer.matched_readers() {
-        reader_proxy.send_requested_changes(
-            |_, datum| data.borrow_mut().push(datum),
-            |_, gap| gaps.borrow_mut().push(gap),
-        );
-    }
-
-    RequestedChanges {
-        data: data.take(),
-        gaps: gaps.take(),
     }
 }
 
@@ -188,7 +158,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
         // one heartbeat to send
         {
-            let destined_submessages = produce_destined_submessages(&mut stateful_writer);
+            let destined_submessages = send_submessages(&mut stateful_writer);
             assert_eq!(1, destined_submessages.len());
             assert_eq!(1, destined_submessages.heartbeats.len());
 
@@ -229,7 +199,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Receive only messages 2 and 4
     {
-        let mut destined_submessages = produce_destined_submessages(&mut stateful_writer);
+        let mut destined_submessages = send_submessages(&mut stateful_writer);
         assert_eq!(5, destined_submessages.len());
         assert_eq!(5, destined_submessages.data.len());
 
@@ -267,7 +237,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
         // one heartbeat to send
         {
-            let destined_submessages = produce_destined_submessages(&mut stateful_writer);
+            let destined_submessages = send_submessages(&mut stateful_writer);
             assert_eq!(1, destined_submessages.len());
             assert_eq!(1, destined_submessages.heartbeats.len());
 
@@ -313,7 +283,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Re-send missing messages
     {
-        let requested_changes = produce_requested_submessages(&mut stateful_writer);
+        let requested_changes = send_submessages(&mut stateful_writer);
         assert_eq!(3, requested_changes.len());
         assert_eq!(3, requested_changes.data.len());
 
@@ -352,7 +322,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
         // one heartbeat to send
         {
-            let destined_submessages = produce_destined_submessages(&mut stateful_writer);
+            let destined_submessages = send_submessages(&mut stateful_writer);
             assert_eq!(1, destined_submessages.len());
             assert_eq!(1, destined_submessages.heartbeats.len());
 
