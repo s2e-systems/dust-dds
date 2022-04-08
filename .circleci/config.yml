@@ -10,3 +10,8 @@ jobs:
       - run:
           name: Run Tests
           command: "cargo test"
+      - run:
+          name: Hello world example
+          command: |
+            cargo run --example hello_world_publisher &
+            cargo run --example hello_world_subscriber | grep 'Msg: "Hello world!"'
