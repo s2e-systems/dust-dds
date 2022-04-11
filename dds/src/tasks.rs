@@ -195,10 +195,11 @@ pub fn task_spdp_discovery(
         .upgrade()?;
 
     let mut sedp_builtin_publication_rtps_writer = sedp_builtin_publication_writer_shared
-        .rtps_writer
+        .extended_rtps_writer
         .write_lock();
-    let sedp_builtin_publication_writer =
-        sedp_builtin_publication_rtps_writer.try_as_stateful_writer()?;
+    let sedp_builtin_publication_writer = sedp_builtin_publication_rtps_writer
+        .rtps_writer
+        .try_as_stateful_writer()?;
 
     let mut sedp_builtin_publication_rtps_reader = sedp_builtin_publication_reader_shared
         .rtps_reader
@@ -207,10 +208,11 @@ pub fn task_spdp_discovery(
         sedp_builtin_publication_rtps_reader.try_as_stateful_reader()?;
 
     let mut sedp_builtin_subscription_rtps_writer = sedp_builtin_subscription_writer_shared
-        .rtps_writer
+        .extended_rtps_writer
         .write_lock();
-    let sedp_builtin_subscription_writer =
-        sedp_builtin_subscription_rtps_writer.try_as_stateful_writer()?;
+    let sedp_builtin_subscription_writer = sedp_builtin_subscription_rtps_writer
+        .rtps_writer
+        .try_as_stateful_writer()?;
 
     let mut sedp_builtin_subscription_rtps_reader = sedp_builtin_subscription_reader_shared
         .rtps_reader
@@ -218,9 +220,12 @@ pub fn task_spdp_discovery(
     let sedp_builtin_subscription_reader =
         sedp_builtin_subscription_rtps_reader.try_as_stateful_reader()?;
 
-    let mut sedp_builtin_topic_rtps_writer =
-        sedp_builtin_topic_writer_shared.rtps_writer.write_lock();
-    let sedp_builtin_topic_writer = sedp_builtin_topic_rtps_writer.try_as_stateful_writer()?;
+    let mut sedp_builtin_topic_rtps_writer = sedp_builtin_topic_writer_shared
+        .extended_rtps_writer
+        .write_lock();
+    let sedp_builtin_topic_writer = sedp_builtin_topic_rtps_writer
+        .rtps_writer
+        .try_as_stateful_writer()?;
 
     let mut sedp_builtin_topic_rtps_reader =
         sedp_builtin_topic_reader_shared.rtps_reader.write_lock();
@@ -425,8 +430,7 @@ pub fn task_sedp_reader_discovery(
                         sample.reader_proxy.expects_inline_qos,
                         true, // ???
                     );
-                    let mut rtps_writer = data_writer.rtps_writer.write_lock();
-                    match rtps_writer.deref_mut() {
+                    match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
                         RtpsWriter::Stateless(_) => (),
                         RtpsWriter::Stateful(rtps_stateful_writer) => {
                             rtps_stateful_writer.matched_reader_add(reader_proxy);
@@ -578,8 +582,9 @@ mod tests {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .rtps_writer
+                .extended_rtps_writer
                 .write_lock()
+                .rtps_writer
                 .try_as_stateful_writer()
                 .unwrap()
                 .matched_readers

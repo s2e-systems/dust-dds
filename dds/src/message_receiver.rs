@@ -98,7 +98,7 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(acknack) => {
                     for publisher in publisher_list {
                         for data_writer in publisher.data_writer_list.read_lock().iter() {
-                            match data_writer.rtps_writer.write_lock().deref_mut() {
+                            match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
                                 RtpsWriter::Stateless(stateless_rtps_writer) => {
                                     if stateless_rtps_writer.writer.endpoint.reliability_level
                                         == ReliabilityKind::Reliable

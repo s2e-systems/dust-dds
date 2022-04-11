@@ -18,7 +18,7 @@ use super::writer::{
     reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
 };
 
-pub trait StatefulWriterSendSubmessages<'a, P, D, S> {
+pub trait RtpsStatefulWriterSendSubmessages<'a, P, D, S> {
     type ReaderProxyType;
 
     fn send_submessages(

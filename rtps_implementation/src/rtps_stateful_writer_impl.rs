@@ -3,7 +3,7 @@ use rtps_pim::{
         stateful_writer_behavior::{
             BestEffortReaderProxyUnsentChangesBehavior,
             ReliableReaderProxyRequestedChangesBehavior, ReliableReaderProxySendHeartbeatBehavior,
-            ReliableReaderProxyUnsentChangesBehavior, StatefulWriterSendSubmessages,
+            ReliableReaderProxyUnsentChangesBehavior, RtpsStatefulWriterSendSubmessages,
         },
         types::{
             ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
@@ -258,7 +258,7 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
     }
 }
 
-impl<'a, T> StatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+impl<'a, T> RtpsStatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
     for RtpsStatefulWriterImpl<T>
 where
     T: Timer,

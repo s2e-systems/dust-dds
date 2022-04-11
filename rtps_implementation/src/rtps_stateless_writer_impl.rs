@@ -1,7 +1,7 @@
 use rtps_pim::{
     behavior::{
         stateless_writer_behavior::{
-            BestEffortReaderLocatorUnsentChangesBehavior, StatelessWriterSendSubmessages,
+            BestEffortReaderLocatorUnsentChangesBehavior, RtpsStatelessWriterSendSubmessages,
         },
         types::Duration,
         writer::{
@@ -215,7 +215,7 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<'a, T> StatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+impl<'a, T> RtpsStatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
     for RtpsStatelessWriterImpl<T>
 where
     T: Timer,
