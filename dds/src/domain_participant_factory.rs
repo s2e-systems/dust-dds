@@ -503,7 +503,7 @@ impl DomainParticipantFactory {
                             .as_ref(),
                     );
                 },
-                std::time::Duration::from_millis(500),
+                std::time::Duration::from_millis(50),
             );
         }
 
