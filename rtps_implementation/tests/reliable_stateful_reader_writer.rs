@@ -19,7 +19,7 @@ use rtps_pim::{
         },
         stateful_writer_behavior::{
             ReliableReaderProxyReceiveAcknackBehavior,
-            StatefulWriterSendSubmessages,
+            RtpsStatefulWriterSendSubmessages,
         },
         types::{Duration, DURATION_ZERO},
         writer::{
@@ -77,7 +77,7 @@ fn send_submessages<'a, T: Timer>(
     let gaps = RefCell::new(Vec::new());
     let heartbeats = RefCell::new(Vec::new());
 
-    StatefulWriterSendSubmessages::send_submessages(
+    RtpsStatefulWriterSendSubmessages::send_submessages(
         stateful_writer,
         |_, datum| data.borrow_mut().push(datum),
         |_, gap| gaps.borrow_mut().push(gap),
@@ -138,7 +138,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             .return_const(std::time::Duration::from_secs(0));
 
         // no heartbeat before delay
-        StatefulWriterSendSubmessages::send_submessages(
+        RtpsStatefulWriterSendSubmessages::send_submessages(
             &mut stateful_writer,
             |_, _| panic!("No data should be sent"),
             |_, _| panic!("No gap should be sent"),
