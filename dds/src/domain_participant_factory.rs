@@ -503,24 +503,9 @@ impl DomainParticipantFactory {
                             .as_ref(),
                     );
                 },
-                std::time::Duration::from_millis(500),
+                std::time::Duration::from_millis(50),
             );
         }
-
-        // {
-        //     let domain_participant = domain_participant.clone();
-
-        //     spawner.spawn_enabled_periodic_task(
-        //         "sedp discovery",
-        //         move || {
-        //             let user_defined_publisher_list = domain_participant.write_lock().user_defined_publisher_list;
-        //             for user_defined_publisher in user_defined_publisher_list.iter() {
-        //                 user_defined_publisher.process_discovery();
-        //             }
-        //         },
-        //         std::time::Duration::from_millis(500),
-        //     );
-        // }
 
         // //////////// Announce participant
         spawner.spawn_enabled_periodic_task(
