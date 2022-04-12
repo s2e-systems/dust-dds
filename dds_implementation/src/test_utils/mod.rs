@@ -4,6 +4,8 @@ pub mod mock_rtps_group;
 pub mod mock_rtps_history_cache;
 pub mod mock_rtps_participant;
 pub mod mock_rtps_stateful_reader;
+pub mod mock_rtps_reader_proxy;
 pub mod mock_rtps_stateful_writer;
 pub mod mock_rtps_stateless_reader;
+pub mod mock_rtps_reader_locator;
 pub mod mock_rtps_stateless_writer;

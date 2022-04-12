@@ -519,12 +519,23 @@ mod test {
     use std::io::Write;
 
     use dds_api::infrastructure::qos::TopicQos;
+    use rtps_pim::{
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            submessages::DataSubmessage,
+        },
+        structure::types::{LOCATOR_KIND_UDPv4, ENTITYID_UNKNOWN},
+    };
 
     use crate::{
         dds_type::Endianness,
         test_utils::{
             mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
             mock_rtps_history_cache::MockRtpsHistoryCache,
+            mock_rtps_reader_locator::MockRtpsReaderLocator,
             mock_rtps_stateful_writer::MockRtpsStatefulWriter,
             mock_rtps_stateless_writer::MockRtpsStatelessWriter,
         },
@@ -652,5 +663,44 @@ mod test {
         data_writer_proxy
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();
+    }
+
+    #[test]
+    fn produce_submessages_stateless_rtps_writer() {
+        let mut stateless_rtps_writer = MockRtpsStatelessWriter::new();
+        stateless_rtps_writer
+            .expect_send_submessages_()
+            .return_once(|send_data, _, _| {
+                let mut mock_reader_locator = MockRtpsReaderLocator::new();
+                mock_reader_locator.expect_locator().return_const(Locator {
+                    kind: LOCATOR_KIND_UDPv4,
+                    port: 7400,
+                    address: [1; 16],
+                });
+                let data_submessage = DataSubmessage {
+                    endianness_flag: true,
+                    inline_qos_flag: true,
+                    data_flag: true,
+                    key_flag: false,
+                    non_standard_payload_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_sn: SequenceNumberSubmessageElement { value: 1 },
+                    inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+                    serialized_payload: SerializedDataSubmessageElement { value: &[][..] },
+                };
+                send_data(&mock_reader_locator, data_submessage)
+            });
+        let mut extended_rtps_writer = ExtendedRtpsWriter::<MockRtps> {
+            rtps_writer: RtpsWriter::Stateless(stateless_rtps_writer),
+            sample_info: HashMap::new(),
+        };
+
+        let destined_submessage = extended_rtps_writer.produce_submessages();
+        assert_eq!(destined_submessage.len(), 2)
     }
 }

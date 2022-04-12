@@ -1,11 +1,16 @@
 use mockall::mock;
 use rtps_pim::{
     behavior::{
+        stateful_writer_behavior::RtpsStatefulWriterSendSubmessages,
         types::Duration,
         writer::{
             stateful_writer::RtpsStatefulWriterConstructor,
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
     structure::{
         history_cache::RtpsHistoryCacheOperations,
@@ -17,6 +22,7 @@ use rtps_pim::{
 
 use super::{
     mock_rtps_cache_change::MockRtpsCacheChange, mock_rtps_history_cache::MockRtpsHistoryCache,
+    mock_rtps_reader_proxy::MockRtpsReaderProxy,
 };
 
 mock! {
@@ -24,6 +30,10 @@ mock! {
         pub fn add_change_(&mut self, change: MockRtpsCacheChange);
         pub fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
         pub fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
+        pub fn send_submessages_<'a>(&'a self,
+            send_data: &mut dyn FnMut(&MockRtpsReaderProxy, DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+            send_gap: &mut dyn FnMut(&MockRtpsReaderProxy, GapSubmessage<Vec<SequenceNumber>>),
+            send_heartbeat: &mut dyn FnMut(&MockRtpsReaderProxy, HeartbeatSubmessage));
     }
 
     impl RtpsWriterAttributes for RtpsStatefulWriter {
@@ -89,5 +99,20 @@ impl RtpsStatefulWriterConstructor for MockRtpsStatefulWriter {
         _data_max_size_serialized: Option<i32>,
     ) -> Self {
         MockRtpsStatefulWriter::new()
+    }
+}
+
+impl<'a> RtpsStatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+    for MockRtpsStatefulWriter
+{
+    type ReaderProxyType = MockRtpsReaderProxy;
+
+    fn send_submessages(
+        &'a mut self,
+        mut send_data: impl FnMut(&Self::ReaderProxyType, DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+        mut send_gap: impl FnMut(&Self::ReaderProxyType, GapSubmessage<Vec<SequenceNumber>>),
+        mut send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
+    ) {
+        self.send_submessages_(&mut send_data, &mut send_gap, &mut send_heartbeat)
     }
 }
