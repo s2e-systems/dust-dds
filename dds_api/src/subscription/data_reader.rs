@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
-        InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+        InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
         SubscriptionMatchedStatus, ViewStateMask,
     },
@@ -116,7 +116,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
@@ -137,7 +137,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
@@ -228,7 +228,7 @@ pub trait DataReader<Foo> {
         a_handle: InstanceHandle,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to take except for that all
@@ -252,7 +252,7 @@ pub trait DataReader<Foo> {
         a_handle: InstanceHandle,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader where all the samples belong to a single instance.
@@ -293,7 +293,7 @@ pub trait DataReader<Foo> {
         previous_handle: InstanceHandle,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
@@ -315,7 +315,7 @@ pub trait DataReader<Foo> {
         previous_handle: InstanceHandle,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read_next_instance
@@ -405,7 +405,7 @@ pub trait DataReader<Foo> {
         &self,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<ReadCondition>;
 
     /// This operation creates a QueryCondition. The returned QueryCondition will be attached and belong to the DataReader.
@@ -415,7 +415,7 @@ pub trait DataReader<Foo> {
         &self,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
         query_expression: &'static str,
         query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition>;

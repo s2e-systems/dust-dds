@@ -10,7 +10,7 @@ use crate::{
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
-        InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+        InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
         StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
         NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
@@ -366,7 +366,7 @@ where
         max_samples: i32,
         sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
@@ -389,7 +389,7 @@ where
         _max_samples: i32,
         sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
@@ -455,7 +455,7 @@ where
         _a_handle: InstanceHandle,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -468,7 +468,7 @@ where
         _a_handle: InstanceHandle,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -481,7 +481,7 @@ where
         _previous_handle: InstanceHandle,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -494,7 +494,7 @@ where
         _previous_handle: InstanceHandle,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -541,7 +541,7 @@ where
         &self,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<ReadCondition> {
         todo!()
     }
@@ -550,7 +550,7 @@ where
         &self,
         _sample_states: SampleStateMask,
         _view_states: ViewStateMask,
-        _instance_states: &[InstanceStateKind],
+        _instance_states: InstanceStateMask,
         _query_expression: &'static str,
         _query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition> {

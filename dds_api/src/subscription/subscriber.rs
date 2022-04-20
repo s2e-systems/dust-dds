@@ -1,5 +1,5 @@
 use crate::{
-    dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateMask, StatusMask, ViewStateMask},
+    dcps_psm::{InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask, ViewStateMask},
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, TopicQos},
@@ -162,7 +162,7 @@ pub trait Subscriber {
         readers: &mut [&mut dyn AnyDataReader],
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
-        instance_states: &[InstanceStateKind],
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
