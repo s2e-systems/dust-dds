@@ -14,7 +14,7 @@ use dds_api::{
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{data_reader::{DataReader, ANY_SAMPLE}, subscriber::Subscriber},
 };
 use dds_implementation::{
     data_representation_builtin_endpoints::{
@@ -231,7 +231,7 @@ pub fn task_spdp_discovery(
         sedp_builtin_topic_reader_shared.rtps_reader.write_lock();
     let sedp_builtin_topic_reader = sedp_builtin_topic_rtps_reader.try_as_stateful_reader()?;
 
-    if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, &[], &[], &[]) {
+    if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, ANY_SAMPLE, &[], &[]) {
         for (discovered_participant, _) in samples.iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 discovered_participant,
@@ -331,7 +331,7 @@ pub fn task_sedp_writer_discovery(
     let sedp_builtin_publication_reader =
         builtin_subscriber.lookup_datareader(&dcps_publication_topic)?;
 
-    let samples = sedp_builtin_publication_reader.take(1, &[], &[], &[]);
+    let samples = sedp_builtin_publication_reader.take(1, ANY_SAMPLE, &[], &[]);
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
         let topic_name = &sample.publication_builtin_topic_data.topic_name;
@@ -408,7 +408,7 @@ pub fn task_sedp_reader_discovery(
     let sedp_builtin_subscription_reader =
         builtin_subscriber.lookup_datareader(&dcps_subscription_topic)?;
 
-    let samples = sedp_builtin_subscription_reader.take(1, &[], &[], &[]);
+    let samples = sedp_builtin_subscription_reader.take(1, ANY_SAMPLE, &[], &[]);
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
         let topic_name = &sample.subscription_builtin_topic_data.topic_name;

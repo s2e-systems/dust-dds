@@ -2,7 +2,7 @@ use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{data_reader::{DataReader, ANY_SAMPLE}, subscriber::Subscriber},
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
@@ -121,10 +121,10 @@ fn user_defined_write_read_auto_enable() {
 
     writer.write(&UserData(8), None).unwrap();
 
-    let mut samples = reader.read(1, &[], &[], &[]);
+    let mut samples = reader.read(1, ANY_SAMPLE, &[], &[]);
     while let Err(DdsError::NoData) = samples {
         std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, &[], &[], &[])
+        samples = reader.read(1, ANY_SAMPLE, &[], &[])
     }
 
     assert_eq!(samples.unwrap()[0].0, UserData(8));

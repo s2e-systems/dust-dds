@@ -826,7 +826,7 @@ mod tests {
         },
         return_type::DdsError,
         subscription::{
-            data_reader::DataReader,
+            data_reader::{DataReader, ANY_SAMPLE},
             data_reader_listener::DataReaderListener,
             subscriber::{Subscriber, SubscriberDataReaderFactory},
         },
@@ -1078,7 +1078,7 @@ mod tests {
                 .unwrap();
 
             &participant2_builtin_participant_data_reader
-                .read(1, &[], &[], &[])
+                .read(1, ANY_SAMPLE, &[], &[])
                 .unwrap()[0]
         };
 
@@ -1321,7 +1321,7 @@ mod tests {
             .unwrap();
 
         let (discovered_topic_data, _) = &participant2_topic_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             UserData::type_name(),
@@ -1333,7 +1333,7 @@ mod tests {
         );
 
         let (discovered_writer_data, _) = &participant2_publication_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             user_writer
@@ -1350,7 +1350,7 @@ mod tests {
         );
 
         let (discovered_reader_data, _) = &participant2_subscription_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             user_reader
