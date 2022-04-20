@@ -41,6 +41,8 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 
+pub const ANY_SAMPLE_STATE: &'static [SampleStateKind] = &[SampleStateKind::NotRead, SampleStateKind::Read];
+
 pub trait AnyDataReaderListener<Rtps>
 where
     Rtps: RtpsStructure,

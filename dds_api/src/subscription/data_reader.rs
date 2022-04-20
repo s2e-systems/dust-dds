@@ -11,8 +11,6 @@ use crate::{
 
 use super::query_condition::QueryCondition;
 
-pub const ANY_SAMPLE: &'static [SampleStateKind] = &[SampleStateKind::NotRead, SampleStateKind::Read];
-
 pub trait DataReaderGetSubscriber {
     type Subscriber;
 
