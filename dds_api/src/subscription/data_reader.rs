@@ -3,7 +3,7 @@ use crate::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
-        SubscriptionMatchedStatus, ViewStateKind,
+        SubscriptionMatchedStatus, ViewStateMask,
     },
     infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
     return_type::DdsResult,
@@ -115,7 +115,7 @@ pub trait DataReader<Foo> {
         &self,
         max_samples: i32,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
@@ -136,7 +136,7 @@ pub trait DataReader<Foo> {
         &self,
         max_samples: i32,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
@@ -227,7 +227,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         a_handle: InstanceHandle,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<()>;
 
@@ -251,7 +251,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         a_handle: InstanceHandle,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<()>;
 
@@ -292,7 +292,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         previous_handle: InstanceHandle,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<()>;
 
@@ -314,7 +314,7 @@ pub trait DataReader<Foo> {
         max_samples: i32,
         previous_handle: InstanceHandle,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<()>;
 
@@ -404,7 +404,7 @@ pub trait DataReader<Foo> {
     fn create_readcondition(
         &self,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<ReadCondition>;
 
@@ -414,7 +414,7 @@ pub trait DataReader<Foo> {
     fn create_querycondition(
         &self,
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
         query_expression: &'static str,
         query_parameters: &[&'static str],

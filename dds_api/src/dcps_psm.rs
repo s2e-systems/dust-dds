@@ -281,25 +281,31 @@ pub struct SubscriptionMatchedStatus {
     pub current_count_change: i32,
 }
 
-
 // Sample states to support reads
 pub type SampleStateKind = u32;
-pub const READ_SAMPLE_STATE : SampleStateKind = 0x0001 << 0;
-pub const NOT_READ_SAMPLE_STATE : SampleStateKind = 0x0001 << 0;
+pub const READ_SAMPLE_STATE: SampleStateKind = 0x0001 << 0;
+pub const NOT_READ_SAMPLE_STATE: SampleStateKind = 0x0001 << 1;
 
 // This is a bit-mask SampleStateKind
 pub type SampleStateMask = u32;
-pub const ANY_SAMPLE_STATE : SampleStateMask = 0xffff;
+pub const ANY_SAMPLE_STATE: SampleStateMask = 0xffff;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ViewStateKind {
-    New,
-    NotNew,
-}
+// View states to support reads
+pub type ViewStateKind = u32;
+pub const NEW_VIEW_STATE: ViewStateKind = 0x0001 << 0;
+pub const NOT_NEW_VIEW_STATE: ViewStateKind = 0x0001 << 1;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum InstanceStateKind {
-    Alive,
-    NotAliveDisposed,
-    NotAliveNoWriters,
-}
+// This is a bit-mask ViewStateKind
+pub type ViewStateMask = u32;
+pub const ANY_VIEW_STATE: ViewStateMask = 0xffff;
+
+// Instance states to support reads
+pub type InstanceStateKind = u32;
+pub const ALIVE_INSTANCE_STATE: InstanceStateKind = 0x0001 << 0;
+pub const NOT_ALIVE_DISPOSED_INSTANCE_STATE: InstanceStateKind = 0x0001 << 1;
+pub const NOT_ALIVE_NO_WRITERS_INSTANCE_STATE: InstanceStateKind = 0x0001 << 2;
+
+// This is a bit-mask InstanceStateKind
+pub type InstanceStateMask = u32;
+pub const ANY_INSTANCE_STATE: InstanceStateMask = 0xffff;
+pub const NOT_ALIVE_INSTANCE_STATE: InstanceStateMask = 0x006;

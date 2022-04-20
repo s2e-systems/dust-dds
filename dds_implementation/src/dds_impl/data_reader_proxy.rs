@@ -12,8 +12,8 @@ use dds_api::{
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
-        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind, NOT_READ_SAMPLE_STATE,
-        READ_SAMPLE_STATE,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
+        NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -307,8 +307,8 @@ where
             let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
             let sample_info = SampleInfo {
                 sample_state,
-                view_state: ViewStateKind::New,
-                instance_state: InstanceStateKind::Alive,
+                view_state: NEW_VIEW_STATE,
+                instance_state: ALIVE_INSTANCE_STATE,
                 disposed_generation_count: 0,
                 no_writers_generation_count: 0,
                 sample_rank: 0,
@@ -365,7 +365,7 @@ where
         &self,
         max_samples: i32,
         sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
@@ -388,7 +388,7 @@ where
         &self,
         _max_samples: i32,
         sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
         let data_reader_shared = self.data_reader_impl.upgrade()?;
@@ -454,7 +454,7 @@ where
         _max_samples: i32,
         _a_handle: InstanceHandle,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         todo!()
@@ -467,7 +467,7 @@ where
         _max_samples: i32,
         _a_handle: InstanceHandle,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         todo!()
@@ -480,7 +480,7 @@ where
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         todo!()
@@ -493,7 +493,7 @@ where
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         todo!()
@@ -540,7 +540,7 @@ where
     fn create_readcondition(
         &self,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<ReadCondition> {
         todo!()
@@ -549,7 +549,7 @@ where
     fn create_querycondition(
         &self,
         _sample_states: SampleStateMask,
-        _view_states: &[ViewStateKind],
+        _view_states: ViewStateMask,
         _instance_states: &[InstanceStateKind],
         _query_expression: &'static str,
         _query_parameters: &[&'static str],

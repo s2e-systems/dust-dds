@@ -813,7 +813,7 @@ mod tests {
     use dds_api::{
         dcps_psm::{
             BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus,
-            ANY_SAMPLE_STATE,
+            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
         domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         infrastructure::qos::DomainParticipantQos,
@@ -1079,7 +1079,7 @@ mod tests {
                 .unwrap();
 
             &participant2_builtin_participant_data_reader
-                .read(1, ANY_SAMPLE_STATE, &[], &[])
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, &[])
                 .unwrap()[0]
         };
 
@@ -1322,7 +1322,7 @@ mod tests {
             .unwrap();
 
         let (discovered_topic_data, _) = &participant2_topic_datareader
-            .read(1, ANY_SAMPLE_STATE, &[], &[])
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, &[])
             .unwrap()[0];
         assert_eq!(
             UserData::type_name(),
@@ -1334,7 +1334,7 @@ mod tests {
         );
 
         let (discovered_writer_data, _) = &participant2_publication_datareader
-            .read(1, ANY_SAMPLE_STATE, &[], &[])
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, &[])
             .unwrap()[0];
         assert_eq!(
             user_writer
@@ -1351,7 +1351,7 @@ mod tests {
         );
 
         let (discovered_reader_data, _) = &participant2_subscription_datareader
-            .read(1, ANY_SAMPLE_STATE, &[], &[])
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, &[])
             .unwrap()[0];
         assert_eq!(
             user_reader

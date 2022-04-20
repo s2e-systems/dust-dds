@@ -1,5 +1,5 @@
 use crate::{
-    dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateMask, StatusMask, ViewStateKind},
+    dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateMask, StatusMask, ViewStateMask},
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, TopicQos},
@@ -161,7 +161,7 @@ pub trait Subscriber {
         &self,
         readers: &mut [&mut dyn AnyDataReader],
         sample_states: SampleStateMask,
-        view_states: &[ViewStateKind],
+        view_states: ViewStateMask,
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<()>;
 
