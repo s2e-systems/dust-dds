@@ -843,7 +843,7 @@ mod tests {
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
             publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
-            topic_proxy::TopicProxy,
+            topic_proxy::TopicProxy, data_reader_proxy::ANY_SAMPLE_STATE,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
@@ -1078,7 +1078,7 @@ mod tests {
                 .unwrap();
 
             &participant2_builtin_participant_data_reader
-                .read(1, &[], &[], &[])
+                .read(1, ANY_SAMPLE_STATE, &[], &[])
                 .unwrap()[0]
         };
 
@@ -1321,7 +1321,7 @@ mod tests {
             .unwrap();
 
         let (discovered_topic_data, _) = &participant2_topic_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE_STATE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             UserData::type_name(),
@@ -1333,7 +1333,7 @@ mod tests {
         );
 
         let (discovered_writer_data, _) = &participant2_publication_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE_STATE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             user_writer
@@ -1350,7 +1350,7 @@ mod tests {
         );
 
         let (discovered_reader_data, _) = &participant2_subscription_datareader
-            .read(1, &[], &[], &[])
+            .read(1, ANY_SAMPLE_STATE, &[], &[])
             .unwrap()[0];
         assert_eq!(
             user_reader
