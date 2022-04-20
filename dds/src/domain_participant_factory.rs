@@ -813,6 +813,7 @@ mod tests {
     use dds_api::{
         dcps_psm::{
             BuiltInTopicKey, DomainId, PublicationMatchedStatus, SubscriptionMatchedStatus,
+            ANY_SAMPLE_STATE,
         },
         domain::domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
         infrastructure::qos::DomainParticipantQos,
@@ -843,7 +844,7 @@ mod tests {
             domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
             publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
-            topic_proxy::TopicProxy, data_reader_proxy::ANY_SAMPLE_STATE,
+            topic_proxy::TopicProxy,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,

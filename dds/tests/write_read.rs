@@ -3,9 +3,10 @@ use dds::{
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
+    types::ANY_SAMPLE_STATE,
     DdsError,
 };
-use dds_implementation::{dds_type::{DdsDeserialize, DdsSerialize, DdsType}, dds_impl::data_reader_proxy::ANY_SAMPLE_STATE};
+use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);

@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, collections::HashSet};
+use std::{collections::HashSet, marker::PhantomData};
 
 use crate::{
     dds_type::DdsDeserialize,
@@ -11,8 +11,9 @@ use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
         InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateKind, NOT_READ_SAMPLE_STATE,
+        READ_SAMPLE_STATE,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -40,8 +41,6 @@ use super::{
     subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
     topic_proxy::{TopicAttributes, TopicProxy},
 };
-
-pub const ANY_SAMPLE_STATE: &'static [SampleStateKind] = &[SampleStateKind::NotRead, SampleStateKind::Read];
 
 pub trait AnyDataReaderListener<Rtps>
 where
@@ -298,10 +297,10 @@ where
             let sample_state = {
                 let sn = cache_change.sequence_number();
                 if samples_read.contains(&sn) {
-                    SampleStateKind::Read
+                    READ_SAMPLE_STATE
                 } else {
                     samples_read.insert(sn);
-                    SampleStateKind::NotRead
+                    NOT_READ_SAMPLE_STATE
                 }
             };
 
@@ -365,7 +364,7 @@ where
     fn read(
         &self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
+        sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
@@ -374,7 +373,7 @@ where
 
         let samples = self
             .read_samples(rtps_reader.reader_cache().changes().iter())
-            .filter(|(_, info)| sample_states.contains(&info.sample_state))
+            .filter(|(_, info)| info.sample_state & sample_states != 0)
             .take(max_samples as usize)
             .collect::<Vec<_>>();
 
@@ -388,7 +387,7 @@ where
     fn take(
         &self,
         _max_samples: i32,
-        sample_states: &[SampleStateKind],
+        sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
@@ -402,7 +401,7 @@ where
 
         let samples = self
             .read_samples(rtps_reader.reader_cache().changes().iter())
-            .filter(|(_, info)| sample_states.contains(&info.sample_state))
+            .filter(|(_, info)| info.sample_state & sample_states != 0)
             .collect::<Vec<_>>();
 
         rtps_reader
@@ -454,7 +453,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
@@ -467,7 +466,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
@@ -480,7 +479,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
@@ -493,7 +492,7 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
@@ -540,7 +539,7 @@ where
 
     fn create_readcondition(
         &self,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
     ) -> DdsResult<ReadCondition> {
@@ -549,7 +548,7 @@ where
 
     fn create_querycondition(
         &self,
-        _sample_states: &[SampleStateKind],
+        _sample_states: SampleStateMask,
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
         _query_expression: &'static str,

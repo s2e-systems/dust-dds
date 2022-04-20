@@ -5,12 +5,10 @@ use dds::{
     subscription::{
         data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
     },
+    types::ANY_SAMPLE_STATE,
     DdsError,
 };
-use dds_implementation::{
-    dds_impl::data_reader_proxy::ANY_SAMPLE_STATE,
-    dds_type::{DdsSerde, DdsType},
-};
+use dds_implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]

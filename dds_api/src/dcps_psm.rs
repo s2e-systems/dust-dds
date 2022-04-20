@@ -281,11 +281,15 @@ pub struct SubscriptionMatchedStatus {
     pub current_count_change: i32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SampleStateKind {
-    Read,
-    NotRead,
-}
+
+// Sample states to support reads
+pub type SampleStateKind = u32;
+pub const READ_SAMPLE_STATE : SampleStateKind = 0x0001 << 0;
+pub const NOT_READ_SAMPLE_STATE : SampleStateKind = 0x0001 << 0;
+
+// This is a bit-mask SampleStateKind
+pub type SampleStateMask = u32;
+pub const ANY_SAMPLE_STATE : SampleStateMask = 0xffff;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ViewStateKind {

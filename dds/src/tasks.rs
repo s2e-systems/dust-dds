@@ -10,7 +10,7 @@ use std::{
 use async_std::prelude::StreamExt;
 use dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
+    dcps_psm::{BuiltInTopicKey, ANY_SAMPLE_STATE},
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
@@ -26,7 +26,7 @@ use dds_implementation::{
         },
     },
     dds_impl::{
-        data_reader_proxy::{RtpsReader, ANY_SAMPLE_STATE},
+        data_reader_proxy::RtpsReader,
         data_writer_proxy::RtpsWriter,
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherProxy,
