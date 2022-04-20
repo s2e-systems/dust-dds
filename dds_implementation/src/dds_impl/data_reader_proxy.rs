@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, collections::HashSet};
 
 use crate::{
     dds_type::DdsDeserialize,
@@ -251,7 +251,7 @@ where
 {
     data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
-    samples_read: DdsRwLock<Vec<SequenceNumber>>,
+    samples_read: DdsRwLock<HashSet<SequenceNumber>>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -276,7 +276,7 @@ where
         Self {
             data_reader_impl,
             phantom: PhantomData,
-            samples_read: DdsRwLock::new(vec![]),
+            samples_read: DdsRwLock::new(HashSet::new()),
         }
     }
 }
@@ -300,7 +300,7 @@ where
                 if samples_read.contains(&sn) {
                     SampleStateKind::Read
                 } else {
-                    samples_read.push(sn);
+                    samples_read.insert(sn);
                     SampleStateKind::NotRead
                 }
             };
@@ -403,7 +403,6 @@ where
         let samples = self
             .read_samples(rtps_reader.reader_cache().changes().iter())
             .filter(|(_, info)| sample_states.contains(&info.sample_state))
-            //.take(max_samples as usize)
             .collect::<Vec<_>>();
 
         rtps_reader
