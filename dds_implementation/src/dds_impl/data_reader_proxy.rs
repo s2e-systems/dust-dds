@@ -1,4 +1,8 @@
-use std::{collections::HashSet, marker::PhantomData};
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    time::{Duration, Instant},
+};
 
 use crate::{
     dds_type::DdsDeserialize,
@@ -209,11 +213,13 @@ where
     Rtps: RtpsStructure,
 {
     pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
-    pub _qos: DataReaderQos,
+    pub qos: DataReaderQos,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     pub status: DdsRwLock<SubscriptionMatchedStatus>,
+    pub last_time_data_was_received: DdsRwLock<Option<Instant>>,
+    pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
 impl<Rtps> DataReaderAttributes<Rtps>
@@ -229,7 +235,7 @@ where
     ) -> Self {
         Self {
             rtps_reader: DdsRwLock::new(rtps_reader),
-            _qos: qos,
+            qos: qos,
             topic,
             listener: DdsRwLock::new(listener),
             parent_subscriber,
@@ -240,7 +246,31 @@ where
                 current_count: 0,
                 current_count_change: 0,
             }),
+            last_time_data_was_received: DdsRwLock::new(None),
+            requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
+                total_count: 0,
+                total_count_change: 0,
+                last_instance_handle: 0,
+            }),
         }
+    }
+
+    pub fn on_receive_data(&self) {
+        let now = Instant::now();
+        let last_time = self.last_time_data_was_received.read_lock().unwrap_or(now);
+        let deadline_period = Duration::from_secs(*self.qos.deadline.period.sec() as u64)
+            + Duration::from_nanos(*self.qos.deadline.period.nanosec() as u64);
+
+        if (now - last_time) > deadline_period {
+            self.requested_deadline_missed_status
+                .write_lock()
+                .total_count += 1;
+            self.requested_deadline_missed_status
+                .write_lock()
+                .total_count_change += 1;
+        }
+
+        *self.last_time_data_was_received.write_lock() = Some(now);
     }
 }
 
@@ -568,11 +598,16 @@ where
         todo!()
     }
 
-    fn get_requested_deadline_missed_status(
-        &self,
-        _status: &mut RequestedDeadlineMissedStatus,
-    ) -> DdsResult<()> {
-        todo!()
+    fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
+        let reader = self.as_ref().upgrade()?;
+        let status = reader.requested_deadline_missed_status.read_lock().clone();
+
+        reader
+            .requested_deadline_missed_status
+            .write_lock()
+            .total_count_change = 0;
+
+        Ok(status)
     }
 
     fn get_requested_incompatible_qos_status(

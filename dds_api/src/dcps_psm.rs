@@ -183,6 +183,7 @@ pub struct OfferedDeadlineMissedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+#[derive(Clone)]
 pub struct RequestedDeadlineMissedStatus {
     /// Total cumulative number of missed deadlines detected for any instance
     /// read by the DataReader. Missed deadlines accumulate; that is, each

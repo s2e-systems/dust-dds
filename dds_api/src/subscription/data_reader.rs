@@ -432,10 +432,7 @@ pub trait DataReader<Foo> {
 
     /// This operation allows access to the REQUESTED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1.
-    fn get_requested_deadline_missed_status(
-        &self,
-        status: &mut RequestedDeadlineMissedStatus,
-    ) -> DdsResult<()>;
+    fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus>;
 
     /// This operation allows access to the REQUESTED_INCOMPATIBLE_QOS communication status. Communication statuses
     /// are described in 2.2.4.1.

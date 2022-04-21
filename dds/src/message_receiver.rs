@@ -199,6 +199,7 @@ impl MessageReceiver {
                             // Call the listener after dropping the rtps_reader lock to avoid deadlock
                             drop(rtps_reader);
                             if before_data_cache_len < after_data_cache_len {
+                                data_reader.on_receive_data();
                                 data_reader
                                     .listener
                                     .read_lock()
