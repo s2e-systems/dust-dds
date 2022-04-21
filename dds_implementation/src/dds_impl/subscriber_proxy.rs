@@ -1,8 +1,8 @@
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
-        BuiltInTopicKey, Duration, InstanceHandle, InstanceStateKind, SampleLostStatus,
-        SampleStateKind, StatusMask, ViewStateKind,
+        BuiltInTopicKey, Duration, InstanceHandle, InstanceStateMask, SampleLostStatus,
+        SampleStateMask, StatusMask, ViewStateMask,
     },
     domain::domain_participant::DomainParticipantTopicFactory,
     infrastructure::{
@@ -337,9 +337,9 @@ where
     fn get_datareaders(
         &self,
         _readers: &mut [&mut dyn AnyDataReader],
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        _sample_states: SampleStateMask,
+        _view_states: ViewStateMask,
+        _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
         todo!()
     }

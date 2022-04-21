@@ -10,7 +10,7 @@ use std::{
 use async_std::prelude::StreamExt;
 use dds_api::{
     builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::BuiltInTopicKey,
+    dcps_psm::{BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     domain::domain_participant::DomainParticipant,
     publication::{data_writer::DataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
@@ -26,7 +26,7 @@ use dds_implementation::{
         },
     },
     dds_impl::{
-        data_reader_proxy::{RtpsReader, ANY_SAMPLE_STATE},
+        data_reader_proxy::RtpsReader,
         data_writer_proxy::RtpsWriter,
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherProxy,
@@ -231,7 +231,12 @@ pub fn task_spdp_discovery(
         sedp_builtin_topic_reader_shared.rtps_reader.write_lock();
     let sedp_builtin_topic_reader = sedp_builtin_topic_rtps_reader.try_as_stateful_reader()?;
 
-    if let Ok(samples) = spdp_builtin_participant_data_reader.take(1, ANY_SAMPLE_STATE, &[], &[]) {
+    if let Ok(samples) = spdp_builtin_participant_data_reader.take(
+        1,
+        ANY_SAMPLE_STATE,
+        ANY_VIEW_STATE,
+        ANY_INSTANCE_STATE,
+    ) {
         for (discovered_participant, _) in samples.iter() {
             if let Ok(participant_discovery) = ParticipantDiscovery::new(
                 discovered_participant,
@@ -331,7 +336,12 @@ pub fn task_sedp_writer_discovery(
     let sedp_builtin_publication_reader =
         builtin_subscriber.lookup_datareader(&dcps_publication_topic)?;
 
-    let samples = sedp_builtin_publication_reader.take(1, ANY_SAMPLE_STATE, &[], &[]);
+    let samples = sedp_builtin_publication_reader.take(
+        1,
+        ANY_SAMPLE_STATE,
+        ANY_VIEW_STATE,
+        ANY_INSTANCE_STATE,
+    );
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
         let topic_name = &sample.publication_builtin_topic_data.topic_name;
@@ -408,7 +418,12 @@ pub fn task_sedp_reader_discovery(
     let sedp_builtin_subscription_reader =
         builtin_subscriber.lookup_datareader(&dcps_subscription_topic)?;
 
-    let samples = sedp_builtin_subscription_reader.take(1, ANY_SAMPLE_STATE, &[], &[]);
+    let samples = sedp_builtin_subscription_reader.take(
+        1,
+        ANY_SAMPLE_STATE,
+        ANY_VIEW_STATE,
+        ANY_INSTANCE_STATE,
+    );
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
         let topic_name = &sample.subscription_builtin_topic_data.topic_name;

@@ -1,9 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
-        InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
-        SubscriptionMatchedStatus, ViewStateKind,
+        InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
+        SubscriptionMatchedStatus, ViewStateMask,
     },
     infrastructure::{read_condition::ReadCondition, sample_info::SampleInfo},
     return_type::DdsResult,
@@ -114,9 +114,9 @@ pub trait DataReader<Foo> {
     fn read(
         &self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
@@ -135,9 +135,9 @@ pub trait DataReader<Foo> {
     fn take(
         &self,
         max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
@@ -226,9 +226,9 @@ pub trait DataReader<Foo> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to take except for that all
@@ -250,9 +250,9 @@ pub trait DataReader<Foo> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader where all the samples belong to a single instance.
@@ -291,9 +291,9 @@ pub trait DataReader<Foo> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
@@ -313,9 +313,9 @@ pub trait DataReader<Foo> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read_next_instance
@@ -403,9 +403,9 @@ pub trait DataReader<Foo> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_readcondition(
         &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<ReadCondition>;
 
     /// This operation creates a QueryCondition. The returned QueryCondition will be attached and belong to the DataReader.
@@ -413,9 +413,9 @@ pub trait DataReader<Foo> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_querycondition(
         &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
         query_expression: &'static str,
         query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition>;

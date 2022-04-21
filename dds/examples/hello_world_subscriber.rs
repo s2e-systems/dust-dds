@@ -5,12 +5,10 @@ use dds::{
     subscription::{
         data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
     },
+    types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     DdsError,
 };
-use dds_implementation::{
-    dds_impl::data_reader_proxy::ANY_SAMPLE_STATE,
-    dds_type::{DdsSerde, DdsType},
-};
+use dds_implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -37,7 +35,9 @@ impl DataReaderListener for ExampleListener {
     type Foo = HelloWorldType;
 
     fn on_data_available(&self, the_reader: &dyn DataReader<Self::Foo>) {
-        let sample = the_reader.read(1, ANY_SAMPLE_STATE, &[], &[]).unwrap();
+        let sample = the_reader
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
         println!("Data id: {:?} Msg: {:?}", sample[0].0.id, sample[0].0.msg)
     }
 }
@@ -105,10 +105,10 @@ fn main() {
     }
     println!("{:?} [S] Matched with writer", std::time::SystemTime::now());
 
-    let mut samples = reader.read(1, ANY_SAMPLE_STATE, &[], &[]);
+    let mut samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
     while let Err(DdsError::NoData) = samples {
         std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, ANY_SAMPLE_STATE, &[], &[])
+        samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
     }
     println!("{:?} [S] Received data", std::time::SystemTime::now());
 

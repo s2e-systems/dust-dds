@@ -1,5 +1,5 @@
 use crate::{
-    dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
+    dcps_psm::{InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask, ViewStateMask},
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, TopicQos},
@@ -160,9 +160,9 @@ pub trait Subscriber {
     fn get_datareaders(
         &self,
         readers: &mut [&mut dyn AnyDataReader],
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        sample_states: SampleStateMask,
+        view_states: ViewStateMask,
+        instance_states: InstanceStateMask,
     ) -> DdsResult<()>;
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
