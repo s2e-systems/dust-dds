@@ -1,9 +1,7 @@
-use std::{
-    collections::HashSet,
-    marker::PhantomData,
-    time::{Duration, Instant},
+use super::{
+    subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
+    topic_proxy::{TopicAttributes, TopicProxy},
 };
-
 use crate::{
     dds_type::DdsDeserialize,
     utils::{
@@ -40,10 +38,10 @@ use rtps_pim::{
         types::SequenceNumber,
     },
 };
-
-use super::{
-    subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
-    topic_proxy::{TopicAttributes, TopicProxy},
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    time::{Duration, Instant},
 };
 
 pub trait AnyDataReaderListener<Rtps>
@@ -716,19 +714,98 @@ where
 
 #[cfg(test)]
 mod tests {
+    use dds_api::dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
 
-    // #[test]
-    // fn read() {
-    //     let reader = DataReaderStorage {};
-    //     let shared_reader = DdsShared::new(reader);
+    use super::*;
+    use crate::{
+        dds_impl::topic_proxy::TopicAttributes,
+        test_utils::{
+            dds_byte::DdsByte, mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
+            mock_rtps_history_cache::MockRtpsHistoryCache,
+            mock_rtps_stateful_reader::MockRtpsStatefulReader,
+        },
+        utils::shared_object::DdsShared,
+    };
 
-    //     let data_reader = DataReaderImpl::<u8> {
-    //         _subscriber: &MockSubcriber,
-    //         _topic: &MockTopic(PhantomData),
-    //         reader: shared_reader.downgrade(),
-    //     };
+    fn cache_change(value: u8, sn: SequenceNumber) -> MockRtpsCacheChange {
+        let mut cache_change = MockRtpsCacheChange::new();
+        cache_change.expect_data_value().return_const(vec![value]);
+        cache_change.expect_sequence_number().return_const(sn);
 
-    //     let sample = data_reader.read(1, ANY_SAMPLE, &[], &[]).unwrap();
-    //     assert_eq!(sample[0].0, 1);
-    // }
+        cache_change
+    }
+
+    fn reader_with_changes(changes: Vec<MockRtpsCacheChange>) -> DataReaderAttributes<MockRtps> {
+        let mut history_cache = MockRtpsHistoryCache::new();
+        history_cache.expect_changes().return_const(changes);
+
+        let mut stateful_reader = MockRtpsStatefulReader::new();
+        stateful_reader
+            .expect_reader_cache()
+            .return_var(history_cache);
+
+        DataReaderAttributes::new(
+            Default::default(),
+            RtpsReader::Stateful(stateful_reader),
+            DdsShared::new(TopicAttributes::new(
+                Default::default(),
+                "type_name",
+                "topic_name",
+                DdsWeak::new(),
+            )),
+            None,
+            DdsWeak::new(),
+        )
+    }
+
+    #[test]
+    fn read_all_samples() {
+        let reader = DdsShared::new(reader_with_changes(vec![
+            cache_change(1, 1),
+            cache_change(0, 2),
+            cache_change(2, 3),
+            cache_change(5, 4),
+        ]));
+        let reader_proxy = DataReaderProxy::<DdsByte, MockRtps>::new(reader.downgrade());
+
+        let all_samples = reader_proxy
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .unwrap();
+        assert_eq!(4, all_samples.len());
+        assert_eq!(
+            vec![1, 0, 2, 5],
+            all_samples.into_iter().map(|s| s.0 .0).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn read_only_unread() {
+        let reader = DdsShared::new(reader_with_changes(vec![cache_change(1, 1)]));
+        let reader_proxy = DataReaderProxy::<DdsByte, MockRtps>::new(reader.downgrade());
+
+        let unread_samples = reader_proxy
+            .read(
+                i32::MAX,
+                NOT_READ_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .unwrap();
+
+        assert_eq!(1, unread_samples.len());
+
+        assert!(reader_proxy
+            .read(
+                i32::MAX,
+                NOT_READ_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .is_err());
+    }
 }

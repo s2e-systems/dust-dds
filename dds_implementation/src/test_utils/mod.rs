@@ -9,3 +9,4 @@ pub mod mock_rtps_stateful_writer;
 pub mod mock_rtps_stateless_reader;
 pub mod mock_rtps_reader_locator;
 pub mod mock_rtps_stateless_writer;
+pub mod dds_byte;
