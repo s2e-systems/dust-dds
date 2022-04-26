@@ -714,18 +714,49 @@ where
 
 #[cfg(test)]
 mod tests {
-    use dds_api::dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
-
     use super::*;
     use crate::{
         dds_impl::topic_proxy::TopicAttributes,
+        dds_type::{DdsSerialize, DdsType, Endianness},
         test_utils::{
-            dds_byte::DdsByte, mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
+            mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
             mock_rtps_history_cache::MockRtpsHistoryCache,
             mock_rtps_stateful_reader::MockRtpsStatefulReader,
         },
         utils::shared_object::DdsShared,
     };
+    use dds_api::dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
+    use std::io::Write;
+
+    struct UserData(u8);
+
+    impl DdsType for UserData {
+        fn type_name() -> &'static str {
+            "UserData"
+        }
+
+        fn has_key() -> bool {
+            false
+        }
+    }
+
+    impl<'de> DdsDeserialize<'de> for UserData {
+        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DdsResult<Self> {
+            Ok(UserData(buf[0]))
+        }
+    }
+
+    impl DdsSerialize for UserData {
+        fn serialize<W: Write, E: Endianness>(
+            &self,
+            mut writer: W,
+        ) -> dds_api::return_type::DdsResult<()> {
+            writer
+                .write(&[self.0])
+                .map(|_| ())
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
+        }
+    }
 
     fn cache_change(value: u8, sn: SequenceNumber) -> MockRtpsCacheChange {
         let mut cache_change = MockRtpsCacheChange::new();
@@ -766,7 +797,7 @@ mod tests {
             cache_change(2, 3),
             cache_change(5, 4),
         ]));
-        let reader_proxy = DataReaderProxy::<DdsByte, MockRtps>::new(reader.downgrade());
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
 
         let all_samples = reader_proxy
             .read(
@@ -786,7 +817,7 @@ mod tests {
     #[test]
     fn read_only_unread() {
         let reader = DdsShared::new(reader_with_changes(vec![cache_change(1, 1)]));
-        let reader_proxy = DataReaderProxy::<DdsByte, MockRtps>::new(reader.downgrade());
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
 
         let unread_samples = reader_proxy
             .read(
