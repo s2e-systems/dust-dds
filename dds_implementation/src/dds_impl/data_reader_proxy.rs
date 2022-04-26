@@ -421,32 +421,28 @@ where
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
-        let seq_num = rtps_reader
-            .reader_cache()
-            .get_seq_num_min()
-            .ok_or(DdsError::NoData)?;
-
-        let samples = rtps_reader
+        let (samples, to_delete) : (Vec<_>, Vec<_>) = rtps_reader
             .reader_cache()
             .changes()
             .iter()
             .map(|sample| {
                 let (mut data_value, sample_info) = data_reader_shared.read_sample(sample);
                 let foo = DdsDeserialize::deserialize(&mut data_value)?;
-                Ok((foo, sample_info))
+
+                Ok(((foo, sample_info), sample.sequence_number()))
             })
             .filter(|result| {
-                if let Ok((_, info)) = result {
+                if let Ok(((_, info), _)) = result {
                     info.sample_state & sample_states != 0
                 } else {
                     true
                 }
             })
-            .collect::<DdsResult<Vec<_>>>()?;
+            .collect::<DdsResult<Vec<_>>>()?
+            .into_iter()
+            .unzip();
 
-        rtps_reader
-            .reader_cache()
-            .remove_change(|cc| cc.sequence_number() == seq_num);
+        rtps_reader.reader_cache().remove_change(|x| to_delete.contains(&x.sequence_number()));
 
         Ok(samples)
     }
