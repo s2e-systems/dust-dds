@@ -339,23 +339,6 @@ where
     }
 }
 
-impl<Foo, Rtps> DataReaderProxy<Foo, Rtps>
-where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-    Rtps: RtpsStructure,
-{
-    fn read_sample<'a>(
-        &'a self,
-        cache_change: &'a Rtps::CacheChange,
-    ) -> DdsResult<(Foo, SampleInfo)> {
-        let reader = self.as_ref().upgrade()?;
-        let (mut data_value, sample_info) = reader.read_sample(cache_change);
-        let foo = DdsDeserialize::deserialize(&mut data_value)?;
-
-        Ok((foo, sample_info))
-    }
-}
-
 impl<Foo, Rtps> AsRef<DdsWeak<DataReaderAttributes<Rtps>>> for DataReaderProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
@@ -406,10 +389,20 @@ where
             .reader_cache()
             .changes()
             .iter()
-            .map(|sample| self.read_sample(sample).unwrap())
-            .filter(|(_, info)| info.sample_state & sample_states != 0)
+            .map(|sample| {
+                let (mut data_value, sample_info) = data_reader_shared.read_sample(sample);
+                let foo = DdsDeserialize::deserialize(&mut data_value)?;
+                Ok((foo, sample_info))
+            })
+            .filter(|result| {
+                if let Ok((_, info)) = result {
+                    info.sample_state & sample_states != 0
+                } else {
+                    true
+                }
+            })
             .take(max_samples as usize)
-            .collect::<Vec<_>>();
+            .collect::<DdsResult<Vec<_>>>()?;
 
         if samples.is_empty() {
             Err(DdsError::NoData)
@@ -437,9 +430,19 @@ where
             .reader_cache()
             .changes()
             .iter()
-            .map(|sample| self.read_sample(sample).unwrap())
-            .filter(|(_, info)| info.sample_state & sample_states != 0)
-            .collect::<Vec<_>>();
+            .map(|sample| {
+                let (mut data_value, sample_info) = data_reader_shared.read_sample(sample);
+                let foo = DdsDeserialize::deserialize(&mut data_value)?;
+                Ok((foo, sample_info))
+            })
+            .filter(|result| {
+                if let Ok((_, info)) = result {
+                    info.sample_state & sample_states != 0
+                } else {
+                    true
+                }
+            })
+            .collect::<DdsResult<Vec<_>>>()?;
 
         rtps_reader
             .reader_cache()
