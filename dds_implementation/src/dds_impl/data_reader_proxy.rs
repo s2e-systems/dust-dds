@@ -1,9 +1,7 @@
-use std::{
-    collections::HashSet,
-    marker::PhantomData,
-    time::{Duration, Instant},
+use super::{
+    subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
+    topic_proxy::{TopicAttributes, TopicProxy},
 };
-
 use crate::{
     dds_type::DdsDeserialize,
     utils::{
@@ -40,10 +38,10 @@ use rtps_pim::{
         types::SequenceNumber,
     },
 };
-
-use super::{
-    subscriber_proxy::{SubscriberAttributes, SubscriberProxy},
-    topic_proxy::{TopicAttributes, TopicProxy},
+use std::{
+    collections::HashSet,
+    marker::PhantomData,
+    time::{Duration, Instant},
 };
 
 pub trait AnyDataReaderListener<Rtps>
@@ -218,6 +216,7 @@ where
     pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     pub status: DdsRwLock<SubscriptionMatchedStatus>,
+    pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     pub last_time_data_was_received: DdsRwLock<Option<Instant>>,
     pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
@@ -246,6 +245,7 @@ where
                 current_count: 0,
                 current_count_change: 0,
             }),
+            samples_read: DdsRwLock::new(HashSet::new()),
             last_time_data_was_received: DdsRwLock::new(None),
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
@@ -253,6 +253,38 @@ where
                 last_instance_handle: 0,
             }),
         }
+    }
+
+    pub fn read_sample<'a>(&self, cache_change: &'a Rtps::CacheChange) -> (&'a [u8], SampleInfo) {
+        let mut samples_read = self.samples_read.write_lock();
+        let data_value = cache_change.data_value();
+
+        let sample_state = {
+            let sn = cache_change.sequence_number();
+            if samples_read.contains(&sn) {
+                READ_SAMPLE_STATE
+            } else {
+                samples_read.insert(sn);
+                NOT_READ_SAMPLE_STATE
+            }
+        };
+
+        let sample_info = SampleInfo {
+            sample_state,
+            view_state: NEW_VIEW_STATE,
+            instance_state: ALIVE_INSTANCE_STATE,
+            disposed_generation_count: 0,
+            no_writers_generation_count: 0,
+            sample_rank: 0,
+            generation_rank: 0,
+            absolute_generation_rank: 0,
+            source_timestamp: Time { sec: 0, nanosec: 0 },
+            instance_handle: 0,
+            publication_handle: 0,
+            valid_data: true,
+        };
+
+        (data_value, sample_info)
     }
 
     pub fn on_receive_data(&self) {
@@ -280,7 +312,6 @@ where
 {
     data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
-    samples_read: DdsRwLock<HashSet<SequenceNumber>>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
@@ -292,7 +323,6 @@ where
         Self {
             data_reader_impl: self.data_reader_impl.clone(),
             phantom: self.phantom.clone(),
-            samples_read: DdsRwLock::new(self.samples_read.read_lock().clone()),
         }
     }
 }
@@ -305,53 +335,7 @@ where
         Self {
             data_reader_impl,
             phantom: PhantomData,
-            samples_read: DdsRwLock::new(HashSet::new()),
         }
-    }
-}
-
-impl<Foo, Rtps> DataReaderProxy<Foo, Rtps>
-where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-    Rtps: RtpsStructure,
-{
-    fn read_samples<'a>(
-        &'a self,
-        cache_changes: impl Iterator<Item = &'a Rtps::CacheChange> + 'a,
-    ) -> impl Iterator<Item = (Foo, SampleInfo)> + 'a {
-        let mut samples_read = self.samples_read.write_lock();
-
-        cache_changes.map(move |cache_change| {
-            let mut data_value = cache_change.data_value();
-
-            let sample_state = {
-                let sn = cache_change.sequence_number();
-                if samples_read.contains(&sn) {
-                    READ_SAMPLE_STATE
-                } else {
-                    samples_read.insert(sn);
-                    NOT_READ_SAMPLE_STATE
-                }
-            };
-
-            let foo = DdsDeserialize::deserialize(&mut data_value).unwrap();
-            let sample_info = SampleInfo {
-                sample_state,
-                view_state: NEW_VIEW_STATE,
-                instance_state: ALIVE_INSTANCE_STATE,
-                disposed_generation_count: 0,
-                no_writers_generation_count: 0,
-                sample_rank: 0,
-                generation_rank: 0,
-                absolute_generation_rank: 0,
-                source_timestamp: Time { sec: 0, nanosec: 0 },
-                instance_handle: 0,
-                publication_handle: 0,
-                valid_data: true,
-            };
-
-            (foo, sample_info)
-        })
     }
 }
 
@@ -401,11 +385,24 @@ where
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
-        let samples = self
-            .read_samples(rtps_reader.reader_cache().changes().iter())
-            .filter(|(_, info)| info.sample_state & sample_states != 0)
+        let samples = rtps_reader
+            .reader_cache()
+            .changes()
+            .iter()
+            .map(|sample| {
+                let (mut data_value, sample_info) = data_reader_shared.read_sample(sample);
+                let foo = DdsDeserialize::deserialize(&mut data_value)?;
+                Ok((foo, sample_info))
+            })
+            .filter(|result| {
+                if let Ok((_, info)) = result {
+                    info.sample_state & sample_states != 0
+                } else {
+                    true
+                }
+            })
             .take(max_samples as usize)
-            .collect::<Vec<_>>();
+            .collect::<DdsResult<Vec<_>>>()?;
 
         if samples.is_empty() {
             Err(DdsError::NoData)
@@ -424,19 +421,28 @@ where
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
-        let seq_num = rtps_reader
+        let (samples, to_delete) : (Vec<_>, Vec<_>) = rtps_reader
             .reader_cache()
-            .get_seq_num_min()
-            .ok_or(DdsError::NoData)?;
+            .changes()
+            .iter()
+            .map(|sample| {
+                let (mut data_value, sample_info) = data_reader_shared.read_sample(sample);
+                let foo = DdsDeserialize::deserialize(&mut data_value)?;
 
-        let samples = self
-            .read_samples(rtps_reader.reader_cache().changes().iter())
-            .filter(|(_, info)| info.sample_state & sample_states != 0)
-            .collect::<Vec<_>>();
+                Ok(((foo, sample_info), sample.sequence_number()))
+            })
+            .filter(|result| {
+                if let Ok(((_, info), _)) = result {
+                    info.sample_state & sample_states != 0
+                } else {
+                    true
+                }
+            })
+            .collect::<DdsResult<Vec<_>>>()?
+            .into_iter()
+            .unzip();
 
-        rtps_reader
-            .reader_cache()
-            .remove_change(|cc| cc.sequence_number() == seq_num);
+        rtps_reader.reader_cache().remove_change(|x| to_delete.contains(&x.sequence_number()));
 
         Ok(samples)
     }
@@ -707,19 +713,129 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::{
+        dds_impl::topic_proxy::TopicAttributes,
+        dds_type::{DdsSerialize, DdsType, Endianness},
+        test_utils::{
+            mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
+            mock_rtps_history_cache::MockRtpsHistoryCache,
+            mock_rtps_stateful_reader::MockRtpsStatefulReader,
+        },
+        utils::shared_object::DdsShared,
+    };
+    use dds_api::dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
+    use std::io::Write;
 
-    // #[test]
-    // fn read() {
-    //     let reader = DataReaderStorage {};
-    //     let shared_reader = DdsShared::new(reader);
+    struct UserData(u8);
 
-    //     let data_reader = DataReaderImpl::<u8> {
-    //         _subscriber: &MockSubcriber,
-    //         _topic: &MockTopic(PhantomData),
-    //         reader: shared_reader.downgrade(),
-    //     };
+    impl DdsType for UserData {
+        fn type_name() -> &'static str {
+            "UserData"
+        }
 
-    //     let sample = data_reader.read(1, ANY_SAMPLE, &[], &[]).unwrap();
-    //     assert_eq!(sample[0].0, 1);
-    // }
+        fn has_key() -> bool {
+            false
+        }
+    }
+
+    impl<'de> DdsDeserialize<'de> for UserData {
+        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DdsResult<Self> {
+            Ok(UserData(buf[0]))
+        }
+    }
+
+    impl DdsSerialize for UserData {
+        fn serialize<W: Write, E: Endianness>(
+            &self,
+            mut writer: W,
+        ) -> dds_api::return_type::DdsResult<()> {
+            writer
+                .write(&[self.0])
+                .map(|_| ())
+                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
+        }
+    }
+
+    fn cache_change(value: u8, sn: SequenceNumber) -> MockRtpsCacheChange {
+        let mut cache_change = MockRtpsCacheChange::new();
+        cache_change.expect_data_value().return_const(vec![value]);
+        cache_change.expect_sequence_number().return_const(sn);
+
+        cache_change
+    }
+
+    fn reader_with_changes(changes: Vec<MockRtpsCacheChange>) -> DataReaderAttributes<MockRtps> {
+        let mut history_cache = MockRtpsHistoryCache::new();
+        history_cache.expect_changes().return_const(changes);
+
+        let mut stateful_reader = MockRtpsStatefulReader::new();
+        stateful_reader
+            .expect_reader_cache()
+            .return_var(history_cache);
+
+        DataReaderAttributes::new(
+            Default::default(),
+            RtpsReader::Stateful(stateful_reader),
+            DdsShared::new(TopicAttributes::new(
+                Default::default(),
+                "type_name",
+                "topic_name",
+                DdsWeak::new(),
+            )),
+            None,
+            DdsWeak::new(),
+        )
+    }
+
+    #[test]
+    fn read_all_samples() {
+        let reader = DdsShared::new(reader_with_changes(vec![
+            cache_change(1, 1),
+            cache_change(0, 2),
+            cache_change(2, 3),
+            cache_change(5, 4),
+        ]));
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+
+        let all_samples = reader_proxy
+            .read(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .unwrap();
+        assert_eq!(4, all_samples.len());
+        assert_eq!(
+            vec![1, 0, 2, 5],
+            all_samples.into_iter().map(|s| s.0 .0).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn read_only_unread() {
+        let reader = DdsShared::new(reader_with_changes(vec![cache_change(1, 1)]));
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+
+        let unread_samples = reader_proxy
+            .read(
+                i32::MAX,
+                NOT_READ_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .unwrap();
+
+        assert_eq!(1, unread_samples.len());
+
+        assert!(reader_proxy
+            .read(
+                i32::MAX,
+                NOT_READ_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .is_err());
+    }
 }
