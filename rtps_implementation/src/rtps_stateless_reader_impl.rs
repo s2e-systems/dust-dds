@@ -19,7 +19,7 @@ use crate::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 
 use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl};
 
-pub struct RtpsStatelessReaderImpl(pub RtpsReaderImpl);
+pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
 
 impl RtpsStatelessReaderImpl {
     pub fn process_submessage(
@@ -28,7 +28,7 @@ impl RtpsStatelessReaderImpl {
         source_guid_prefix: GuidPrefix,
     ) {
         if data.reader_id.value == ENTITYID_UNKNOWN
-            || data.reader_id.value == self.0.endpoint.entity.guid.entity_id()
+            || data.reader_id.value == self.guid().entity_id()
         {
             BestEffortStatelessReaderReceiveDataBehavior::receive_data(
                 self,
@@ -41,25 +41,25 @@ impl RtpsStatelessReaderImpl {
 
 impl RtpsEntityAttributes for RtpsStatelessReaderImpl {
     fn guid(&self) -> Guid {
-        self.0.endpoint.entity.guid
+        self.0.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatelessReaderImpl {
     fn topic_kind(&self) -> TopicKind {
-        self.0.endpoint.topic_kind
+        self.0.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.0.endpoint.reliability_level
+        self.0.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.0.endpoint.unicast_locator_list
+        self.0.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.0.endpoint.multicast_locator_list
+        self.0.multicast_locator_list()
     }
 }
 
@@ -67,19 +67,19 @@ impl RtpsReaderAttributes for RtpsStatelessReaderImpl {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> Duration {
-        self.0.heartbeat_response_delay
+        self.0.heartbeat_response_delay()
     }
 
     fn heartbeat_suppression_duration(&self) -> Duration {
-        self.0.heartbeat_suppression_duration
+        self.0.heartbeat_suppression_duration()
     }
 
     fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.0.reader_cache
+        self.0.reader_cache()
     }
 
     fn expects_inline_qos(&self) -> bool {
-        self.0.expects_inline_qos
+        self.0.expects_inline_qos()
     }
 }
 
@@ -171,10 +171,10 @@ mod tests {
 
         reader.process_submessage(&data, source_guid_prefix);
 
-        assert_eq!(1, reader.0.reader_cache.changes().len());
-        let change = &reader.0.reader_cache.changes()[0];
-        assert_eq!(source_guid_prefix, change.writer_guid.prefix);
-        assert_eq!(data.writer_sn.value, change.sequence_number);
+        assert_eq!(1, reader.0.reader_cache().changes().len());
+        let change = &reader.0.reader_cache().changes()[0];
+        assert_eq!(source_guid_prefix, change.writer_guid().prefix);
+        assert_eq!(data.writer_sn.value, change.sequence_number());
         assert_eq!(data.serialized_payload.value, change.data_value());
     }
 
@@ -241,6 +241,6 @@ mod tests {
         reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
         reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
 
-        assert_eq!(4, reader.0.reader_cache.changes().len());
+        assert_eq!(4, reader.0.reader_cache().changes().len());
     }
 }

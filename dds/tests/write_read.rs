@@ -7,6 +7,7 @@ use dds::{
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -67,7 +68,7 @@ fn user_defined_write_read_auto_enable() {
                 .write_lock()
                 .try_as_stateful_reader()
                 .ok()
-                .map(|sr| sr.matched_writers.len())
+                .map(|sr| sr.matched_writers().len())
         })
         .next()
         .unwrap()
@@ -85,7 +86,7 @@ fn user_defined_write_read_auto_enable() {
                     .write_lock()
                     .try_as_stateful_reader()
                     .ok()
-                    .map(|sr| sr.matched_writers.len())
+                    .map(|sr| sr.matched_writers().len())
             })
             .next()
             .unwrap()
@@ -113,7 +114,7 @@ fn user_defined_write_read_auto_enable() {
         .write_lock()
         .try_as_stateful_reader()
         .unwrap()
-        .matched_writers
+        .matched_writers()
         .len()
         == 0
     {

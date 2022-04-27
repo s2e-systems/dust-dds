@@ -3,9 +3,8 @@ use dds::{
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
-use dds_implementation::dds_type::{
-    DdsSerde, DdsType,
-};
+use dds_implementation::dds_type::{DdsSerde, DdsType};
+use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -57,7 +56,7 @@ fn main() {
                 .write_lock()
                 .try_as_stateful_reader()
                 .ok()
-                .map(|sr| sr.matched_writers.len())
+                .map(|sr| sr.matched_writers().len())
         })
         .next()
         .unwrap()

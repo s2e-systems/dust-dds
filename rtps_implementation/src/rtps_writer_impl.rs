@@ -4,6 +4,7 @@ use rtps_pim::{
         writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
     },
     structure::{
+        cache_change::RtpsCacheChangeConstructor,
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheConstructor,
@@ -19,13 +20,13 @@ use super::{
 };
 
 pub struct RtpsWriterImpl {
-    pub endpoint: RtpsEndpointImpl,
-    pub push_mode: bool,
-    pub heartbeat_period: Duration,
-    pub nack_response_delay: Duration,
-    pub nack_suppression_duration: Duration,
-    pub last_change_sequence_number: SequenceNumber,
-    pub data_max_size_serialized: Option<i32>,
+    endpoint: RtpsEndpointImpl,
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
+    last_change_sequence_number: SequenceNumber,
+    data_max_size_serialized: Option<i32>,
     pub writer_cache: RtpsHistoryCacheImpl,
 }
 
@@ -57,25 +58,25 @@ impl RtpsWriterImpl {
 
 impl RtpsEntityAttributes for RtpsWriterImpl {
     fn guid(&self) -> Guid {
-        self.endpoint.entity.guid
+        self.endpoint.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsWriterImpl {
     fn topic_kind(&self) -> TopicKind {
-        self.endpoint.topic_kind
+        self.endpoint.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.endpoint.reliability_level
+        self.endpoint.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.unicast_locator_list
+        &self.endpoint.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.multicast_locator_list
+        &self.endpoint.multicast_locator_list()
     }
 }
 
@@ -123,13 +124,13 @@ impl RtpsWriterOperations for RtpsWriterImpl {
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        RtpsCacheChangeImpl {
+        RtpsCacheChangeImpl::new(
             kind,
-            writer_guid: self.endpoint.entity.guid,
-            sequence_number: self.last_change_sequence_number,
-            instance_handle: handle,
+            self.guid(),
+            handle,
+            self.last_change_sequence_number,
             data,
-            inline_qos: vec![],
-        }
+            vec![],
+        )
     }
 }

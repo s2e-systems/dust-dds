@@ -1,7 +1,16 @@
-use rtps_pim::structure::{entity::RtpsEntityAttributes, types::Guid};
+use rtps_pim::structure::{
+    entity::{RtpsEntityAttributes, RtpsEntityConstructor},
+    types::Guid,
+};
 
 pub struct RtpsEntityImpl {
-    pub guid: Guid,
+    guid: Guid,
+}
+
+impl RtpsEntityConstructor for RtpsEntityImpl {
+    fn new(guid: Guid) -> Self {
+        Self { guid }
+    }
 }
 
 impl RtpsEntityAttributes for RtpsEntityImpl {

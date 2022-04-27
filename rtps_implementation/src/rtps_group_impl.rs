@@ -1,5 +1,5 @@
 use rtps_pim::structure::{
-    entity::RtpsEntityAttributes,
+    entity::{RtpsEntityAttributes, RtpsEntityConstructor},
     group::{RtpsGroupAttributes, RtpsGroupConstructor},
     types::Guid,
 };
@@ -7,20 +7,20 @@ use rtps_pim::structure::{
 use super::rtps_entity_impl::RtpsEntityImpl;
 
 pub struct RtpsGroupImpl {
-    pub entity: RtpsEntityImpl,
+    entity: RtpsEntityImpl,
 }
 
 impl RtpsGroupConstructor for RtpsGroupImpl {
     fn new(guid: Guid) -> Self {
         Self {
-            entity: RtpsEntityImpl { guid },
+            entity: RtpsEntityImpl::new(guid),
         }
     }
 }
 
 impl RtpsEntityAttributes for RtpsGroupImpl {
     fn guid(&self) -> Guid {
-        self.entity.guid
+        self.entity.guid()
     }
 }
 

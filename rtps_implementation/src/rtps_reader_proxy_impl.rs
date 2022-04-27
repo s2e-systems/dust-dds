@@ -203,7 +203,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         let cache_change = writer_cache
             .changes()
             .iter()
-            .find(|cc| cc.sequence_number == change_for_reader.sequence_number)
+            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
             .unwrap();
         RtpsChangeForReaderCacheChange {
             change_for_reader,

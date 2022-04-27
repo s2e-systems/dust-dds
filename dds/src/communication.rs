@@ -53,7 +53,7 @@ where
             protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
             version: PROTOCOLVERSION,
             vendor_id: VENDOR_ID_S2E,
-            guid_prefix: publisher.rtps_group.entity.guid.prefix(),
+            guid_prefix: publisher.rtps_group.guid().prefix(),
         };
 
         for any_data_writer in publisher.data_writer_list.write_lock().iter_mut() {

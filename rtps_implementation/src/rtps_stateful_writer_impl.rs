@@ -25,6 +25,7 @@ use rtps_pim::{
         types::Count,
     },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
@@ -61,25 +62,25 @@ pub struct RtpsStatefulWriterImpl<T> {
 
 impl<T> RtpsEntityAttributes for RtpsStatefulWriterImpl<T> {
     fn guid(&self) -> Guid {
-        self.writer.endpoint.entity.guid
+        self.writer.guid()
     }
 }
 
 impl<T> RtpsEndpointAttributes for RtpsStatefulWriterImpl<T> {
     fn topic_kind(&self) -> TopicKind {
-        self.writer.endpoint.topic_kind
+        self.writer.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.writer.endpoint.reliability_level
+        self.writer.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.writer.endpoint.unicast_locator_list
+        self.writer.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.writer.endpoint.multicast_locator_list
+        self.writer.multicast_locator_list()
     }
 }
 
@@ -87,31 +88,31 @@ impl<T> RtpsWriterAttributes for RtpsStatefulWriterImpl<T> {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
-        self.writer.push_mode
+        self.writer.push_mode()
     }
 
     fn heartbeat_period(&self) -> Duration {
-        self.writer.heartbeat_period
+        self.writer.heartbeat_period()
     }
 
     fn nack_response_delay(&self) -> Duration {
-        self.writer.nack_response_delay
+        self.writer.nack_response_delay()
     }
 
     fn nack_suppression_duration(&self) -> Duration {
-        self.writer.nack_suppression_duration
+        self.writer.nack_suppression_duration()
     }
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.writer.last_change_sequence_number
+        self.writer.last_change_sequence_number()
     }
 
     fn data_max_size_serialized(&self) -> Option<i32> {
-        self.writer.data_max_size_serialized
+        self.writer.data_max_size_serialized()
     }
 
     fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.writer.writer_cache
+        self.writer.writer_cache()
     }
 }
 
@@ -180,7 +181,7 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
                 .push(RtpsChangeForReaderImpl {
                     status,
                     is_relevant: true,
-                    sequence_number: change.sequence_number,
+                    sequence_number: change.sequence_number(),
                 });
         }
 
@@ -224,11 +225,11 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
     type CacheChangeType = RtpsCacheChangeImpl;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
-        let sequence_number = change.sequence_number;
-        self.writer.writer_cache.add_change(change);
+        let sequence_number = change.sequence_number();
+        self.writer.writer_cache().add_change(change);
 
         for reader_proxy in &mut self.matched_readers {
-            let status = if self.writer.push_mode {
+            let status = if self.writer.push_mode() {
                 Unsent
             } else {
                 Unacknowledged
@@ -247,7 +248,7 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
     where
         F: FnMut(&Self::CacheChangeType) -> bool,
     {
-        self.writer.writer_cache.remove_change(f)
+        self.writer.writer_cache().remove_change(f)
     }
 
     fn get_seq_num_min(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
@@ -273,15 +274,15 @@ where
         mut send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.writer.heartbeat_period.seconds as u64)
-                + std::time::Duration::from_nanos(self.writer.heartbeat_period.fraction as u64);
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period().seconds as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period().fraction as u64);
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
             self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
         }
 
         let reliability_level = self.reliability_level();
-        let writer_id = self.writer.endpoint.entity.guid.entity_id;
+        let writer_id = self.guid().entity_id;
         let heartbeat_count = self.heartbeat_count;
 
         for reader_proxy in &mut self.matched_readers() {
@@ -304,10 +305,11 @@ where
                 }
                 ReliabilityKind::Reliable => {
                     if time_for_heartbeat {
-                        let mut heartbeat = ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
-                            reader_proxy,
-                            writer_id,
-                        );
+                        let mut heartbeat =
+                            ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
+                                reader_proxy,
+                                writer_id,
+                            );
                         heartbeat.count.value = heartbeat_count;
                         send_heartbeat(&reader_proxy, heartbeat)
                     }

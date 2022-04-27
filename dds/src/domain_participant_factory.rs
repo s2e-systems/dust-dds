@@ -64,7 +64,7 @@ use rtps_pim::{
         },
     },
 };
-use rtps_udp_psm::udp_transport::{UdpUnicastTransport, UdpMulticastTransport};
+use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
 
 use crate::{
@@ -850,7 +850,9 @@ mod tests {
         utils::shared_object::DdsShared,
     };
     use mockall::mock;
-    use rtps_pim::structure::{entity::RtpsEntityAttributes, types::GuidPrefix};
+    use rtps_pim::structure::{
+        entity::RtpsEntityAttributes, participant::RtpsParticipantAttributes, types::GuidPrefix,
+    };
 
     use crate::{
         domain_participant_factory::get_multicast_socket,
@@ -1119,7 +1121,7 @@ mod tests {
             );
 
             assert_eq!(
-                participant1.rtps_participant.default_unicast_locator_list,
+                participant1.rtps_participant.default_unicast_locator_list(),
                 spdp_discovered_participant_data
                     .participant_proxy
                     .default_unicast_locator_list

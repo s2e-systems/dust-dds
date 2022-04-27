@@ -9,6 +9,7 @@ use dds::{
     DdsError,
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
+use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -78,7 +79,7 @@ fn main() {
                 .write_lock()
                 .try_as_stateful_reader()
                 .ok()
-                .map(|sr| sr.matched_writers.len())
+                .map(|sr| sr.matched_writers().len())
         })
         .next()
         .unwrap()
@@ -97,7 +98,7 @@ fn main() {
         .write_lock()
         .try_as_stateful_reader()
         .unwrap()
-        .matched_writers
+        .matched_writers()
         .len()
         == 0
     {

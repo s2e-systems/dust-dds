@@ -13,6 +13,7 @@ use rtps_implementation::{
 };
 use rtps_pim::{
     behavior::{
+        reader::reader::RtpsReaderAttributes,
         stateful_writer_behavior::ReliableReaderProxyReceiveAcknackBehavior,
         stateless_writer_behavior::ReliableReaderLocatorReceiveAcknackBehavior,
         writer::reader_proxy::RtpsReaderProxyAttributes,
@@ -24,6 +25,8 @@ use rtps_pim::{
         types::{FragmentNumber, Time, TIME_INVALID},
     },
     structure::{
+        endpoint::RtpsEndpointAttributes,
+        entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheAttributes,
         types::{
             Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
@@ -100,17 +103,12 @@ impl MessageReceiver {
                         for data_writer in publisher.data_writer_list.read_lock().iter() {
                             match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
                                 RtpsWriter::Stateless(stateless_rtps_writer) => {
-                                    if stateless_rtps_writer.writer.endpoint.reliability_level
+                                    if stateless_rtps_writer.reliability_level()
                                         == ReliabilityKind::Reliable
                                     {
                                         if acknack.reader_id.value == ENTITYID_UNKNOWN
                                             || acknack.reader_id.value
-                                                == stateless_rtps_writer
-                                                    .writer
-                                                    .endpoint
-                                                    .entity
-                                                    .guid
-                                                    .entity_id()
+                                                == stateless_rtps_writer.guid().entity_id()
                                         {
                                             for reader_locator in
                                                 stateless_rtps_writer.reader_locators.iter_mut()
@@ -134,7 +132,7 @@ impl MessageReceiver {
                                     }
                                 }
                                 RtpsWriter::Stateful(stateful_rtps_writer) => {
-                                    if stateful_rtps_writer.writer.endpoint.reliability_level
+                                    if stateful_rtps_writer.reliability_level()
                                         == ReliabilityKind::Reliable
                                     {
                                         let reader_guid = Guid::new(
@@ -177,23 +175,23 @@ impl MessageReceiver {
                             match rtps_reader.deref_mut() {
                                 RtpsReader::Stateless(stateless_rtps_reader) => {
                                     before_data_cache_len =
-                                        stateless_rtps_reader.0.reader_cache.changes().len();
+                                        stateless_rtps_reader.reader_cache().changes().len();
 
                                     stateless_rtps_reader
                                         .process_submessage(data, self.source_guid_prefix);
 
                                     after_data_cache_len =
-                                        stateless_rtps_reader.0.reader_cache.changes().len();
+                                        stateless_rtps_reader.reader_cache().changes().len();
                                 }
                                 RtpsReader::Stateful(stateful_rtps_reader) => {
                                     before_data_cache_len =
-                                        stateful_rtps_reader.reader.reader_cache.changes().len();
+                                        stateful_rtps_reader.reader_cache().changes().len();
 
                                     stateful_rtps_reader
                                         .process_data_submessage(data, self.source_guid_prefix);
 
                                     after_data_cache_len =
-                                        stateful_rtps_reader.reader.reader_cache.changes().len();
+                                        stateful_rtps_reader.reader_cache().changes().len();
                                 }
                             }
                             // Call the listener after dropping the rtps_reader lock to avoid deadlock

@@ -19,17 +19,17 @@ use rtps_pim::{
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsParameter {
-    pub parameter_id: ParameterId,
-    pub value: Vec<u8>,
+    parameter_id: ParameterId,
+    value: Vec<u8>,
 }
 
 pub struct RtpsCacheChangeImpl {
-    pub kind: ChangeKind,
-    pub writer_guid: Guid,
-    pub sequence_number: SequenceNumber,
-    pub instance_handle: InstanceHandle,
-    pub data: Vec<u8>,
-    pub inline_qos: Vec<RtpsParameter>,
+    kind: ChangeKind,
+    writer_guid: Guid,
+    sequence_number: SequenceNumber,
+    instance_handle: InstanceHandle,
+    data: Vec<u8>,
+    inline_qos: Vec<RtpsParameter>,
 }
 impl PartialEq for RtpsCacheChangeImpl {
     fn eq(&self, other: &Self) -> bool {

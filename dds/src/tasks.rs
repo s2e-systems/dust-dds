@@ -40,7 +40,7 @@ use rtps_implementation::{
 use rtps_pim::{
     behavior::{
         reader::{
-            stateful_reader::RtpsStatefulReaderOperations,
+            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
             writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
         },
         writer::{
@@ -254,7 +254,7 @@ pub fn task_spdp_discovery(
                 }
 
                 if !sedp_builtin_publication_reader
-                    .matched_writers
+                    .matched_writers()
                     .iter()
                     .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -274,7 +274,7 @@ pub fn task_spdp_discovery(
                 }
 
                 if !sedp_builtin_subscription_reader
-                    .matched_writers
+                    .matched_writers()
                     .iter()
                     .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -293,7 +293,7 @@ pub fn task_spdp_discovery(
                 }
 
                 if !sedp_builtin_topic_reader
-                    .matched_writers
+                    .matched_writers()
                     .iter()
                     .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -553,6 +553,7 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
     };
+    use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 
     use crate::{
         domain_participant_factory::{create_builtins, Communications, RtpsStructureImpl},
@@ -616,7 +617,7 @@ mod tests {
                 .write_lock()
                 .try_as_stateful_reader()
                 .unwrap()
-                .matched_writers
+                .matched_writers()
         };
     }
 

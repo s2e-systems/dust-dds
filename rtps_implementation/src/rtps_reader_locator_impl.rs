@@ -11,6 +11,7 @@ use rtps_pim::{
         types::Count,
     },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheAttributes,
         types::{Locator, SequenceNumber},
     },
@@ -20,8 +21,8 @@ use crate::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
 use super::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 pub struct RtpsReaderLocatorAttributesImpl {
-    pub requested_changes: Vec<SequenceNumber>,
-    pub unsent_changes: Vec<SequenceNumber>,
+    requested_changes: Vec<SequenceNumber>,
+    unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
     expects_inline_qos: bool,
     pub last_received_acknack_count: Count,
@@ -47,9 +48,19 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorAttributesImpl {
+    type CacheChangeListType = Vec<SequenceNumber>;
+
+    fn unsent_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+        &mut self.unsent_changes
+    }
+    fn requested_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+        &mut self.requested_changes
+    }
+
     fn locator(&self) -> Locator {
         self.locator
     }
+
     fn expects_inline_qos(&self) -> bool {
         self.expects_inline_qos
     }
@@ -73,6 +84,16 @@ impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
 }
 
 impl RtpsReaderLocatorAttributes for RtpsReaderLocatorOperationsImpl<'_> {
+    type CacheChangeListType = Vec<SequenceNumber>;
+
+    fn unsent_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+        self.reader_locator_attributes.unsent_changes_mut()
+    }
+
+    fn requested_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+        self.reader_locator_attributes.requested_changes_mut()
+    }
+
     fn locator(&self) -> Locator {
         self.reader_locator_attributes.locator()
     }
@@ -136,7 +157,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .writer_cache
             .changes()
             .iter()
-            .find(|c| c.sequence_number == next_seq_num);
+            .find(|c| c.sequence_number() == next_seq_num);
 
         RtpsReaderLocatorCacheChange { cache_change }
     }
@@ -166,7 +187,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
             .writer_cache
             .changes()
             .iter()
-            .find(|c| c.sequence_number == next_seq_num);
+            .find(|c| c.sequence_number() == next_seq_num);
 
         RtpsReaderLocatorCacheChange { cache_change }
     }
@@ -227,7 +248,7 @@ mod tests {
                 .next_unsent_change()
                 .cache_change
                 .unwrap()
-                .sequence_number,
+                .sequence_number(),
             1
         );
         assert_eq!(
@@ -235,7 +256,7 @@ mod tests {
                 .next_unsent_change()
                 .cache_change
                 .unwrap()
-                .sequence_number,
+                .sequence_number(),
             2
         );
     }

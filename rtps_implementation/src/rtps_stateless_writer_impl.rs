@@ -1,11 +1,12 @@
 use rtps_pim::{
     behavior::{
         stateless_writer_behavior::{
-            BestEffortReaderLocatorUnsentChangesBehavior, RtpsStatelessWriterSendSubmessages,
-            BestEffortStatelessWriterSendSubmessage,
+            BestEffortReaderLocatorUnsentChangesBehavior, BestEffortStatelessWriterSendSubmessage,
+            RtpsStatelessWriterSendSubmessages,
         },
         types::Duration,
         writer::{
+            reader_locator::RtpsReaderLocatorAttributes,
             stateless_writer::{
                 RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
@@ -15,6 +16,7 @@ use rtps_pim::{
     },
     messages::{submessage_elements::Parameter, types::Count},
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
@@ -51,19 +53,19 @@ impl<T> RtpsEntityAttributes for RtpsStatelessWriterImpl<T> {
 
 impl<T> RtpsEndpointAttributes for RtpsStatelessWriterImpl<T> {
     fn topic_kind(&self) -> TopicKind {
-        self.writer.endpoint.topic_kind
+        self.writer.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.writer.endpoint.reliability_level
+        self.writer.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.writer.endpoint.unicast_locator_list
+        self.writer.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.writer.endpoint.multicast_locator_list
+        self.writer.multicast_locator_list()
     }
 }
 
@@ -71,31 +73,31 @@ impl<T> RtpsWriterAttributes for RtpsStatelessWriterImpl<T> {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn push_mode(&self) -> bool {
-        self.writer.push_mode
+        self.writer.push_mode()
     }
 
     fn heartbeat_period(&self) -> Duration {
-        self.writer.heartbeat_period
+        self.writer.heartbeat_period()
     }
 
     fn nack_response_delay(&self) -> Duration {
-        self.writer.nack_response_delay
+        self.writer.nack_response_delay()
     }
 
     fn nack_suppression_duration(&self) -> Duration {
-        self.writer.nack_suppression_duration
+        self.writer.nack_suppression_duration()
     }
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.writer.last_change_sequence_number
+        self.writer.last_change_sequence_number()
     }
 
     fn data_max_size_serialized(&self) -> Option<i32> {
-        self.writer.data_max_size_serialized
+        self.writer.data_max_size_serialized()
     }
 
     fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.writer.writer_cache
+        self.writer.writer_cache()
     }
 }
 
@@ -152,11 +154,11 @@ impl<T> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<T> {
     type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
 
     fn reader_locator_add(&mut self, mut a_locator: Self::ReaderLocatorType) {
-        a_locator.unsent_changes = self
+        *a_locator.unsent_changes_mut() = self
             .writer_cache()
             .changes()
             .iter()
-            .map(|c| c.sequence_number)
+            .map(|c| c.sequence_number())
             .collect();
         self.reader_locators.push(a_locator);
     }
@@ -195,16 +197,18 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
         for reader_locator in &mut self.reader_locators {
-            reader_locator.unsent_changes.push(change.sequence_number);
+            reader_locator
+                .unsent_changes_mut()
+                .push(change.sequence_number());
         }
-        self.writer.writer_cache.add_change(change);
+        self.writer.writer_cache().add_change(change);
     }
 
     fn remove_change<F>(&mut self, f: F)
     where
         F: FnMut(&Self::CacheChangeType) -> bool,
     {
-        self.writer.writer_cache.remove_change(f)
+        self.writer.writer_cache().remove_change(f)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
@@ -251,8 +255,12 @@ where
                 ReliabilityKind::BestEffort => {
                     while let Some(send_submessage) = reader_locator.send_unsent_changes() {
                         match send_submessage {
-                            BestEffortStatelessWriterSendSubmessage::Data(data) => send_data(&reader_locator, data),
-                            BestEffortStatelessWriterSendSubmessage::Gap(gap) => send_gap(&reader_locator, gap),
+                            BestEffortStatelessWriterSendSubmessage::Data(data) => {
+                                send_data(&reader_locator, data)
+                            }
+                            BestEffortStatelessWriterSendSubmessage::Gap(gap) => {
+                                send_gap(&reader_locator, gap)
+                            }
                         }
                     }
                 }

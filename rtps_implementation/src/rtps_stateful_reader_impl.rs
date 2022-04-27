@@ -35,8 +35,8 @@ use super::{
 };
 
 pub struct RtpsStatefulReaderImpl {
-    pub reader: RtpsReaderImpl,
-    pub matched_writers: Vec<RtpsWriterProxyImpl>,
+    reader: RtpsReaderImpl,
+    matched_writers: Vec<RtpsWriterProxyImpl>,
 }
 
 impl RtpsStatefulReaderImpl {
@@ -58,7 +58,7 @@ impl RtpsStatefulReaderImpl {
                     .missing_changes()
                     .contains(&data_submessage.writer_sn.value)
             {
-                match self.reader.endpoint.reliability_level {
+                match self.reliability_level() {
                     ReliabilityKind::BestEffort => {
                         BestEffortStatefulReaderReceiveDataBehavior::receive_data(
                             self,
@@ -84,13 +84,13 @@ impl RtpsStatefulReaderImpl {
         source_guid_prefix: GuidPrefix,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value);
-
+        let reliability_level = self.reliability_level();
         if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
-            match self.reader.endpoint.reliability_level {
+            match reliability_level {
                 ReliabilityKind::BestEffort => {
                     BestEffortWriterProxyReceiveGapBehavior::receive_gap(
                         writer_proxy,
@@ -109,7 +109,7 @@ impl RtpsStatefulReaderImpl {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.reader.endpoint.reliability_level == ReliabilityKind::Reliable {
+        if self.reliability_level() == ReliabilityKind::Reliable {
             let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
 
             if let Some(writer_proxy) = self
@@ -140,7 +140,7 @@ impl RtpsStatefulReaderImpl {
         Vec<AckNackSubmessage<Vec<SequenceNumber>>>,
     )> {
         let mut destined_submessages = Vec::new();
-
+        let entity_id = self.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks {
                 let acknacks = RefCell::new(Vec::new());
@@ -151,7 +151,7 @@ impl RtpsStatefulReaderImpl {
 
                     ReliableWriterProxySendAckNack::send_ack_nack(
                         writer_proxy,
-                        self.reader.endpoint.entity.guid.entity_id,
+                        entity_id,
                         writer_proxy.acknack_count,
                         |_, acknack| acknacks.borrow_mut().push(acknack),
                     );
@@ -171,25 +171,25 @@ impl RtpsStatefulReaderImpl {
 
 impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
     fn guid(&self) -> Guid {
-        self.reader.endpoint.entity.guid
+        self.reader.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
     fn topic_kind(&self) -> TopicKind {
-        self.reader.endpoint.topic_kind
+        self.reader.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.reader.endpoint.reliability_level
+        self.reader.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.reader.endpoint.unicast_locator_list
+        self.reader.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.reader.endpoint.multicast_locator_list
+        self.reader.multicast_locator_list()
     }
 }
 
@@ -197,19 +197,19 @@ impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
     type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> Duration {
-        self.reader.heartbeat_response_delay
+        self.reader.heartbeat_response_delay()
     }
 
     fn heartbeat_suppression_duration(&self) -> Duration {
-        self.reader.heartbeat_suppression_duration
+        self.reader.heartbeat_suppression_duration()
     }
 
     fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.reader.reader_cache
+        self.reader.reader_cache()
     }
 
     fn expects_inline_qos(&self) -> bool {
-        self.reader.expects_inline_qos
+        self.reader.expects_inline_qos()
     }
 }
 
@@ -340,10 +340,10 @@ mod tests {
 
         reader.process_data_submessage(&data, source_guid.prefix);
 
-        assert_eq!(1, reader.reader.reader_cache.changes().len());
-        let change = &reader.reader.reader_cache.changes()[0];
-        assert_eq!(source_guid, change.writer_guid);
-        assert_eq!(writer_sn, change.sequence_number);
+        assert_eq!(1, reader.reader.reader_cache().changes().len());
+        let change = &reader.reader.reader_cache().changes()[0];
+        assert_eq!(source_guid, change.writer_guid());
+        assert_eq!(writer_sn, change.sequence_number());
         assert_eq!(serialized_payload_value, change.data_value());
     }
 

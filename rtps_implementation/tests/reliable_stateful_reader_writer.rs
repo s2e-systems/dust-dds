@@ -12,14 +12,16 @@ use rtps_pim::{
     behavior::{
         reader::{
             reader::RtpsReaderAttributes,
-            stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
+            stateful_reader::{
+                RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor,
+                RtpsStatefulReaderOperations,
+            },
             writer_proxy::{
                 RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
             },
         },
         stateful_writer_behavior::{
-            ReliableReaderProxyReceiveAcknackBehavior,
-            RtpsStatefulWriterSendSubmessages,
+            ReliableReaderProxyReceiveAcknackBehavior, RtpsStatefulWriterSendSubmessages,
         },
         types::{Duration, DURATION_ZERO},
         writer::{
@@ -33,9 +35,11 @@ use rtps_pim::{
     },
     messages::{
         submessage_elements::Parameter,
-        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage}, types::Count,
+        submessages::{DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
     structure::{
+        cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
         types::{
             ChangeKind, EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN,
@@ -169,7 +173,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
-            assert!(stateful_reader.matched_writers[0]
+            assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()
                 .is_empty());
             assert!(stateful_reader.produce_acknack_submessages().is_empty());
@@ -215,7 +219,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         assert_eq!(2, stateful_reader.reader_cache().changes().len()); // has received 2 and 4
         assert_eq!(
             vec![1, 3],
-            stateful_reader.matched_writers[0].missing_changes()
+            stateful_reader.matched_writers()[0].missing_changes()
         ); // knows at least 1 and 3 are missing
     }
 
@@ -249,7 +253,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
             assert_eq!(
                 vec![1, 3, 5],
-                stateful_reader.matched_writers[0].missing_changes()
+                stateful_reader.matched_writers()[0].missing_changes()
             );
         }
 
@@ -292,7 +296,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         }
 
         assert_eq!(5, stateful_reader.reader_cache().changes().len());
-        assert!(stateful_reader.matched_writers[0]
+        assert!(stateful_reader.matched_writers()[0]
             .missing_changes()
             .is_empty());
     }
@@ -302,7 +306,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         .reader_cache()
         .changes()
         .iter()
-        .flat_map(|change| change.data.iter().cloned())
+        .flat_map(|change| change.data_value().iter().cloned())
         .collect();
     data.sort();
     assert_eq!(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9], data);
@@ -333,7 +337,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
             stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
 
-            assert!(stateful_reader.matched_writers[0]
+            assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()
                 .is_empty());
             assert!(stateful_reader.produce_acknack_submessages().is_empty());

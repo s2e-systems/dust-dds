@@ -11,11 +11,11 @@ use rtps_pim::{
 use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl};
 
 pub struct RtpsReaderImpl {
-    pub endpoint: RtpsEndpointImpl,
-    pub heartbeat_response_delay: Duration,
-    pub heartbeat_suppression_duration: Duration,
-    pub reader_cache: RtpsHistoryCacheImpl,
-    pub expects_inline_qos: bool,
+    endpoint: RtpsEndpointImpl,
+    heartbeat_response_delay: Duration,
+    heartbeat_suppression_duration: Duration,
+    reader_cache: RtpsHistoryCacheImpl,
+    expects_inline_qos: bool,
 }
 
 impl RtpsReaderImpl {
@@ -37,25 +37,25 @@ impl RtpsReaderImpl {
 
 impl RtpsEntityAttributes for RtpsReaderImpl {
     fn guid(&self) -> Guid {
-        self.endpoint.entity.guid
+        self.endpoint.guid()
     }
 }
 
 impl RtpsEndpointAttributes for RtpsReaderImpl {
     fn topic_kind(&self) -> TopicKind {
-        self.endpoint.topic_kind
+        self.endpoint.topic_kind()
     }
 
     fn reliability_level(&self) -> ReliabilityKind {
-        self.endpoint.reliability_level
+        self.endpoint.reliability_level()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.unicast_locator_list
+        self.endpoint.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.multicast_locator_list
+        self.endpoint.multicast_locator_list()
     }
 }
 
