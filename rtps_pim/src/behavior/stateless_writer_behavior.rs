@@ -9,7 +9,7 @@ use crate::{
     },
     structure::{
         history_cache::RtpsHistoryCacheOperations,
-        types::{SequenceNumber, ENTITYID_UNKNOWN, EntityId},
+        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -40,12 +40,13 @@ pub trait ChangeInHistoryCache {
     fn is_in_cache(&self) -> bool;
 }
 
+pub enum BestEffortStatelessWriterSendSubmessage<P, D, S> {
+    Data(DataSubmessage<P, D>),
+    Gap(GapSubmessage<S>),
+}
+
 pub trait BestEffortReaderLocatorUnsentChangesBehavior<P, D, S> {
-    fn send_unsent_changes(
-        &mut self,
-        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    );
+    fn send_unsent_changes(&mut self) -> Option<BestEffortStatelessWriterSendSubmessage<P, D, S>>;
 }
 
 impl<T, P, D, S> BestEffortReaderLocatorUnsentChangesBehavior<P, D, S> for T
@@ -55,30 +56,35 @@ where
     T::CacheChangeType: Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + ChangeInHistoryCache,
 {
     /// 8.4.8.1.4 Transition T4
-    fn send_unsent_changes(
-        &mut self,
-        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    ) {
-        while !self.unsent_changes().is_empty() {
+    fn send_unsent_changes(&mut self) -> Option<BestEffortStatelessWriterSendSubmessage<P, D, S>> {
+        if !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             if change.is_in_cache() {
                 let data_submessage = change.into();
-                send_data(self, data_submessage);
+                Some(BestEffortStatelessWriterSendSubmessage::Data(
+                    data_submessage,
+                ))
             } else {
                 let gap_submessage = change.into();
-                send_gap(self, gap_submessage);
+                Some(BestEffortStatelessWriterSendSubmessage::Gap(gap_submessage))
             }
+        } else {
+            None
         }
     }
 }
 
+pub enum ReliableStatelessWriterSendSubmessage<P, D, S> {
+    Data(DataSubmessage<P, D>),
+    Gap(GapSubmessage<S>),
+}
+
 /// This struct is a wrapper for the implementation of the behaviors described in 8.4.8.2 Reliable StatelessWriter Behavior
 pub trait ReliableReaderLocatorUnsentChangesBehavior<P, D> {
-    fn send_unsent_changes(&mut self, send_data: impl FnMut(&Self, DataSubmessage<P, D>));
+    fn send_unsent_changes(&mut self) -> Option<DataSubmessage<P, D>>;
 }
 
 impl<T, P, D> ReliableReaderLocatorUnsentChangesBehavior<P, D> for T
@@ -88,53 +94,43 @@ where
     T::CacheChangeType: Into<DataSubmessage<P, D>>,
 {
     /// 8.4.8.2.4 Transition T4
-    fn send_unsent_changes(&mut self, mut send_data: impl FnMut(&Self, DataSubmessage<P, D>)) {
-        while !self.unsent_changes().is_empty() {
+    fn send_unsent_changes(&mut self) -> Option<DataSubmessage<P, D>> {
+        if !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             let data_submessage = change.into();
-            send_data(self, data_submessage)
+            Some(data_submessage)
+        } else {
+            None
         }
     }
 }
 
 pub trait ReliableReaderLocatorSendHeartbeatBehavior {
-    fn send_heartbeat(
-        &mut self,
-        writer_id: EntityId,
-        heartbeat_count: Count,
-        send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
-    );
+    fn send_heartbeat(&mut self, writer_id: EntityId) -> HeartbeatSubmessage;
 }
 
 impl<T> ReliableReaderLocatorSendHeartbeatBehavior for T
 where
     T: RtpsHistoryCacheOperations,
 {
-    fn send_heartbeat(
-        &mut self,
-        writer_id: EntityId,
-        heartbeat_count: Count,
-        mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
-    ) {
+    fn send_heartbeat(&mut self, writer_id: EntityId) -> HeartbeatSubmessage {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdSubmessageElement {
             value: ENTITYID_UNKNOWN,
         };
-        let writer_id = EntityIdSubmessageElement {
-            value: writer_id,
-        };
+        let writer_id = EntityIdSubmessageElement { value: writer_id };
         let first_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_min().unwrap_or(0),
         };
         let last_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_max().unwrap_or(0),
         };
-        let count = CountSubmessageElement { value: heartbeat_count };
+        let count = CountSubmessageElement { value: Count(0) };
         let heartbeat_submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -145,7 +141,7 @@ where
             last_sn,
             count,
         };
-        send_heartbeat(self, heartbeat_submessage)
+        heartbeat_submessage
     }
 }
 
@@ -168,11 +164,7 @@ where
 }
 
 pub trait ReliableReaderLocatorRequestedChangesBehavior<P, D, S> {
-    fn send_requested_changes(
-        &mut self,
-        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    );
+    fn send_requested_changes(&mut self) -> Option<ReliableStatelessWriterSendSubmessage<P, D, S>>;
 }
 
 #[cfg(test)]
@@ -230,7 +222,6 @@ mod tests {
         let mut seq = mockall::Sequence::new();
 
         let mut reader_locator = MockReaderLocator::new();
-        let mut data_message_sender = MockDataMessageSender::new();
 
         const DATA_SUBMESSAGE: DataSubmessage<(), ()> = DataSubmessage {
             endianness_flag: false,
@@ -265,23 +256,9 @@ mod tests {
             })
             .in_sequence(&mut seq);
 
-        data_message_sender
-            .expect_send_data()
-            .once()
-            .withf(|data| data.writer_sn.value == 1)
-            .return_const(())
-            .in_sequence(&mut seq);
-
-        reader_locator
-            .expect_unsent_changes()
-            .once()
-            .returning(|| vec![])
-            .in_sequence(&mut seq);
-
-        BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(
-            &mut reader_locator,
-            |_, data| data_message_sender.send_data(data),
-            |_, _: GapSubmessage<()>| {},
-        )
+        assert!(matches!(
+            BestEffortReaderLocatorUnsentChangesBehavior::send_unsent_changes(&mut reader_locator,),
+            Some(BestEffortStatelessWriterSendSubmessage::Data(_))
+        ));
     }
 }

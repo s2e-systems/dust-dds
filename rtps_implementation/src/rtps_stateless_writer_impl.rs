@@ -2,6 +2,7 @@ use rtps_pim::{
     behavior::{
         stateless_writer_behavior::{
             BestEffortReaderLocatorUnsentChangesBehavior, RtpsStatelessWriterSendSubmessages,
+            BestEffortStatelessWriterSendSubmessage,
         },
         types::Duration,
         writer::{
@@ -215,7 +216,8 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<'a, T> RtpsStatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
+impl<'a, T>
+    RtpsStatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
     for RtpsStatelessWriterImpl<T>
 where
     T: Timer,
@@ -246,10 +248,14 @@ where
         let reliability_level = self.reliability_level();
         for reader_locator in &mut self.reader_locators() {
             match reliability_level {
-                ReliabilityKind::BestEffort => reader_locator.send_unsent_changes(
-                    |rl, data| send_data(rl, data),
-                    |rl, gap| send_gap(rl, gap),
-                ),
+                ReliabilityKind::BestEffort => {
+                    while let Some(send_submessage) = reader_locator.send_unsent_changes() {
+                        match send_submessage {
+                            BestEffortStatelessWriterSendSubmessage::Data(data) => send_data(&reader_locator, data),
+                            BestEffortStatelessWriterSendSubmessage::Gap(gap) => send_gap(&reader_locator, gap),
+                        }
+                    }
+                }
                 ReliabilityKind::Reliable => todo!(),
             }
         }

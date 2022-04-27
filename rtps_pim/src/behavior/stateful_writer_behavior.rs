@@ -39,12 +39,13 @@ impl<T: IntoIterator> IsEmpty for T {
     }
 }
 
+pub enum BestEffortStatefulWriterSendSubmessage<P, D, S> {
+    Data(DataSubmessage<P, D>),
+    Gap(GapSubmessage<S>),
+}
+
 pub trait BestEffortReaderProxyUnsentChangesBehavior<P, D, S> {
-    fn send_unsent_changes(
-        &mut self,
-        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    );
+    fn send_unsent_changes(&mut self) -> Option<BestEffortStatefulWriterSendSubmessage<P, D, S>>;
 }
 
 impl<T, P, D, S> BestEffortReaderProxyUnsentChangesBehavior<P, D, S> for T
@@ -54,16 +55,12 @@ where
     <T as RtpsReaderProxyOperations>::ChangeForReaderType:
         Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
 {
-    fn send_unsent_changes(
-        &mut self,
-        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    ) {
+    fn send_unsent_changes(&mut self) -> Option<BestEffortStatefulWriterSendSubmessage<P, D, S>> {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = self.remote_reader_guid().entity_id();
 
-        while !self.unsent_changes().is_empty() {
+        if !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -73,22 +70,27 @@ where
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(self, data_submessage)
+                Some(BestEffortStatefulWriterSendSubmessage::Data(
+                    data_submessage,
+                ))
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(self, gap_submessage)
+                Some(BestEffortStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
+        } else {
+            None
         }
     }
 }
 
+pub enum ReliableStatefulWriterSendSubmessage<P, D, S> {
+    Data(DataSubmessage<P, D>),
+    Gap(GapSubmessage<S>),
+}
+
 pub trait ReliableReaderProxyUnsentChangesBehavior<P, D, S> {
-    fn send_unsent_changes(
-        &mut self,
-        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    );
+    fn send_unsent_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<P, D, S>>;
 }
 
 impl<T, P, D, S> ReliableReaderProxyUnsentChangesBehavior<P, D, S> for T
@@ -98,16 +100,12 @@ where
     <T as RtpsReaderProxyOperations>::ChangeForReaderType:
         Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
 {
-    fn send_unsent_changes(
-        &mut self,
-        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    ) {
+    fn send_unsent_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<P, D, S>> {
         // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = self.remote_reader_guid().entity_id();
 
-        while !self.unsent_changes().is_empty() {
+        if !self.unsent_changes().is_empty() {
             let change = self.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -117,35 +115,27 @@ where
             if change.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(self, data_submessage)
+                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(self, gap_submessage)
+                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
+        } else {
+            None
         }
     }
 }
 
 pub trait ReliableReaderProxySendHeartbeatBehavior {
-    fn send_heartbeat(
-        &self,
-        writer_id: EntityId,
-        heartbeat_count: Count,
-        send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
-    );
+    fn send_heartbeat(&self, writer_id: EntityId) -> HeartbeatSubmessage;
 }
 
 impl<T> ReliableReaderProxySendHeartbeatBehavior for T
 where
     T: RtpsHistoryCacheOperations,
 {
-    fn send_heartbeat(
-        &self,
-        writer_id: EntityId,
-        heartbeat_count: Count,
-        mut send_heartbeat: impl FnMut(&Self, HeartbeatSubmessage),
-    ) {
+    fn send_heartbeat(&self, writer_id: EntityId) -> HeartbeatSubmessage {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = false;
@@ -159,10 +149,8 @@ where
         let last_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_max().unwrap_or(0),
         };
-        let count = CountSubmessageElement {
-            value: heartbeat_count,
-        };
-        let heartbeat_submessage = HeartbeatSubmessage {
+        let count = CountSubmessageElement { value: Count(0) };
+        HeartbeatSubmessage {
             endianness_flag,
             final_flag,
             liveliness_flag,
@@ -171,8 +159,7 @@ where
             first_sn,
             last_sn,
             count,
-        };
-        send_heartbeat(self, heartbeat_submessage)
+        }
     }
 }
 
@@ -191,11 +178,7 @@ where
     }
 }
 pub trait ReliableReaderProxyRequestedChangesBehavior<P, D, S> {
-    fn send_requested_changes(
-        &mut self,
-        send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    );
+    fn send_requested_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<P, D, S>>;
 }
 
 impl<T, P, D, S> ReliableReaderProxyRequestedChangesBehavior<P, D, S> for T
@@ -205,14 +188,10 @@ where
     <T as RtpsReaderProxyOperations>::ChangeForReaderType:
         Into<DataSubmessage<P, D>> + Into<GapSubmessage<S>> + RtpsChangeForReaderAttributes,
 {
-    fn send_requested_changes(
-        &mut self,
-        mut send_data: impl FnMut(&Self, DataSubmessage<P, D>),
-        mut send_gap: impl FnMut(&Self, GapSubmessage<S>),
-    ) {
+    fn send_requested_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<P, D, S>> {
         let reader_id = self.remote_reader_guid().entity_id();
 
-        while !self.requested_changes().is_empty() {
+        if !self.requested_changes().is_empty() {
             let change_for_reader = self.next_requested_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -222,12 +201,14 @@ where
             if change_for_reader.is_relevant() {
                 let mut data_submessage: DataSubmessage<P, D> = change_for_reader.into();
                 data_submessage.reader_id.value = reader_id;
-                send_data(self, data_submessage)
+                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
             } else {
                 let mut gap_submessage: GapSubmessage<S> = change_for_reader.into();
                 gap_submessage.reader_id.value = reader_id;
-                send_gap(self, gap_submessage)
+                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
+        } else {
+            None
         }
     }
 }

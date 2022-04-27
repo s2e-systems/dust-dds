@@ -1,9 +1,10 @@
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
-            BestEffortReaderProxyUnsentChangesBehavior,
+            BestEffortReaderProxyUnsentChangesBehavior, BestEffortStatefulWriterSendSubmessage,
             ReliableReaderProxyRequestedChangesBehavior, ReliableReaderProxySendHeartbeatBehavior,
-            ReliableReaderProxyUnsentChangesBehavior, RtpsStatefulWriterSendSubmessages,
+            ReliableReaderProxyUnsentChangesBehavior, ReliableStatefulWriterSendSubmessage,
+            RtpsStatefulWriterSendSubmessages,
         },
         types::{
             ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
@@ -286,33 +287,57 @@ where
         for reader_proxy in &mut self.matched_readers() {
             match reliability_level {
                 ReliabilityKind::BestEffort => {
-                    BestEffortReaderProxyUnsentChangesBehavior::send_unsent_changes(
-                        reader_proxy,
-                        |rp, data| send_data(rp, data),
-                        |rp, gap| send_gap(rp, gap),
-                    )
+                    while let Some(send_submessage) =
+                        BestEffortReaderProxyUnsentChangesBehavior::send_unsent_changes(
+                            reader_proxy,
+                        )
+                    {
+                        match send_submessage {
+                            BestEffortStatefulWriterSendSubmessage::Data(data) => {
+                                send_data(&reader_proxy, data)
+                            }
+                            BestEffortStatefulWriterSendSubmessage::Gap(gap) => {
+                                send_gap(&reader_proxy, gap)
+                            }
+                        }
+                    }
                 }
                 ReliabilityKind::Reliable => {
                     if time_for_heartbeat {
-                        ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
+                        let mut heartbeat = ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
                             reader_proxy,
                             writer_id,
-                            heartbeat_count,
-                            |rp, heartbeat| send_heartbeat(rp, heartbeat),
                         );
+                        heartbeat.count.value = heartbeat_count;
+                        send_heartbeat(&reader_proxy, heartbeat)
                     }
 
-                    ReliableReaderProxyUnsentChangesBehavior::send_unsent_changes(
-                        reader_proxy,
-                        |rp, data| send_data(rp, data),
-                        |rp, gap| send_gap(rp, gap),
-                    );
-
-                    ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
-                        reader_proxy,
-                        |rp, data| send_data(rp, data),
-                        |rp, gap| send_gap(rp, gap),
-                    );
+                    while let Some(send_submessage) =
+                        ReliableReaderProxyUnsentChangesBehavior::send_unsent_changes(reader_proxy)
+                    {
+                        match send_submessage {
+                            ReliableStatefulWriterSendSubmessage::Data(data) => {
+                                send_data(&reader_proxy, data)
+                            }
+                            ReliableStatefulWriterSendSubmessage::Gap(gap) => {
+                                send_gap(&reader_proxy, gap)
+                            }
+                        }
+                    }
+                    while let Some(send_requested_submessage) =
+                        ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
+                            reader_proxy,
+                        )
+                    {
+                        match send_requested_submessage {
+                            ReliableStatefulWriterSendSubmessage::Data(data) => {
+                                send_data(&reader_proxy, data)
+                            }
+                            ReliableStatefulWriterSendSubmessage::Gap(gap) => {
+                                send_gap(&reader_proxy, gap)
+                            }
+                        }
+                    }
                 }
             }
         }
