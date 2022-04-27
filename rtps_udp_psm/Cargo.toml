@@ -10,3 +10,5 @@ edition = "2018"
 [dependencies]
 rtps-pim = {path="../rtps_pim"}
 byteorder = "1.4.3"
+socket2 = "0.4"
+ifcfg = "0.1"

@@ -3,7 +3,7 @@ use dds::{
     domain_participant_factory::DomainParticipantFactory,
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
-    types::{ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE},
+    types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};

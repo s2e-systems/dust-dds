@@ -64,7 +64,7 @@ use rtps_pim::{
         },
     },
 };
-use rtps_udp_psm::udp_transport::UdpTransport;
+use rtps_udp_psm::udp_transport::{UdpUnicastTransport, UdpMulticastTransport};
 use socket2::Socket;
 
 use crate::{
@@ -183,9 +183,9 @@ pub struct Communications {
     pub guid_prefix: GuidPrefix,
     pub unicast_address_list: Vec<Ipv4Addr>,
     pub multicast_address: Ipv4Addr,
-    pub metatraffic_multicast: Communication<UdpTransport>,
-    pub metatraffic_unicast: Communication<UdpTransport>,
-    pub default_unicast: Communication<UdpTransport>,
+    pub metatraffic_multicast: Communication<UdpMulticastTransport>,
+    pub metatraffic_unicast: Communication<UdpUnicastTransport>,
+    pub default_unicast: Communication<UdpUnicastTransport>,
 }
 
 impl Communications {
@@ -240,19 +240,19 @@ impl Communications {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(metatraffic_multicast_socket),
+                transport: UdpMulticastTransport::new(metatraffic_multicast_socket),
             },
             metatraffic_unicast: Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(metatraffic_unicast_socket),
+                transport: UdpUnicastTransport::new(metatraffic_unicast_socket),
             },
             default_unicast: Communication {
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
                 guid_prefix,
-                transport: UdpTransport::new(default_unicast_socket),
+                transport: UdpUnicastTransport::new(default_unicast_socket),
             },
         })
     }

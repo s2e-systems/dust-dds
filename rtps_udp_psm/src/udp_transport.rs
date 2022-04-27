@@ -10,9 +10,101 @@ use rtps_pim::{
 };
 
 const BUFFER_SIZE: usize = 32000;
-pub struct UdpTransport {
+pub struct UdpUnicastTransport {
     socket: UdpSocket,
     receive_buffer: [u8; BUFFER_SIZE],
+}
+
+impl UdpUnicastTransport {
+    pub fn new(socket: UdpSocket) -> Self {
+        Self {
+            socket: socket,
+            receive_buffer: [0; BUFFER_SIZE],
+        }
+    }
+}
+
+impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpUnicastTransport {
+    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
+        let buf = to_bytes(message).unwrap();
+        self.socket
+            .send_to(buf.as_slice(), UdpLocator(destination_locator))
+            .ok();
+    }
+}
+
+impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpUnicastTransport {
+    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
+        match self.socket.recv_from(&mut self.receive_buffer) {
+            Ok((bytes, source_address)) => {
+                if bytes > 0 {
+                    let message =
+                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    }
+}
+
+pub struct UdpMulticastTransport {
+    socket: UdpSocket,
+    receive_buffer: [u8; BUFFER_SIZE],
+}
+
+impl UdpMulticastTransport {
+    pub fn new(socket: UdpSocket) -> Self {
+        Self {
+            socket: socket,
+            receive_buffer: [0; BUFFER_SIZE],
+        }
+    }
+}
+
+impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpMulticastTransport {
+    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
+        let buf = to_bytes(message).unwrap();
+        let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
+        let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .flat_map(|i| {
+                i.addresses.into_iter().filter_map(|a| match a.address? {
+                    SocketAddr::V4(v4) => Some(*v4.ip()),
+                    _ => None,
+                })
+            })
+            .collect();
+
+        for address in interface_addresses {
+            socket2.set_multicast_if_v4(&address).unwrap();
+            self.socket
+                .send_to(buf.as_slice(), UdpLocator(destination_locator))
+                .ok();
+        }
+    }
+}
+
+impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpMulticastTransport {
+    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
+        match self.socket.recv_from(&mut self.receive_buffer) {
+            Ok((bytes, source_address)) => {
+                if bytes > 0 {
+                    let message =
+                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
+                    let udp_locator: UdpLocator = source_address.into();
+                    Some((udp_locator.0, message))
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    }
 }
 
 struct UdpLocator(Locator);
@@ -59,42 +151,6 @@ impl From<SocketAddr> for UdpLocator {
                 UdpLocator(locator)
             }
             SocketAddr::V6(_) => todo!(),
-        }
-    }
-}
-
-impl UdpTransport {
-    pub fn new(socket: UdpSocket) -> Self {
-        Self {
-            socket: socket,
-            receive_buffer: [0; BUFFER_SIZE],
-        }
-    }
-}
-
-impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpTransport {
-    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
-        let buf = to_bytes(message).unwrap();
-        self.socket
-            .send_to(buf.as_slice(), UdpLocator(destination_locator))
-            .ok();
-    }
-}
-
-impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpTransport {
-    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
-        match self.socket.recv_from(&mut self.receive_buffer) {
-            Ok((bytes, source_address)) => {
-                if bytes > 0 {
-                    let message =
-                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
-                    let udp_locator: UdpLocator = source_address.into();
-                    Some((udp_locator.0, message))
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
         }
     }
 }

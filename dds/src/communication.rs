@@ -59,14 +59,14 @@ where
         for any_data_writer in publisher.data_writer_list.write_lock().iter_mut() {
             let mut extended_rtps_writer = any_data_writer.extended_rtps_writer.write_lock();
             let writer_destined_submessages = extended_rtps_writer.produce_submessages();
-            for (locator, submessages) in writer_destined_submessages {
-                self.transport.write(
-                    &RtpsMessage {
-                        header: message_header.clone(),
-                        submessages,
-                    },
-                    locator,
-                );
+            for (locator_list, submessages) in writer_destined_submessages {
+                let rtps_message = RtpsMessage {
+                    header: message_header.clone(),
+                    submessages,
+                };
+                for locator in locator_list {
+                    self.transport.write(&rtps_message, locator);
+                }
             }
         }
     }
