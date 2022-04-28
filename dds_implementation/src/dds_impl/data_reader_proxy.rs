@@ -287,22 +287,32 @@ where
         (data_value, sample_info)
     }
 
-    pub fn on_receive_data(&self) {
-        let now = Instant::now();
-        let last_time = self.last_time_data_was_received.read_lock().unwrap_or(now);
-        let deadline_period = Duration::from_secs(*self.qos.deadline.period.sec() as u64)
-            + Duration::from_nanos(*self.qos.deadline.period.nanosec() as u64);
+    pub fn on_data_received(&self, now: Instant) -> DdsResult<()> {
+        *self.last_time_data_was_received.write_lock() = Some(now);
 
-        if (now - last_time) > deadline_period {
-            self.requested_deadline_missed_status
-                .write_lock()
-                .total_count += 1;
-            self.requested_deadline_missed_status
-                .write_lock()
-                .total_count_change += 1;
+        Ok(())
+    }
+
+    pub fn check_deadline(&self, now: Instant) -> DdsResult<()> {
+        let mut last_time_data_was_received = self.last_time_data_was_received.write_lock();
+
+        if let Some(last_time) = last_time_data_was_received.clone() {
+            let deadline_duration = Duration::from_secs(*self.qos.deadline.period.sec() as u64)
+                + Duration::from_nanos(*self.qos.deadline.period.nanosec() as u64);
+
+            if (now - last_time) > deadline_duration {
+                self.requested_deadline_missed_status
+                    .write_lock()
+                    .total_count += 1;
+                self.requested_deadline_missed_status
+                    .write_lock()
+                    .total_count_change += 1;
+
+                *last_time_data_was_received = None;
+            }
         }
 
-        *self.last_time_data_was_received.write_lock() = Some(now);
+        Ok(())
     }
 }
 
@@ -421,7 +431,7 @@ where
         let data_reader_shared = self.data_reader_impl.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
-        let (samples, to_delete) : (Vec<_>, Vec<_>) = rtps_reader
+        let (samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
             .reader_cache()
             .changes()
             .iter()
@@ -442,7 +452,9 @@ where
             .into_iter()
             .unzip();
 
-        rtps_reader.reader_cache().remove_change(|x| to_delete.contains(&x.sequence_number()));
+        rtps_reader
+            .reader_cache()
+            .remove_change(|x| to_delete.contains(&x.sequence_number()));
 
         Ok(samples)
     }
@@ -724,7 +736,10 @@ mod tests {
         },
         utils::shared_object::DdsShared,
     };
-    use dds_api::dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
+    use dds_api::{
+        dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        infrastructure::qos_policy::DeadlineQosPolicy,
+    };
     use std::io::Write;
 
     struct UserData(u8);
@@ -837,5 +852,66 @@ mod tests {
                 ANY_INSTANCE_STATE,
             )
             .is_err());
+    }
+
+    #[test]
+    fn on_missed_deadline_increases_total_count() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+        let start = Instant::now();
+
+        assert_eq!(
+            0,
+            reader_proxy
+                .get_requested_deadline_missed_status()
+                .unwrap()
+                .total_count
+        );
+
+        reader.on_data_received(start).unwrap();
+        reader
+            .check_deadline(start + Duration::from_secs(1))
+            .unwrap();
+
+        assert_eq!(
+            0,
+            reader_proxy
+                .get_requested_deadline_missed_status()
+                .unwrap()
+                .total_count
+        );
+
+        reader
+            .check_deadline(start + Duration::from_secs(1) + Duration::from_millis(1))
+            .unwrap();
+
+        assert_eq!(
+            1,
+            reader_proxy
+                .get_requested_deadline_missed_status()
+                .unwrap()
+                .total_count
+        );
+
+        reader
+            .check_deadline(start + Duration::from_secs(2))
+            .unwrap();
+
+        assert_eq!(
+            1,
+            reader_proxy
+                .get_requested_deadline_missed_status()
+                .unwrap()
+                .total_count
+        );
     }
 }

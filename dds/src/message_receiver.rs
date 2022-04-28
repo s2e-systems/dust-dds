@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{ops::DerefMut, time::Instant};
 
 use dds_implementation::{
     dds_impl::{
@@ -197,7 +197,8 @@ impl MessageReceiver {
                             // Call the listener after dropping the rtps_reader lock to avoid deadlock
                             drop(rtps_reader);
                             if before_data_cache_len < after_data_cache_len {
-                                data_reader.on_receive_data();
+                                data_reader.on_data_received(Instant::now()).unwrap();
+
                                 data_reader
                                     .listener
                                     .read_lock()
