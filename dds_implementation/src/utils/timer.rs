@@ -8,6 +8,7 @@ use super::shared_object::{DdsRwLock, DdsShared};
 #[derive(PartialEq, Eq)]
 enum TimerMessage {
     Reset,
+    Stop,
 
     #[cfg(test)]
     ProvokeTimeout,
@@ -16,6 +17,7 @@ enum TimerMessage {
 pub struct Timer {
     on_deadline: DdsShared<DdsRwLock<Option<Box<dyn FnMut() + Send + Sync>>>>,
     sender: Mutex<Sender<TimerMessage>>,
+
 }
 
 impl Timer {
@@ -29,15 +31,26 @@ impl Timer {
 
         let on_deadline = timer.on_deadline.clone();
 
-        std::thread::spawn(move || loop {
+        std::thread::spawn(move || 'timer: loop {
             match receiver.recv_timeout(duration) {
                 Ok(TimerMessage::Reset) => {}
+                Ok(TimerMessage::Stop) => break 'timer,
                 _ => {
                     if let Some(f) = &mut *on_deadline.write_lock() {
                         f();
                     }
 
-                    while receiver.recv() != Ok(TimerMessage::Reset) {}
+                    'wait_reset: loop {
+                        let msg = receiver.recv()
+                            .expect("(;_;) Connection with sender closed unexpectedly");
+                        match msg {
+                            TimerMessage::Reset => break 'wait_reset,
+                            TimerMessage::Stop => break 'timer,
+                            
+                            #[cfg(test)]
+                            TimerMessage::ProvokeTimeout => {},
+                        }
+                    }
                 }
             }
         });
@@ -62,6 +75,12 @@ impl Timer {
     #[cfg(test)]
     pub fn provoke_timeout(&mut self) {
         self.sender.lock().unwrap().send(TimerMessage::ProvokeTimeout).unwrap();
+    }
+}
+
+impl Drop for Timer {
+    fn drop(&mut self) {
+        self.sender.lock().unwrap().send(TimerMessage::Stop).unwrap();
     }
 }
 
@@ -147,5 +166,12 @@ mod test {
         while *counter.read_lock() == 0 && (Instant::now() - t0) < Duration::from_millis(50) {}
 
         assert_eq!(1, *counter.read_lock());
+    }
+
+    #[test]
+    fn timer_thread_exits_quietly_when_dropped() {
+        let timer = Timer::new(Duration::from_millis(10));
+        drop(timer);
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
