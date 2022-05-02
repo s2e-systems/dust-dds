@@ -198,12 +198,6 @@ impl MessageReceiver {
                             drop(rtps_reader);
                             if before_data_cache_len < after_data_cache_len {
                                 DataReaderAttributes::on_data_received(data_reader.clone()).unwrap();
-
-                                data_reader
-                                    .listener
-                                    .read_lock()
-                                    .as_ref()
-                                    .map(|l| l.trigger_on_data_available(data_reader.clone()));
                             }
                         }
                     }

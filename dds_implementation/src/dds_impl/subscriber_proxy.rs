@@ -43,7 +43,7 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        shared_object::{DdsRwLock, DdsShared, DdsWeak}, timer::ThreadTimer,
     },
 };
 
@@ -60,7 +60,7 @@ where
 {
     pub qos: SubscriberQos,
     pub rtps_group: Rtps::Group,
-    pub data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderAttributes<Rtps>>>>,
+    pub data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>>>,
     pub user_defined_data_reader_counter: u8,
     pub default_data_reader_qos: DataReaderQos,
     pub parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
@@ -125,7 +125,7 @@ where
     Rtps: RtpsStructure,
 {
     type TopicType = TopicProxy<Foo, Rtps>;
-    type DataReaderType = DataReaderProxy<Foo, Rtps>;
+    type DataReaderType = DataReaderProxy<Foo, Rtps, ThreadTimer>;
 
     fn datareader_factory_create_datareader(
         &self,
@@ -187,7 +187,7 @@ where
                 rtps_pim::behavior::types::DURATION_ZERO,
                 false,
             ));
-            let any_listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>> =
+            let any_listener: Option<Box<dyn AnyDataReaderListener<Rtps, ThreadTimer> + Send + Sync>> =
                 match listener {
                     Some(l) => Some(Box::new(l)),
                     None => None,

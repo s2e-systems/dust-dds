@@ -16,7 +16,9 @@ use dds_api::{
         InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
         StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
-        NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
+        DATA_AVAILABLE_STATUS, LIVELINESS_CHANGED_STATUS, NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE,
+        READ_SAMPLE_STATE, REQUESTED_DEADLINE_MISSED_STATUS, REQUESTED_INCOMPATIBLE_QOS_STATUS,
+        SAMPLE_LOST_STATUS, SAMPLE_REJECTED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -41,103 +43,113 @@ use rtps_pim::{
 };
 use std::{collections::HashSet, marker::PhantomData, time::Duration};
 
-pub trait AnyDataReaderListener<Rtps>
+pub trait AnyDataReaderListener<Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
-    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps>>);
+    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps, T>>);
     fn trigger_on_sample_rejected(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleLostStatus,
     );
 }
 
-impl<Foo, Rtps> AnyDataReaderListener<Rtps> for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
+impl<Foo, Rtps, T> AnyDataReaderListener<Rtps, T>
+    for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
+    T: Timer,
 {
-    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps>>) {
+    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps, T>>) {
+        *reader.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_data_available(&data_reader)
     }
 
     fn trigger_on_sample_rejected(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleRejectedStatus,
     ) {
+        *reader.status_change.write_lock() &= !SAMPLE_REJECTED_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_sample_rejected(&data_reader, status)
     }
 
     fn trigger_on_liveliness_changed(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: LivelinessChangedStatus,
     ) {
+        *reader.status_change.write_lock() &= !LIVELINESS_CHANGED_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_liveliness_changed(&data_reader, status)
     }
 
     fn trigger_on_requested_deadline_missed(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedDeadlineMissedStatus,
     ) {
+        *reader.status_change.write_lock() &= !REQUESTED_DEADLINE_MISSED_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_requested_deadline_missed(&data_reader, status)
     }
 
     fn trigger_on_requested_incompatible_qos(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedIncompatibleQosStatus,
     ) {
+        *reader.status_change.write_lock() &= !REQUESTED_INCOMPATIBLE_QOS_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_requested_incompatible_qos(&data_reader, status)
     }
 
     fn trigger_on_subscription_matched(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SubscriptionMatchedStatus,
     ) {
+        *reader.status_change.write_lock() &= !SUBSCRIPTION_MATCHED_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_subscription_matched(&data_reader, status)
     }
 
     fn trigger_on_sample_lost(
         &self,
-        reader: DdsShared<DataReaderAttributes<Rtps>>,
+        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleLostStatus,
     ) {
+        *reader.status_change.write_lock() &= !SAMPLE_LOST_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_sample_lost(&data_reader, status)
     }
@@ -203,30 +215,33 @@ impl<Rtps: RtpsStructure> RtpsReaderAttributes for RtpsReader<Rtps> {
     }
 }
 
-pub struct DataReaderAttributes<Rtps>
+pub struct DataReaderAttributes<Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
     pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
     pub qos: DataReaderQos,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
-    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>>,
+    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     pub status: DdsRwLock<SubscriptionMatchedStatus>,
     pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
-    pub deadline_timer: DdsRwLock<Timer>,
+    pub deadline_timer: DdsRwLock<T>,
     pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
+    pub status_change: DdsRwLock<StatusMask>,
 }
 
-impl<Rtps> DataReaderAttributes<Rtps>
+impl<Rtps, T> DataReaderAttributes<Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
     pub fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: DdsShared<TopicAttributes<Rtps>>,
-        listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
+        listener: Option<Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>>,
         parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
         let deadline_duration = Duration::from_secs(*qos.deadline.period.sec() as u64)
@@ -246,16 +261,19 @@ where
                 current_count_change: 0,
             }),
             samples_read: DdsRwLock::new(HashSet::new()),
-            deadline_timer: DdsRwLock::new(Timer::new(deadline_duration)),
+            deadline_timer: DdsRwLock::new(T::new(deadline_duration)),
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_instance_handle: 0,
             }),
+            status_change: DdsRwLock::new(0),
         }
     }
 
     pub fn read_sample<'a>(&self, cache_change: &'a Rtps::CacheChange) -> (&'a [u8], SampleInfo) {
+        *self.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
+
         let mut samples_read = self.samples_read.write_lock();
         let data_value = cache_change.data_value();
 
@@ -288,8 +306,9 @@ where
     }
 }
 
-impl<Rtps> DataReaderAttributes<Rtps>
+impl<Rtps, T> DataReaderAttributes<Rtps, T>
 where
+    T: Timer + Send + Sync + 'static,
     Rtps: RtpsStructure + 'static,
     Rtps::Group: Send + Sync,
     Rtps::Participant: Send + Sync,
@@ -314,6 +333,7 @@ where
                 .write_lock()
                 .total_count_change += 1;
 
+            *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
             reader_shared.listener.read_lock().as_ref().map(|l| {
                 l.trigger_on_requested_deadline_missed(
                     reader_shared.clone(),
@@ -325,22 +345,31 @@ where
             });
         });
 
+        *reader.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
+        reader
+            .listener
+            .read_lock()
+            .as_ref()
+            .map(|l| l.trigger_on_data_available(reader.clone()));
+
         Ok(())
     }
 }
 
-pub struct DataReaderProxy<Foo, Rtps>
+pub struct DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
-    data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>,
+    data_reader_impl: DdsWeak<DataReaderAttributes<Rtps, T>>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, Rtps> Clone for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> Clone for DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
     fn clone(&self) -> Self {
         Self {
@@ -350,11 +379,12 @@ where
     }
 }
 
-impl<Foo, Rtps> DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
-    pub fn new(data_reader_impl: DdsWeak<DataReaderAttributes<Rtps>>) -> Self {
+    pub fn new(data_reader_impl: DdsWeak<DataReaderAttributes<Rtps, T>>) -> Self {
         Self {
             data_reader_impl,
             phantom: PhantomData,
@@ -362,18 +392,20 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<DdsWeak<DataReaderAttributes<Rtps>>> for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> AsRef<DdsWeak<DataReaderAttributes<Rtps, T>>> for DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
-    fn as_ref(&self) -> &DdsWeak<DataReaderAttributes<Rtps>> {
+    fn as_ref(&self) -> &DdsWeak<DataReaderAttributes<Rtps, T>> {
         &self.data_reader_impl
     }
 }
 
-impl<Foo, Rtps> DataReaderGetSubscriber for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> DataReaderGetSubscriber for DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
     type Subscriber = SubscriberProxy<Rtps>;
 
@@ -382,9 +414,10 @@ where
     }
 }
 
-impl<Foo, Rtps> DataReaderGetTopicDescription for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> DataReaderGetTopicDescription for DataReaderProxy<Foo, Rtps, T>
 where
     Rtps: RtpsStructure,
+    T: Timer,
 {
     type TopicDescription = TopicProxy<Foo, Rtps>;
 
@@ -393,10 +426,11 @@ where
     }
 }
 
-impl<Foo, Rtps> DataReader<Foo> for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> DataReader<Foo> for DataReaderProxy<Foo, Rtps, T>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
+    T: Timer,
 {
     fn read(
         &self,
@@ -684,10 +718,11 @@ where
     }
 }
 
-impl<Foo, Rtps> Entity for DataReaderProxy<Foo, Rtps>
+impl<Foo, Rtps, T> Entity for DataReaderProxy<Foo, Rtps, T>
 where
     Foo: for<'de> DdsDeserialize<'de> + 'static,
     Rtps: RtpsStructure,
+    T: Timer,
 {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;
@@ -721,8 +756,7 @@ where
     }
 
     fn get_status_changes(&self) -> DdsResult<StatusMask> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.data_reader_impl)?).get_status_changes()
-        todo!()
+        Ok(*self.as_ref().upgrade()?.status_change.read_lock())
     }
 
     fn enable(&self) -> DdsResult<()> {
@@ -754,7 +788,37 @@ mod tests {
         infrastructure::qos_policy::DeadlineQosPolicy,
     };
     use mockall::mock;
-    use std::{io::Write, time::Instant};
+    use std::io::Write;
+
+    pub struct ManualTimer {
+        on_deadline: Option<Box<dyn FnMut() + Send + Sync>>,
+    }
+
+    impl ManualTimer {
+        pub fn trigger(&mut self) {
+            if let Some(f) = &mut self.on_deadline {
+                f()
+            }
+            self.on_deadline = None;
+        }
+    }
+
+    impl Timer for ManualTimer {
+        fn new(_duration: Duration) -> Self {
+            ManualTimer { on_deadline: None }
+        }
+
+        fn reset(&mut self) {
+            self.on_deadline = None;
+        }
+
+        fn on_deadline<F>(&mut self, f: F)
+        where
+            F: FnMut() + Send + Sync + 'static,
+        {
+            self.on_deadline = Some(Box::new(f));
+        }
+    }
 
     struct UserData(u8);
 
@@ -794,7 +858,9 @@ mod tests {
         cache_change
     }
 
-    fn reader_with_changes(changes: Vec<MockRtpsCacheChange>) -> DataReaderAttributes<MockRtps> {
+    fn reader_with_changes<T: Timer>(
+        changes: Vec<MockRtpsCacheChange>,
+    ) -> DataReaderAttributes<MockRtps, T> {
         let mut history_cache = MockRtpsHistoryCache::new();
         history_cache.expect_changes().return_const(changes);
 
@@ -825,7 +891,8 @@ mod tests {
             cache_change(2, 3),
             cache_change(5, 4),
         ]));
-        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
 
         let all_samples = reader_proxy
             .read(
@@ -845,7 +912,8 @@ mod tests {
     #[test]
     fn read_only_unread() {
         let reader = DdsShared::new(reader_with_changes(vec![cache_change(1, 1)]));
-        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
 
         let unread_samples = reader_proxy
             .read(
@@ -880,7 +948,8 @@ mod tests {
             };
             DdsShared::new(reader)
         };
-        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
 
         assert_eq!(
             0,
@@ -900,28 +969,7 @@ mod tests {
                 .total_count
         );
 
-        reader.deadline_timer.write_lock().provoke_timeout();
-
-        let t0 = Instant::now();
-        while reader_proxy
-            .get_requested_deadline_missed_status()
-            .unwrap()
-            .total_count
-            == 0
-            && (Instant::now() - t0) < Duration::from_millis(50)
-        {}
-
-        assert_eq!(
-            1,
-            reader_proxy
-                .get_requested_deadline_missed_status()
-                .unwrap()
-                .total_count
-        );
-
-        reader.deadline_timer.write_lock().provoke_timeout();
-
-        std::thread::sleep(Duration::from_millis(50));
+        reader.deadline_timer.write_lock().trigger();
 
         assert_eq!(
             1,
@@ -968,7 +1016,7 @@ mod tests {
     }
 
     #[test]
-    fn test_on_deadline_missed_calls_listener() {
+    fn on_deadline_missed_calls_listener() {
         let reader = {
             let mut reader = reader_with_changes(vec![]);
             reader.qos = DataReaderQos {
@@ -979,7 +1027,8 @@ mod tests {
             };
             DdsShared::new(reader)
         };
-        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();
 
@@ -992,7 +1041,128 @@ mod tests {
             .set_listener(Some(Box::new(listener)), 0)
             .unwrap();
 
-        reader.deadline_timer.write_lock().provoke_timeout();
-        reader.deadline_timer.write_lock().provoke_timeout();
+        reader.deadline_timer.write_lock().trigger();
+    }
+
+    #[test]
+    fn receiving_data_triggers_status_change() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+
+        assert!(reader_proxy.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS > 0);
+    }
+
+    #[test]
+    fn on_data_available_listener_resets_status_change() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
+
+        let listener = {
+            let mut listener = MockListener::new();
+            let reader_proxy = reader_proxy.clone();
+            listener
+                .expect_on_data_available()
+                .once()
+                .withf(move |_| {
+                    reader_proxy.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS == 0
+                })
+                .return_const(());
+            listener
+        };
+        reader_proxy
+            .set_listener(Some(Box::new(listener)), 0)
+            .unwrap();
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+
+        assert_eq!(
+            0,
+            reader_proxy.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS
+        );
+    }
+
+    #[test]
+    fn deadline_missed_triggers_status_change() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        reader.deadline_timer.write_lock().trigger();
+
+        assert!(reader_proxy.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS > 0);
+    }
+
+    #[test]
+    fn on_deadline_missed_listener_resets_status_changed() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy =
+            DataReaderProxy::<UserData, MockRtps, ManualTimer>::new(reader.downgrade());
+
+        let listener = {
+            let mut listener = MockListener::new();
+            let reader_proxy = reader_proxy.clone();
+            listener
+                .expect_on_requested_deadline_missed()
+                .once()
+                .withf(move |_, _| {
+                    reader_proxy.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS
+                        == 0
+                })
+                .return_const(());
+            listener.expect_on_data_available().once().return_const(());
+            listener
+        };
+        reader_proxy
+            .set_listener(Some(Box::new(listener)), 0)
+            .unwrap();
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        reader.deadline_timer.write_lock().trigger();
+
+        assert_eq!(
+            0,
+            reader_proxy.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS
+        );
     }
 }
