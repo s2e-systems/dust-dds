@@ -1,8 +1,8 @@
-use std::{ops::DerefMut, time::Instant};
+use std::{ops::DerefMut};
 
 use dds_implementation::{
     dds_impl::{
-        data_reader_proxy::RtpsReader, data_writer_proxy::RtpsWriter,
+        data_reader_proxy::{RtpsReader, DataReaderAttributes}, data_writer_proxy::RtpsWriter,
         publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::DdsShared,
@@ -197,7 +197,7 @@ impl MessageReceiver {
                             // Call the listener after dropping the rtps_reader lock to avoid deadlock
                             drop(rtps_reader);
                             if before_data_cache_len < after_data_cache_len {
-                                data_reader.on_data_received(Instant::now()).unwrap();
+                                DataReaderAttributes::on_data_received(data_reader.clone()).unwrap();
 
                                 data_reader
                                     .listener

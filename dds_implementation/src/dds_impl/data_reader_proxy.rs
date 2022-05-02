@@ -7,6 +7,7 @@ use crate::{
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        timer::Timer,
     },
 };
 use dds_api::{
@@ -38,11 +39,7 @@ use rtps_pim::{
         types::SequenceNumber,
     },
 };
-use std::{
-    collections::HashSet,
-    marker::PhantomData,
-    time::{Duration, Instant},
-};
+use std::{collections::HashSet, marker::PhantomData, time::Duration};
 
 pub trait AnyDataReaderListener<Rtps>
 where
@@ -217,7 +214,7 @@ where
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     pub status: DdsRwLock<SubscriptionMatchedStatus>,
     pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
-    pub last_time_data_was_received: DdsRwLock<Option<Instant>>,
+    pub deadline_timer: DdsRwLock<Timer>,
     pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
@@ -232,6 +229,9 @@ where
         listener: Option<Box<dyn AnyDataReaderListener<Rtps> + Send + Sync>>,
         parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     ) -> Self {
+        let deadline_duration = Duration::from_secs(*qos.deadline.period.sec() as u64)
+            + Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
+
         Self {
             rtps_reader: DdsRwLock::new(rtps_reader),
             qos: qos,
@@ -246,7 +246,7 @@ where
                 current_count_change: 0,
             }),
             samples_read: DdsRwLock::new(HashSet::new()),
-            last_time_data_was_received: DdsRwLock::new(None),
+            deadline_timer: DdsRwLock::new(Timer::new(deadline_duration)),
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
                 total_count_change: 0,
@@ -286,31 +286,44 @@ where
 
         (data_value, sample_info)
     }
+}
 
-    pub fn on_data_received(&self, now: Instant) -> DdsResult<()> {
-        *self.last_time_data_was_received.write_lock() = Some(now);
+impl<Rtps> DataReaderAttributes<Rtps>
+where
+    Rtps: RtpsStructure + 'static,
+    Rtps::Group: Send + Sync,
+    Rtps::Participant: Send + Sync,
 
-        Ok(())
-    }
+    Rtps::StatelessWriter: Send + Sync,
+    Rtps::StatefulWriter: Send + Sync,
 
-    pub fn check_deadline(&self, now: Instant) -> DdsResult<()> {
-        let mut last_time_data_was_received = self.last_time_data_was_received.write_lock();
+    Rtps::StatelessReader: Send + Sync,
+    Rtps::StatefulReader: Send + Sync,
+    Rtps::HistoryCache: Send + Sync,
+    Rtps::CacheChange: Send + Sync,
+{
+    pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
+        let reader_shared = reader.clone();
+        reader.deadline_timer.write_lock().on_deadline(move || {
+            reader_shared
+                .requested_deadline_missed_status
+                .write_lock()
+                .total_count += 1;
+            reader_shared
+                .requested_deadline_missed_status
+                .write_lock()
+                .total_count_change += 1;
 
-        if let Some(last_time) = last_time_data_was_received.clone() {
-            let deadline_duration = Duration::from_secs(*self.qos.deadline.period.sec() as u64)
-                + Duration::from_nanos(*self.qos.deadline.period.nanosec() as u64);
-
-            if (now - last_time) > deadline_duration {
-                self.requested_deadline_missed_status
-                    .write_lock()
-                    .total_count += 1;
-                self.requested_deadline_missed_status
-                    .write_lock()
-                    .total_count_change += 1;
-
-                *last_time_data_was_received = None;
-            }
-        }
+            reader_shared.listener.read_lock().as_ref().map(|l| {
+                l.trigger_on_requested_deadline_missed(
+                    reader_shared.clone(),
+                    reader_shared
+                        .requested_deadline_missed_status
+                        .read_lock()
+                        .clone(),
+                )
+            });
+        });
 
         Ok(())
     }
@@ -740,7 +753,8 @@ mod tests {
         dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         infrastructure::qos_policy::DeadlineQosPolicy,
     };
-    use std::io::Write;
+    use mockall::mock;
+    use std::{io::Write, time::Instant};
 
     struct UserData(u8);
 
@@ -867,7 +881,6 @@ mod tests {
             DdsShared::new(reader)
         };
         let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
-        let start = Instant::now();
 
         assert_eq!(
             0,
@@ -877,10 +890,7 @@ mod tests {
                 .total_count
         );
 
-        reader.on_data_received(start).unwrap();
-        reader
-            .check_deadline(start + Duration::from_secs(1))
-            .unwrap();
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
 
         assert_eq!(
             0,
@@ -890,9 +900,16 @@ mod tests {
                 .total_count
         );
 
-        reader
-            .check_deadline(start + Duration::from_secs(1) + Duration::from_millis(1))
-            .unwrap();
+        reader.deadline_timer.write_lock().provoke_timeout();
+
+        let t0 = Instant::now();
+        while reader_proxy
+            .get_requested_deadline_missed_status()
+            .unwrap()
+            .total_count
+            == 0
+            && (Instant::now() - t0) < Duration::from_millis(50)
+        {}
 
         assert_eq!(
             1,
@@ -902,9 +919,9 @@ mod tests {
                 .total_count
         );
 
-        reader
-            .check_deadline(start + Duration::from_secs(2))
-            .unwrap();
+        reader.deadline_timer.write_lock().provoke_timeout();
+
+        std::thread::sleep(Duration::from_millis(50));
 
         assert_eq!(
             1,
@@ -913,5 +930,69 @@ mod tests {
                 .unwrap()
                 .total_count
         );
+    }
+
+    mock! {
+        Listener {}
+        impl DataReaderListener for Listener {
+            type Foo = UserData;
+
+            fn on_data_available(&self, _the_reader: &dyn DataReader<UserData>);
+            fn on_sample_rejected(
+                &self,
+                _the_reader: &dyn DataReader<UserData>,
+                _status: SampleRejectedStatus,
+            );
+            fn on_liveliness_changed(
+                &self,
+                _the_reader: &dyn DataReader<UserData>,
+                _status: LivelinessChangedStatus,
+            );
+            fn on_requested_deadline_missed(
+                &self,
+                _the_reader: &dyn DataReader<UserData>,
+                _status: RequestedDeadlineMissedStatus,
+            );
+            fn on_requested_incompatible_qos(
+                &self,
+                _the_reader: &dyn DataReader<UserData>,
+                _status: RequestedIncompatibleQosStatus,
+            );
+            fn on_subscription_matched(
+                &self,
+                _the_reader: &dyn DataReader<UserData>,
+                _status: SubscriptionMatchedStatus,
+            );
+            fn on_sample_lost(&self, _the_reader: &dyn DataReader<UserData>, _status: SampleLostStatus);
+        }
+    }
+
+    #[test]
+    fn test_on_deadline_missed_calls_listener() {
+        let reader = {
+            let mut reader = reader_with_changes(vec![]);
+            reader.qos = DataReaderQos {
+                deadline: DeadlineQosPolicy {
+                    period: dds_api::dcps_psm::Duration::new(1, 0),
+                },
+                ..Default::default()
+            };
+            DdsShared::new(reader)
+        };
+        let reader_proxy = DataReaderProxy::<UserData, MockRtps>::new(reader.downgrade());
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+
+        let mut listener = MockListener::new();
+        listener
+            .expect_on_requested_deadline_missed()
+            .once()
+            .return_const(());
+        reader_proxy
+            .set_listener(Some(Box::new(listener)), 0)
+            .unwrap();
+
+        reader.deadline_timer.write_lock().provoke_timeout();
+        reader.deadline_timer.write_lock().provoke_timeout();
     }
 }

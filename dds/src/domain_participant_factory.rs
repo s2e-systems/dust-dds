@@ -4,7 +4,6 @@ use std::{
     ops::Deref,
     str::FromStr,
     sync::Mutex,
-    time::Instant,
 };
 
 use dds_api::{
@@ -505,48 +504,6 @@ impl DomainParticipantFactory {
                     );
                 },
                 std::time::Duration::from_millis(50),
-            );
-        }
-
-        // //////////// Check deadline of readers
-        {
-            let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
-                "check deadline of readers",
-                move || {
-                    let builtin_subscriber = domain_participant.builtin_subscriber.read_lock();
-                    let user_subscribers =
-                        domain_participant.user_defined_subscriber_list.read_lock();
-
-                    for subscriber in builtin_subscriber.iter().chain(user_subscribers.iter()) {
-                        for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                            let num_deadlines_missed = data_reader
-                                .requested_deadline_missed_status
-                                .read_lock()
-                                .total_count;
-
-                            data_reader.check_deadline(Instant::now()).unwrap();
-
-                            if data_reader
-                                .requested_deadline_missed_status
-                                .read_lock()
-                                .total_count
-                                > num_deadlines_missed
-                            {
-                                data_reader.listener.read_lock().as_ref().map(|l| {
-                                    l.trigger_on_requested_deadline_missed(
-                                        data_reader.clone(),
-                                        data_reader
-                                            .requested_deadline_missed_status
-                                            .read_lock()
-                                            .clone(),
-                                    )
-                                });
-                            }
-                        }
-                    }
-                },
-                std::time::Duration::from_millis(1),
             );
         }
 
