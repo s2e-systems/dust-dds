@@ -9,9 +9,12 @@ use std::{
 use dds_api::{
     dcps_psm::{DomainId, StatusMask},
     domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::qos::{
-        DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
-        PublisherQos, SubscriberQos,
+    infrastructure::{
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
+            PublisherQos, SubscriberQos,
+        },
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
     },
     return_type::{DdsError, DdsResult},
 };
@@ -620,6 +623,14 @@ pub fn create_builtins(
 
     // ///////// Create built-in DDS data readers and data writers
 
+    let builtin_reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+            depth: 0,
+        },
+        ..Default::default()
+    };
+
     // ////////// SPDP built-in topic, reader and writer
     {
         let spdp_topic_participant = DdsShared::new(TopicAttributes::new(
@@ -637,7 +648,7 @@ pub fn create_builtins(
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
 
         let spdp_builtin_participant_data_reader = DdsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
+            builtin_reader_qos.clone(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
             None,
@@ -690,7 +701,7 @@ pub fn create_builtins(
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_publications_data_reader = DdsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
+            builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
             None,
@@ -733,7 +744,7 @@ pub fn create_builtins(
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_subscriptions_data_reader = DdsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
+            builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
             None,
@@ -776,7 +787,7 @@ pub fn create_builtins(
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
         let sedp_builtin_topics_data_reader = DdsShared::new(DataReaderAttributes::new(
-            DataReaderQos::default(),
+            builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
             None,

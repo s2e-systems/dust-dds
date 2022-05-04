@@ -23,6 +23,7 @@ use dds_api::{
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataReaderQos,
+        qos_policy::HistoryQosPolicyKind,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
     },
@@ -322,6 +323,27 @@ where
     Rtps::CacheChange: Send + Sync,
 {
     pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
+        if reader.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
+            let mut rtps_reader = reader.rtps_reader.write_lock();
+
+            let cache_len = rtps_reader.reader_cache().changes().len() as i32;
+            if cache_len > reader.qos.history.depth {
+                let mut seq_nums: Vec<_> = rtps_reader
+                    .reader_cache()
+                    .changes()
+                    .iter()
+                    .map(|c| c.sequence_number())
+                    .collect();
+                seq_nums.sort();
+
+                let to_delete =
+                    &seq_nums[0..(cache_len as usize - reader.qos.history.depth as usize)];
+                rtps_reader
+                    .reader_cache()
+                    .remove_change(|c| to_delete.contains(&c.sequence_number()));
+            }
+        }
+
         let reader_shared = reader.clone();
         reader.deadline_timer.write_lock().on_deadline(move || {
             reader_shared
@@ -785,7 +807,7 @@ mod tests {
     };
     use dds_api::{
         dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        infrastructure::qos_policy::DeadlineQosPolicy,
+        infrastructure::qos_policy::{DeadlineQosPolicy, HistoryQosPolicy},
     };
     use mockall::mock;
     use std::io::Write;
@@ -870,7 +892,13 @@ mod tests {
             .return_var(history_cache);
 
         DataReaderAttributes::new(
-            Default::default(),
+            DataReaderQos {
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                    depth: 0,
+                },
+                ..Default::default()
+            },
             RtpsReader::Stateful(stateful_reader),
             DdsShared::new(TopicAttributes::new(
                 Default::default(),
@@ -1164,5 +1192,69 @@ mod tests {
             0,
             reader_proxy.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS
         );
+    }
+
+    fn reader_with_max_depth<T: Timer>(
+        max_depth: i32,
+        changes: Vec<MockRtpsCacheChange>,
+    ) -> DataReaderAttributes<MockRtps, T> {
+        let mut history_cache = MockRtpsHistoryCache::new();
+        history_cache.expect_changes().return_const(changes);
+
+        let mut stateful_reader = MockRtpsStatefulReader::new();
+        stateful_reader
+            .expect_reader_cache()
+            .return_var(history_cache);
+
+        DataReaderAttributes::new(
+            DataReaderQos {
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+                    depth: max_depth,
+                },
+                ..Default::default()
+            },
+            RtpsReader::Stateful(stateful_reader),
+            DdsShared::new(TopicAttributes::new(
+                Default::default(),
+                "type_name",
+                "topic_name",
+                DdsWeak::new(),
+            )),
+            None,
+            DdsWeak::new(),
+        )
+    }
+
+    #[test]
+    fn keep_last_qos() {
+        let reader = {
+            let reader = reader_with_max_depth::<ManualTimer>(
+                2,
+                vec![
+                    cache_change(1, 1),
+                    cache_change(2, 2),
+                    cache_change(3, 3),
+                    cache_change(4, 4),
+                ],
+            );
+
+            reader
+                .rtps_reader
+                .write_lock()
+                .reader_cache()
+                .expect_remove_change_()
+                .returning(|f| {
+                    assert!(f(&cache_change(1, 1)) == true);
+                    assert!(f(&cache_change(2, 2)) == true);
+                    assert!(f(&cache_change(3, 3)) == false);
+                    assert!(f(&cache_change(4, 4)) == false);
+                    ()
+                });
+
+            DdsShared::new(reader)
+        };
+
+        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
     }
 }

@@ -151,13 +151,17 @@ where
                         };
                         destined_submessages.borrow_mut().push((
                             vec![reader_locator.locator()],
-                            vec![RtpsSubmessageType::InfoTimestamp(info_ts), RtpsSubmessageType::Data(data)],
+                            vec![
+                                RtpsSubmessageType::InfoTimestamp(info_ts),
+                                RtpsSubmessageType::Data(data),
+                            ],
                         ));
                     },
                     |reader_locator, gap| {
-                        destined_submessages
-                            .borrow_mut()
-                            .push((vec![reader_locator.locator()], vec![RtpsSubmessageType::Gap(gap)]));
+                        destined_submessages.borrow_mut().push((
+                            vec![reader_locator.locator()],
+                            vec![RtpsSubmessageType::Gap(gap)],
+                        ));
                     },
                     |_, _| (),
                 );
@@ -186,7 +190,10 @@ where
                         };
                         destined_submessages.borrow_mut().push((
                             reader_proxy.unicast_locator_list().to_vec(),
-                            vec![RtpsSubmessageType::InfoTimestamp(info_ts), RtpsSubmessageType::Data(data)],
+                            vec![
+                                RtpsSubmessageType::InfoTimestamp(info_ts),
+                                RtpsSubmessageType::Data(data),
+                            ],
                         ));
                     },
                     |reader_proxy, gap| {

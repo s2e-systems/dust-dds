@@ -11,6 +11,7 @@ use super::mock_rtps_cache_change::MockRtpsCacheChange;
 mock! {
     pub RtpsHistoryCache{
         pub fn add_change_(&mut self, change: MockRtpsCacheChange);
+        pub fn remove_change_(&mut self, f: &mut dyn FnMut(&MockRtpsCacheChange) -> bool);
         pub fn get_seq_num_min_(&self) -> Option<SequenceNumber>;
         pub fn get_seq_num_max_(&self) -> Option<SequenceNumber>;
     }
@@ -29,11 +30,11 @@ impl RtpsHistoryCacheOperations for MockRtpsHistoryCache {
         self.add_change_(change)
     }
 
-    fn remove_change<F>(&mut self, _f: F)
+    fn remove_change<F>(&mut self, mut f: F)
     where
         F: FnMut(&MockRtpsCacheChange) -> bool,
     {
-        todo!()
+        self.remove_change_(&mut f)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
