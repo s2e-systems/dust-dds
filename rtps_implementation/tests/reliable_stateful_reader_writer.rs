@@ -1,10 +1,9 @@
 use std::cell::RefCell;
 
-use mockall::mock;
+use mockall::{mock, Sequence};
 use rtps_implementation::{
-    rtps_reader_proxy_impl::RtpsReaderProxyImpl,
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
     rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     utils::clock::{Timer, TimerConstructor},
 };
@@ -47,21 +46,6 @@ use rtps_pim::{
     },
 };
 
-mock! {
-    Timer {}
-
-    impl Timer for Timer {
-        fn reset(&mut self);
-        fn elapsed(&self) -> std::time::Duration;
-    }
-}
-
-impl TimerConstructor for MockTimer {
-    fn new() -> Self {
-        MockTimer::new()
-    }
-}
-
 struct SubmessageList<'a> {
     data: Vec<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>>,
     gaps: Vec<GapSubmessage<Vec<i64>>>,
@@ -97,6 +81,68 @@ fn send_submessages<'a, T: Timer>(
 
 #[test]
 fn reliable_stateful_reader_writer_dropped_data() {
+    mock! {
+        Timer {}
+
+        impl Timer for Timer {
+            fn reset(&mut self);
+            fn elapsed(&self) -> std::time::Duration;
+        }
+    }
+
+    impl TimerConstructor for MockTimer {
+        fn new() -> Self {
+            let mut mock_timer = MockTimer::new();
+            let mut timer_seq = Sequence::new();
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(0))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(1))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_reset()
+                .once()
+                .return_const(())
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(0))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(1))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_reset()
+                .once()
+                .return_const(())
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(0))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_elapsed()
+                .once()
+                .return_const(std::time::Duration::from_secs(1))
+                .in_sequence(&mut timer_seq);
+            mock_timer
+                .expect_reset()
+                .once()
+                .return_const(())
+                .in_sequence(&mut timer_seq);
+            mock_timer
+        }
+    }
+
     let writer_guid = Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1));
     let reader_guid = Guid::new(GuidPrefix([2; 12]), EntityId::new([2; 3], 2));
 
@@ -136,11 +182,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Send and receive first heartbeat (no data sent)
     {
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(0));
-
         // no heartbeat before delay
         RtpsStatefulWriterSendSubmessages::send_submessages(
             &mut stateful_writer,
@@ -148,17 +189,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
             |_, _| panic!("No gap should be sent"),
             |_, _| panic!("No heartbeat should be sent"),
         );
-
-        stateful_writer.heartbeat_timer.checkpoint();
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(1));
-        stateful_writer
-            .heartbeat_timer
-            .expect_reset()
-            .once()
-            .return_const(());
 
         // one heartbeat to send
         {
@@ -178,12 +208,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
                 .is_empty());
             assert!(stateful_reader.produce_acknack_submessages().is_empty());
         }
-
-        stateful_writer.heartbeat_timer.checkpoint();
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(0));
     }
 
     // Write 5 changes
@@ -228,17 +252,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Send and receive second heartbeat
     {
-        stateful_writer.heartbeat_timer.checkpoint();
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(1));
-        stateful_writer
-            .heartbeat_timer
-            .expect_reset()
-            .once()
-            .return_const(());
-
         // one heartbeat to send
         {
             let destined_submessages = send_submessages(&mut stateful_writer);
@@ -256,12 +269,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
                 stateful_reader.matched_writers()[0].missing_changes()
             );
         }
-
-        stateful_writer.heartbeat_timer.checkpoint();
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(0));
     }
 
     // Send and receive AckNack
@@ -313,17 +320,6 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Send and receive third heartbeat (no new data)
     {
-        stateful_writer.heartbeat_timer.checkpoint();
-        stateful_writer
-            .heartbeat_timer
-            .expect_elapsed()
-            .return_const(std::time::Duration::from_secs(1));
-        stateful_writer
-            .heartbeat_timer
-            .expect_reset()
-            .once()
-            .return_const(());
-
         // one heartbeat to send
         {
             let destined_submessages = send_submessages(&mut stateful_writer);

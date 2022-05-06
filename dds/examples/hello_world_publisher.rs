@@ -4,7 +4,10 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
-use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
+use rtps_pim::behavior::{
+    reader::stateful_reader::RtpsStatefulReaderAttributes,
+    writer::stateful_writer::RtpsStatefulWriterAttributes,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -75,7 +78,7 @@ fn main() {
         .rtps_writer
         .try_as_stateful_writer()
         .unwrap()
-        .matched_readers
+        .matched_readers()
         .len()
         == 0
     {

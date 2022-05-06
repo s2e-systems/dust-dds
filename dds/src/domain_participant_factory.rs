@@ -41,11 +41,10 @@ use rtps_implementation::{
     rtps_group_impl::RtpsGroupImpl,
     rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     rtps_participant_impl::RtpsParticipantImpl,
-    rtps_reader_locator_impl::RtpsReaderLocatorAttributesImpl,
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
     rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
     utils::clock::StdTimer,
 };
 use rtps_pim::{

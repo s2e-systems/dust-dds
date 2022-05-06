@@ -1,22 +1,19 @@
-use std::{ops::DerefMut};
+use std::ops::DerefMut;
 
 use dds_implementation::{
     dds_impl::{
-        data_reader_proxy::{RtpsReader, DataReaderAttributes}, data_writer_proxy::RtpsWriter,
-        publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes,
+        data_reader_proxy::{DataReaderAttributes, RtpsReader},
+        data_writer_proxy::RtpsWriter,
+        publisher_proxy::PublisherAttributes,
+        subscriber_proxy::SubscriberAttributes,
     },
     utils::shared_object::DdsShared,
-};
-use rtps_implementation::{
-    rtps_reader_locator_impl::RtpsReaderLocatorOperationsImpl,
-    rtps_reader_proxy_impl::RtpsReaderProxyOperationsImpl,
 };
 use rtps_pim::{
     behavior::{
         reader::reader::RtpsReaderAttributes,
-        stateful_writer_behavior::ReliableReaderProxyReceiveAcknackBehavior,
-        stateless_writer_behavior::ReliableReaderLocatorReceiveAcknackBehavior,
-        writer::reader_proxy::RtpsReaderProxyAttributes,
+        stateful_writer_behavior::RtpsStatefulWriterReceiveAckNackSubmessage,
+        stateless_writer_behavior::RtpsStatelessWriterReceiveAckNackSubmessage,
     },
     messages::{
         overall_structure::{RtpsMessage, RtpsSubmessageType},
@@ -25,13 +22,10 @@ use rtps_pim::{
         types::{FragmentNumber, Time, TIME_INVALID},
     },
     structure::{
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheAttributes,
         types::{
-            Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind, SequenceNumber, VendorId,
-            ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID,
-            PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
+            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
     },
 };
@@ -98,70 +92,19 @@ impl MessageReceiver {
 
         for submessage in &message.submessages {
             match submessage {
-                RtpsSubmessageType::AckNack(acknack) => {
+                RtpsSubmessageType::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
                         for data_writer in publisher.data_writer_list.read_lock().iter() {
                             match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
                                 RtpsWriter::Stateless(stateless_rtps_writer) => {
-                                    if stateless_rtps_writer.reliability_level()
-                                        == ReliabilityKind::Reliable
-                                    {
-                                        if acknack.reader_id.value == ENTITYID_UNKNOWN
-                                            || acknack.reader_id.value
-                                                == stateless_rtps_writer.guid().entity_id()
-                                        {
-                                            for reader_locator in
-                                                stateless_rtps_writer.reader_locators.iter_mut()
-                                            {
-                                                if reader_locator.last_received_acknack_count
-                                                    != acknack.count.value
-                                                {
-                                                    ReliableReaderLocatorReceiveAcknackBehavior::receive_acknack(
-                                                        &mut RtpsReaderLocatorOperationsImpl::new(
-                                                            reader_locator,
-                                                            &stateless_rtps_writer.writer.writer_cache,
-                                                        ),
-                                                        acknack,
-                                                    );
-
-                                                    reader_locator.last_received_acknack_count =
-                                                        acknack.count.value;
-                                                }
-                                            }
-                                        }
-                                    }
+                                    stateless_rtps_writer
+                                        .on_acknack_submessage_received(&acknack_submessage)
                                 }
-                                RtpsWriter::Stateful(stateful_rtps_writer) => {
-                                    if stateful_rtps_writer.reliability_level()
-                                        == ReliabilityKind::Reliable
-                                    {
-                                        let reader_guid = Guid::new(
-                                            self.source_guid_prefix,
-                                            acknack.reader_id.value,
-                                        );
-
-                                        if let Some(reader_proxy) = stateful_rtps_writer
-                                            .matched_readers
-                                            .iter_mut()
-                                            .find(|x| x.remote_reader_guid() == reader_guid)
-                                        {
-                                            if reader_proxy.last_received_acknack_count
-                                                != acknack.count.value
-                                            {
-                                                ReliableReaderProxyReceiveAcknackBehavior::receive_acknack(
-                                                    &mut RtpsReaderProxyOperationsImpl::new(
-                                                        reader_proxy,
-                                                        &stateful_rtps_writer.writer.writer_cache,
-                                                    ),
-                                                    acknack,
-                                                );
-
-                                                reader_proxy.last_received_acknack_count =
-                                                    acknack.count.value;
-                                            }
-                                        }
-                                    }
-                                }
+                                RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
+                                    .on_acknack_submessage_received(
+                                        &acknack_submessage,
+                                        self.source_guid_prefix,
+                                    ),
                             }
                         }
                     }
@@ -197,7 +140,8 @@ impl MessageReceiver {
                             // Call the listener after dropping the rtps_reader lock to avoid deadlock
                             drop(rtps_reader);
                             if before_data_cache_len < after_data_cache_len {
-                                DataReaderAttributes::on_data_received(data_reader.clone()).unwrap();
+                                DataReaderAttributes::on_data_received(data_reader.clone())
+                                    .unwrap();
                             }
                         }
                     }

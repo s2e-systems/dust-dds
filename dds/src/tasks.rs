@@ -35,7 +35,7 @@ use dds_implementation::{
     utils::shared_object::DdsShared,
 };
 use rtps_implementation::{
-    rtps_reader_proxy_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_stateful_writer_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 use rtps_pim::{
     behavior::{
@@ -45,7 +45,7 @@ use rtps_pim::{
         },
         writer::{
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::RtpsStatefulWriterOperations,
+            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
         },
     },
     discovery::{
@@ -244,7 +244,7 @@ pub fn task_spdp_discovery(
                 &domain_participant.domain_tag,
             ) {
                 if !sedp_builtin_publication_writer
-                    .matched_readers
+                    .matched_readers()
                     .iter()
                     .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -264,7 +264,7 @@ pub fn task_spdp_discovery(
                 }
 
                 if !sedp_builtin_subscription_writer
-                    .matched_readers
+                    .matched_readers()
                     .iter()
                     .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -284,7 +284,7 @@ pub fn task_spdp_discovery(
                 }
 
                 if !sedp_builtin_topic_writer
-                    .matched_readers
+                    .matched_readers()
                     .iter()
                     .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
                 {
@@ -553,7 +553,10 @@ mod tests {
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
     };
-    use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
+    use rtps_pim::behavior::{
+        reader::stateful_reader::RtpsStatefulReaderAttributes,
+        writer::stateful_writer::RtpsStatefulWriterAttributes,
+    };
 
     use crate::{
         domain_participant_factory::{create_builtins, Communications, RtpsStructureImpl},
@@ -603,7 +606,7 @@ mod tests {
                 .rtps_writer
                 .try_as_stateful_writer()
                 .unwrap()
-                .matched_readers
+                .matched_readers()
         };
     }
 

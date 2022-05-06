@@ -9,7 +9,7 @@ use crate::{
     },
     structure::{
         history_cache::RtpsHistoryCacheOperations,
-        types::{EntityId, SequenceNumber, ENTITYID_UNKNOWN},
+        types::{EntityId, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
     },
 };
 
@@ -17,6 +17,14 @@ use super::writer::{
     change_for_reader::RtpsChangeForReaderAttributes,
     reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyOperations},
 };
+
+pub trait RtpsStatefulWriterReceiveAckNackSubmessage<S> {
+    fn on_acknack_submessage_received(
+        &mut self,
+        acknack_submessage: &AckNackSubmessage<S>,
+        source_guid_prefix: GuidPrefix,
+    );
+}
 
 pub trait RtpsStatefulWriterSendSubmessages<'a, P, D, S> {
     type ReaderProxyType;

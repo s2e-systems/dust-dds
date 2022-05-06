@@ -26,6 +26,10 @@ pub trait RtpsStatelessWriterSendSubmessages<'a, P, D, S> {
     );
 }
 
+pub trait RtpsStatelessWriterReceiveAckNackSubmessage<S> {
+    fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage<S>);
+}
+
 trait IsEmpty {
     fn is_empty(self) -> bool;
 }
