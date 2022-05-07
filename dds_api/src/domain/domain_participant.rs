@@ -290,10 +290,7 @@ pub trait DomainParticipant {
     /// indicated should be “ignored” by means of the DomainParticipant ignore_participant operation.
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information. In this case the operation
     /// will return UNSUPPORTED.
-    fn get_discovered_participants(
-        &self,
-        participant_handles: &mut [InstanceHandle],
-    ) -> DdsResult<()>;
+    fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>>;
 
     /// This operation retrieves information on a DomainParticipant that has been discovered on the network. The participant must
     /// be in the same domain as the participant on which this operation is invoked and must not have been “ignored” by means of the

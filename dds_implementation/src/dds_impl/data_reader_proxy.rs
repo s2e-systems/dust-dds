@@ -3,8 +3,11 @@ use super::{
     topic_proxy::{TopicAttributes, TopicProxy},
 };
 use crate::{
+    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     dds_type::DdsDeserialize,
     utils::{
+        discovery_traits::AddMatchedWriter,
+        rtps_communication_traits::{ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage},
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         timer::Timer,
@@ -35,11 +38,24 @@ use dds_api::{
     },
 };
 use rtps_pim::{
-    behavior::reader::reader::RtpsReaderAttributes,
+    behavior::{
+        reader::{
+            reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderOperations,
+            writer_proxy::RtpsWriterProxyConstructor,
+        },
+        stateful_reader_behavior::{
+            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+        },
+        stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, HeartbeatSubmessage},
+    },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::SequenceNumber,
+        types::{GuidPrefix, SequenceNumber},
     },
 };
 use std::{collections::HashSet, marker::PhantomData, time::Duration};
@@ -219,7 +235,6 @@ impl<Rtps: RtpsStructure> RtpsReaderAttributes for RtpsReader<Rtps> {
 pub struct DataReaderAttributes<Rtps, T>
 where
     Rtps: RtpsStructure,
-    T: Timer,
 {
     pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
     pub qos: DataReaderQos,
@@ -307,6 +322,132 @@ where
     }
 }
 
+impl<Rtps, T> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<Rtps, T>>
+where
+    Rtps: RtpsStructure + 'static,
+    Rtps::Group: Send + Sync,
+    Rtps::Participant: Send + Sync,
+
+    Rtps::StatelessWriter: Send + Sync,
+    Rtps::StatefulWriter: Send + Sync,
+
+    Rtps::StatelessReader: for<'a> RtpsStatelessReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]>
+        + Send
+        + Sync,
+    Rtps::StatefulReader:
+        for<'a> RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]> + Send + Sync,
+    Rtps::HistoryCache: Send + Sync,
+    Rtps::CacheChange: Send + Sync,
+    T: Timer + Send + Sync + 'static,
+{
+    fn on_data_submessage_received(
+        &self,
+        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let before_data_cache_len;
+        let after_data_cache_len;
+        let mut rtps_reader = self.rtps_reader.write_lock();
+        match &mut *rtps_reader {
+            RtpsReader::Stateless(stateless_rtps_reader) => {
+                before_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
+
+                stateless_rtps_reader
+                    .on_data_submessage_received(data_submessage, source_guid_prefix);
+
+                after_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
+            }
+            RtpsReader::Stateful(stateful_rtps_reader) => {
+                before_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
+
+                stateful_rtps_reader
+                    .on_data_submessage_received(data_submessage, source_guid_prefix);
+
+                after_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
+            }
+        }
+        // Call the listener after dropping the rtps_reader lock to avoid deadlock
+        drop(rtps_reader);
+        if before_data_cache_len < after_data_cache_len {
+            DataReaderAttributes::on_data_received(self.clone()).unwrap();
+        }
+    }
+}
+
+impl<Rtps, T> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<Rtps, T>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader: RtpsStatefulReaderReceiveHeartbeatSubmessage,
+{
+    fn on_heartbeat_submessage_received(
+        &self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let mut rtps_reader = self.rtps_reader.write_lock();
+        if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *rtps_reader {
+            stateful_rtps_reader
+                .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        }
+    }
+}
+
+impl<Rtps, T> AddMatchedWriter for DdsShared<DataReaderAttributes<Rtps, T>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader: RtpsStatefulReaderOperations,
+    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType:
+        RtpsWriterProxyConstructor,
+    T: Timer,
+{
+    fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+        let topic_name = &discovered_writer_data
+            .publication_builtin_topic_data
+            .topic_name;
+        let type_name = &discovered_writer_data
+            .publication_builtin_topic_data
+            .type_name;
+        let reader_topic_name = &self.topic.topic_name.clone();
+        let reader_type_name = self.topic.type_name;
+        if topic_name == reader_topic_name && type_name == reader_type_name {
+            let writer_proxy =
+                <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType::new(
+                    discovered_writer_data.writer_proxy.remote_writer_guid,
+                    discovered_writer_data
+                        .writer_proxy
+                        .unicast_locator_list
+                        .as_ref(),
+                    discovered_writer_data
+                        .writer_proxy
+                        .multicast_locator_list
+                        .as_ref(),
+                    discovered_writer_data.writer_proxy.data_max_size_serialized,
+                    discovered_writer_data.writer_proxy.remote_group_entity_id,
+                );
+            let mut rtps_reader = self.rtps_reader.write_lock();
+            match &mut *rtps_reader {
+                RtpsReader::Stateless(_) => (),
+                RtpsReader::Stateful(rtps_stateful_reader) => {
+                    rtps_stateful_reader.matched_writer_add(writer_proxy);
+                    let mut status = self.status.write_lock();
+                    status.total_count += 1;
+                    status.total_count_change += 1;
+                    status.current_count += 1;
+                    status.current_count_change += 1;
+
+                    self.listener
+                        .read_lock()
+                        .as_ref()
+                        .map(|l| l.trigger_on_subscription_matched(self.clone(), *status));
+
+                    status.total_count_change = 0;
+                    status.current_count_change = 0;
+                }
+            };
+        }
+    }
+}
+
 impl<Rtps, T> DataReaderAttributes<Rtps, T>
 where
     T: Timer + Send + Sync + 'static,
@@ -383,7 +524,7 @@ where
     Rtps: RtpsStructure,
     T: Timer,
 {
-    data_reader_impl: DdsWeak<DataReaderAttributes<Rtps, T>>,
+    data_reader_attributes: DdsWeak<DataReaderAttributes<Rtps, T>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -395,7 +536,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            data_reader_impl: self.data_reader_impl.clone(),
+            data_reader_attributes: self.data_reader_attributes.clone(),
             phantom: self.phantom.clone(),
         }
     }
@@ -406,9 +547,9 @@ where
     Rtps: RtpsStructure,
     T: Timer,
 {
-    pub fn new(data_reader_impl: DdsWeak<DataReaderAttributes<Rtps, T>>) -> Self {
+    pub fn new(data_reader_attributes: DdsWeak<DataReaderAttributes<Rtps, T>>) -> Self {
         Self {
-            data_reader_impl,
+            data_reader_attributes,
             phantom: PhantomData,
         }
     }
@@ -420,7 +561,7 @@ where
     T: Timer,
 {
     fn as_ref(&self) -> &DdsWeak<DataReaderAttributes<Rtps, T>> {
-        &self.data_reader_impl
+        &self.data_reader_attributes
     }
 }
 
@@ -461,7 +602,7 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
-        let data_reader_shared = self.data_reader_impl.upgrade()?;
+        let data_reader_shared = self.data_reader_attributes.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
         let samples = rtps_reader
@@ -497,7 +638,7 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
-        let data_reader_shared = self.data_reader_impl.upgrade()?;
+        let data_reader_shared = self.data_reader_attributes.upgrade()?;
         let mut rtps_reader = data_reader_shared.rtps_reader.write_lock();
 
         let (samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
@@ -735,7 +876,7 @@ where
         todo!()
     }
 
-    fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DdsResult<()> {
+    fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         todo!()
     }
 }

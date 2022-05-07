@@ -94,8 +94,8 @@ impl<Rtps> PublisherProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(publisher_impl: DdsWeak<PublisherAttributes<Rtps>>) -> Self {
-        Self(publisher_impl)
+    pub fn new(publisher_attributes: DdsWeak<PublisherAttributes<Rtps>>) -> Self {
+        Self(publisher_attributes)
     }
 }
 

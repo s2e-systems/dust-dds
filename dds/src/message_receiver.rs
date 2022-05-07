@@ -1,32 +1,22 @@
-use std::ops::DerefMut;
-
 use dds_implementation::{
-    dds_impl::{
-        data_reader_proxy::{DataReaderAttributes, RtpsReader},
-        data_writer_proxy::RtpsWriter,
-        publisher_proxy::PublisherAttributes,
-        subscriber_proxy::SubscriberAttributes,
+    dds_impl::{publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes},
+    utils::{
+        rtps_communication_traits::{
+            ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,
+        },
+        shared_object::DdsShared,
     },
-    utils::shared_object::DdsShared,
 };
 use rtps_pim::{
-    behavior::{
-        reader::reader::RtpsReaderAttributes,
-        stateful_writer_behavior::RtpsStatefulWriterReceiveAckNackSubmessage,
-        stateless_writer_behavior::RtpsStatelessWriterReceiveAckNackSubmessage,
-    },
     messages::{
         overall_structure::{RtpsMessage, RtpsSubmessageType},
         submessage_elements::Parameter,
         submessages::InfoTimestampSubmessage,
         types::{FragmentNumber, Time, TIME_INVALID},
     },
-    structure::{
-        history_cache::RtpsHistoryCacheAttributes,
-        types::{
-            GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
-            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-        },
+    structure::types::{
+        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
+        LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
 
@@ -95,71 +85,32 @@ impl MessageReceiver {
                 RtpsSubmessageType::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
                         for data_writer in publisher.data_writer_list.read_lock().iter() {
-                            match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
-                                RtpsWriter::Stateless(stateless_rtps_writer) => {
-                                    stateless_rtps_writer
-                                        .on_acknack_submessage_received(&acknack_submessage)
-                                }
-                                RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
-                                    .on_acknack_submessage_received(
-                                        &acknack_submessage,
-                                        self.source_guid_prefix,
-                                    ),
-                            }
+                            data_writer.on_acknack_submessage_received(
+                                acknack_submessage,
+                                self.source_guid_prefix,
+                            );
                         }
                     }
                 }
-                RtpsSubmessageType::Data(data) => {
+                RtpsSubmessageType::Data(data_submessage) => {
                     for subscriber in subscriber_list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                            let before_data_cache_len;
-                            let after_data_cache_len;
-                            let mut rtps_reader = data_reader.rtps_reader.write_lock();
-                            match rtps_reader.deref_mut() {
-                                RtpsReader::Stateless(stateless_rtps_reader) => {
-                                    before_data_cache_len =
-                                        stateless_rtps_reader.reader_cache().changes().len();
-
-                                    stateless_rtps_reader
-                                        .process_submessage(data, self.source_guid_prefix);
-
-                                    after_data_cache_len =
-                                        stateless_rtps_reader.reader_cache().changes().len();
-                                }
-                                RtpsReader::Stateful(stateful_rtps_reader) => {
-                                    before_data_cache_len =
-                                        stateful_rtps_reader.reader_cache().changes().len();
-
-                                    stateful_rtps_reader
-                                        .process_data_submessage(data, self.source_guid_prefix);
-
-                                    after_data_cache_len =
-                                        stateful_rtps_reader.reader_cache().changes().len();
-                                }
-                            }
-                            // Call the listener after dropping the rtps_reader lock to avoid deadlock
-                            drop(rtps_reader);
-                            if before_data_cache_len < after_data_cache_len {
-                                DataReaderAttributes::on_data_received(data_reader.clone())
-                                    .unwrap();
-                            }
+                            data_reader.on_data_submessage_received(
+                                data_submessage,
+                                self.source_guid_prefix,
+                            )
                         }
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
-                RtpsSubmessageType::Heartbeat(heartbeat) => {
+                RtpsSubmessageType::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
                         for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                            let mut rtps_reader = data_reader.rtps_reader.write_lock();
-                            if let RtpsReader::Stateful(stateful_rtps_reader) =
-                                rtps_reader.deref_mut()
-                            {
-                                stateful_rtps_reader.process_heartbeat_submessage(
-                                    heartbeat,
-                                    self.source_guid_prefix,
-                                );
-                            }
+                            data_reader.on_heartbeat_submessage_received(
+                                heartbeat_submessage,
+                                self.source_guid_prefix,
+                            )
                         }
                     }
                 }

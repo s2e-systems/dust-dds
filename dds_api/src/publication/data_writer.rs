@@ -261,10 +261,7 @@ pub trait DataWriter<Foo> {
     /// identify the corresponding matched DataReader entities. These handles match the ones that appear in the ‘instance_handle’
     /// field of the SampleInfo when reading the “DCPSSubscriptions” builtin topic.
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
-    fn get_matched_subscriptions(
-        &self,
-        _subscription_handles: &mut [InstanceHandle],
-    ) -> DdsResult<()>;
+    fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>>;
 }
 
 pub trait AnyDataWriter {}

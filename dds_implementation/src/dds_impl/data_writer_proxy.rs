@@ -1,8 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, marker::PhantomData};
 
 use crate::{
+    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     dds_type::{DdsSerialize, LittleEndian},
     utils::{
+        discovery_traits::AddMatchedReader,
+        rtps_communication_traits::ReceiveRtpsAckNackSubmessage,
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         submessage_producer::SubmessageProducer,
@@ -26,23 +29,29 @@ use dds_api::{
 };
 use rtps_pim::{
     behavior::{
-        stateful_writer_behavior::RtpsStatefulWriterSendSubmessages,
-        stateless_writer_behavior::RtpsStatelessWriterSendSubmessages,
+        stateful_writer_behavior::{
+            RtpsStatefulWriterReceiveAckNackSubmessage, RtpsStatefulWriterSendSubmessages,
+        },
+        stateless_writer_behavior::{
+            RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
+        },
         writer::{
-            reader_locator::RtpsReaderLocatorAttributes, reader_proxy::RtpsReaderProxyAttributes,
+            reader_locator::RtpsReaderLocatorAttributes,
+            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
+            stateful_writer::RtpsStatefulWriterOperations,
             writer::RtpsWriterOperations,
         },
     },
     messages::{
         overall_structure::RtpsSubmessageType,
         submessage_elements::{Parameter, TimestampSubmessageElement},
-        submessages::InfoTimestampSubmessage,
+        submessages::{AckNackSubmessage, InfoTimestampSubmessage},
         types::{FragmentNumber, TIME_INVALID},
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Locator, SequenceNumber},
+        types::{ChangeKind, GuidPrefix, Locator, SequenceNumber},
     },
 };
 
@@ -259,11 +268,83 @@ where
     }
 }
 
+impl<Rtps> ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
+    Rtps::StatefulWriter: RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
+{
+    fn on_acknack_submessage_received(
+        &self,
+        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        match &mut self.extended_rtps_writer.write_lock().rtps_writer {
+            RtpsWriter::Stateless(stateless_rtps_writer) => {
+                stateless_rtps_writer.on_acknack_submessage_received(&acknack_submessage)
+            }
+            RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
+                .on_acknack_submessage_received(&acknack_submessage, source_guid_prefix),
+        }
+    }
+}
+
+impl<Rtps> AddMatchedReader for DdsShared<DataWriterAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulWriter: RtpsStatefulWriterOperations,
+    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType:
+        RtpsReaderProxyConstructor,
+{
+    fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
+        let topic_name = &discovered_reader_data
+            .subscription_builtin_topic_data
+            .topic_name;
+        let type_name = &discovered_reader_data
+            .subscription_builtin_topic_data
+            .type_name;
+        let writer_topic_name = &self.topic.topic_name.clone();
+        let writer_type_name = self.topic.type_name;
+        if topic_name == writer_topic_name && type_name == writer_type_name {
+            let reader_proxy =
+                <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType::new(
+                    discovered_reader_data.reader_proxy.remote_reader_guid,
+                    discovered_reader_data.reader_proxy.remote_group_entity_id,
+                    discovered_reader_data
+                        .reader_proxy
+                        .unicast_locator_list
+                        .as_ref(),
+                    discovered_reader_data
+                        .reader_proxy
+                        .multicast_locator_list
+                        .as_ref(),
+                    discovered_reader_data.reader_proxy.expects_inline_qos,
+                    true, // ???
+                );
+            match &mut self.extended_rtps_writer.write_lock().rtps_writer {
+                RtpsWriter::Stateless(_) => (),
+                RtpsWriter::Stateful(rtps_stateful_writer) => {
+                    rtps_stateful_writer.matched_reader_add(reader_proxy);
+
+                    let mut status = self.status.write_lock();
+                    1;
+                    status.total_count += 1;
+
+                    self.listener
+                        .read_lock()
+                        .as_ref()
+                        .map(|l| l.on_publication_matched(*status));
+                }
+            };
+        }
+    }
+}
+
 pub struct DataWriterProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    data_writer_impl: DdsWeak<DataWriterAttributes<Rtps>>,
+    data_writer_attributes: DdsWeak<DataWriterAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -274,7 +355,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            data_writer_impl: self.data_writer_impl.clone(),
+            data_writer_attributes: self.data_writer_attributes.clone(),
             phantom: self.phantom.clone(),
         }
     }
@@ -284,9 +365,9 @@ impl<Foo, Rtps> DataWriterProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(data_writer_impl: DdsWeak<DataWriterAttributes<Rtps>>) -> Self {
+    pub fn new(data_writer_attributes: DdsWeak<DataWriterAttributes<Rtps>>) -> Self {
         Self {
-            data_writer_impl,
+            data_writer_attributes,
             phantom: PhantomData,
         }
     }
@@ -297,7 +378,7 @@ where
     Rtps: RtpsStructure,
 {
     fn as_ref(&self) -> &DdsWeak<DataWriterAttributes<Rtps>> {
-        &self.data_writer_impl
+        &self.data_writer_attributes
     }
 }
 
@@ -371,7 +452,7 @@ where
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
-        let data_writer_shared = self.data_writer_impl.upgrade()?;
+        let data_writer_shared = self.data_writer_attributes.upgrade()?;
         let mut extended_rtps_writer_lock = data_writer_shared.extended_rtps_writer.write_lock();
         let sequence_number;
         match &mut extended_rtps_writer_lock.rtps_writer {
@@ -441,7 +522,7 @@ where
     }
 
     fn get_publisher(&self) -> DdsResult<Self::Publisher> {
-        let publisher_impl = self.data_writer_impl.upgrade()?.publisher.clone();
+        let publisher_impl = self.data_writer_attributes.upgrade()?.publisher.clone();
         Ok(PublisherProxy::new(publisher_impl))
     }
 
@@ -457,10 +538,7 @@ where
         todo!()
     }
 
-    fn get_matched_subscriptions(
-        &self,
-        _subscription_handles: &mut [InstanceHandle],
-    ) -> DdsResult<()> {
+    fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         todo!()
     }
 }

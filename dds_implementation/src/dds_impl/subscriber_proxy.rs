@@ -43,7 +43,8 @@ use crate::{
     dds_type::{DdsDeserialize, DdsType},
     utils::{
         rtps_structure::RtpsStructure,
-        shared_object::{DdsRwLock, DdsShared, DdsWeak}, timer::ThreadTimer,
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        timer::ThreadTimer,
     },
 };
 
@@ -91,21 +92,16 @@ pub struct SubscriberProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    participant: DomainParticipantProxy<Rtps>,
-    subscriber_impl: DdsWeak<SubscriberAttributes<Rtps>>,
+    subscriber_attributes: DdsWeak<SubscriberAttributes<Rtps>>,
 }
 
 impl<Rtps> SubscriberProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(
-        participant: DomainParticipantProxy<Rtps>,
-        subscriber_impl: DdsWeak<SubscriberAttributes<Rtps>>,
-    ) -> Self {
+    pub fn new(subscriber_attributes: DdsWeak<SubscriberAttributes<Rtps>>) -> Self {
         Self {
-            participant,
-            subscriber_impl,
+            subscriber_attributes,
         }
     }
 }
@@ -115,7 +111,7 @@ where
     Rtps: RtpsStructure,
 {
     fn as_ref(&self) -> &DdsWeak<SubscriberAttributes<Rtps>> {
-        &self.subscriber_impl
+        &self.subscriber_attributes
     }
 }
 
@@ -134,7 +130,7 @@ where
         listener: Option<<Self::DataReaderType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DdsResult<Self::DataReaderType> {
-        let subscriber_shared = self.subscriber_impl.upgrade()?;
+        let subscriber_shared = self.subscriber_attributes.upgrade()?;
 
         let topic_shared = topic.as_ref().upgrade()?;
 
@@ -187,17 +183,18 @@ where
                 rtps_pim::behavior::types::DURATION_ZERO,
                 false,
             ));
-            let any_listener: Option<Box<dyn AnyDataReaderListener<Rtps, ThreadTimer> + Send + Sync>> =
-                match listener {
-                    Some(l) => Some(Box::new(l)),
-                    None => None,
-                };
+            let any_listener: Option<
+                Box<dyn AnyDataReaderListener<Rtps, ThreadTimer> + Send + Sync>,
+            > = match listener {
+                Some(l) => Some(Box::new(l)),
+                None => None,
+            };
             let data_reader = DataReaderAttributes::new(
                 qos,
                 rtps_reader,
                 topic_shared.clone(),
                 any_listener,
-                self.subscriber_impl.clone(),
+                self.subscriber_attributes.clone(),
             );
 
             let data_reader_shared = DdsShared::new(data_reader);
@@ -279,7 +276,7 @@ where
         &self,
         datareader: &Self::DataReaderType,
     ) -> DdsResult<()> {
-        let subscriber_shared = self.subscriber_impl.upgrade()?;
+        let subscriber_shared = self.subscriber_attributes.upgrade()?;
         let datareader_shared = datareader.as_ref().upgrade()?;
 
         let data_reader_list = &mut subscriber_shared.data_reader_list.write_lock();
@@ -298,7 +295,7 @@ where
         &self,
         topic: &Self::TopicType,
     ) -> DdsResult<Self::DataReaderType> {
-        let subscriber_shared = self.subscriber_impl.upgrade()?;
+        let subscriber_shared = self.subscriber_attributes.upgrade()?;
         let data_reader_list = &subscriber_shared.data_reader_list.write_lock();
 
         let topic_shared = topic.as_ref().upgrade()?;
@@ -373,7 +370,11 @@ where
     }
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.participant.clone())
+        let subscriber = self.subscriber_attributes.upgrade()?;
+
+        Ok(DomainParticipantProxy::new(
+            subscriber.parent_domain_participant.clone(),
+        ))
     }
 }
 
@@ -515,10 +516,7 @@ mod tests {
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
 
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -576,10 +574,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -645,10 +640,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let mut subscriber2_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -663,10 +655,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber2 = DdsShared::new(subscriber2_attributes);
-        let subscriber2_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber2.downgrade(),
-        );
+        let subscriber2_proxy = SubscriberProxy::new(subscriber2.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -724,10 +713,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -785,10 +771,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -858,10 +841,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -931,10 +911,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1004,10 +981,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1096,10 +1070,7 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(
-            DomainParticipantProxy::new(domain_participant.downgrade()),
-            subscriber.downgrade(),
-        );
+        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),

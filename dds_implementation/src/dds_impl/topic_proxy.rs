@@ -46,7 +46,7 @@ pub struct TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    topic_impl: DdsWeak<TopicAttributes<Rtps>>,
+    topic_attributes: DdsWeak<TopicAttributes<Rtps>>,
     phantom: PhantomData<Foo>,
 }
 
@@ -57,7 +57,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            topic_impl: self.topic_impl.clone(),
+            topic_attributes: self.topic_attributes.clone(),
             phantom: self.phantom.clone(),
         }
     }
@@ -67,9 +67,9 @@ impl<Foo, Rtps> TopicProxy<Foo, Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(topic_impl: DdsWeak<TopicAttributes<Rtps>>) -> Self {
+    pub fn new(topic_attributes: DdsWeak<TopicAttributes<Rtps>>) -> Self {
         Self {
-            topic_impl,
+            topic_attributes,
             phantom: PhantomData,
         }
     }
@@ -80,7 +80,7 @@ where
     Rtps: RtpsStructure,
 {
     fn as_ref(&self) -> &DdsWeak<TopicAttributes<Rtps>> {
-        &self.topic_impl
+        &self.topic_attributes
     }
 }
 
@@ -106,11 +106,11 @@ where
     }
 
     fn get_type_name(&self) -> DdsResult<&'static str> {
-        Ok(self.topic_impl.upgrade()?.type_name)
+        Ok(self.topic_attributes.upgrade()?.type_name)
     }
 
     fn get_name(&self) -> DdsResult<String> {
-        Ok(self.topic_impl.upgrade()?.topic_name.clone())
+        Ok(self.topic_attributes.upgrade()?.topic_name.clone())
     }
 }
 

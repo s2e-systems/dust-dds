@@ -1,10 +1,7 @@
-use std::{
-    ops::DerefMut,
-    sync::{
-        atomic::{self, AtomicBool},
-        mpsc::{Receiver, SyncSender},
-        Arc,
-    },
+use std::sync::{
+    atomic::{self, AtomicBool},
+    mpsc::{Receiver, SyncSender},
+    Arc,
 };
 
 use async_std::prelude::StreamExt;
@@ -26,26 +23,22 @@ use dds_implementation::{
         },
     },
     dds_impl::{
-        data_reader_proxy::RtpsReader,
-        data_writer_proxy::RtpsWriter,
         domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
         publisher_proxy::PublisherProxy,
         subscriber_proxy::SubscriberProxy,
     },
-    utils::shared_object::DdsShared,
-};
-use rtps_implementation::{
-    rtps_stateful_writer_impl::RtpsReaderProxyImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    utils::{
+        discovery_traits::{AddMatchedReader, AddMatchedWriter},
+        shared_object::DdsShared,
+    },
 };
 use rtps_pim::{
     behavior::{
         reader::{
-            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
+            stateful_reader::RtpsStatefulReaderAttributes, writer_proxy::RtpsWriterProxyAttributes,
         },
         writer::{
-            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
+            reader_proxy::RtpsReaderProxyAttributes, stateful_writer::RtpsStatefulWriterAttributes,
         },
     },
     discovery::{
@@ -131,7 +124,6 @@ pub fn task_spdp_discovery(
 ) -> DdsResult<()> {
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
     let builtin_subscriber = SubscriberProxy::new(
-        domain_participant_proxy.clone(),
         domain_participant
             .builtin_subscriber
             .read_lock()
@@ -321,7 +313,6 @@ pub fn task_sedp_writer_discovery(
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
     let builtin_subscriber = SubscriberProxy::new(
-        domain_participant_proxy.clone(),
         domain_participant
             .builtin_subscriber
             .read_lock()
@@ -344,44 +335,13 @@ pub fn task_sedp_writer_discovery(
     );
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
-        let topic_name = &sample.publication_builtin_topic_data.topic_name;
-        let type_name = &sample.publication_builtin_topic_data.type_name;
         for subscriber in domain_participant
             .user_defined_subscriber_list
             .read_lock()
             .iter()
         {
             for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                let reader_topic_name = &data_reader.topic.topic_name.clone();
-                let reader_type_name = data_reader.topic.type_name;
-                if topic_name == reader_topic_name && type_name == reader_type_name {
-                    let writer_proxy = RtpsWriterProxyImpl::new(
-                        sample.writer_proxy.remote_writer_guid,
-                        sample.writer_proxy.unicast_locator_list.as_ref(),
-                        sample.writer_proxy.multicast_locator_list.as_ref(),
-                        sample.writer_proxy.data_max_size_serialized,
-                        sample.writer_proxy.remote_group_entity_id,
-                    );
-                    let mut rtps_reader = data_reader.rtps_reader.write_lock();
-                    match rtps_reader.deref_mut() {
-                        RtpsReader::Stateless(_) => (),
-                        RtpsReader::Stateful(rtps_stateful_reader) => {
-                            rtps_stateful_reader.matched_writer_add(writer_proxy);
-                            let mut status = data_reader.status.write_lock();
-                            status.total_count += 1;
-                            status.total_count_change += 1;
-                            status.current_count += 1;
-                            status.current_count_change += 1;
-
-                            data_reader.listener.read_lock().as_ref().map(|l| {
-                                l.trigger_on_subscription_matched(data_reader.clone(), *status)
-                            });
-
-                            status.total_count_change = 0;
-                            status.current_count_change = 0;
-                        }
-                    };
-                }
+                data_reader.add_matched_writer(&sample)
             }
         }
     }
@@ -403,7 +363,6 @@ pub fn task_sedp_reader_discovery(
     let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
     let builtin_subscriber = SubscriberProxy::new(
-        domain_participant_proxy.clone(),
         domain_participant
             .builtin_subscriber
             .read_lock()
@@ -426,42 +385,13 @@ pub fn task_sedp_reader_discovery(
     );
 
     for (sample, _) in samples.unwrap_or(vec![]).iter() {
-        let topic_name = &sample.subscription_builtin_topic_data.topic_name;
-        let type_name = &sample.subscription_builtin_topic_data.type_name;
         for publisher in domain_participant
             .user_defined_publisher_list
             .read_lock()
             .iter()
         {
             for data_writer in publisher.data_writer_list.read_lock().iter() {
-                let writer_topic_name = &data_writer.topic.topic_name.clone();
-                let writer_type_name = data_writer.topic.type_name;
-                if topic_name == writer_topic_name && type_name == writer_type_name {
-                    let reader_proxy = RtpsReaderProxyImpl::new(
-                        sample.reader_proxy.remote_reader_guid,
-                        sample.reader_proxy.remote_group_entity_id,
-                        sample.reader_proxy.unicast_locator_list.as_ref(),
-                        sample.reader_proxy.multicast_locator_list.as_ref(),
-                        sample.reader_proxy.expects_inline_qos,
-                        true, // ???
-                    );
-                    match &mut data_writer.extended_rtps_writer.write_lock().rtps_writer {
-                        RtpsWriter::Stateless(_) => (),
-                        RtpsWriter::Stateful(rtps_stateful_writer) => {
-                            rtps_stateful_writer.matched_reader_add(reader_proxy);
-
-                            let mut status = data_writer.status.write_lock();
-                            1;
-                            status.total_count += 1;
-
-                            data_writer
-                                .listener
-                                .read_lock()
-                                .as_ref()
-                                .map(|l| l.on_publication_matched(*status));
-                        }
-                    };
-                }
+                data_writer.add_matched_reader(sample)
             }
         }
     }
@@ -669,7 +599,7 @@ mod tests {
             vec![],
         ));
         create_builtins(participant2.clone()).unwrap();
-        let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
+        let _participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
         // Get the SEDP endpoints
         let dcps_publication_topic = participant1_proxy
@@ -691,7 +621,6 @@ mod tests {
                 .downgrade(),
         );
         let participant1_subscriber = SubscriberProxy::new(
-            participant1_proxy.clone(),
             participant1
                 .builtin_subscriber
                 .read_lock()
@@ -728,7 +657,6 @@ mod tests {
                 .downgrade(),
         );
         let participant2_subscriber = SubscriberProxy::new(
-            participant2_proxy.clone(),
             participant2
                 .builtin_subscriber
                 .read_lock()

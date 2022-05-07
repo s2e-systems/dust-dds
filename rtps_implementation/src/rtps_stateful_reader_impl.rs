@@ -14,6 +14,7 @@ use rtps_pim::{
             BestEffortStatefulReaderReceiveDataBehavior, BestEffortWriterProxyReceiveGapBehavior,
             ReliableStatefulReaderReceiveDataBehavior, ReliableWriterProxyReceiveGapBehavior,
             ReliableWriterProxyReceiveHeartbeat, ReliableWriterProxySendAckNack,
+            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
         },
         types::Duration,
     },
@@ -40,44 +41,6 @@ pub struct RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
-    pub fn process_data_submessage(
-        &mut self,
-        data_submessage: &DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
-
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == writer_guid)
-        {
-            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
-                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
-                || writer_proxy
-                    .missing_changes()
-                    .contains(&data_submessage.writer_sn.value)
-            {
-                match self.reliability_level() {
-                    ReliabilityKind::BestEffort => {
-                        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
-                            self,
-                            source_guid_prefix,
-                            data_submessage,
-                        )
-                    }
-                    ReliabilityKind::Reliable => {
-                        ReliableStatefulReaderReceiveDataBehavior::receive_data(
-                            self,
-                            source_guid_prefix,
-                            data_submessage,
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     pub fn process_gap_submessage(
         &mut self,
         gap_submessage: &GapSubmessage<Vec<SequenceNumber>>,
@@ -99,35 +62,6 @@ impl RtpsStatefulReaderImpl {
                 }
                 ReliabilityKind::Reliable => {
                     ReliableWriterProxyReceiveGapBehavior::receive_gap(writer_proxy, gap_submessage)
-                }
-            }
-        }
-    }
-
-    pub fn process_heartbeat_submessage(
-        &mut self,
-        heartbeat_submessage: &HeartbeatSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if self.reliability_level() == ReliabilityKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
-
-            if let Some(writer_proxy) = self
-                .matched_writers
-                .iter_mut()
-                .find(|x| x.remote_writer_guid() == writer_guid)
-            {
-                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
-                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
-
-                    writer_proxy.must_send_acknacks = !heartbeat_submessage.final_flag
-                        || (!heartbeat_submessage.liveliness_flag
-                            && !writer_proxy.missing_changes().is_empty());
-
-                    ReliableWriterProxyReceiveHeartbeat::receive_heartbeat(
-                        writer_proxy,
-                        heartbeat_submessage,
-                    );
                 }
             }
         }
@@ -271,6 +205,79 @@ impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
     }
 }
 
+impl RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>
+    for RtpsStatefulReaderImpl
+{
+    fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
+
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == writer_guid)
+        {
+            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
+                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
+                || writer_proxy
+                    .missing_changes()
+                    .contains(&data_submessage.writer_sn.value)
+            {
+                match self.reliability_level() {
+                    ReliabilityKind::BestEffort => {
+                        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
+                            self,
+                            source_guid_prefix,
+                            data_submessage,
+                        )
+                    }
+                    ReliabilityKind::Reliable => {
+                        ReliableStatefulReaderReceiveDataBehavior::receive_data(
+                            self,
+                            source_guid_prefix,
+                            data_submessage,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl RtpsStatefulReaderReceiveHeartbeatSubmessage for RtpsStatefulReaderImpl {
+    fn on_heartbeat_submessage_received(
+        &mut self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.reliability_level() == ReliabilityKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
+                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
+
+                    writer_proxy.must_send_acknacks = !heartbeat_submessage.final_flag
+                        || (!heartbeat_submessage.liveliness_flag
+                            && !writer_proxy.missing_changes().is_empty());
+
+                    ReliableWriterProxyReceiveHeartbeat::receive_heartbeat(
+                        writer_proxy,
+                        heartbeat_submessage,
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rtps_pim::{
@@ -338,7 +345,7 @@ mod tests {
             },
         };
 
-        reader.process_data_submessage(&data, source_guid.prefix);
+        reader.on_data_submessage_received(&data, source_guid.prefix);
 
         assert_eq!(1, reader.reader.reader_cache().changes().len());
         let change = &reader.reader.reader_cache().changes()[0];
@@ -395,10 +402,10 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: data },
         };
 
-        reader.process_data_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
 
         assert_eq!(4, reader.reader_cache().changes().len());
     }
@@ -451,10 +458,10 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: data },
         };
 
-        reader.process_data_submessage(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(2, &[2, 8, 4, 5]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(0, &[2, 7, 1, 8]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(3, &[9, 0, 4, 5]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(1, &[2, 8, 1, 8]), writer_guid.prefix);
 
         assert_eq!(2, reader.reader_cache().changes().len());
     }
@@ -526,23 +533,23 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
         assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
 
-        reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 2, Count(3)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 2, Count(3)), writer_guid.prefix);
         assert_eq!(vec![2], reader.matched_writers[0].missing_changes());
 
-        reader.process_data_submessage(&make_data(4, &[]), writer_guid.prefix);
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 5, Count(4)), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(4, &[]), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 5, Count(4)), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(2, 5, Count(5)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(2, 5, Count(5)), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
     }
 
@@ -613,10 +620,10 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
         assert!(reader.produce_acknack_submessages().is_empty());
 
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
         let missing_changes = reader.matched_writers[0].missing_changes();
         let submessages = reader.produce_acknack_submessages();
         assert_eq!(1, submessages.len());
@@ -628,12 +635,12 @@ mod tests {
         assert!(reader.produce_acknack_submessages().is_empty());
 
         // resend when new heartbeat
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 1, Count(3)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(3)), writer_guid.prefix);
         assert_eq!(1, reader.produce_acknack_submessages().len());
 
         // doesn't send if message received in the meantime
-        reader.process_heartbeat_submessage(&make_heartbeat(1, 1, Count(4)), writer_guid.prefix);
-        reader.process_data_submessage(&make_data(1, &[]), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(4)), writer_guid.prefix);
+        reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.produce_acknack_submessages().is_empty());
     }
 }

@@ -4,7 +4,9 @@ use rtps_pim::{
             reader::RtpsReaderAttributes,
             stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor},
         },
-        stateless_reader_behavior::BestEffortStatelessReaderReceiveDataBehavior,
+        stateless_reader_behavior::{
+            BestEffortStatelessReaderReceiveDataBehavior, RtpsStatelessReaderReceiveDataSubmessage,
+        },
         types::Duration,
     },
     messages::{submessage_elements::Parameter, submessages::DataSubmessage},
@@ -20,24 +22,6 @@ use crate::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl};
 
 pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
-
-impl RtpsStatelessReaderImpl {
-    pub fn process_submessage(
-        &mut self,
-        data: &DataSubmessage<Vec<Parameter>, &[u8]>,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        if data.reader_id.value == ENTITYID_UNKNOWN
-            || data.reader_id.value == self.guid().entity_id()
-        {
-            BestEffortStatelessReaderReceiveDataBehavior::receive_data(
-                self,
-                source_guid_prefix,
-                data,
-            )
-        }
-    }
-}
 
 impl RtpsEntityAttributes for RtpsStatelessReaderImpl {
     fn guid(&self) -> Guid {
@@ -115,6 +99,26 @@ impl RtpsStatelessReaderConstructor for RtpsStatelessReaderImpl {
     }
 }
 
+impl RtpsStatelessReaderReceiveDataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>
+    for RtpsStatelessReaderImpl
+{
+    fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if data_submessage.reader_id.value == ENTITYID_UNKNOWN
+            || data_submessage.reader_id.value == self.guid().entity_id()
+        {
+            BestEffortStatelessReaderReceiveDataBehavior::receive_data(
+                self,
+                source_guid_prefix,
+                data_submessage,
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rtps_pim::{
@@ -133,7 +137,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn process_submessage_test() {
+    fn on_data_submessage_received_test() {
         let mut reader = RtpsStatelessReaderImpl::new(
             Guid::new(
                 GuidPrefix([3; 12]),
@@ -169,7 +173,7 @@ mod tests {
 
         let source_guid_prefix = GuidPrefix([6; 12]);
 
-        reader.process_submessage(&data, source_guid_prefix);
+        reader.on_data_submessage_received(&data, source_guid_prefix);
 
         assert_eq!(1, reader.0.reader_cache().changes().len());
         let change = &reader.0.reader_cache().changes()[0];
@@ -236,10 +240,10 @@ mod tests {
             serialized_payload: SerializedDataSubmessageElement { value: data },
         };
 
-        reader.process_submessage(&make_data(2, &[2, 8, 4, 5]), source_guid.prefix);
-        reader.process_submessage(&make_data(0, &[2, 7, 1, 8]), source_guid.prefix);
-        reader.process_submessage(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
-        reader.process_submessage(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
+        reader.on_data_submessage_received(&make_data(2, &[2, 8, 4, 5]), source_guid.prefix);
+        reader.on_data_submessage_received(&make_data(0, &[2, 7, 1, 8]), source_guid.prefix);
+        reader.on_data_submessage_received(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
+        reader.on_data_submessage_received(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
 
         assert_eq!(4, reader.0.reader_cache().changes().len());
     }

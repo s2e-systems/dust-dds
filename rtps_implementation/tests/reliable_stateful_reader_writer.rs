@@ -19,6 +19,9 @@ use rtps_pim::{
                 RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
             },
         },
+        stateful_reader_behavior::{
+            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+        },
         stateful_writer_behavior::{
             ReliableReaderProxyReceiveAcknackBehavior, RtpsStatefulWriterSendSubmessages,
         },
@@ -201,7 +204,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(0, heartbeat.last_sn.value);
             assert_eq!(Count(1), heartbeat.count.value);
 
-            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
+            stateful_reader.on_heartbeat_submessage_received(&heartbeat, writer_guid.prefix);
 
             assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()
@@ -238,7 +241,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         assert_eq!(2, destined_submessages.data.len()); // 2 and 4
 
         for data_submessage in destined_submessages.data {
-            stateful_reader.process_data_submessage(&data_submessage, writer_guid.prefix)
+            stateful_reader.on_data_submessage_received(&data_submessage, writer_guid.prefix)
         }
         assert_eq!(2, stateful_reader.reader_cache().changes().len()); // has received 2 and 4
         assert_eq!(
@@ -263,7 +266,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(5, heartbeat.last_sn.value);
             assert_eq!(Count(2), heartbeat.count.value);
 
-            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
+            stateful_reader.on_heartbeat_submessage_received(&heartbeat, writer_guid.prefix);
             assert_eq!(
                 vec![1, 3, 5],
                 stateful_reader.matched_writers()[0].missing_changes()
@@ -299,7 +302,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
         assert_eq!(3, requested_changes.data.len());
 
         for data_submessage in requested_changes.data {
-            stateful_reader.process_data_submessage(&data_submessage, writer_guid.prefix)
+            stateful_reader.on_data_submessage_received(&data_submessage, writer_guid.prefix)
         }
 
         assert_eq!(5, stateful_reader.reader_cache().changes().len());
@@ -331,7 +334,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert_eq!(5, heartbeat.last_sn.value);
             assert_eq!(Count(3), heartbeat.count.value);
 
-            stateful_reader.process_heartbeat_submessage(&heartbeat, writer_guid.prefix);
+            stateful_reader.on_heartbeat_submessage_received(&heartbeat, writer_guid.prefix);
 
             assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()

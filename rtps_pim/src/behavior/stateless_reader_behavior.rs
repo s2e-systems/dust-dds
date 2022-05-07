@@ -7,6 +7,14 @@ use super::{
     reader::reader::RtpsReaderAttributes, stateful_reader_behavior::FromDataSubmessageAndGuidPrefix,
 };
 
+pub trait RtpsStatelessReaderReceiveDataSubmessage<P, D> {
+    fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<P, D>,
+        source_guid_prefix: GuidPrefix,
+    );
+}
+
 pub trait BestEffortStatelessReaderReceiveDataBehavior<P, D> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>);
 }

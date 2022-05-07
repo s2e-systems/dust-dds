@@ -129,7 +129,7 @@ pub struct DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    domain_participant_attributes: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> Clone for DomainParticipantProxy<Rtps>
@@ -138,7 +138,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
-            domain_participant: self.domain_participant.clone(),
+            domain_participant_attributes: self.domain_participant_attributes.clone(),
         }
     }
 }
@@ -147,8 +147,10 @@ impl<Rtps> DomainParticipantProxy<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
-        Self { domain_participant }
+    pub fn new(domain_participant_attributes: DdsWeak<DomainParticipantAttributes<Rtps>>) -> Self {
+        Self {
+            domain_participant_attributes,
+        }
     }
 }
 
@@ -166,7 +168,7 @@ where
         _a_listener: Option<<Self::TopicType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DdsResult<Self::TopicType> {
-        let participant_shared = self.domain_participant.upgrade()?;
+        let participant_shared = self.domain_participant_attributes.upgrade()?;
 
         let qos = qos.unwrap_or(participant_shared.default_topic_qos.clone());
 
@@ -230,7 +232,7 @@ where
     }
 
     fn topic_factory_delete_topic(&self, topic: &Self::TopicType) -> DdsResult<()> {
-        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_shared = self.domain_participant_attributes.upgrade()?;
         let topic_shared = topic.as_ref().upgrade()?;
 
         let topic_list = &mut domain_participant_shared.topic_list.write_lock();
@@ -250,7 +252,7 @@ where
         topic_name: &str,
         _timeout: Duration,
     ) -> DdsResult<Self::TopicType> {
-        self.domain_participant
+        self.domain_participant_attributes
             .upgrade()?
             .topic_list
             .read_lock()
@@ -269,7 +271,7 @@ where
         &self,
         topic_name: &str,
     ) -> DdsResult<Self::TopicType> {
-        self.domain_participant
+        self.domain_participant_attributes
             .upgrade()?
             .topic_list
             .read_lock()
@@ -298,7 +300,7 @@ where
         _a_listener: Option<<Self::PublisherType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DdsResult<Self::PublisherType> {
-        let domain_participant_attributes = self.domain_participant.upgrade()?;
+        let domain_participant_attributes = self.domain_participant_attributes.upgrade()?;
         let publisher_qos =
             qos.unwrap_or(domain_participant_attributes.default_publisher_qos.clone());
         let publisher_counter = domain_participant_attributes
@@ -318,8 +320,11 @@ where
         // let sedp_builtin_publications_announcer =
         //     rtps_shared_read_lock(&domain_participant_attributes_lock.builtin_publisher)
         //         .lookup_datawriter::<DiscoveredWriterData>(&sedp_builtin_publications_topic);
-        let publisher_impl =
-            PublisherAttributes::new(publisher_qos, rtps_group, self.domain_participant.clone());
+        let publisher_impl = PublisherAttributes::new(
+            publisher_qos,
+            rtps_group,
+            self.domain_participant_attributes.clone(),
+        );
         let publisher_impl_shared = DdsShared::new(publisher_impl);
         domain_participant_attributes
             .user_defined_publisher_list
@@ -332,7 +337,7 @@ where
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DdsResult<()> {
-        let domain_participant_attributes = self.domain_participant.upgrade()?;
+        let domain_participant_attributes = self.domain_participant_attributes.upgrade()?;
         let publisher_shared = a_publisher.0.upgrade()?;
         if std::ptr::eq(&a_publisher.get_participant()?, self) {
             // rtps_shared_read_lock(&domain_participant_lock).delete_publisher(&publisher_shared)
@@ -354,7 +359,7 @@ where
         _a_listener: Option<<Self::SubscriberType as Entity>::Listener>,
         _mask: StatusMask,
     ) -> DdsResult<Self::SubscriberType> {
-        let domain_participant_attributes = self.domain_participant.upgrade()?;
+        let domain_participant_attributes = self.domain_participant_attributes.upgrade()?;
         let subscriber_qos =
             qos.unwrap_or(domain_participant_attributes.default_subscriber_qos.clone());
         let subcriber_counter = domain_participant_attributes
@@ -369,8 +374,11 @@ where
             entity_id,
         );
         let rtps_group = Rtps::Group::new(guid);
-        let subscriber =
-            SubscriberAttributes::new(subscriber_qos, rtps_group, self.domain_participant.clone());
+        let subscriber = SubscriberAttributes::new(
+            subscriber_qos,
+            rtps_group,
+            self.domain_participant_attributes.clone(),
+        );
         let subscriber_shared = DdsShared::new(subscriber);
         domain_participant_attributes
             .user_defined_subscriber_list
@@ -378,11 +386,11 @@ where
             .push(subscriber_shared.clone());
 
         let subscriber_weak = subscriber_shared.downgrade();
-        Ok(SubscriberProxy::new(self.clone(), subscriber_weak))
+        Ok(SubscriberProxy::new(subscriber_weak))
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DdsResult<()> {
-        let domain_participant_attributes = self.domain_participant.upgrade()?;
+        let domain_participant_attributes = self.domain_participant_attributes.upgrade()?;
         let subscriber_shared = a_subscriber.as_ref().upgrade()?;
         if std::ptr::eq(&a_subscriber.get_participant()?, self) {
             domain_participant_attributes
@@ -398,14 +406,14 @@ where
     }
 
     fn get_builtin_subscriber(&self) -> DdsResult<Self::SubscriberType> {
-        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_shared = self.domain_participant_attributes.upgrade()?;
         let subscriber = domain_participant_shared
             .builtin_subscriber
             .read_lock()
             .as_ref()
             .unwrap()
             .clone();
-        Ok(SubscriberProxy::new(self.clone(), subscriber.downgrade()))
+        Ok(SubscriberProxy::new(subscriber.downgrade()))
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
@@ -499,10 +507,7 @@ where
         todo!()
     }
 
-    fn get_discovered_participants(
-        &self,
-        _participant_handles: &mut [InstanceHandle],
-    ) -> DdsResult<()> {
+    fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         // let domain_participant_shared = rtps_weak_upgrade(&self.domain_participant)?;
         // let domain_participant_lock = rtps_shared_read_lock(&domain_participant_shared);
         // domain_participant_lock.get_discovered_participants(participant_handles)
@@ -612,7 +617,7 @@ where
     }
 
     fn enable(&self) -> DdsResult<()> {
-        let domain_participant_shared = self.domain_participant.upgrade()?;
+        let domain_participant_shared = self.domain_participant_attributes.upgrade()?;
         *domain_participant_shared.enabled.write_lock() = true;
         Ok(())
     }

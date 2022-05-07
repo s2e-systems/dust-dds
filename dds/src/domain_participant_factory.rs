@@ -957,7 +957,6 @@ mod tests {
             .unwrap();
 
         let builtin_subscriber = SubscriberProxy::new(
-            participant_proxy,
             domain_participant
                 .builtin_subscriber
                 .read_lock()
@@ -1073,7 +1072,6 @@ mod tests {
             let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
             let subscriber = SubscriberProxy::new(
-                participant2_proxy.clone(),
                 participant2
                     .builtin_subscriber
                     .read_lock()
@@ -1314,7 +1312,6 @@ mod tests {
             .unwrap();
 
         let participant2_subscriber = SubscriberProxy::new(
-            participant2_proxy,
             participant2
                 .builtin_subscriber
                 .read_lock()

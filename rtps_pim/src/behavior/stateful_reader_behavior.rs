@@ -23,6 +23,22 @@ pub trait FromDataSubmessageAndGuidPrefix<P, D> {
     fn from(source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self;
 }
 
+pub trait RtpsStatefulReaderReceiveDataSubmessage<P, D> {
+    fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<P, D>,
+        source_guid_prefix: GuidPrefix,
+    );
+}
+
+pub trait RtpsStatefulReaderReceiveHeartbeatSubmessage {
+    fn on_heartbeat_submessage_received(
+        &mut self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    );
+}
+
 pub trait BestEffortStatefulReaderReceiveDataBehavior<P, D> {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>);
 }
