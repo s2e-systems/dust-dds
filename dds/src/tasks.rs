@@ -23,8 +23,8 @@ use dds_implementation::{
         },
     },
     dds_impl::{
-        domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-        publisher_proxy::PublisherProxy,
+        domain_participant_attributes::DomainParticipantAttributes,
+        domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
         subscriber_proxy::SubscriberProxy,
     },
     utils::{
@@ -476,8 +476,8 @@ mod tests {
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
         dds_impl::{
-            domain_participant_proxy::{DomainParticipantAttributes, DomainParticipantProxy},
-            publisher_proxy::PublisherProxy,
+            domain_participant_attributes::DomainParticipantAttributes,
+            domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
             subscriber_proxy::SubscriberProxy,
         },
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},

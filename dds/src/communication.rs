@@ -2,8 +2,8 @@ use std::ops::DerefMut;
 
 use dds_implementation::{
     dds_impl::{
-        data_reader_proxy::RtpsReader, publisher_proxy::PublisherAttributes,
-        subscriber_proxy::SubscriberAttributes,
+        data_reader_attributes::RtpsReader, publisher_attributes::PublisherAttributes,
+        subscriber_attributes::SubscriberAttributes,
     },
     utils::{shared_object::DdsShared, submessage_producer::SubmessageProducer},
 };

@@ -1,5 +1,7 @@
 use dds_implementation::{
-    dds_impl::{publisher_proxy::PublisherAttributes, subscriber_proxy::SubscriberAttributes},
+    dds_impl::{
+        publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
+    },
     utils::{
         rtps_communication_traits::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,
