@@ -330,8 +330,8 @@ where
                     status.total_count += 1;
 
                     self.listener
-                        .read_lock()
-                        .as_ref()
+                        .write_lock()
+                        .as_mut()
                         .map(|l| l.on_publication_matched(*status));
                 }
             };

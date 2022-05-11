@@ -68,34 +68,34 @@ pub trait AnyDataReaderListener<Rtps, T>
 where
     Rtps: RtpsStructure,
 {
-    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps, T>>);
+    fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<Rtps, T>>);
     fn trigger_on_sample_rejected(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleLostStatus,
     );
@@ -108,14 +108,14 @@ where
     Rtps: RtpsStructure,
     T: Timer,
 {
-    fn trigger_on_data_available(&self, reader: DdsShared<DataReaderAttributes<Rtps, T>>) {
+    fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<Rtps, T>>) {
         *reader.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
         let data_reader = DataReaderProxy::new(reader.downgrade());
         self.on_data_available(&data_reader)
     }
 
     fn trigger_on_sample_rejected(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleRejectedStatus,
     ) {
@@ -125,7 +125,7 @@ where
     }
 
     fn trigger_on_liveliness_changed(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: LivelinessChangedStatus,
     ) {
@@ -135,7 +135,7 @@ where
     }
 
     fn trigger_on_requested_deadline_missed(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedDeadlineMissedStatus,
     ) {
@@ -145,7 +145,7 @@ where
     }
 
     fn trigger_on_requested_incompatible_qos(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: RequestedIncompatibleQosStatus,
     ) {
@@ -155,7 +155,7 @@ where
     }
 
     fn trigger_on_subscription_matched(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SubscriptionMatchedStatus,
     ) {
@@ -165,7 +165,7 @@ where
     }
 
     fn trigger_on_sample_lost(
-        &self,
+        &mut self,
         reader: DdsShared<DataReaderAttributes<Rtps, T>>,
         status: SampleLostStatus,
     ) {
@@ -439,8 +439,8 @@ where
                     status.current_count_change += 1;
 
                     self.listener
-                        .read_lock()
-                        .as_ref()
+                        .write_lock()
+                        .as_mut()
                         .map(|l| l.trigger_on_subscription_matched(self.clone(), *status));
 
                     status.total_count_change = 0;
@@ -500,7 +500,7 @@ where
                 .total_count_change += 1;
 
             *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
-            reader_shared.listener.read_lock().as_ref().map(|l| {
+            reader_shared.listener.write_lock().as_mut().map(|l| {
                 l.trigger_on_requested_deadline_missed(
                     reader_shared.clone(),
                     reader_shared
@@ -514,8 +514,8 @@ where
         *reader.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
         reader
             .listener
-            .read_lock()
-            .as_ref()
+            .write_lock()
+            .as_mut()
             .map(|l| l.trigger_on_data_available(reader.clone()));
 
         Ok(())
@@ -1092,33 +1092,33 @@ mod tests {
         impl DataReaderListener for Listener {
             type Foo = UserData;
 
-            fn on_data_available(&self, _the_reader: &dyn DataReader<UserData>);
+            fn on_data_available(&mut self, _the_reader: &dyn DataReader<UserData>);
             fn on_sample_rejected(
-                &self,
+                &mut self,
                 _the_reader: &dyn DataReader<UserData>,
                 _status: SampleRejectedStatus,
             );
             fn on_liveliness_changed(
-                &self,
+                &mut self,
                 _the_reader: &dyn DataReader<UserData>,
                 _status: LivelinessChangedStatus,
             );
             fn on_requested_deadline_missed(
-                &self,
+                &mut self,
                 _the_reader: &dyn DataReader<UserData>,
                 _status: RequestedDeadlineMissedStatus,
             );
             fn on_requested_incompatible_qos(
-                &self,
+                &mut self,
                 _the_reader: &dyn DataReader<UserData>,
                 _status: RequestedIncompatibleQosStatus,
             );
             fn on_subscription_matched(
-                &self,
+                &mut self,
                 _the_reader: &dyn DataReader<UserData>,
                 _status: SubscriptionMatchedStatus,
             );
-            fn on_sample_lost(&self, _the_reader: &dyn DataReader<UserData>, _status: SampleLostStatus);
+            fn on_sample_lost(&mut self, _the_reader: &dyn DataReader<UserData>, _status: SampleLostStatus);
         }
     }
 

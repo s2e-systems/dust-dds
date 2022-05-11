@@ -8,36 +8,36 @@ use super::data_reader::DataReader;
 pub trait DataReaderListener {
     type Foo;
 
-    fn on_data_available(&self, _the_reader: &dyn DataReader<Self::Foo>) {}
+    fn on_data_available(&mut self, _the_reader: &dyn DataReader<Self::Foo>) {}
     fn on_sample_rejected(
-        &self,
+        &mut self,
         _the_reader: &dyn DataReader<Self::Foo>,
         _status: SampleRejectedStatus,
     ) {
     }
     fn on_liveliness_changed(
-        &self,
+        &mut self,
         _the_reader: &dyn DataReader<Self::Foo>,
         _status: LivelinessChangedStatus,
     ) {
     }
     fn on_requested_deadline_missed(
-        &self,
+        &mut self,
         _the_reader: &dyn DataReader<Self::Foo>,
         _status: RequestedDeadlineMissedStatus,
     ) {
     }
     fn on_requested_incompatible_qos(
-        &self,
+        &mut self,
         _the_reader: &dyn DataReader<Self::Foo>,
         _status: RequestedIncompatibleQosStatus,
     ) {
     }
     fn on_subscription_matched(
-        &self,
+        &mut self,
         _the_reader: &dyn DataReader<Self::Foo>,
         _status: SubscriptionMatchedStatus,
     ) {
     }
-    fn on_sample_lost(&self, _the_reader: &dyn DataReader<Self::Foo>, _status: SampleLostStatus) {}
+    fn on_sample_lost(&mut self, _the_reader: &dyn DataReader<Self::Foo>, _status: SampleLostStatus) {}
 }

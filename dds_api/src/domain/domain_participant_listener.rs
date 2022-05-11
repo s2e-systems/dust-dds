@@ -16,54 +16,54 @@ use crate::{
 /// DCPS Service will notify the Listener attached to the DomainParticipant.
 pub trait DomainParticipantListener {
     fn on_inconsistent_topic(
-        &self,
+        &mut self,
         _the_topic: &dyn AnyTopicDescription,
         _status: InconsistentTopicStatus,
     ) {
     }
-    fn on_data_on_readers(&self) {}
-    fn on_data_available(&self, _the_reader: &dyn AnyDataReader) {}
-    fn on_sample_rejected(&self, _the_reader: &dyn AnyDataReader, _status: SampleRejectedStatus) {}
+    fn on_data_on_readers(&mut self) {}
+    fn on_data_available(&mut self, _the_reader: &dyn AnyDataReader) {}
+    fn on_sample_rejected(&mut self, _the_reader: &dyn AnyDataReader, _status: SampleRejectedStatus) {}
     fn on_liveliness_changed(
-        &self,
+        &mut self,
         _the_reader: &dyn AnyDataReader,
         _status: LivelinessChangedStatus,
     ) {
     }
     fn on_requested_deadline_missed(
-        &self,
+        &mut self,
         _the_reader: &dyn AnyDataReader,
         _status: RequestedDeadlineMissedStatus,
     ) {
     }
     fn on_requested_incompatible_qos(
-        &self,
+        &mut self,
         _the_reader: &dyn AnyDataReader,
         _status: RequestedIncompatibleQosStatus,
     ) {
     }
     fn on_subscription_matched(
-        &self,
+        &mut self,
         _the_reader: &dyn AnyDataReader,
         _status: SubscriptionMatchedStatus,
     ) {
     }
-    fn on_sample_lost(&self, _the_reader: &dyn AnyDataReader, _status: SampleLostStatus) {}
-    fn on_liveliness_lost(&self, _the_writer: &dyn AnyDataWriter, _status: LivelinessLostStatus) {}
+    fn on_sample_lost(&mut self, _the_reader: &dyn AnyDataReader, _status: SampleLostStatus) {}
+    fn on_liveliness_lost(&mut self, _the_writer: &dyn AnyDataWriter, _status: LivelinessLostStatus) {}
     fn on_offered_deadline_missed(
-        &self,
+        &mut self,
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     ) {
     }
     fn on_offered_incompatible_qos(
-        &self,
+        &mut self,
         _the_writer: &dyn AnyDataWriter,
         _status: OfferedIncompatibleQosStatus,
     ) {
     }
     fn on_publication_matched(
-        &self,
+        &mut self,
         _the_writer: &dyn AnyDataWriter,
         _status: PublicationMatchedStatus,
     ) {

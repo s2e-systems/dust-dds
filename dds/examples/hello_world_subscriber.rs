@@ -35,7 +35,7 @@ struct ExampleListener;
 impl DataReaderListener for ExampleListener {
     type Foo = HelloWorldType;
 
-    fn on_data_available(&self, the_reader: &dyn DataReader<Self::Foo>) {
+    fn on_data_available(&mut self, the_reader: &dyn DataReader<Self::Foo>) {
         let sample = the_reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();

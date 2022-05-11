@@ -1382,8 +1382,8 @@ mod tests {
 
         impl DataReaderListener for ReaderListener {
             type Foo = UserData;
-            fn on_subscription_matched(&self, the_reader: &dyn DataReader<UserData>, status: SubscriptionMatchedStatus);
-            fn on_data_available(&self, the_reader: &dyn DataReader<UserData>);
+            fn on_subscription_matched(&mut self, the_reader: &dyn DataReader<UserData>, status: SubscriptionMatchedStatus);
+            fn on_data_available(&mut self, the_reader: &dyn DataReader<UserData>);
         }
     }
 
@@ -1392,7 +1392,7 @@ mod tests {
         WriterListener {}
 
         impl DataWriterListener for WriterListener {
-            fn on_publication_matched(&self, status: PublicationMatchedStatus);
+            fn on_publication_matched(&mut self, status: PublicationMatchedStatus);
         }
     }
 
