@@ -7,7 +7,6 @@ use dds::{
     DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
-use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -53,48 +52,6 @@ fn user_defined_write_read_auto_enable() {
         .create_participant(domain_id, None, None, 0)
         .unwrap();
 
-    // Wait for the participants to discover each other
-    while participant1
-        .get_builtin_subscriber()
-        .unwrap()
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .data_reader_list
-        .read_lock()
-        .iter()
-        .filter_map(|r| {
-            r.rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .ok()
-                .map(|sr| sr.matched_writers().len())
-        })
-        .next()
-        .unwrap()
-        + participant2
-            .get_builtin_subscriber()
-            .unwrap()
-            .as_ref()
-            .upgrade()
-            .unwrap()
-            .data_reader_list
-            .read_lock()
-            .iter()
-            .filter_map(|r| {
-                r.rtps_reader
-                    .write_lock()
-                    .try_as_stateful_reader()
-                    .ok()
-                    .map(|sr| sr.matched_writers().len())
-            })
-            .next()
-            .unwrap()
-        < 4
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-
     let topic = participant1
         .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
@@ -107,16 +64,10 @@ fn user_defined_write_read_auto_enable() {
 
     //Wait for reader to be aware of the user writer
     while reader
-        .as_ref()
-        .upgrade()
+        .get_subscription_matched_status()
         .unwrap()
-        .rtps_reader
-        .write_lock()
-        .try_as_stateful_reader()
-        .unwrap()
-        .matched_writers()
-        .len()
-        == 0
+        .total_count
+        < 1
     {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }

@@ -450,10 +450,7 @@ pub trait DataReader<Foo> {
 
     /// This operation allows access to the SUBSCRIPTION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1.
-    fn get_subscription_matched_status(
-        &self,
-        status: &mut SubscriptionMatchedStatus,
-    ) -> DdsResult<()>;
+    fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus>;
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.

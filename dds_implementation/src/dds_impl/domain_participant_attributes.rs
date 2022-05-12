@@ -200,6 +200,37 @@ where
                 "Topic can only be deleted from its parent publisher".to_string(),
             ),
         )?;
+
+        for publisher in self
+            .builtin_publisher
+            .read_lock()
+            .iter()
+            .chain(self.user_defined_publisher_list.read_lock().iter())
+        {
+            for writer in publisher.data_writer_list.read_lock().iter() {
+                if DdsShared::ptr_eq(&writer.topic, a_topic) {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader or data writer".to_string(),
+                    ));
+                }
+            }
+        }
+    
+        for subscriber in self
+            .builtin_subscriber
+            .read_lock()
+            .iter()
+            .chain(self.user_defined_subscriber_list.read_lock().iter())
+        {
+            for reader in subscriber.data_reader_list.read_lock().iter() {
+                if DdsShared::ptr_eq(&reader.topic, a_topic) {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Topic still attached to some data reader or data writer".to_string(),
+                    ));
+                }
+            }
+        }
+
         topic_list.remove(topic_list_position);
 
         Ok(())
@@ -278,16 +309,23 @@ where
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DdsResult<()> {
-        if std::ptr::eq(&a_publisher.get_participant()?.upgrade()?, self) {
-            self.user_defined_publisher_list
-                .write_lock()
-                .retain(|x| x != a_publisher);
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
+        if !DdsShared::ptr_eq(&a_publisher.get_participant()?.upgrade()?, self) {
+            return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
-            ))
+            ));
         }
+
+        if !a_publisher.data_writer_list.read_lock().is_empty() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ));
+        }
+
+        self.user_defined_publisher_list
+            .write_lock()
+            .retain(|x| x != a_publisher);
+
+        Ok(())
     }
 
     fn create_subscriber(
@@ -316,16 +354,22 @@ where
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DdsResult<()> {
-        if std::ptr::eq(&a_subscriber.get_participant()?.upgrade()?, self) {
-            self.user_defined_subscriber_list
-                .write_lock()
-                .retain(|x| x != a_subscriber);
-            Ok(())
-        } else {
-            Err(DdsError::PreconditionNotMet(
+        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?.upgrade()?, self) {
+            return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
-            ))
+            ));
         }
+
+        if !a_subscriber.data_reader_list.read_lock().is_empty() {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ));
+        }
+
+        self.user_defined_subscriber_list
+            .write_lock()
+            .retain(|x| x != a_subscriber);
+        Ok(())
     }
 
     fn get_builtin_subscriber(&self) -> DdsResult<Self::SubscriberType> {

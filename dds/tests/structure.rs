@@ -3,6 +3,7 @@ use std::io::Write;
 use dds::{
     domain::domain_participant::DomainParticipant,
     domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
+    publication::publisher::Publisher, subscription::subscriber::Subscriber, DdsError,
 };
 use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
@@ -36,228 +37,280 @@ fn create_delete_publisher() {
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
-    participant.enable().unwrap();
-    let _my_topic = participant
-        .create_topic::<TestType>("my_topic", None, None, 0)
-        .unwrap();
-    let _publisher = participant.create_publisher(None, None, 0).unwrap();
-    // publisher
-    // .create_datawriter(&my_topic, None, None, 0)
-    // .unwrap();
-    // std::thread::sleep(std::time::Duration::from_secs(2));
 
-    // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
-    // assert_eq!(publisher.get_qos(), Err(DdsError::AlreadyDeleted));
-    // assert_eq!(
-    //     participant.delete_publisher(&publisher),
-    //     Err(DdsError::AlreadyDeleted)
-    // );
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+
+    assert_eq!(participant.delete_publisher(&publisher), Ok(()));
+    assert_eq!(publisher.get_qos(), Err(DdsError::AlreadyDeleted));
+    assert_eq!(
+        participant.delete_publisher(&publisher),
+        Err(DdsError::AlreadyDeleted)
+    );
 }
 
-// #[test]
-// fn create_delete_subscriber() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
-//     assert_eq!(subscriber.get_qos(), Err(DdsError::AlreadyDeleted));
-//     assert_eq!(
-//         participant.delete_subscriber(&subscriber),
-//         Err(DdsError::AlreadyDeleted)
-//     );
-// }
+#[test]
+fn create_delete_subscriber() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn create_delete_topic() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let topic = participant
-//         .create_topic::<TestType>("abc", None, None, 0)
-//         .unwrap();
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
 
-//     assert_eq!(participant.delete_topic(&topic), Ok(()));
-//     assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
-//     assert_eq!(
-//         participant.delete_topic(&topic),
-//         Err(DdsError::AlreadyDeleted)
-//     );
-// }
+    assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
+    assert_eq!(subscriber.get_qos(), Err(DdsError::AlreadyDeleted));
+    assert_eq!(
+        participant.delete_subscriber(&subscriber),
+        Err(DdsError::AlreadyDeleted)
+    );
+}
 
-// #[test]
-// fn not_allowed_to_delete_publisher_from_different_participant() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let other_participant = DomainParticipantFactory::create_participant(1, None, None, 0).unwrap();
-//     let publisher = participant.create_publisher(None, None, 0).unwrap();
-//     assert_eq!(
-//         other_participant.delete_publisher(&publisher),
-//         Err(DdsError::PreconditionNotMet(
-//             "Publisher can only be deleted from its parent participant".to_string()
-//         ))
-//     );
-// }
+#[test]
+fn create_delete_topic() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn not_allowed_to_delete_subscriber_from_different_participant() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let other_participant = DomainParticipantFactory::create_participant(1, None, None, 0).unwrap();
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     assert_eq!(
-//         other_participant.delete_subscriber(&subscriber),
-//         Err(DdsError::PreconditionNotMet(
-//             "Subscriber can only be deleted from its parent participant".to_string()
-//         ))
-//     );
-// }
+    let topic = participant
+        .create_topic::<TestType>("abc", None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn not_allowed_to_delete_topic_from_different_participant() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let other_participant = DomainParticipantFactory::create_participant(1, None, None, 0).unwrap();
-//     let topic = participant
-//         .create_topic::<TestType>("abc", None, None, 0)
-//         .unwrap();
-//     assert_eq!(
-//         other_participant.delete_topic(&topic),
-//         Err(DdsError::PreconditionNotMet(
-//             "Topic can only be deleted from its parent participant".to_string()
-//         ))
-//     );
-// }
+    assert_eq!(participant.delete_topic(&topic), Ok(()));
+    assert_eq!(topic.get_qos(), Err(DdsError::AlreadyDeleted));
+    assert_eq!(
+        participant.delete_topic(&topic),
+        Err(DdsError::AlreadyDeleted)
+    );
+}
 
-// #[test]
-// fn not_allowed_to_delete_publisher_with_writer() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let writer_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let publisher = participant.create_publisher(None, None, 0).unwrap();
-//     let _a_datawriter = publisher
-//         .create_datawriter(&writer_topic, None, None, 0)
-//         .unwrap();
+#[test]
+fn not_allowed_to_delete_publisher_from_different_participant() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+    let other_participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-//     assert_eq!(
-//         participant.delete_publisher(&publisher),
-//         Err(DdsError::PreconditionNotMet(
-//             "Publisher still contains data writers".to_string()
-//         ))
-//     );
-// }
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    assert_eq!(
+        other_participant.delete_publisher(&publisher),
+        Err(DdsError::PreconditionNotMet(
+            "Publisher can only be deleted from its parent participant".to_string()
+        ))
+    );
+}
 
-// #[test]
-// fn not_allowed_to_delete_subscriber_with_reader() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let reader_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     let _a_datareader = subscriber
-//         .create_datareader(&reader_topic, None, None, 0)
-//         .unwrap();
+#[test]
+fn not_allowed_to_delete_subscriber_from_different_participant() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+    let other_participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-//     assert_eq!(
-//         participant.delete_subscriber(&subscriber),
-//         Err(DdsError::PreconditionNotMet(
-//             "Subscriber still contains data readers".to_string()
-//         ))
-//     );
-// }
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    assert_eq!(
+        other_participant.delete_subscriber(&subscriber),
+        Err(DdsError::PreconditionNotMet(
+            "Subscriber can only be deleted from its parent participant".to_string()
+        ))
+    );
+}
 
-// #[test]
-// fn not_allowed_to_delete_topic_attached_to_reader() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let reader_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     let _a_datareader = subscriber
-//         .create_datareader(&reader_topic, None, None, 0)
-//         .unwrap();
+#[test]
+fn not_allowed_to_delete_topic_from_different_participant() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+    let other_participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-//     assert_eq!(
-//         participant.delete_topic(&reader_topic),
-//         Err(DdsError::PreconditionNotMet(
-//             "Topic still attached to some data reader or data writer".to_string()
-//         ))
-//     );
-// }
+    let topic = participant
+        .create_topic::<TestType>("abc", None, None, 0)
+        .unwrap();
+    assert_eq!(
+        other_participant.delete_topic(&topic),
+        Err(DdsError::PreconditionNotMet(
+            "Topic can only be deleted from its parent publisher".to_string()
+        ))
+    );
+}
 
-// #[test]
-// fn not_allowed_to_delete_topic_attached_to_writer() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let writer_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let publisher = participant.create_publisher(None, None, 0).unwrap();
-//     let _a_datawriter = publisher
-//         .create_datawriter(&writer_topic, None, None, 0)
-//         .unwrap();
+#[test]
+fn not_allowed_to_delete_publisher_with_writer() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-//     assert_eq!(
-//         participant.delete_topic(&writer_topic),
-//         Err(DdsError::PreconditionNotMet(
-//             "Topic still attached to some data reader or data writer".to_string()
-//         ))
-//     );
-// }
+    let writer_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let _a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let writer_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let publisher = participant.create_publisher(None, None, 0).unwrap();
-//     let a_datawriter = publisher
-//         .create_datawriter(&writer_topic, None, None, 0)
-//         .unwrap();
-//     publisher
-//         .delete_datawriter(&a_datawriter)
-//         .expect("Failed to delete datawriter");
-//     assert_eq!(participant.delete_publisher(&publisher), Ok(()));
-// }
+    assert_eq!(
+        participant.delete_publisher(&publisher),
+        Err(DdsError::PreconditionNotMet(
+            "Publisher still contains data writers".to_string()
+        ))
+    );
+}
 
-// #[test]
-// fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let reader_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     let a_datareader = subscriber
-//         .create_datareader(&reader_topic, None, None, 0)
-//         .unwrap();
-//     subscriber
-//         .delete_datareader(&a_datareader)
-//         .expect("Failed to delete datareader");
-//     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
-// }
+#[test]
+fn not_allowed_to_delete_subscriber_with_reader() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn allowed_to_delete_topic_with_created_and_deleted_writer() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let writer_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let publisher = participant.create_publisher(None, None, 0).unwrap();
-//     let a_datawriter = publisher
-//         .create_datawriter(&writer_topic, None, None, 0)
-//         .unwrap();
-//     publisher
-//         .delete_datawriter(&a_datawriter)
-//         .expect("Failed to delete datawriter");
-//     assert_eq!(participant.delete_topic(&writer_topic), Ok(()));
-// }
+    let reader_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let _a_datareader = subscriber
+        .create_datareader(&reader_topic, None, None, 0)
+        .unwrap();
 
-// #[test]
-// fn allowed_to_delete_topic_with_created_and_deleted_reader() {
-//     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-//     let reader_topic = participant
-//         .create_topic::<TestType>("Test", None, None, 0)
-//         .expect("Error creating topic");
-//     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-//     let a_datareader = subscriber
-//         .create_datareader::<TestType>(&reader_topic, None, None, 0)
-//         .unwrap();
-//     subscriber
-//         .delete_datareader(&a_datareader)
-//         .expect("Failed to delete datareader");
-//     assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
-// }
+    assert_eq!(
+        participant.delete_subscriber(&subscriber),
+        Err(DdsError::PreconditionNotMet(
+            "Subscriber still contains data readers".to_string()
+        ))
+    );
+}
+
+#[test]
+fn not_allowed_to_delete_topic_attached_to_reader() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let reader_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let _a_datareader = subscriber
+        .create_datareader(&reader_topic, None, None, 0)
+        .unwrap();
+
+    assert_eq!(
+        participant.delete_topic(&reader_topic),
+        Err(DdsError::PreconditionNotMet(
+            "Topic still attached to some data reader or data writer".to_string()
+        ))
+    );
+}
+
+#[test]
+fn not_allowed_to_delete_topic_attached_to_writer() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let writer_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let _a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
+
+    assert_eq!(
+        participant.delete_topic(&writer_topic),
+        Err(DdsError::PreconditionNotMet(
+            "Topic still attached to some data reader or data writer".to_string()
+        ))
+    );
+}
+
+#[test]
+fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let writer_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
+    publisher
+        .delete_datawriter(&a_datawriter)
+        .expect("Failed to delete datawriter");
+    assert_eq!(participant.delete_publisher(&publisher), Ok(()));
+}
+
+#[test]
+fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let reader_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let a_datareader = subscriber
+        .create_datareader(&reader_topic, None, None, 0)
+        .unwrap();
+    subscriber
+        .delete_datareader(&a_datareader)
+        .expect("Failed to delete datareader");
+    assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
+}
+
+#[test]
+fn allowed_to_delete_topic_with_created_and_deleted_writer() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let writer_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
+    publisher
+        .delete_datawriter(&a_datawriter)
+        .expect("Failed to delete datawriter");
+    assert_eq!(participant.delete_topic(&writer_topic), Ok(()));
+}
+
+#[test]
+fn allowed_to_delete_topic_with_created_and_deleted_reader() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, None, None, 0)
+        .unwrap();
+
+    let reader_topic = participant
+        .create_topic::<TestType>("Test", None, None, 0)
+        .expect("Error creating topic");
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let a_datareader = subscriber
+        .create_datareader::<TestType>(&reader_topic, None, None, 0)
+        .unwrap();
+    subscriber
+        .delete_datareader(&a_datareader)
+        .expect("Failed to delete datareader");
+    assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
+}

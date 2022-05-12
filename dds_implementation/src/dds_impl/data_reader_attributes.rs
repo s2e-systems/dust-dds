@@ -226,11 +226,11 @@ where
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
-    pub status: DdsRwLock<SubscriptionMatchedStatus>,
     pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     pub deadline_timer: DdsRwLock<T>,
-    pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     pub status_change: DdsRwLock<StatusMask>,
+    pub subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
+    pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
 impl<Rtps, T> DataReaderAttributes<Rtps, T>
@@ -254,21 +254,21 @@ where
             topic,
             listener: DdsRwLock::new(listener),
             parent_subscriber,
-            status: DdsRwLock::new(SubscriptionMatchedStatus {
+            samples_read: DdsRwLock::new(HashSet::new()),
+            deadline_timer: DdsRwLock::new(T::new(deadline_duration)),
+            status_change: DdsRwLock::new(0),
+            subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_publication_handle: 0,
                 current_count: 0,
                 current_count_change: 0,
             }),
-            samples_read: DdsRwLock::new(HashSet::new()),
-            deadline_timer: DdsRwLock::new(T::new(deadline_duration)),
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
                 total_count_change: 0,
                 last_instance_handle: 0,
             }),
-            status_change: DdsRwLock::new(0),
         }
     }
 
@@ -414,7 +414,7 @@ where
                 RtpsReader::Stateless(_) => (),
                 RtpsReader::Stateful(rtps_stateful_reader) => {
                     rtps_stateful_reader.matched_writer_add(writer_proxy);
-                    let mut status = self.status.write_lock();
+                    let mut status = self.subscription_matched_status.write_lock();
                     status.total_count += 1;
                     status.total_count_change += 1;
                     status.current_count += 1;
@@ -789,10 +789,9 @@ where
     }
 
     fn get_subscription_matched_status(
-        &self,
-        _status: &mut SubscriptionMatchedStatus,
-    ) -> DdsResult<()> {
-        todo!()
+        &self
+    ) -> DdsResult<SubscriptionMatchedStatus> {
+        Ok(*self.subscription_matched_status.read_lock())
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {

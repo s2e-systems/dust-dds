@@ -15,6 +15,10 @@ impl<T> DdsShared<T> {
     pub fn downgrade(&self) -> DdsWeak<T> {
         DdsWeak(Arc::downgrade(&self.0))
     }
+
+    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
+        Arc::ptr_eq(&this.0, &other.0)
+    }
 }
 
 impl<T: ?Sized> Deref for DdsShared<T> {
@@ -71,5 +75,18 @@ impl<T> DdsWeak<T> {
 impl<T: ?Sized> Clone for DdsWeak<T> {
     fn clone(&self) -> Self {
         DdsWeak(self.0.clone())
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    #[test]
+    fn ptr_eq() {
+        let x = DdsShared::new(vec![1, 2, 3, 4]);
+        let y = x.downgrade();
+        let z = x.clone();
+        assert!(DdsShared::ptr_eq(&x, &z));
+        assert!(DdsShared::ptr_eq(&x, &y.upgrade().unwrap()));
     }
 }

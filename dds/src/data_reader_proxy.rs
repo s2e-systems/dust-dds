@@ -407,14 +407,8 @@ where
         )
     }
 
-    fn get_subscription_matched_status(
-        &self,
-        status: &mut SubscriptionMatchedStatus,
-    ) -> DdsResult<()> {
-        DataReader::<Foo>::get_subscription_matched_status(
-            &self.data_reader_attributes.upgrade()?,
-            status,
-        )
+    fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
+        DataReader::<Foo>::get_subscription_matched_status(&self.data_reader_attributes.upgrade()?)
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
