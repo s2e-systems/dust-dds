@@ -39,7 +39,7 @@ pub trait PublisherDataWriterFactory<Foo> {
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub trait Publisher {
-    type DomainParticipant;
+    type DomainParticipantType;
 
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
@@ -150,7 +150,7 @@ pub trait Publisher {
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant>;
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipantType>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

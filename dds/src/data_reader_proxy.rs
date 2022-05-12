@@ -19,30 +19,21 @@ use dds_api::{
     },
 };
 use dds_implementation::{
-    dds_impl::data_reader_attributes::{AnyDataReaderListener, DataReaderAttributes},
-    dds_type::DdsDeserialize,
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak, timer::Timer},
+    dds_impl::data_reader_attributes::AnyDataReaderListener,
+    utils::shared_object::{DdsShared, DdsWeak},
 };
 
 use std::marker::PhantomData;
 
 use crate::{subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy};
 
-pub struct DataReaderProxy<Foo, Rtps, T>
-where
-    Rtps: RtpsStructure,
-    T: Timer,
-{
-    data_reader_attributes: DdsWeak<DataReaderAttributes<Rtps, T>>,
+pub struct DataReaderProxy<Foo, I> {
+    data_reader_attributes: DdsWeak<I>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, Rtps, T> Clone for DataReaderProxy<Foo, Rtps, T>
-where
-    Rtps: RtpsStructure,
-    T: Timer,
-{
+impl<Foo, I> Clone for DataReaderProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             data_reader_attributes: self.data_reader_attributes.clone(),
@@ -51,12 +42,8 @@ where
     }
 }
 
-impl<Foo, Rtps, T> DataReaderProxy<Foo, Rtps, T>
-where
-    Rtps: RtpsStructure,
-    T: Timer,
-{
-    pub fn new(data_reader_attributes: DdsWeak<DataReaderAttributes<Rtps, T>>) -> Self {
+impl<Foo, I> DataReaderProxy<Foo, I> {
+    pub fn new(data_reader_attributes: DdsWeak<I>) -> Self {
         Self {
             data_reader_attributes,
             phantom: PhantomData,
@@ -64,37 +51,31 @@ where
     }
 }
 
-impl<Foo, Rtps, T> AsRef<DdsWeak<DataReaderAttributes<Rtps, T>>> for DataReaderProxy<Foo, Rtps, T>
-where
-    Rtps: RtpsStructure,
-    T: Timer,
-{
-    fn as_ref(&self) -> &DdsWeak<DataReaderAttributes<Rtps, T>> {
+impl<Foo, I> AsRef<DdsWeak<I>> for DataReaderProxy<Foo, I> {
+    fn as_ref(&self) -> &DdsWeak<I> {
         &self.data_reader_attributes
     }
 }
 
-impl<Foo, Rtps, T> DataReaderGetSubscriber for DataReaderProxy<Foo, Rtps, T>
+impl<Foo, I, S> DataReaderGetSubscriber for DataReaderProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
-    T: Timer,
+    DdsShared<I>: DataReaderGetSubscriber<Subscriber = DdsShared<S>>,
 {
-    type Subscriber = SubscriberProxy<Rtps>;
+    type Subscriber = SubscriberProxy<S>;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
         self.data_reader_attributes
             .upgrade()?
             .data_reader_get_subscriber()
-            .map(|x| SubscriberProxy::new(x))
+            .map(|x| SubscriberProxy::new(x.downgrade()))
     }
 }
 
-impl<Foo, Rtps, T> DataReaderGetTopicDescription for DataReaderProxy<Foo, Rtps, T>
+impl<Foo, I, T> DataReaderGetTopicDescription for DataReaderProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
-    T: Timer,
+    DdsShared<I>: DataReaderGetTopicDescription<TopicDescription = DdsShared<T>>,
 {
-    type TopicDescription = TopicProxy<Foo, Rtps>;
+    type TopicDescription = TopicProxy<Foo, T>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         self.data_reader_attributes
@@ -104,11 +85,9 @@ where
     }
 }
 
-impl<Foo, Rtps, T> DataReader<Foo> for DataReaderProxy<Foo, Rtps, T>
+impl<Foo, I> DataReader<Foo> for DataReaderProxy<Foo, I>
 where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-    Rtps: RtpsStructure,
-    T: Timer,
+    DdsShared<I>: DataReader<Foo>,
 {
     fn read(
         &self,
@@ -436,13 +415,16 @@ where
     }
 }
 
-impl<Foo, Rtps, T> Entity for DataReaderProxy<Foo, Rtps, T>
+impl<Foo, I> Entity for DataReaderProxy<Foo, I>
 where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-    Rtps: RtpsStructure,
-    T: Timer,
+    DdsShared<I>: Entity<
+        Qos = DataReaderQos,
+        Listener = Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>,
+    >,
+    DdsShared<I>: DataReader<Foo>,
+    Foo: 'static,
 {
-    type Qos = DataReaderQos;
+    type Qos = <DdsShared<I> as Entity>::Qos;
     type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
@@ -455,8 +437,9 @@ where
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.set_listener(
-            a_listener
-                .map::<Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>, _>(|l| Box::new(l)),
+            a_listener.map::<Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>, _>(|l| {
+                Box::new(l)
+            }),
             mask,
         )
     }

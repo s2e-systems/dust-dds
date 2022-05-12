@@ -60,73 +60,43 @@ use crate::{
 
 use super::{subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes};
 
-pub trait AnyDataReaderListener<Rtps, T>
-where
-    Rtps: RtpsStructure,
-{
-    fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<Rtps, T>>);
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SampleRejectedStatus,
-    );
-    fn trigger_on_liveliness_changed(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: LivelinessChangedStatus,
-    );
+pub trait AnyDataReaderListener<DR> {
+    fn trigger_on_data_available(&mut self, reader: DR);
+    fn trigger_on_sample_rejected(&mut self, reader: DR, status: SampleRejectedStatus);
+    fn trigger_on_liveliness_changed(&mut self, reader: DR, status: LivelinessChangedStatus);
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
+        reader: DR,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
+        reader: DR,
         status: RequestedIncompatibleQosStatus,
     );
-    fn trigger_on_subscription_matched(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SubscriptionMatchedStatus,
-    );
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SampleLostStatus,
-    );
+    fn trigger_on_subscription_matched(&mut self, reader: DR, status: SubscriptionMatchedStatus);
+    fn trigger_on_sample_lost(&mut self, reader: DR, status: SampleLostStatus);
 }
 
-impl<Foo, Rtps, T> AnyDataReaderListener<Rtps, T>
-    for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
+impl<Foo, DR> AnyDataReaderListener<DR> for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
 where
-    Foo: for<'de> DdsDeserialize<'de> + 'static,
-    Rtps: RtpsStructure,
-    T: Timer,
+    DR: DataReader<Foo>,
 {
-    fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<Rtps, T>>) {
+    fn trigger_on_data_available(&mut self, reader: DR) {
         self.on_data_available(&reader)
     }
 
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SampleRejectedStatus,
-    ) {
+    fn trigger_on_sample_rejected(&mut self, reader: DR, status: SampleRejectedStatus) {
         self.on_sample_rejected(&reader, status)
     }
 
-    fn trigger_on_liveliness_changed(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: LivelinessChangedStatus,
-    ) {
+    fn trigger_on_liveliness_changed(&mut self, reader: DR, status: LivelinessChangedStatus) {
         self.on_liveliness_changed(&reader, status)
     }
 
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
+        reader: DR,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(&reader, status)
@@ -134,25 +104,17 @@ where
 
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
+        reader: DR,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(&reader, status)
     }
 
-    fn trigger_on_subscription_matched(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SubscriptionMatchedStatus,
-    ) {
+    fn trigger_on_subscription_matched(&mut self, reader: DR, status: SubscriptionMatchedStatus) {
         self.on_subscription_matched(&reader, status)
     }
 
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: DdsShared<DataReaderAttributes<Rtps, T>>,
-        status: SampleLostStatus,
-    ) {
+    fn trigger_on_sample_lost(&mut self, reader: DR, status: SampleLostStatus) {
         self.on_sample_lost(&reader, status)
     }
 }
@@ -224,7 +186,7 @@ where
     pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
     pub qos: DataReaderQos,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
-    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>>>,
+    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<DdsShared<Self>> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     pub deadline_timer: DdsRwLock<T>,
@@ -509,10 +471,10 @@ where
     Rtps: RtpsStructure,
     T: Timer,
 {
-    type Subscriber = DdsWeak<SubscriberAttributes<Rtps>>;
+    type Subscriber = DdsShared<SubscriberAttributes<Rtps>>;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
-        Ok(self.parent_subscriber.clone())
+        Ok(self.parent_subscriber.upgrade()?.clone())
     }
 }
 
@@ -788,9 +750,7 @@ where
         todo!()
     }
 
-    fn get_subscription_matched_status(
-        &self
-    ) -> DdsResult<SubscriptionMatchedStatus> {
+    fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
         Ok(*self.subscription_matched_status.read_lock())
     }
 
@@ -820,7 +780,7 @@ where
     Rtps: RtpsStructure,
 {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn AnyDataReaderListener<Rtps, T> + Send + Sync>;
+    type Listener = Box<dyn AnyDataReaderListener<Self> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         todo!()
@@ -1063,7 +1023,7 @@ mod tests {
 
     mock! {
         Listener {}
-        impl AnyDataReaderListener<MockRtps, ManualTimer> for Listener {
+        impl AnyDataReaderListener<DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>> for Listener {
             fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>);
             fn trigger_on_sample_rejected(
                 &mut self,

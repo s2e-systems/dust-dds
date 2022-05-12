@@ -283,7 +283,7 @@ impl<Rtps> Publisher for DdsShared<PublisherAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+    type DomainParticipantType = DdsShared<DomainParticipantAttributes<Rtps>>;
 
     fn suspend_publications(&self) -> DdsResult<()> {
         todo!()
@@ -305,8 +305,8 @@ where
         todo!()
     }
 
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_participant.clone())
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipantType> {
+        Ok(self.parent_participant.upgrade()?.clone())
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {

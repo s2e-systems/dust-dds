@@ -279,7 +279,7 @@ impl<Rtps> Subscriber for DdsShared<SubscriberAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+    type DomainParticipant = DdsShared<DomainParticipantAttributes<Rtps>>;
 
     fn begin_access(&self) -> DdsResult<()> {
         todo!()
@@ -304,7 +304,7 @@ where
     }
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_domain_participant.clone())
+        Ok(self.parent_domain_participant.upgrade()?.clone())
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {

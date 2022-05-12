@@ -58,10 +58,10 @@ impl<Rtps> TopicDescription for DdsShared<TopicAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+    type DomainParticipant = DdsShared<DomainParticipantAttributes<Rtps>>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_participant.clone())
+        self.parent_participant.clone().upgrade()
     }
 
     fn get_type_name(&self) -> DdsResult<&'static str> {

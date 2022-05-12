@@ -318,7 +318,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> DdsResult<DomainParticipantProxy<RtpsStructureImpl>> {
+    ) -> DdsResult<DomainParticipantProxy<DomainParticipantAttributes<RtpsStructureImpl>>> {
         let qos = qos.unwrap_or_default();
 
         let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()

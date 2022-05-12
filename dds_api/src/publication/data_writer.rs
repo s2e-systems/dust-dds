@@ -8,8 +8,8 @@ use crate::{
 };
 
 pub trait DataWriter<Foo> {
-    type Publisher;
-    type Topic;
+    type PublisherType;
+    type TopicType;
 
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
@@ -226,10 +226,10 @@ pub trait DataWriter<Foo> {
     ) -> DdsResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> DdsResult<Self::Topic>;
+    fn get_topic(&self) -> DdsResult<Self::TopicType>;
 
     /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> DdsResult<Self::Publisher>;
+    fn get_publisher(&self) -> DdsResult<Self::PublisherType>;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

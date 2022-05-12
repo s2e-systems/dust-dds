@@ -344,8 +344,8 @@ where
     Rtps: RtpsStructure,
     Foo: DdsSerialize,
 {
-    type Publisher = DdsWeak<PublisherAttributes<Rtps>>;
-    type Topic = DdsShared<TopicAttributes<Rtps>>;
+    type PublisherType = DdsShared<PublisherAttributes<Rtps>>;
+    type TopicType = DdsShared<TopicAttributes<Rtps>>;
 
     fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
@@ -389,7 +389,6 @@ where
             .publisher
             .upgrade()?
             .get_participant()?
-            .upgrade()?
             .get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -466,12 +465,12 @@ where
         todo!()
     }
 
-    fn get_topic(&self) -> DdsResult<Self::Topic> {
+    fn get_topic(&self) -> DdsResult<Self::TopicType> {
         Ok(self.topic.clone())
     }
 
-    fn get_publisher(&self) -> DdsResult<Self::Publisher> {
-        Ok(self.publisher.clone())
+    fn get_publisher(&self) -> DdsResult<Self::PublisherType> {
+        Ok(self.publisher.upgrade()?.clone())
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {

@@ -5,16 +5,13 @@ use dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
+        data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherDataWriterFactory},
         publisher_listener::PublisherListener,
     },
     return_type::DdsResult,
 };
-use dds_implementation::{
-    dds_impl::publisher_attributes::PublisherAttributes,
-    dds_type::{DdsSerialize, DdsType},
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
-};
+use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
 
 use crate::{
     data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
@@ -22,40 +19,33 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PublisherProxy<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    publisher_attributes: DdsWeak<PublisherAttributes<Rtps>>,
+pub struct PublisherProxy<I> {
+    publisher_attributes: DdsWeak<I>,
 }
 
-impl<Rtps> PublisherProxy<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    pub fn new(publisher_attributes: DdsWeak<PublisherAttributes<Rtps>>) -> Self {
+impl<I> PublisherProxy<I> {
+    pub fn new(publisher_attributes: DdsWeak<I>) -> Self {
         Self {
             publisher_attributes,
         }
     }
 }
 
-impl<Rtps> AsRef<DdsWeak<PublisherAttributes<Rtps>>> for PublisherProxy<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    fn as_ref(&self) -> &DdsWeak<PublisherAttributes<Rtps>> {
+impl<I> AsRef<DdsWeak<I>> for PublisherProxy<I> {
+    fn as_ref(&self) -> &DdsWeak<I> {
         &self.publisher_attributes
     }
 }
 
-impl<Foo, Rtps> PublisherDataWriterFactory<Foo> for PublisherProxy<Rtps>
+impl<Foo, I, T, DW> PublisherDataWriterFactory<Foo> for PublisherProxy<I>
 where
-    Foo: DdsType + DdsSerialize + Send + Sync + 'static,
-    Rtps: RtpsStructure,
+    DdsShared<I>:
+        PublisherDataWriterFactory<Foo, TopicType = DdsShared<T>, DataWriterType = DdsShared<DW>>,
+    DdsShared<DW>:
+        Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener + Send + Sync>>,
 {
-    type TopicType = TopicProxy<Foo, Rtps>;
-    type DataWriterType = DataWriterProxy<Foo, Rtps>;
+    type TopicType = TopicProxy<Foo, T>;
+    type DataWriterType = DataWriterProxy<Foo, DW>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -96,11 +86,11 @@ where
     }
 }
 
-impl<Rtps> Publisher for PublisherProxy<Rtps>
+impl<I, DP> Publisher for PublisherProxy<I>
 where
-    Rtps: RtpsStructure,
+    DdsShared<I>: Publisher<DomainParticipantType = DdsShared<DP>>,
 {
-    type DomainParticipant = DomainParticipantProxy<Rtps>;
+    type DomainParticipantType = DomainParticipantProxy<DP>;
 
     fn suspend_publications(&self) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.suspend_publications()
@@ -154,20 +144,20 @@ where
             .copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
 
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
+    fn get_participant(&self) -> DdsResult<Self::DomainParticipantType> {
         self.publisher_attributes
             .upgrade()?
             .get_participant()
-            .map(|x| DomainParticipantProxy::new(x))
+            .map(|x| DomainParticipantProxy::new(x.downgrade()))
     }
 }
 
-impl<Rtps> Entity for PublisherProxy<Rtps>
+impl<I> Entity for PublisherProxy<I>
 where
-    Rtps: RtpsStructure,
+    DdsShared<I>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>>,
 {
-    type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
+    type Qos = <DdsShared<I> as Entity>::Qos;
+    type Listener = <DdsShared<I> as Entity>::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.set_qos(qos)

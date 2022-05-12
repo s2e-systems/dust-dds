@@ -13,27 +13,17 @@ use dds_api::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
     return_type::DdsResult,
 };
-use dds_implementation::{
-    dds_impl::data_writer_attributes::DataWriterAttributes,
-    dds_type::DdsSerialize,
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
-};
+use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
 
 use crate::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
 
-pub struct DataWriterProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    data_writer_attributes: DdsWeak<DataWriterAttributes<Rtps>>,
+pub struct DataWriterProxy<Foo, I> {
+    data_writer_attributes: DdsWeak<I>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, Rtps> Clone for DataWriterProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
+impl<Foo, I> Clone for DataWriterProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             data_writer_attributes: self.data_writer_attributes.clone(),
@@ -42,11 +32,8 @@ where
     }
 }
 
-impl<Foo, Rtps> DataWriterProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    pub fn new(data_writer_attributes: DdsWeak<DataWriterAttributes<Rtps>>) -> Self {
+impl<Foo, I> DataWriterProxy<Foo, I> {
+    pub fn new(data_writer_attributes: DdsWeak<I>) -> Self {
         Self {
             data_writer_attributes,
             phantom: PhantomData,
@@ -54,22 +41,18 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<DdsWeak<DataWriterAttributes<Rtps>>> for DataWriterProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    fn as_ref(&self) -> &DdsWeak<DataWriterAttributes<Rtps>> {
+impl<Foo, I> AsRef<DdsWeak<I>> for DataWriterProxy<Foo, I> {
+    fn as_ref(&self) -> &DdsWeak<I> {
         &self.data_writer_attributes
     }
 }
 
-impl<Foo, Rtps> DataWriter<Foo> for DataWriterProxy<Foo, Rtps>
+impl<Foo, I, P, T> DataWriter<Foo> for DataWriterProxy<Foo, I>
 where
-    Foo: DdsSerialize,
-    Rtps: RtpsStructure,
+    DdsShared<I>: DataWriter<Foo, PublisherType = DdsShared<P>, TopicType = DdsShared<T>>,
 {
-    type Publisher = PublisherProxy<Rtps>;
-    type Topic = TopicProxy<Foo, Rtps>;
+    type PublisherType = PublisherProxy<P>;
+    type TopicType = TopicProxy<Foo, T>;
 
     fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes
@@ -190,14 +173,14 @@ where
         )
     }
 
-    fn get_topic(&self) -> DdsResult<Self::Topic> {
+    fn get_topic(&self) -> DdsResult<Self::TopicType> {
         DataWriter::<Foo>::get_topic(&self.data_writer_attributes.upgrade()?)
             .map(|x| TopicProxy::new(x.downgrade()))
     }
 
-    fn get_publisher(&self) -> DdsResult<Self::Publisher> {
+    fn get_publisher(&self) -> DdsResult<Self::PublisherType> {
         DataWriter::<Foo>::get_publisher(&self.data_writer_attributes.upgrade()?)
-            .map(|x| PublisherProxy::new(x))
+            .map(|x| PublisherProxy::new(x.downgrade()))
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
@@ -221,12 +204,12 @@ where
     }
 }
 
-impl<Foo, Rtps> Entity for DataWriterProxy<Foo, Rtps>
+impl<Foo, I> Entity for DataWriterProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
+    DdsShared<I>: Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener + Send + Sync>>,
 {
-    type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener + Send + Sync>;
+    type Qos = <DdsShared<I> as Entity>::Qos;
+    type Listener = <DdsShared<I> as Entity>::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.set_qos(qos)

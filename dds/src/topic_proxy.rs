@@ -9,26 +9,17 @@ use dds_api::{
     return_type::DdsResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use dds_implementation::{
-    dds_impl::topic_attributes::TopicAttributes,
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
-};
+use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
 
 use crate::domain_participant_proxy::DomainParticipantProxy;
 
-pub struct TopicProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    topic_attributes: DdsWeak<TopicAttributes<Rtps>>,
+pub struct TopicProxy<Foo, I> {
+    topic_attributes: DdsWeak<I>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, Rtps> Clone for TopicProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
+impl<Foo, I> Clone for TopicProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             topic_attributes: self.topic_attributes.clone(),
@@ -37,11 +28,8 @@ where
     }
 }
 
-impl<Foo, Rtps> TopicProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    pub fn new(topic_attributes: DdsWeak<TopicAttributes<Rtps>>) -> Self {
+impl<Foo, I> TopicProxy<Foo, I> {
+    pub fn new(topic_attributes: DdsWeak<I>) -> Self {
         Self {
             topic_attributes,
             phantom: PhantomData,
@@ -49,18 +37,15 @@ where
     }
 }
 
-impl<Foo, Rtps> AsRef<DdsWeak<TopicAttributes<Rtps>>> for TopicProxy<Foo, Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    fn as_ref(&self) -> &DdsWeak<TopicAttributes<Rtps>> {
+impl<Foo, I> AsRef<DdsWeak<I>> for TopicProxy<Foo, I> {
+    fn as_ref(&self) -> &DdsWeak<I> {
         &self.topic_attributes
     }
 }
 
-impl<Foo, Rtps> Topic for TopicProxy<Foo, Rtps>
+impl<Foo, I> Topic for TopicProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
+    I: Topic,
 {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.topic_attributes
@@ -69,17 +54,17 @@ where
     }
 }
 
-impl<Foo, Rtps> TopicDescription for TopicProxy<Foo, Rtps>
+impl<Foo, I, DP> TopicDescription for TopicProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
+    DdsShared<I>: TopicDescription<DomainParticipant = DdsShared<DP>>,
 {
-    type DomainParticipant = DomainParticipantProxy<Rtps>;
+    type DomainParticipant = DomainParticipantProxy<DP>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.topic_attributes
             .upgrade()?
             .get_participant()
-            .map(|x| DomainParticipantProxy::new(x))
+            .map(|x| DomainParticipantProxy::new(x.downgrade()))
     }
 
     fn get_type_name(&self) -> DdsResult<&'static str> {
@@ -91,12 +76,12 @@ where
     }
 }
 
-impl<Foo, Rtps> Entity for TopicProxy<Foo, Rtps>
+impl<Foo, I> Entity for TopicProxy<Foo, I>
 where
-    Rtps: RtpsStructure,
+    DdsShared<I>: Entity<Qos = TopicQos, Listener = Box<dyn TopicListener>>,
 {
-    type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener>;
+    type Qos = <DdsShared<I> as Entity>::Qos;
+    type Listener = <DdsShared<I> as Entity>::Listener;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.set_qos(qos)
