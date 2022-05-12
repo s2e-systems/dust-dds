@@ -29,7 +29,6 @@ use dds_implementation::{
         data_reader_attributes::{DataReaderAttributes, RtpsReader},
         data_writer_attributes::{DataWriterAttributes, RtpsWriter},
         domain_participant_attributes::DomainParticipantAttributes,
-        domain_participant_proxy::DomainParticipantProxy,
         publisher_attributes::PublisherAttributes,
         subscriber_attributes::SubscriberAttributes,
         topic_attributes::TopicAttributes,
@@ -72,6 +71,7 @@ use socket2::Socket;
 
 use crate::{
     communication::Communication,
+    domain_participant_proxy::DomainParticipantProxy,
     tasks::{
         task_announce_participant, task_sedp_reader_discovery, task_sedp_writer_discovery,
         task_spdp_discovery, Executor, Spawner,
@@ -851,11 +851,7 @@ mod tests {
             discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
-        dds_impl::{
-            domain_participant_attributes::DomainParticipantAttributes,
-            domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
-            subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
-        },
+        dds_impl::domain_participant_attributes::DomainParticipantAttributes,
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
     };
@@ -866,10 +862,14 @@ mod tests {
 
     use crate::{
         domain_participant_factory::get_multicast_socket,
+        domain_participant_proxy::DomainParticipantProxy,
+        publisher_proxy::PublisherProxy,
+        subscriber_proxy::SubscriberProxy,
         tasks::{
             task_announce_participant, task_sedp_reader_discovery, task_sedp_writer_discovery,
             task_spdp_discovery,
         },
+        topic_proxy::TopicProxy,
     };
 
     use super::{

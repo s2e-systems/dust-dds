@@ -11,15 +11,14 @@ use dds_api::{
     },
     return_type::DdsResult,
 };
-
-use crate::{
+use dds_implementation::{
+    dds_impl::domain_participant_attributes::DomainParticipantAttributes,
     dds_type::{DdsSerialize, DdsType},
     utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
 };
 
-use super::{
-    domain_participant_attributes::DomainParticipantAttributes, publisher_proxy::PublisherProxy,
-    subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
+use crate::{
+    publisher_proxy::PublisherProxy, subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
 
 pub struct DomainParticipantProxy<Rtps>

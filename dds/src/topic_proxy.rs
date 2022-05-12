@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use crate::utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak};
 use dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
@@ -10,8 +9,12 @@ use dds_api::{
     return_type::DdsResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use dds_implementation::{
+    dds_impl::topic_attributes::TopicAttributes,
+    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
+};
 
-use super::{domain_participant_proxy::DomainParticipantProxy, topic_attributes::TopicAttributes};
+use crate::domain_participant_proxy::DomainParticipantProxy;
 
 pub struct TopicProxy<Foo, Rtps>
 where

@@ -14,15 +14,16 @@ use dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-
-use crate::{
+use dds_implementation::{
+    dds_impl::{
+        data_reader_attributes::AnyDataReaderListener, subscriber_attributes::SubscriberAttributes,
+    },
     dds_type::{DdsDeserialize, DdsType},
     utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak, timer::ThreadTimer},
 };
 
-use super::{
-    data_reader_attributes::AnyDataReaderListener, data_reader_proxy::DataReaderProxy,
-    domain_participant_proxy::DomainParticipantProxy, subscriber_attributes::SubscriberAttributes,
+use crate::{
+    data_reader_proxy::DataReaderProxy, domain_participant_proxy::DomainParticipantProxy,
     topic_proxy::TopicProxy,
 };
 

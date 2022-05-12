@@ -10,15 +10,15 @@ use dds_api::{
     },
     return_type::DdsResult,
 };
-
-use crate::{
+use dds_implementation::{
+    dds_impl::publisher_attributes::PublisherAttributes,
     dds_type::{DdsSerialize, DdsType},
     utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
 };
 
-use super::{
+use crate::{
     data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
-    publisher_attributes::PublisherAttributes, topic_proxy::TopicProxy,
+    topic_proxy::TopicProxy,
 };
 
 #[derive(Clone)]

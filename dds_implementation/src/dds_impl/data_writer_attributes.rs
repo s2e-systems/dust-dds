@@ -549,7 +549,6 @@ mod test {
     };
 
     use crate::{
-        dds_impl::data_writer_proxy::DataWriterProxy,
         dds_type::Endianness,
         test_utils::{
             mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
@@ -635,10 +634,8 @@ mod test {
         );
 
         let shared_data_writer = DdsShared::new(data_writer);
-        let weak_data_writer = shared_data_writer.downgrade();
 
-        let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
-        data_writer_proxy
+        shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();
     }
@@ -676,10 +673,8 @@ mod test {
         );
 
         let shared_data_writer = DdsShared::new(data_writer);
-        let weak_data_writer = shared_data_writer.downgrade();
 
-        let data_writer_proxy = DataWriterProxy::<MockFoo, MockRtps>::new(weak_data_writer);
-        data_writer_proxy
+        shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();
     }

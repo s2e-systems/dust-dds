@@ -1,12 +1,3 @@
-use super::{
-    data_reader_attributes::{AnyDataReaderListener, DataReaderAttributes},
-    subscriber_proxy::SubscriberProxy,
-    topic_proxy::TopicProxy,
-};
-use crate::{
-    dds_type::DdsDeserialize,
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak, timer::Timer},
-};
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -27,8 +18,15 @@ use dds_api::{
         query_condition::QueryCondition,
     },
 };
+use dds_implementation::{
+    dds_impl::data_reader_attributes::{AnyDataReaderListener, DataReaderAttributes},
+    dds_type::DdsDeserialize,
+    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak, timer::Timer},
+};
 
 use std::marker::PhantomData;
+
+use crate::{subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy};
 
 pub struct DataReaderProxy<Foo, Rtps, T>
 where

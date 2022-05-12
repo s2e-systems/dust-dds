@@ -22,11 +22,7 @@ use dds_implementation::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
     },
-    dds_impl::{
-        domain_participant_attributes::DomainParticipantAttributes,
-        domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
-        subscriber_proxy::SubscriberProxy,
-    },
+    dds_impl::domain_participant_attributes::DomainParticipantAttributes,
     utils::{
         discovery_traits::{AddMatchedReader, AddMatchedWriter},
         shared_object::DdsShared,
@@ -49,7 +45,11 @@ use rtps_pim::{
     structure::{entity::RtpsEntityAttributes, participant::RtpsParticipantAttributes},
 };
 
-use crate::domain_participant_factory::RtpsStructureImpl;
+use crate::{
+    domain_participant_factory::RtpsStructureImpl,
+    domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
+    subscriber_proxy::SubscriberProxy,
+};
 
 pub struct Executor {
     pub receiver: Receiver<EnabledPeriodicTask>,
@@ -475,11 +475,7 @@ mod tests {
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
-        dds_impl::{
-            domain_participant_attributes::DomainParticipantAttributes,
-            domain_participant_proxy::DomainParticipantProxy, publisher_proxy::PublisherProxy,
-            subscriber_proxy::SubscriberProxy,
-        },
+        dds_impl::domain_participant_attributes::DomainParticipantAttributes,
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
     };
@@ -490,6 +486,9 @@ mod tests {
 
     use crate::{
         domain_participant_factory::{create_builtins, Communications, RtpsStructureImpl},
+        domain_participant_proxy::DomainParticipantProxy,
+        publisher_proxy::PublisherProxy,
+        subscriber_proxy::SubscriberProxy,
         tasks::task_sedp_reader_discovery,
     };
 

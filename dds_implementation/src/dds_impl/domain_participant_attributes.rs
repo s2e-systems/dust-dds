@@ -14,10 +14,7 @@ use dds_api::{
         entity::Entity,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{
-        data_writer::DataWriter,
-        publisher::{Publisher, PublisherDataWriterFactory},
-    },
+    publication::{data_writer::DataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
     subscription::subscriber::Subscriber,
     topic::topic_description::TopicDescription,
@@ -47,8 +44,7 @@ use crate::{
 };
 
 use super::{
-    domain_participant_proxy::DomainParticipantProxy, publisher_attributes::PublisherAttributes,
-    publisher_proxy::PublisherProxy, subscriber_attributes::SubscriberAttributes,
+    publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
     topic_attributes::TopicAttributes,
 };
 
@@ -157,16 +153,13 @@ where
 
         // /////// Announce the topic creation
         {
-            let domain_participant_proxy = DomainParticipantProxy::new(self.downgrade());
             let builtin_publisher_option = self.builtin_publisher.read_lock().clone();
             if let Some(builtin_publisher) = builtin_publisher_option {
-                let builtin_publisher_proxy = PublisherProxy::new(builtin_publisher.downgrade());
-
                 if let Ok(topic_creation_topic) =
-                    domain_participant_proxy.topic_factory_lookup_topicdescription(DCPS_TOPIC)
+                    self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
                 {
-                    if let Ok(sedp_builtin_topic_announcer) = builtin_publisher_proxy
-                        .datawriter_factory_lookup_datawriter(&topic_creation_topic)
+                    if let Ok(sedp_builtin_topic_announcer) = builtin_publisher
+                        .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
                     {
                         let sedp_discovered_topic_data = DiscoveredTopicData {
                             topic_builtin_topic_data: TopicBuiltinTopicData {
@@ -484,14 +477,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use dds_api::{
-        domain::domain_participant::DomainParticipantTopicFactory,
-        return_type::{DdsError, DdsResult},
-    };
+    use dds_api::return_type::{DdsError, DdsResult};
 
     use super::*;
     use crate::{
-        dds_impl::{domain_participant_proxy::DomainParticipantProxy, topic_proxy::TopicProxy},
         dds_type::{DdsSerialize, DdsType, Endianness},
         test_utils::mock_rtps::MockRtps,
     };
@@ -523,9 +512,7 @@ mod tests {
 
     #[test]
     fn topic_factory_create_topic() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -535,12 +522,10 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let len_before = domain_participant.topic_list.read_lock().len();
 
-        let topic = domain_participant_proxy.topic_factory_create_topic("topic", None, None, 0)
-            as DdsResult<Topic>;
+        let topic = domain_participant.create_topic::<Foo>("topic", None, None, 0);
 
         assert!(topic.is_ok());
         assert_eq!(
@@ -551,9 +536,7 @@ mod tests {
 
     #[test]
     fn topic_factory_delete_topic() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -563,32 +546,26 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let len_before = domain_participant.topic_list.read_lock().len();
 
-        let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as Topic;
+        let topic = domain_participant
+            .create_topic::<Foo>("topic", None, None, 0)
+            .unwrap();
 
         assert_eq!(
             len_before + 1,
             domain_participant.topic_list.read_lock().len()
         );
 
-        domain_participant_proxy
-            .topic_factory_delete_topic(&topic)
-            .unwrap();
+        domain_participant.delete_topic::<Foo>(&topic).unwrap();
 
         assert_eq!(len_before, domain_participant.topic_list.read_lock().len());
-        assert!(topic.as_ref().upgrade().is_err());
     }
 
     #[test]
     fn topic_factory_delete_topic_from_other_participant() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -598,7 +575,6 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
         let domain_participant2 = DdsShared::new(DomainParticipantAttributes::new(
             GuidPrefix([1; 12]),
@@ -610,15 +586,13 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant2_proxy =
-            DomainParticipantProxy::new(domain_participant2.downgrade());
 
         let len_before = domain_participant.topic_list.read_lock().len();
         let len_before2 = domain_participant2.topic_list.read_lock().len();
 
-        let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as Topic;
+        let topic = domain_participant
+            .create_topic::<Foo>("topic", None, None, 0)
+            .unwrap();
 
         assert_eq!(
             len_before + 1,
@@ -630,17 +604,14 @@ mod tests {
         );
 
         assert!(matches!(
-            domain_participant2_proxy.topic_factory_delete_topic(&topic),
+            domain_participant2.delete_topic::<Foo>(&topic),
             Err(DdsError::PreconditionNotMet(_))
         ));
-        assert!(topic.as_ref().upgrade().is_ok());
     }
 
     #[test]
     fn topic_factory_lookup_topic_with_no_topic() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -650,20 +621,15 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<Topic>)
-                .is_err()
-        );
+        assert!(domain_participant
+            .lookup_topicdescription::<Foo>("topic")
+            .is_err());
     }
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -673,20 +639,16 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let topic = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as Topic;
+        let topic = domain_participant
+            .create_topic::<Foo>("topic", None, None, 0)
+            .unwrap();
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<Topic>)
+            domain_participant
+                .lookup_topicdescription::<Foo>("topic")
                 .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == topic.as_ref().upgrade().unwrap()
+                == topic
         );
     }
 
@@ -694,10 +656,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic_with_wrong_type() {
-        type TopicFoo = TopicProxy<Foo, MockRtps>;
-        type TopicBar = TopicProxy<Bar, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -707,24 +666,19 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as TopicBar;
+        domain_participant
+            .create_topic::<Bar>("topic", None, None, 0)
+            .unwrap();
 
-        assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<TopicFoo>)
-                .is_err()
-        );
+        assert!(domain_participant
+            .lookup_topicdescription::<Foo>("topic")
+            .is_err());
     }
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic_with_wrong_name() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -734,25 +688,19 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        domain_participant_proxy
-            .topic_factory_create_topic("other_topic", None, None, 0)
-            .unwrap() as Topic;
+        domain_participant
+            .create_topic::<Foo>("other_topic", None, None, 0)
+            .unwrap();
 
-        assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<Topic>)
-                .is_err()
-        );
+        assert!(domain_participant
+            .lookup_topicdescription::<Foo>("topic")
+            .is_err());
     }
 
     #[test]
     fn topic_factory_lookup_topic_with_two_types() {
-        type TopicFoo = TopicProxy<Foo, MockRtps>;
-        type TopicBar = TopicProxy<Bar, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -762,41 +710,32 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let topic_foo = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as TopicFoo;
-        let topic_bar = domain_participant_proxy
-            .topic_factory_create_topic("topic", None, None, 0)
-            .unwrap() as TopicBar;
+        let topic_foo = domain_participant
+            .create_topic::<Foo>("topic", None, None, 0)
+            .unwrap();
+        let topic_bar = domain_participant
+            .create_topic::<Bar>("topic", None, None, 0)
+            .unwrap();
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<TopicFoo>)
+            domain_participant
+                .lookup_topicdescription::<Foo>("topic")
                 .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == topic_foo.as_ref().upgrade().unwrap()
+                == topic_foo
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic")
-                as DdsResult<TopicBar>)
+            domain_participant
+                .lookup_topicdescription::<Bar>("topic")
                 .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == topic_bar.as_ref().upgrade().unwrap()
+                == topic_bar
         );
     }
 
     #[test]
     fn topic_factory_lookup_topic_with_two_topics() {
-        type Topic = TopicProxy<Foo, MockRtps>;
-
-        let domain_participant = DdsShared::new(DomainParticipantAttributes::new(
+        let domain_participant = DdsShared::new(DomainParticipantAttributes::<MockRtps>::new(
             GuidPrefix([1; 12]),
             DomainId::default(),
             "".to_string(),
@@ -806,33 +745,26 @@ mod tests {
             vec![],
             vec![],
         ));
-        let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
 
-        let topic1 = domain_participant_proxy
-            .topic_factory_create_topic("topic1", None, None, 0)
-            .unwrap() as Topic;
-        let topic2 = domain_participant_proxy
-            .topic_factory_create_topic("topic2", None, None, 0)
-            .unwrap() as Topic;
+        let topic1 = domain_participant
+            .create_topic::<Foo>("topic1", None, None, 0)
+            .unwrap();
+        let topic2 = domain_participant
+            .create_topic::<Foo>("topic2", None, None, 0)
+            .unwrap();
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic1")
-                as DdsResult<Topic>)
+            domain_participant
+                .lookup_topicdescription::<Foo>("topic1")
                 .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == topic1.as_ref().upgrade().unwrap()
+                == topic1
         );
 
         assert!(
-            (domain_participant_proxy.topic_factory_lookup_topicdescription("topic2")
-                as DdsResult<Topic>)
+            domain_participant
+                .lookup_topicdescription::<Foo>("topic2")
                 .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == topic2.as_ref().upgrade().unwrap()
+                == topic2
         );
     }
 }

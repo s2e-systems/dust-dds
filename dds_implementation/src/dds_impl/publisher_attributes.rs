@@ -377,7 +377,6 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        dds_impl::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy},
         dds_type::{DdsSerialize, DdsType, Endianness},
         test_utils::mock_rtps_group::MockRtpsGroup,
     };
@@ -460,7 +459,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -468,10 +466,8 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, MockRtps>::new(topic.downgrade());
 
-        let data_writer =
-            publisher_proxy.datawriter_factory_create_datawriter(&topic_proxy, None, None, 0);
+        let data_writer = publisher.create_datawriter::<Foo>(&topic, None, None, 0);
 
         assert!(data_writer.is_ok());
         assert_eq!(1, publisher.data_writer_list.read_lock().len());
@@ -521,7 +517,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -529,20 +524,16 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher
+            .create_datawriter::<Foo>(&topic, None, None, 0)
             .unwrap();
 
         assert_eq!(1, publisher.data_writer_list.read_lock().len());
 
-        publisher_proxy
-            .datawriter_factory_delete_datawriter(&data_writer)
-            .unwrap();
+        publisher.delete_datawriter::<Foo>(&data_writer).unwrap();
 
         assert_eq!(0, publisher.data_writer_list.read_lock().len());
-        assert!(data_writer.as_ref().upgrade().is_err())
     }
 
     #[test]
@@ -589,7 +580,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let publisher2_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
@@ -600,7 +590,6 @@ mod tests {
             parent_participant: domain_participant.downgrade(),
         };
         let publisher2 = DdsShared::new(publisher2_attributes);
-        let publisher2_proxy = PublisherProxy::new(publisher2.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -608,20 +597,18 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher
+            .create_datawriter::<Foo>(&topic, None, None, 0)
             .unwrap();
 
         assert_eq!(1, publisher.data_writer_list.read_lock().len());
         assert_eq!(0, publisher2.data_writer_list.read_lock().len());
 
         assert!(matches!(
-            publisher2_proxy.datawriter_factory_delete_datawriter(&data_writer),
+            publisher2.delete_datawriter::<Foo>(&data_writer),
             Err(DdsError::PreconditionNotMet(_))
         ));
-        assert!(data_writer.as_ref().upgrade().is_ok())
     }
 
     #[test]
@@ -656,7 +643,6 @@ mod tests {
             parent_participant: domain_participant.downgrade(),
         };
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -664,11 +650,8 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_proxy)
-            .is_err());
+        assert!(publisher.lookup_datawriter::<Foo>(&topic).is_err());
     }
 
     #[test]
@@ -715,7 +698,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -723,21 +705,12 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_writer = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_proxy, None, None, 0)
+        let data_writer = publisher
+            .create_datawriter::<Foo>(&topic, None, None, 0)
             .unwrap();
 
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer.as_ref().upgrade().unwrap()
-        );
+        assert!(publisher.lookup_datawriter::<Foo>(&topic).unwrap() == data_writer);
     }
 
     make_empty_dds_type!(Bar);
@@ -786,7 +759,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -794,7 +766,6 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -802,15 +773,12 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
-        publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+        publisher
+            .create_datawriter::<Bar>(&topic_bar, None, None, 0)
             .unwrap();
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-            .is_err());
+        assert!(publisher.lookup_datawriter::<Foo>(&topic_foo).is_err());
     }
 
     #[test]
@@ -857,7 +825,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -865,7 +832,6 @@ mod tests {
             "topic1",
             DdsWeak::new(),
         ));
-        let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
         let topic2 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -873,15 +839,12 @@ mod tests {
             "topic2",
             DdsWeak::new(),
         ));
-        let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
-        publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+        publisher
+            .create_datawriter::<Foo>(&topic2, None, None, 0)
             .unwrap();
 
-        assert!(publisher_proxy
-            .datawriter_factory_lookup_datawriter(&topic1_proxy)
-            .is_err());
+        assert!(publisher.lookup_datawriter::<Foo>(&topic1).is_err());
     }
 
     #[test]
@@ -928,7 +891,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -936,7 +898,6 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -944,34 +905,17 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
-        let data_writer_foo = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_foo_proxy, None, None, 0)
+        let data_writer_foo = publisher
+            .create_datawriter::<Foo>(&topic_foo, None, None, 0)
             .unwrap();
-        let data_writer_bar = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic_bar_proxy, None, None, 0)
+        let data_writer_bar = publisher
+            .create_datawriter::<Bar>(&topic_bar, None, None, 0)
             .unwrap();
 
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_foo_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_foo.as_ref().upgrade().unwrap()
-        );
+        assert!(publisher.lookup_datawriter::<Foo>(&topic_foo).unwrap() == data_writer_foo);
 
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic_bar_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer_bar.as_ref().upgrade().unwrap()
-        );
+        assert!(publisher.lookup_datawriter::<Bar>(&topic_bar).unwrap() == data_writer_bar);
     }
 
     #[test]
@@ -1018,7 +962,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
-        let publisher_proxy = PublisherProxy::new(publisher.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1026,7 +969,6 @@ mod tests {
             "topic1",
             DdsWeak::new(),
         ));
-        let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
         let topic2 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1034,33 +976,16 @@ mod tests {
             "topic2",
             DdsWeak::new(),
         ));
-        let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
-        let data_writer1 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic1_proxy, None, None, 0)
+        let data_writer1 = publisher
+            .create_datawriter::<Foo>(&topic1, None, None, 0)
             .unwrap();
-        let data_writer2 = publisher_proxy
-            .datawriter_factory_create_datawriter(&topic2_proxy, None, None, 0)
+        let data_writer2 = publisher
+            .create_datawriter::<Foo>(&topic2, None, None, 0)
             .unwrap();
 
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic1_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer1.as_ref().upgrade().unwrap()
-        );
+        assert!(publisher.lookup_datawriter::<Foo>(&topic1).unwrap() == data_writer1);
 
-        assert!(
-            publisher_proxy
-                .datawriter_factory_lookup_datawriter(&topic2_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_writer2.as_ref().upgrade().unwrap()
-        );
+        assert!(publisher.lookup_datawriter::<Foo>(&topic2).unwrap() == data_writer2);
     }
 }

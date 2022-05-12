@@ -1,9 +1,5 @@
 use std::marker::PhantomData;
 
-use crate::{
-    dds_type::DdsSerialize,
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
-};
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -17,11 +13,13 @@ use dds_api::{
     publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
     return_type::DdsResult,
 };
-
-use super::{
-    data_writer_attributes::DataWriterAttributes, publisher_proxy::PublisherProxy,
-    topic_proxy::TopicProxy,
+use dds_implementation::{
+    dds_impl::data_writer_attributes::DataWriterAttributes,
+    dds_type::DdsSerialize,
+    utils::{rtps_structure::RtpsStructure, shared_object::DdsWeak},
 };
+
+use crate::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
 
 pub struct DataWriterProxy<Foo, Rtps>
 where

@@ -387,10 +387,7 @@ mod tests {
     use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use crate::{
-        dds_impl::{
-            publisher_attributes::PublisherAttributes, subscriber_proxy::SubscriberProxy,
-            topic_proxy::TopicProxy,
-        },
+        dds_impl::publisher_attributes::PublisherAttributes,
         dds_type::{DdsDeserialize, DdsType},
         test_utils::{mock_rtps::MockRtps, mock_rtps_group::MockRtpsGroup},
     };
@@ -466,7 +463,6 @@ mod tests {
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
 
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -474,9 +470,8 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_reader = subscriber_proxy.create_datareader(&topic_proxy, None, None, 0);
+        let data_reader = subscriber.create_datareader::<Foo>(&topic, None, None, 0);
 
         assert!(data_reader.is_ok());
     }
@@ -524,7 +519,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -532,19 +526,15 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+        let data_reader = subscriber
+            .create_datareader::<Foo>(&topic, None, None, 0)
             .unwrap();
 
         assert_eq!(1, subscriber.data_reader_list.read_lock().len());
 
-        subscriber_proxy
-            .datareader_factory_delete_datareader(&data_reader)
-            .unwrap();
+        subscriber.delete_datareader::<Foo>(&data_reader).unwrap();
         assert_eq!(0, subscriber.data_reader_list.read_lock().len());
-        assert!(data_reader.as_ref().upgrade().is_err());
     }
 
     #[test]
@@ -590,7 +580,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let mut subscriber2_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -605,7 +594,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber2 = DdsShared::new(subscriber2_attributes);
-        let subscriber2_proxy = SubscriberProxy::new(subscriber2.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -613,20 +601,18 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+        let data_reader = subscriber
+            .create_datareader::<Foo>(&topic, None, None, 0)
             .unwrap();
 
         assert_eq!(1, subscriber.data_reader_list.read_lock().len());
         assert_eq!(0, subscriber2.data_reader_list.read_lock().len());
 
         assert!(matches!(
-            subscriber2_proxy.datareader_factory_delete_datareader(&data_reader),
+            subscriber2.delete_datareader::<Foo>(&data_reader),
             Err(DdsError::PreconditionNotMet(_))
         ));
-        assert!(data_reader.as_ref().upgrade().is_ok());
     }
 
     #[test]
@@ -663,7 +649,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -671,11 +656,8 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic_proxy)
-            .is_err());
+        assert!(subscriber.lookup_datareader::<Foo>(&topic).is_err());
     }
 
     #[test]
@@ -721,7 +703,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -729,21 +710,12 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_proxy = TopicProxy::<Foo, _>::new(topic.downgrade());
 
-        let data_reader = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_proxy, None, None, 0)
+        let data_reader = subscriber
+            .create_datareader::<Foo>(&topic, None, None, 0)
             .unwrap();
 
-        assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader.as_ref().upgrade().unwrap()
-        );
+        assert!(subscriber.lookup_datareader::<Foo>(&topic).unwrap() == data_reader);
     }
 
     make_empty_dds_type!(Bar);
@@ -791,7 +763,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -799,7 +770,6 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -807,15 +777,12 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
-        subscriber_proxy
-            .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
+        subscriber
+            .create_datareader::<Bar>(&topic_bar, None, None, 0)
             .unwrap();
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic_foo_proxy)
-            .is_err());
+        assert!(subscriber.lookup_datareader::<Foo>(&topic_foo).is_err());
     }
 
     #[test]
@@ -861,7 +828,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -869,7 +835,6 @@ mod tests {
             "topic1",
             DdsWeak::new(),
         ));
-        let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
         let topic2 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -877,15 +842,12 @@ mod tests {
             "topic2",
             DdsWeak::new(),
         ));
-        let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
-        subscriber_proxy
-            .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
+        subscriber
+            .create_datareader::<Foo>(&topic2, None, None, 0)
             .unwrap();
 
-        assert!(subscriber_proxy
-            .datareader_factory_lookup_datareader(&topic1_proxy)
-            .is_err());
+        assert!(subscriber.lookup_datareader::<Foo>(&topic1).is_err());
     }
 
     #[test]
@@ -931,7 +893,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -939,7 +900,6 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_foo_proxy = TopicProxy::<Foo, _>::new(topic_foo.downgrade());
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -947,34 +907,17 @@ mod tests {
             "topic",
             DdsWeak::new(),
         ));
-        let topic_bar_proxy = TopicProxy::<Bar, _>::new(topic_bar.downgrade());
 
-        let data_reader_foo = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_foo_proxy, None, None, 0)
+        let data_reader_foo = subscriber
+            .create_datareader::<Foo>(&topic_foo, None, None, 0)
             .unwrap();
-        let data_reader_bar = subscriber_proxy
-            .datareader_factory_create_datareader(&topic_bar_proxy, None, None, 0)
+        let data_reader_bar = subscriber
+            .create_datareader::<Bar>(&topic_bar, None, None, 0)
             .unwrap();
 
-        assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_foo_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader_foo.as_ref().upgrade().unwrap()
-        );
+        assert!(subscriber.lookup_datareader::<Foo>(&topic_foo).unwrap() == data_reader_foo);
 
-        assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic_bar_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader_bar.as_ref().upgrade().unwrap()
-        );
+        assert!(subscriber.lookup_datareader::<Bar>(&topic_bar).unwrap() == data_reader_bar);
     }
 
     #[test]
@@ -1020,7 +963,6 @@ mod tests {
             .expect_guid()
             .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
-        let subscriber_proxy = SubscriberProxy::new(subscriber.downgrade());
 
         let topic1 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1028,7 +970,6 @@ mod tests {
             "topic1",
             DdsWeak::new(),
         ));
-        let topic1_proxy = TopicProxy::<Foo, _>::new(topic1.downgrade());
 
         let topic2 = DdsShared::new(TopicAttributes::new(
             TopicQos::default(),
@@ -1036,33 +977,16 @@ mod tests {
             "topic2",
             DdsWeak::new(),
         ));
-        let topic2_proxy = TopicProxy::<Foo, _>::new(topic2.downgrade());
 
-        let data_reader1 = subscriber_proxy
-            .datareader_factory_create_datareader(&topic1_proxy, None, None, 0)
+        let data_reader1 = subscriber
+            .create_datareader::<Foo>(&topic1, None, None, 0)
             .unwrap();
-        let data_reader2 = subscriber_proxy
-            .datareader_factory_create_datareader(&topic2_proxy, None, None, 0)
+        let data_reader2 = subscriber
+            .create_datareader::<Foo>(&topic2, None, None, 0)
             .unwrap();
 
-        assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic1_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader1.as_ref().upgrade().unwrap()
-        );
+        assert!(subscriber.lookup_datareader::<Foo>(&topic1).unwrap() == data_reader1);
 
-        assert!(
-            subscriber_proxy
-                .datareader_factory_lookup_datareader(&topic2_proxy)
-                .unwrap()
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                == data_reader2.as_ref().upgrade().unwrap()
-        );
+        assert!(subscriber.lookup_datareader::<Foo>(&topic2).unwrap() == data_reader2);
     }
 }
