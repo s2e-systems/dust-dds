@@ -17,7 +17,7 @@ use dds_api::{
     },
     publication::{
         data_writer::DataWriter,
-        publisher::{Publisher, PublisherDataWriterFactory},
+        publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
     return_type::{DdsError, DdsResult},
@@ -278,13 +278,10 @@ where
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
-
 impl<Rtps> Publisher for DdsShared<PublisherAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
-    type DomainParticipantType = DdsShared<DomainParticipantAttributes<Rtps>>;
-
     fn suspend_publications(&self) -> DdsResult<()> {
         todo!()
     }
@@ -305,10 +302,6 @@ where
         todo!()
     }
 
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipantType> {
-        Ok(self.parent_participant.upgrade()?.clone())
-    }
-
     fn delete_contained_entities(&self) -> DdsResult<()> {
         todo!()
     }
@@ -327,6 +320,17 @@ where
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
+    }
+}
+
+impl<Rtps> PublisherGetParticipant for DdsShared<PublisherAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+
+    fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
+        Ok(self.parent_participant.clone())
     }
 }
 

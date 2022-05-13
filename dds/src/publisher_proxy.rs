@@ -5,13 +5,16 @@ use dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer_listener::DataWriterListener,
-        publisher::{Publisher, PublisherDataWriterFactory},
+        data_writer::DataWriter,
+        publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
     return_type::DdsResult,
 };
-use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
+use dds_implementation::{
+    dds_impl::data_writer_attributes::AnyDataWriterListener,
+    utils::shared_object::{DdsShared, DdsWeak},
+};
 
 use crate::{
     data_writer_proxy::DataWriterProxy, domain_participant_proxy::DomainParticipantProxy,
@@ -41,8 +44,12 @@ impl<Foo, I, T, DW> PublisherDataWriterFactory<Foo> for PublisherProxy<I>
 where
     DdsShared<I>:
         PublisherDataWriterFactory<Foo, TopicType = DdsShared<T>, DataWriterType = DdsShared<DW>>,
-    DdsShared<DW>:
-        Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener + Send + Sync>>,
+    DdsShared<DW>: Entity<
+        Qos = DataWriterQos,
+        Listener = Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>,
+    >,
+    DdsShared<DW>: DataWriter<Foo>,
+    Foo: 'static,
 {
     type TopicType = TopicProxy<Foo, T>;
     type DataWriterType = DataWriterProxy<Foo, DW>;
@@ -58,7 +65,9 @@ where
             &self.publisher_attributes.upgrade()?,
             &a_topic.as_ref().upgrade()?,
             qos,
-            a_listener,
+            a_listener.map::<Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>, _>(|x| {
+                Box::new(x)
+            }),
             mask,
         )
         .map(|x| DataWriterProxy::new(x.downgrade()))
@@ -88,10 +97,8 @@ where
 
 impl<I, DP> Publisher for PublisherProxy<I>
 where
-    DdsShared<I>: Publisher<DomainParticipantType = DdsShared<DP>>,
+    DdsShared<I>: Publisher + PublisherGetParticipant<DomainParticipant = DP>,
 {
-    type DomainParticipantType = DomainParticipantProxy<DP>;
-
     fn suspend_publications(&self) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.suspend_publications()
     }
@@ -143,8 +150,15 @@ where
             .upgrade()?
             .copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
+}
 
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipantType> {
+impl<I, DP> PublisherGetParticipant for PublisherProxy<I>
+where
+    DdsShared<I>: Publisher + PublisherGetParticipant<DomainParticipant = DdsShared<DP>>,
+{
+    type DomainParticipant = DomainParticipantProxy<DP>;
+
+    fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.publisher_attributes
             .upgrade()?
             .get_participant()

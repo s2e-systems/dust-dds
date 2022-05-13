@@ -19,7 +19,7 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
     subscription::{
         data_reader::AnyDataReader,
-        subscriber::{Subscriber, SubscriberDataReaderFactory},
+        subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
         subscriber_listener::SubscriberListener,
     },
     topic::topic_description::TopicDescription,
@@ -279,8 +279,6 @@ impl<Rtps> Subscriber for DdsShared<SubscriberAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
-    type DomainParticipant = DdsShared<DomainParticipantAttributes<Rtps>>;
-
     fn begin_access(&self) -> DdsResult<()> {
         todo!()
     }
@@ -301,10 +299,6 @@ where
 
     fn notify_datareaders(&self) -> DdsResult<()> {
         todo!()
-    }
-
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_domain_participant.upgrade()?.clone())
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
@@ -329,6 +323,17 @@ where
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
+    }
+}
+
+impl<Rtps> SubscriberGetParticipant for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+
+    fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
+        Ok(self.parent_domain_participant.clone())
     }
 }
 

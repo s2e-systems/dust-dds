@@ -309,7 +309,7 @@ where
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_publisher.get_participant()?, self) {
+        if !DdsShared::ptr_eq(&a_publisher.get_participant()?.upgrade()?, self) {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -354,7 +354,7 @@ where
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?, self) {
+        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?.upgrade()?, self) {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));

@@ -6,7 +6,12 @@ use crate::dcps_psm::{
 use super::data_writer::AnyDataWriter;
 
 pub trait PublisherListener {
-    fn on_liveliness_lost(&mut self, _the_writer: &dyn AnyDataWriter, _status: LivelinessLostStatus) {}
+    fn on_liveliness_lost(
+        &mut self,
+        _the_writer: &dyn AnyDataWriter,
+        _status: LivelinessLostStatus,
+    ) {
+    }
     fn on_offered_deadline_missed(
         &mut self,
         _the_writer: &dyn AnyDataWriter,

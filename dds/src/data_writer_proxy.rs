@@ -10,12 +10,18 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
     },
-    publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener},
+    publication::{
+        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic},
+        data_writer_listener::DataWriterListener,
+    },
     return_type::DdsResult,
 };
-use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
+use dds_implementation::{
+    dds_impl::data_writer_attributes::AnyDataWriterListener,
+    utils::shared_object::{DdsShared, DdsWeak},
+};
 
-use crate::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
+use crate::{topic_proxy::TopicProxy, publisher_proxy::PublisherProxy};
 
 pub struct DataWriterProxy<Foo, I> {
     data_writer_attributes: DdsWeak<I>,
@@ -49,11 +55,10 @@ impl<Foo, I> AsRef<DdsWeak<I>> for DataWriterProxy<Foo, I> {
 
 impl<Foo, I, P, T> DataWriter<Foo> for DataWriterProxy<Foo, I>
 where
-    DdsShared<I>: DataWriter<Foo, PublisherType = DdsShared<P>, TopicType = DdsShared<T>>,
+    DdsShared<I>: DataWriter<Foo>
+        + DataWriterGetPublisher<PublisherType = DdsShared<P>>
+        + DataWriterGetTopic<TopicType = DdsShared<T>>,
 {
-    type PublisherType = PublisherProxy<P>;
-    type TopicType = TopicProxy<Foo, T>;
-
     fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes
             .upgrade()?
@@ -173,16 +178,6 @@ where
         )
     }
 
-    fn get_topic(&self) -> DdsResult<Self::TopicType> {
-        DataWriter::<Foo>::get_topic(&self.data_writer_attributes.upgrade()?)
-            .map(|x| TopicProxy::new(x.downgrade()))
-    }
-
-    fn get_publisher(&self) -> DdsResult<Self::PublisherType> {
-        DataWriter::<Foo>::get_publisher(&self.data_writer_attributes.upgrade()?)
-            .map(|x| PublisherProxy::new(x.downgrade()))
-    }
-
     fn assert_liveliness(&self) -> DdsResult<()> {
         DataWriter::<Foo>::assert_liveliness(&self.data_writer_attributes.upgrade()?)
     }
@@ -204,12 +199,41 @@ where
     }
 }
 
+impl<Foo, I, P> DataWriterGetPublisher for DataWriterProxy<Foo, I>
+where
+    DdsShared<I>: DataWriter<Foo> + DataWriterGetPublisher<PublisherType = DdsShared<P>>,
+{
+    type PublisherType = PublisherProxy<P>;
+
+    fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
+        DataWriter::<Foo>::get_publisher(&self.data_writer_attributes.upgrade()?)
+            .map(|x| PublisherProxy::new(x.downgrade()))
+    }
+}
+
+impl<Foo, I, T> DataWriterGetTopic for DataWriterProxy<Foo, I>
+where
+    DdsShared<I>: DataWriter<Foo> + DataWriterGetTopic<TopicType = DdsShared<T>>,
+{
+    type TopicType = TopicProxy<Foo, T>;
+
+    fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
+        DataWriter::<Foo>::get_topic(&self.data_writer_attributes.upgrade()?)
+            .map(|x| TopicProxy::new(x.downgrade()))
+    }
+}
+
 impl<Foo, I> Entity for DataWriterProxy<Foo, I>
 where
-    DdsShared<I>: Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener + Send + Sync>>,
+    DdsShared<I>: Entity<
+        Qos = DataWriterQos,
+        Listener = Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>,
+    >,
+    DdsShared<I>: DataWriter<Foo>,
+    Foo: 'static,
 {
     type Qos = <DdsShared<I> as Entity>::Qos;
-    type Listener = <DdsShared<I> as Entity>::Listener;
+    type Listener = Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.set_qos(qos)
@@ -220,13 +244,16 @@ where
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
-        self.data_writer_attributes
-            .upgrade()?
-            .set_listener(a_listener, mask)
+        self.data_writer_attributes.upgrade()?.set_listener(
+            a_listener.map::<Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>, _>(|l| {
+                Box::new(l)
+            }),
+            mask,
+        )
     }
 
     fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
-        self.data_writer_attributes.upgrade()?.get_listener()
+        todo!()
     }
 
     fn get_statuscondition(&self) -> DdsResult<StatusCondition> {

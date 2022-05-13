@@ -10,7 +10,7 @@ use dds_api::{
     return_type::DdsResult,
     subscription::{
         data_reader::{AnyDataReader, DataReader},
-        subscriber::{Subscriber, SubscriberDataReaderFactory},
+        subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
         subscriber_listener::SubscriberListener,
     },
 };
@@ -99,10 +99,8 @@ where
 
 impl<I, DP> Subscriber for SubscriberProxy<I>
 where
-    DdsShared<I>: Subscriber<DomainParticipant = DdsShared<DP>>,
+    DdsShared<I>: Subscriber + SubscriberGetParticipant<DomainParticipant = DP>,
 {
-    type DomainParticipant = DomainParticipantProxy<DP>;
-
     fn begin_access(&self) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.begin_access()
     }
@@ -163,8 +161,15 @@ where
             .upgrade()?
             .copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
+}
 
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
+impl<I, DP> SubscriberGetParticipant for SubscriberProxy<I>
+where
+    DdsShared<I>: Subscriber + SubscriberGetParticipant<DomainParticipant = DdsShared<DP>>,
+{
+    type DomainParticipant = DomainParticipantProxy<DP>;
+
+    fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.subscriber_attributes
             .upgrade()?
             .get_participant()

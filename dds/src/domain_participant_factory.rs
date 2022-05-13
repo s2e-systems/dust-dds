@@ -1392,7 +1392,31 @@ mod tests {
         WriterListener {}
 
         impl DataWriterListener for WriterListener {
-            fn on_publication_matched(&mut self, status: PublicationMatchedStatus);
+            type Foo = UserData;
+
+            fn on_publication_matched(
+                &mut self,
+                the_writer: &dyn DataWriter<UserData>,
+                status: PublicationMatchedStatus,
+            );
+
+            fn on_liveliness_lost(
+                &mut self,
+                _the_writer: &dyn DataWriter<UserData>,
+                _status: dds_api::dcps_psm::LivelinessLostStatus,
+            );
+
+            fn on_offered_deadline_missed(
+                &mut self,
+                _the_writer: &dyn DataWriter<UserData>,
+                _status: dds_api::dcps_psm::OfferedDeadlineMissedStatus,
+            );
+
+            fn on_offered_incompatible_qos(
+                &mut self,
+                _the_writer: &dyn DataWriter<UserData>,
+                _status: dds_api::dcps_psm::OfferedIncompatibleQosStatus,
+            );
         }
     }
 

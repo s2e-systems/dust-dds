@@ -6,16 +6,17 @@ use dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
     },
     publication::{
-        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
+        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic},
+        data_writer_listener::DataWriterListener,
+        publisher::Publisher,
     },
     return_type::{DdsError, DdsResult},
-    topic::topic_description::TopicDescription,
+    topic::topic_description::TopicDescription, domain::domain_participant::DomainParticipant,
 };
 use rtps_pim::{
     behavior::{
@@ -58,6 +59,54 @@ use crate::{
 };
 
 use super::{publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes};
+
+pub trait AnyDataWriterListener<DW> {
+    fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
+    fn trigger_on_offered_deadline_missed(
+        &mut self,
+        _the_writer: DW,
+        _status: OfferedDeadlineMissedStatus,
+    );
+    fn trigger_on_offered_incompatible_qos(
+        &mut self,
+        _the_writer: DW,
+        _status: OfferedIncompatibleQosStatus,
+    );
+    fn trigger_on_publication_matched(
+        &mut self,
+        _the_writer: DW,
+        _status: PublicationMatchedStatus,
+    );
+}
+
+impl<Foo, DW> AnyDataWriterListener<DW> for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
+where
+    DW: DataWriter<Foo>,
+{
+    fn trigger_on_liveliness_lost(&mut self, the_writer: DW, status: LivelinessLostStatus) {
+        self.on_liveliness_lost(&the_writer, status);
+    }
+
+    fn trigger_on_offered_deadline_missed(
+        &mut self,
+        the_writer: DW,
+        status: OfferedDeadlineMissedStatus,
+    ) {
+        self.on_offered_deadline_missed(&the_writer, status);
+    }
+
+    fn trigger_on_offered_incompatible_qos(
+        &mut self,
+        the_writer: DW,
+        status: OfferedIncompatibleQosStatus,
+    ) {
+        self.on_offered_incompatible_qos(&the_writer, status);
+    }
+
+    fn trigger_on_publication_matched(&mut self, the_writer: DW, status: PublicationMatchedStatus) {
+        self.on_publication_matched(&the_writer, status)
+    }
+}
 
 pub enum RtpsWriter<Rtps>
 where
@@ -229,7 +278,7 @@ where
 {
     pub _qos: DataWriterQos,
     pub extended_rtps_writer: DdsRwLock<ExtendedRtpsWriter<Rtps>>,
-    pub listener: DdsRwLock<Option<Box<dyn DataWriterListener + Send + Sync>>>,
+    pub listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener<DdsShared<Self>> + Send + Sync>>>,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub publisher: DdsWeak<PublisherAttributes<Rtps>>,
     pub status: DdsRwLock<PublicationMatchedStatus>,
@@ -332,7 +381,7 @@ where
                     self.listener
                         .write_lock()
                         .as_mut()
-                        .map(|l| l.on_publication_matched(*status));
+                        .map(|l| l.trigger_on_publication_matched(self.clone(), *status));
                 }
             };
         }
@@ -344,9 +393,6 @@ where
     Rtps: RtpsStructure,
     Foo: DdsSerialize,
 {
-    type PublisherType = DdsShared<PublisherAttributes<Rtps>>;
-    type TopicType = DdsShared<TopicAttributes<Rtps>>;
-
     fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
     }
@@ -389,6 +435,7 @@ where
             .publisher
             .upgrade()?
             .get_participant()?
+            .upgrade()?
             .get_current_time()?;
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -465,14 +512,6 @@ where
         todo!()
     }
 
-    fn get_topic(&self) -> DdsResult<Self::TopicType> {
-        Ok(self.topic.clone())
-    }
-
-    fn get_publisher(&self) -> DdsResult<Self::PublisherType> {
-        Ok(self.publisher.upgrade()?.clone())
-    }
-
     fn assert_liveliness(&self) -> DdsResult<()> {
         todo!()
     }
@@ -490,12 +529,34 @@ where
     }
 }
 
+impl<Rtps> DataWriterGetPublisher for DdsShared<DataWriterAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    type PublisherType = DdsShared<PublisherAttributes<Rtps>>;
+
+    fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
+        Ok(self.publisher.upgrade()?.clone())
+    }
+}
+
+impl<Rtps> DataWriterGetTopic for DdsShared<DataWriterAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    type TopicType = DdsShared<TopicAttributes<Rtps>>;
+
+    fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
+        Ok(self.topic.clone())
+    }
+}
+
 impl<Rtps> Entity for DdsShared<DataWriterAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
 {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener + Send + Sync>;
+    type Listener = Box<dyn AnyDataWriterListener<Self> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         todo!()

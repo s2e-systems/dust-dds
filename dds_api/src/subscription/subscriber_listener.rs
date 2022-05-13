@@ -3,12 +3,17 @@ use crate::dcps_psm::{
     SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
 };
 
-use super::data_reader::AnyDataReader;
+use super::{data_reader::AnyDataReader, subscriber::Subscriber};
 
 pub trait SubscriberListener {
-    fn on_data_on_readers(&mut self) {}
+    fn on_data_on_readers(&mut self, _the_subscriber: &dyn Subscriber) {}
     fn on_data_available(&mut self, _the_reader: &dyn AnyDataReader) {}
-    fn on_sample_rejected(&mut self, _the_reader: &dyn AnyDataReader, _status: SampleRejectedStatus) {}
+    fn on_sample_rejected(
+        &mut self,
+        _the_reader: &dyn AnyDataReader,
+        _status: SampleRejectedStatus,
+    ) {
+    }
     fn on_liveliness_changed(
         &mut self,
         _the_reader: &dyn AnyDataReader,

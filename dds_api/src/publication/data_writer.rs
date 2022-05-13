@@ -8,9 +8,6 @@ use crate::{
 };
 
 pub trait DataWriter<Foo> {
-    type PublisherType;
-    type TopicType;
-
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -226,10 +223,20 @@ pub trait DataWriter<Foo> {
     ) -> DdsResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> DdsResult<Self::TopicType>;
+    fn get_topic(&self) -> DdsResult<Self::TopicType>
+    where
+        Self: DataWriterGetTopic + Sized,
+    {
+        self.datawriter_get_topic()
+    }
 
     /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> DdsResult<Self::PublisherType>;
+    fn get_publisher(&self) -> DdsResult<Self::PublisherType>
+    where
+        Self: DataWriterGetPublisher + Sized,
+    {
+        self.datawriter_get_publisher()
+    }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.
@@ -262,6 +269,20 @@ pub trait DataWriter<Foo> {
     /// field of the SampleInfo when reading the “DCPSSubscriptions” builtin topic.
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>>;
+}
+
+pub trait DataWriterGetPublisher {
+    type PublisherType;
+
+    /// This operation returns the Publisher to which the data writer object belongs.
+    fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType>;
+}
+
+pub trait DataWriterGetTopic {
+    type TopicType;
+
+    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
+    fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType>;
 }
 
 pub trait AnyDataWriter {}
