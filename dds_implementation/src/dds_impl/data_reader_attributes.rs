@@ -184,7 +184,7 @@ where
     Rtps: RtpsStructure,
 {
     pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
-    pub qos: DataReaderQos,
+    pub qos: DdsRwLock<DataReaderQos>,
     pub topic: DdsShared<TopicAttributes<Rtps>>,
     pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<DdsShared<Self>> + Send + Sync>>>,
     pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
@@ -206,13 +206,13 @@ where
         topic: DdsShared<TopicAttributes<Rtps>>,
         listener: Option<<DdsShared<Self> as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
-    ) -> Self {
+    ) -> DdsShared<Self> {
         let deadline_duration = std::time::Duration::from_secs(*qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
 
-        Self {
+        DdsShared::new(Self {
             rtps_reader: DdsRwLock::new(rtps_reader),
-            qos: qos,
+            qos: DdsRwLock::new(qos),
             topic,
             listener: DdsRwLock::new(listener),
             parent_subscriber,
@@ -231,7 +231,7 @@ where
                 total_count_change: 0,
                 last_instance_handle: 0,
             }),
-        }
+        })
     }
 
     pub fn read_sample<'a>(&self, cache_change: &'a Rtps::CacheChange) -> (&'a [u8], SampleInfo) {
@@ -411,11 +411,11 @@ where
     Rtps::CacheChange: Send + Sync,
 {
     pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
-        if reader.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
+        if reader.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
             let mut rtps_reader = reader.rtps_reader.write_lock();
 
             let cache_len = rtps_reader.reader_cache().changes().len() as i32;
-            if cache_len > reader.qos.history.depth {
+            if cache_len > reader.qos.read_lock().history.depth {
                 let mut seq_nums: Vec<_> = rtps_reader
                     .reader_cache()
                     .changes()
@@ -424,8 +424,8 @@ where
                     .collect();
                 seq_nums.sort();
 
-                let to_delete =
-                    &seq_nums[0..(cache_len as usize - reader.qos.history.depth as usize)];
+                let to_delete = &seq_nums
+                    [0..(cache_len as usize - reader.qos.read_lock().history.depth as usize)];
                 rtps_reader
                     .reader_cache()
                     .remove_change(|c| to_delete.contains(&c.sequence_number()));
@@ -904,7 +904,7 @@ mod tests {
 
     fn reader_with_changes<T: Timer>(
         changes: Vec<MockRtpsCacheChange>,
-    ) -> DataReaderAttributes<MockRtps, T> {
+    ) -> DdsShared<DataReaderAttributes<MockRtps, T>> {
         let mut history_cache = MockRtpsHistoryCache::new();
         history_cache.expect_changes().return_const(changes);
 
@@ -922,12 +922,12 @@ mod tests {
                 ..Default::default()
             },
             RtpsReader::Stateful(stateful_reader),
-            DdsShared::new(TopicAttributes::new(
+            TopicAttributes::new(
                 Default::default(),
                 "type_name",
                 "topic_name",
                 DdsWeak::new(),
-            )),
+            ),
             None,
             DdsWeak::new(),
         )
@@ -959,7 +959,7 @@ mod tests {
 
     #[test]
     fn read_only_unread() {
-        let reader = DdsShared::new(reader_with_changes::<ManualTimer>(vec![cache_change(1, 1)]));
+        let reader = reader_with_changes::<ManualTimer>(vec![cache_change(1, 1)]);
 
         let unread_samples = DataReader::<UserData>::read(
             &reader,
@@ -985,14 +985,14 @@ mod tests {
     #[test]
     fn on_missed_deadline_increases_total_count() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         assert_eq!(
@@ -1061,14 +1061,14 @@ mod tests {
     #[test]
     fn on_deadline_missed_calls_listener() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();
@@ -1086,14 +1086,14 @@ mod tests {
     #[test]
     fn receiving_data_triggers_status_change() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();
@@ -1104,14 +1104,14 @@ mod tests {
     #[test]
     fn on_data_available_listener_resets_status_change() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         let listener = {
@@ -1135,14 +1135,14 @@ mod tests {
     #[test]
     fn deadline_missed_triggers_status_change() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();
@@ -1154,14 +1154,14 @@ mod tests {
     #[test]
     fn on_deadline_missed_listener_resets_status_changed() {
         let reader = {
-            let mut reader = reader_with_changes::<ManualTimer>(vec![]);
-            reader.qos = DataReaderQos {
+            let reader = reader_with_changes::<ManualTimer>(vec![]);
+            *reader.qos.write_lock() = DataReaderQos {
                 deadline: DeadlineQosPolicy {
                     period: dds_api::dcps_psm::Duration::new(1, 0),
                 },
                 ..Default::default()
             };
-            DdsShared::new(reader)
+            reader
         };
 
         let listener = {
@@ -1191,7 +1191,7 @@ mod tests {
     fn reader_with_max_depth<T: Timer>(
         max_depth: i32,
         changes: Vec<MockRtpsCacheChange>,
-    ) -> DataReaderAttributes<MockRtps, T> {
+    ) -> DdsShared<DataReaderAttributes<MockRtps, T>> {
         let mut history_cache = MockRtpsHistoryCache::new();
         history_cache.expect_changes().return_const(changes);
 
@@ -1209,12 +1209,12 @@ mod tests {
                 ..Default::default()
             },
             RtpsReader::Stateful(stateful_reader),
-            DdsShared::new(TopicAttributes::new(
+            TopicAttributes::new(
                 Default::default(),
                 "type_name",
                 "topic_name",
                 DdsWeak::new(),
-            )),
+            ),
             None,
             DdsWeak::new(),
         )
@@ -1246,7 +1246,7 @@ mod tests {
                     ()
                 });
 
-            DdsShared::new(reader)
+            reader
         };
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();

@@ -34,13 +34,13 @@ where
         type_name: &'static str,
         topic_name: &str,
         parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> Self {
-        Self {
+    ) -> DdsShared<Self> {
+        DdsShared::new(Self {
             _qos: qos,
             type_name,
             topic_name: topic_name.to_string(),
             parent_participant,
-        }
+        })
     }
 }
 

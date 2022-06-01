@@ -19,6 +19,10 @@ impl<T> DdsShared<T> {
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
         Arc::ptr_eq(&this.0, &other.0)
     }
+
+    pub fn strong_count(&self) -> usize {
+        Arc::strong_count(&self.0)
+    }
 }
 
 impl<T: ?Sized> Deref for DdsShared<T> {

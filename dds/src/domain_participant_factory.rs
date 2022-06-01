@@ -600,24 +600,24 @@ pub fn create_builtins(
 
     // ///////// Create the built-in publisher and subcriber
 
-    let builtin_subscriber = DdsShared::new(SubscriberAttributes::new(
+    let builtin_subscriber = SubscriberAttributes::new(
         SubscriberQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
         )),
         domain_participant.downgrade(),
-    ));
+    );
     *domain_participant.builtin_subscriber.write_lock() = Some(builtin_subscriber.clone());
 
-    let builtin_publisher = DdsShared::new(PublisherAttributes::new(
+    let builtin_publisher = PublisherAttributes::new(
         PublisherQos::default(),
         RtpsGroupImpl::new(Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
         )),
         domain_participant.downgrade(),
-    ));
+    );
     *domain_participant.builtin_subscriber.write_lock() = Some(builtin_subscriber.clone());
     *domain_participant.builtin_publisher.write_lock() = Some(builtin_publisher.clone());
 
@@ -633,12 +633,12 @@ pub fn create_builtins(
 
     // ////////// SPDP built-in topic, reader and writer
     {
-        let spdp_topic_participant = DdsShared::new(TopicAttributes::new(
+        let spdp_topic_participant = TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
             domain_participant.downgrade(),
-        ));
+        );
         domain_participant
             .topic_list
             .write_lock()
@@ -647,13 +647,13 @@ pub fn create_builtins(
         let spdp_builtin_participant_rtps_reader =
             SpdpBuiltinParticipantReader::create::<RtpsStatelessReaderImpl>(guid_prefix, &[], &[]);
 
-        let spdp_builtin_participant_data_reader = DdsShared::new(DataReaderAttributes::new(
+        let spdp_builtin_participant_data_reader = DataReaderAttributes::new(
             builtin_reader_qos.clone(),
             RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
             spdp_topic_participant.clone(),
             None,
             builtin_subscriber.downgrade(),
-        ));
+        );
         builtin_subscriber
             .data_reader_list
             .write_lock()
@@ -672,13 +672,13 @@ pub fn create_builtins(
             guid_prefix, &[], &[], spdp_reader_locators
         );
 
-        let spdp_builtin_participant_data_writer = DdsShared::new(DataWriterAttributes::new(
+        let spdp_builtin_participant_data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
             None,
             spdp_topic_participant.clone(),
             builtin_publisher.downgrade(),
-        ));
+        );
         builtin_publisher
             .data_writer_list
             .write_lock()
@@ -687,12 +687,12 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in publication topic, reader and writer
     {
-        let sedp_topic_publication = DdsShared::new(TopicAttributes::new(
+        let sedp_topic_publication = TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             DiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
             domain_participant.downgrade(),
-        ));
+        );
         domain_participant
             .topic_list
             .write_lock()
@@ -700,13 +700,13 @@ pub fn create_builtins(
 
         let sedp_builtin_publications_rtps_reader =
             SedpBuiltinPublicationsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_reader = DdsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_publications_data_reader = DataReaderAttributes::new(
             builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
             sedp_topic_publication.clone(),
             None,
             builtin_subscriber.downgrade(),
-        ));
+        );
         builtin_subscriber
             .data_reader_list
             .write_lock()
@@ -715,13 +715,13 @@ pub fn create_builtins(
         let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
             RtpsStatefulWriterImpl<StdTimer>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_publications_data_writer = DdsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_publications_data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
             None,
             sedp_topic_publication.clone(),
             builtin_publisher.downgrade(),
-        ));
+        );
         builtin_publisher
             .data_writer_list
             .write_lock()
@@ -730,12 +730,12 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in subcriptions topic, reader and writer
     {
-        let sedp_topic_subscription = DdsShared::new(TopicAttributes::new(
+        let sedp_topic_subscription = TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             DiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
             domain_participant.downgrade(),
-        ));
+        );
         domain_participant
             .topic_list
             .write_lock()
@@ -743,13 +743,13 @@ pub fn create_builtins(
 
         let sedp_builtin_subscriptions_rtps_reader =
             SedpBuiltinSubscriptionsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_reader = DdsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_subscriptions_data_reader = DataReaderAttributes::new(
             builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
             sedp_topic_subscription.clone(),
             None,
             builtin_subscriber.downgrade(),
-        ));
+        );
         builtin_subscriber
             .data_reader_list
             .write_lock()
@@ -758,13 +758,13 @@ pub fn create_builtins(
         let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
             RtpsStatefulWriterImpl<StdTimer>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_subscriptions_data_writer = DdsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_subscriptions_data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
             None,
             sedp_topic_subscription.clone(),
             builtin_publisher.downgrade(),
-        ));
+        );
         builtin_publisher
             .data_writer_list
             .write_lock()
@@ -773,12 +773,12 @@ pub fn create_builtins(
 
     // ////////// SEDP built-in topics topic, reader and writer
     {
-        let sedp_topic_topic = DdsShared::new(TopicAttributes::new(
+        let sedp_topic_topic = TopicAttributes::new(
             domain_participant.default_topic_qos.clone(),
             DiscoveredTopicData::type_name(),
             DCPS_TOPIC,
             domain_participant.downgrade(),
-        ));
+        );
         domain_participant
             .topic_list
             .write_lock()
@@ -786,13 +786,13 @@ pub fn create_builtins(
 
         let sedp_builtin_topics_rtps_reader =
             SedpBuiltinTopicsReader::create::<RtpsStatefulReaderImpl>(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_reader = DdsShared::new(DataReaderAttributes::new(
+        let sedp_builtin_topics_data_reader = DataReaderAttributes::new(
             builtin_reader_qos.clone(),
             RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
             sedp_topic_topic.clone(),
             None,
             builtin_subscriber.downgrade(),
-        ));
+        );
         builtin_subscriber
             .data_reader_list
             .write_lock()
@@ -801,13 +801,13 @@ pub fn create_builtins(
         let sedp_builtin_topics_rtps_writer = SedpBuiltinTopicsWriter::create::<
             RtpsStatefulWriterImpl<StdTimer>,
         >(guid_prefix, &[], &[]);
-        let sedp_builtin_topics_data_writer = DdsShared::new(DataWriterAttributes::new(
+        let sedp_builtin_topics_data_writer = DataWriterAttributes::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
             None,
             sedp_topic_topic.clone(),
             builtin_publisher.downgrade(),
-        ));
+        );
         builtin_publisher
             .data_writer_list
             .write_lock()

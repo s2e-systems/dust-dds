@@ -142,12 +142,8 @@ where
         let qos = qos.unwrap_or(self.default_topic_qos.clone());
 
         // /////// Create topic
-        let topic_shared = DdsShared::new(TopicAttributes::new(
-            qos.clone(),
-            Foo::type_name(),
-            topic_name,
-            self.downgrade(),
-        ));
+        let topic_shared =
+            TopicAttributes::new(qos.clone(), Foo::type_name(), topic_name, self.downgrade());
 
         self.topic_list.write_lock().push(topic_shared.clone());
 
@@ -201,34 +197,12 @@ where
             ),
         )?;
 
-        for publisher in self
-            .builtin_publisher
-            .read_lock()
-            .iter()
-            .chain(self.user_defined_publisher_list.read_lock().iter())
-        {
-            for writer in publisher.data_writer_list.read_lock().iter() {
-                if DdsShared::ptr_eq(&writer.topic, a_topic) {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader or data writer".to_string(),
-                    ));
-                }
-            }
-        }
-
-        for subscriber in self
-            .builtin_subscriber
-            .read_lock()
-            .iter()
-            .chain(self.user_defined_subscriber_list.read_lock().iter())
-        {
-            for reader in subscriber.data_reader_list.read_lock().iter() {
-                if DdsShared::ptr_eq(&reader.topic, a_topic) {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Topic still attached to some data reader or data writer".to_string(),
-                    ));
-                }
-            }
+        // If topic is not attached to any reader or writer there must be no more than 2 strong counts
+        // 1 strong stored in the list of the participant and 1 strong used to call this function
+        if a_topic.strong_count() > 2 {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic still attached to some data reader or data writer".to_string(),
+            ));
         }
 
         topic_list.remove(topic_list_position);
@@ -299,8 +273,8 @@ where
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = Rtps::Group::new(guid);
-        let publisher_impl = PublisherAttributes::new(publisher_qos, rtps_group, self.downgrade());
-        let publisher_impl_shared = DdsShared::new(publisher_impl);
+        let publisher_impl_shared =
+            PublisherAttributes::new(publisher_qos, rtps_group, self.downgrade());
         self.user_defined_publisher_list
             .write_lock()
             .push(publisher_impl_shared.clone());
@@ -315,7 +289,7 @@ where
             ));
         }
 
-        if !a_publisher.data_writer_list.read_lock().is_empty() {
+        if !a_publisher.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
@@ -344,8 +318,8 @@ where
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = Rtps::Group::new(guid);
-        let subscriber = SubscriberAttributes::new(subscriber_qos, rtps_group, self.downgrade());
-        let subscriber_shared = DdsShared::new(subscriber);
+        let subscriber_shared =
+            SubscriberAttributes::new(subscriber_qos, rtps_group, self.downgrade());
         self.user_defined_subscriber_list
             .write_lock()
             .push(subscriber_shared.clone());
@@ -360,7 +334,7 @@ where
             ));
         }
 
-        if !a_subscriber.data_reader_list.read_lock().is_empty() {
+        if !a_subscriber.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber still contains data readers".to_string(),
             ));

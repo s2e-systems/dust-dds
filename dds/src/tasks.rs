@@ -340,9 +340,7 @@ pub fn task_sedp_writer_discovery(
             .read_lock()
             .iter()
         {
-            for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                data_reader.add_matched_writer(&sample)
-            }
+            subscriber.add_matched_writer(&sample)
         }
     }
 
@@ -390,9 +388,7 @@ pub fn task_sedp_reader_discovery(
             .read_lock()
             .iter()
         {
-            for data_writer in publisher.data_writer_list.read_lock().iter() {
-                data_writer.add_matched_reader(sample)
-            }
+            publisher.add_matched_reader(sample)
         }
     }
 

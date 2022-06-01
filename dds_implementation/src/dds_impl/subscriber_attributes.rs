@@ -18,30 +18,46 @@ use dds_api::{
     publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
     return_type::{DdsError, DdsResult},
     subscription::{
-        data_reader::AnyDataReader,
+        data_reader::{AnyDataReader, DataReaderGetTopicDescription},
         subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
         subscriber_listener::SubscriberListener,
     },
     topic::topic_description::TopicDescription,
 };
 use rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
+    behavior::{
+        reader::{
+            stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
+            writer_proxy::RtpsWriterProxyConstructor,
+        },
+        stateful_reader_behavior::{
+            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+        },
+        stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
+    },
+    messages::{
+        submessage_elements::Parameter,
+        submessages::{DataSubmessage, HeartbeatSubmessage},
+    },
     structure::{
         entity::RtpsEntityAttributes,
         participant::RtpsParticipantAttributes,
         types::{
-            EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
             USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
 
 use crate::{
-    data_representation_builtin_endpoints::discovered_reader_data::{
-        DiscoveredReaderData, RtpsReaderProxy, DCPS_SUBSCRIPTION,
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy, DCPS_SUBSCRIPTION},
+        discovered_writer_data::DiscoveredWriterData,
     },
     dds_type::DdsType,
     utils::{
+        discovery_traits::AddMatchedWriter,
+        rtps_communication_traits::{ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage},
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         timer::ThreadTimer,
@@ -74,15 +90,19 @@ where
         qos: SubscriberQos,
         rtps_group: Rtps::Group,
         parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> Self {
-        Self {
+    ) -> DdsShared<Self> {
+        DdsShared::new(Self {
             qos,
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant,
-        }
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.data_reader_list.read_lock().is_empty()
     }
 }
 
@@ -154,15 +174,13 @@ where
                 false,
             ));
 
-            let data_reader = DataReaderAttributes::new(
+            let data_reader_shared = DataReaderAttributes::new(
                 qos,
                 rtps_reader,
                 a_topic.clone(),
                 a_listener,
                 self.downgrade(),
             );
-
-            let data_reader_shared = DdsShared::new(data_reader);
 
             self.data_reader_list
                 .write_lock()
@@ -261,7 +279,9 @@ where
         data_reader_list
             .iter()
             .find_map(|data_reader_shared| {
-                let data_reader_topic = &data_reader_shared.topic;
+                let data_reader_topic = data_reader_shared
+                    .data_reader_get_topicdescription()
+                    .unwrap();
 
                 if data_reader_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_reader_topic.get_type_name().ok()? == Foo::type_name()
@@ -349,7 +369,7 @@ where
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        todo!()
+        Ok(self.qos.clone())
     }
 
     fn set_listener(
@@ -378,6 +398,62 @@ where
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         todo!()
+    }
+}
+
+impl<Rtps> AddMatchedWriter for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader: RtpsStatefulReaderOperations,
+    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType:
+        RtpsWriterProxyConstructor,
+{
+    fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.add_matched_writer(&discovered_writer_data)
+        }
+    }
+}
+
+impl<Rtps> ReceiveRtpsDataSubmessage for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure + 'static,
+    Rtps::Group: Send + Sync,
+    Rtps::Participant: Send + Sync,
+    Rtps::StatelessWriter: Send + Sync,
+    Rtps::StatefulWriter: Send + Sync,
+    Rtps::StatelessReader: for<'a> RtpsStatelessReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]>
+        + Send
+        + Sync,
+    Rtps::StatefulReader:
+        for<'a> RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]> + Send + Sync,
+    Rtps::HistoryCache: Send + Sync,
+    Rtps::CacheChange: Send + Sync,
+{
+    fn on_data_submessage_received(
+        &self,
+        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.on_data_submessage_received(data_submessage, source_guid_prefix)
+        }
+    }
+}
+
+impl<Rtps> ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader: RtpsStatefulReaderReceiveHeartbeatSubmessage,
+{
+    fn on_heartbeat_submessage_received(
+        &self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
+        }
     }
 }
 
@@ -447,12 +523,11 @@ mod tests {
 
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -504,12 +579,11 @@ mod tests {
 
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -565,12 +639,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -634,12 +707,11 @@ mod tests {
         );
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes: SubscriberAttributes<MockRtps> = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -688,12 +760,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -748,12 +819,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -813,12 +883,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -878,12 +947,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
@@ -948,12 +1016,11 @@ mod tests {
             .return_const(vec![]);
         let domain_participant = DdsShared::new(domain_participant_attributes);
 
-        *domain_participant.builtin_publisher.write_lock() =
-            Some(DdsShared::new(PublisherAttributes::new(
-                PublisherQos::default(),
-                MockRtpsGroup::new(),
-                domain_participant.downgrade(),
-            )));
+        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
+            PublisherQos::default(),
+            MockRtpsGroup::new(),
+            domain_participant.downgrade(),
+        ));
 
         let mut subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),

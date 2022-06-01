@@ -6,6 +6,7 @@ use dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
@@ -16,7 +17,7 @@ use dds_api::{
         publisher::Publisher,
     },
     return_type::{DdsError, DdsResult},
-    topic::topic_description::TopicDescription, domain::domain_participant::DomainParticipant,
+    topic::topic_description::TopicDescription,
 };
 use rtps_pim::{
     behavior::{
@@ -294,12 +295,12 @@ where
         listener: Option<<DdsShared<Self> as Entity>::Listener>,
         topic: DdsShared<TopicAttributes<Rtps>>,
         publisher: DdsWeak<PublisherAttributes<Rtps>>,
-    ) -> Self {
+    ) -> DdsShared<Self> {
         let extended_rtps_writer = ExtendedRtpsWriter {
             rtps_writer,
             sample_info: HashMap::new(),
         };
-        Self {
+        DdsShared::new(Self {
             _qos: qos,
             extended_rtps_writer: DdsRwLock::new(extended_rtps_writer),
             listener: DdsRwLock::new(listener),
@@ -312,7 +313,7 @@ where
                 current_count: 0,
                 current_count_change: 0,
             }),
-        }
+        })
     }
 }
 
@@ -678,22 +679,16 @@ mod test {
             });
         mock_writer.expect_add_change_().once().return_const(());
 
-        let dummy_topic = DdsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            "",
-            "",
-            DdsWeak::new(),
-        ));
+        let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
-        let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateless(mock_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-
-        let shared_data_writer = DdsShared::new(data_writer);
+        let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
+            DataWriterAttributes::new(
+                DataWriterQos::default(),
+                RtpsWriter::Stateless(mock_writer),
+                None,
+                dummy_topic,
+                DdsWeak::new(),
+            );
 
         shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -717,22 +712,16 @@ mod test {
             .expect_writer_cache()
             .return_var(mock_writer_history_cache);
         mock_writer.expect_add_change_().once().return_const(());
-        let dummy_topic = DdsShared::new(TopicAttributes::new(
-            TopicQos::default(),
-            "",
-            "",
-            DdsWeak::new(),
-        ));
+        let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
-        let data_writer: DataWriterAttributes<MockRtps> = DataWriterAttributes::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(mock_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-
-        let shared_data_writer = DdsShared::new(data_writer);
+        let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
+            DataWriterAttributes::new(
+                DataWriterQos::default(),
+                RtpsWriter::Stateful(mock_writer),
+                None,
+                dummy_topic,
+                DdsWeak::new(),
+            );
 
         shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })

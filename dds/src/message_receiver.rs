@@ -86,34 +86,26 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageType::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
-                        for data_writer in publisher.data_writer_list.read_lock().iter() {
-                            data_writer.on_acknack_submessage_received(
-                                acknack_submessage,
-                                self.source_guid_prefix,
-                            );
-                        }
+                        publisher.on_acknack_submessage_received(
+                            acknack_submessage,
+                            self.source_guid_prefix,
+                        )
                     }
                 }
                 RtpsSubmessageType::Data(data_submessage) => {
                     for subscriber in subscriber_list {
-                        for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                            data_reader.on_data_submessage_received(
-                                data_submessage,
-                                self.source_guid_prefix,
-                            )
-                        }
+                        subscriber
+                            .on_data_submessage_received(data_submessage, self.source_guid_prefix)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),
                 RtpsSubmessageType::Gap(_) => todo!(),
                 RtpsSubmessageType::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
-                        for data_reader in subscriber.data_reader_list.read_lock().iter() {
-                            data_reader.on_heartbeat_submessage_received(
-                                heartbeat_submessage,
-                                self.source_guid_prefix,
-                            )
-                        }
+                        subscriber.on_heartbeat_submessage_received(
+                            heartbeat_submessage,
+                            self.source_guid_prefix,
+                        )
                     }
                 }
                 RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
