@@ -21,6 +21,7 @@ use rtps_pim::{
         },
         stateful_reader_behavior::{
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+            RtpsStatefulReaderSendSubmessages,
         },
         stateful_writer_behavior::{
             ReliableReaderProxyReceiveAcknackBehavior, RtpsStatefulWriterSendSubmessages,
@@ -209,7 +210,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()
                 .is_empty());
-            assert!(stateful_reader.produce_acknack_submessages().is_empty());
+            stateful_reader.send_submessages(|_, _| assert!(false));
         }
     }
 
@@ -251,7 +252,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
     }
 
     // No AckNack sent before receiving the heartbeat
-    assert!(stateful_reader.produce_acknack_submessages().is_empty());
+    stateful_reader.send_submessages(|_, _| assert!(false));
 
     // Send and receive second heartbeat
     {
@@ -276,24 +277,24 @@ fn reliable_stateful_reader_writer_dropped_data() {
 
     // Send and receive AckNack
     {
-        let messages = stateful_reader.produce_acknack_submessages();
+        let mut messages = Vec::new();
+        stateful_reader.send_submessages(|wp, a| {
+            assert_eq!(writer_guid, wp.remote_writer_guid());
+            messages.push(a)
+        });
         assert_eq!(1, messages.len());
-        let (writer_proxy, acknacks) = &messages[0];
-        assert_eq!(writer_guid, writer_proxy.remote_writer_guid());
-        assert_eq!(1, acknacks.len());
 
-        assert_eq!(vec![1, 3, 5], acknacks[0].reader_sn_state.set);
-        assert_eq!(Count(1), acknacks[0].count.value);
+        assert_eq!(Count(1), messages[0].count.value);
 
         for mut reader_proxy in stateful_writer.matched_readers() {
             if reader_proxy.remote_reader_guid().prefix == reader_guid.prefix {
-                reader_proxy.receive_acknack(&acknacks[0]);
+                reader_proxy.receive_acknack(&messages[0]);
             }
         }
     }
 
     // Do not resend the acknack
-    assert!(stateful_reader.produce_acknack_submessages().is_empty());
+    stateful_reader.send_submessages(|_, _| assert!(false));
 
     // Re-send missing messages
     {
@@ -339,7 +340,7 @@ fn reliable_stateful_reader_writer_dropped_data() {
             assert!(stateful_reader.matched_writers()[0]
                 .missing_changes()
                 .is_empty());
-            assert!(stateful_reader.produce_acknack_submessages().is_empty());
+            stateful_reader.send_submessages(|_, _| assert!(false));
         }
     }
 }

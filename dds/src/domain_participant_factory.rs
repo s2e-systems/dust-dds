@@ -1350,9 +1350,8 @@ mod tests {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .extended_rtps_writer
-                .write_lock()
                 .rtps_writer
+                .write_lock()
                 .try_as_stateful_writer()
                 .unwrap()
                 .guid(),

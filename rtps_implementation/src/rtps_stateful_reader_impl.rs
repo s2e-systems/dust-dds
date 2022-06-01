@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use rtps_pim::{
     behavior::{
         reader::{
@@ -15,6 +13,7 @@ use rtps_pim::{
             ReliableStatefulReaderReceiveDataBehavior, ReliableWriterProxyReceiveGapBehavior,
             ReliableWriterProxyReceiveHeartbeat, ReliableWriterProxySendAckNack,
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+            RtpsStatefulReaderSendSubmessages,
         },
         types::Duration,
     },
@@ -65,41 +64,6 @@ impl RtpsStatefulReaderImpl {
                 }
             }
         }
-    }
-
-    pub fn produce_acknack_submessages(
-        &mut self,
-    ) -> Vec<(
-        &mut RtpsWriterProxyImpl,
-        Vec<AckNackSubmessage<Vec<SequenceNumber>>>,
-    )> {
-        let mut destined_submessages = Vec::new();
-        let entity_id = self.guid().entity_id;
-        for writer_proxy in self.matched_writers.iter_mut() {
-            if writer_proxy.must_send_acknacks {
-                let acknacks = RefCell::new(Vec::new());
-
-                if !writer_proxy.missing_changes().is_empty() {
-                    writer_proxy.acknack_count =
-                        Count(writer_proxy.acknack_count.0.wrapping_add(1));
-
-                    ReliableWriterProxySendAckNack::send_ack_nack(
-                        writer_proxy,
-                        entity_id,
-                        writer_proxy.acknack_count,
-                        |_, acknack| acknacks.borrow_mut().push(acknack),
-                    );
-                }
-                writer_proxy.must_send_acknacks = false;
-
-                let acknacks = acknacks.take();
-                if !acknacks.is_empty() {
-                    destined_submessages.push((writer_proxy, acknacks));
-                }
-            }
-        }
-
-        destined_submessages
     }
 }
 
@@ -273,6 +237,33 @@ impl RtpsStatefulReaderReceiveHeartbeatSubmessage for RtpsStatefulReaderImpl {
                         heartbeat_submessage,
                     );
                 }
+            }
+        }
+    }
+}
+
+impl RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>> for RtpsStatefulReaderImpl {
+    type WriterProxyType = RtpsWriterProxyImpl;
+
+    fn send_submessages(
+        &mut self,
+        mut send_acknack: impl FnMut(&Self::WriterProxyType, AckNackSubmessage<Vec<SequenceNumber>>),
+    ) {
+        let entity_id = self.guid().entity_id;
+        for writer_proxy in self.matched_writers.iter_mut() {
+            if writer_proxy.must_send_acknacks {
+                if !writer_proxy.missing_changes().is_empty() {
+                    writer_proxy.acknack_count =
+                        Count(writer_proxy.acknack_count.0.wrapping_add(1));
+
+                    ReliableWriterProxySendAckNack::send_ack_nack(
+                        writer_proxy,
+                        entity_id,
+                        writer_proxy.acknack_count,
+                        |wp, acknack| send_acknack(wp, acknack),
+                    );
+                }
+                writer_proxy.must_send_acknacks = false;
             }
         }
     }
@@ -533,23 +524,28 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
         assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
 
         reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 2, Count(3)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 2, Count(3)), writer_guid.prefix);
         assert_eq!(vec![2], reader.matched_writers[0].missing_changes());
 
         reader.on_data_submessage_received(&make_data(4, &[]), writer_guid.prefix);
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 5, Count(4)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 5, Count(4)), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(2, 5, Count(5)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(2, 5, Count(5)), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
     }
 
@@ -620,27 +616,30 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
-        assert!(reader.produce_acknack_submessages().is_empty());
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader.send_submessages(|_, _| assert!(false));
 
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
-        let missing_changes = reader.matched_writers[0].missing_changes();
-        let submessages = reader.produce_acknack_submessages();
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        let mut submessages = Vec::new();
+        reader.send_submessages(|_, acknack| submessages.push(acknack));
         assert_eq!(1, submessages.len());
-        let (_, acknacks) = &submessages[0];
-        assert_eq!(1, acknacks.len());
-        assert_eq!(missing_changes, acknacks[0].reader_sn_state.set);
 
         // doesn't send a second time
-        assert!(reader.produce_acknack_submessages().is_empty());
+        reader.send_submessages(|_, _| assert!(false));
 
         // resend when new heartbeat
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(3)), writer_guid.prefix);
-        assert_eq!(1, reader.produce_acknack_submessages().len());
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(3)), writer_guid.prefix);
+        let mut submessages = Vec::new();
+        reader.send_submessages(|_, a| submessages.push(a));
+        assert_eq!(1, submessages.len());
 
         // doesn't send if message received in the meantime
-        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(4)), writer_guid.prefix);
+        reader
+            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(4)), writer_guid.prefix);
         reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
-        assert!(reader.produce_acknack_submessages().is_empty());
+        reader.send_submessages(|_, _| assert!(false));
     }
 }

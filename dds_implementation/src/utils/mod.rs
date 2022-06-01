@@ -3,5 +3,4 @@ pub mod mask_listener;
 pub mod rtps_communication_traits;
 pub mod rtps_structure;
 pub mod shared_object;
-pub mod submessage_producer;
 pub mod timer;

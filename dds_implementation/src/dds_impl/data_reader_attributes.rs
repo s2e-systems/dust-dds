@@ -27,23 +27,29 @@ use dds_api::{
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderOperations,
-            writer_proxy::RtpsWriterProxyConstructor,
+            reader::RtpsReaderAttributes,
+            stateful_reader::RtpsStatefulReaderOperations,
+            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
         },
         stateful_reader_behavior::{
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
+            RtpsStatefulReaderSendSubmessages,
         },
         stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
     },
     messages::{
+        overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
         submessage_elements::Parameter,
         submessages::{DataSubmessage, HeartbeatSubmessage},
+        types::FragmentNumber,
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
+        entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{GuidPrefix, SequenceNumber},
+        types::{GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
+    transport::TransportWrite,
 };
 
 use crate::{
@@ -51,7 +57,9 @@ use crate::{
     dds_type::DdsDeserialize,
     utils::{
         discovery_traits::AddMatchedWriter,
-        rtps_communication_traits::{ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage},
+        rtps_communication_traits::{
+            ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
+        },
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         timer::Timer,
@@ -813,6 +821,56 @@ where
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         todo!()
+    }
+}
+
+impl<Rtps, T> SendRtpsMessage for DdsShared<DataReaderAttributes<Rtps, T>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader:
+        RtpsEntityAttributes + RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>,
+    <Rtps::StatefulReader as RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>>::WriterProxyType:
+    RtpsWriterProxyAttributes,
+{
+    fn send_message(
+        &self,
+        transport: &mut impl for<'a> TransportWrite<
+            Vec<
+                RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<Parameter<'a>>,
+                    &'a [u8],
+                    Vec<Locator>,
+                    Vec<FragmentNumber>,
+                >,
+            >,
+        >,
+    ) {
+        if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
+            let mut acknacks = Vec::new();
+            stateful_rtps_reader.send_submessages(|wp, acknack| {
+                acknacks.push((wp.unicast_locator_list().to_vec(), vec![RtpsSubmessageType::AckNack(acknack)]))
+            });
+
+            for (locator_list, acknacks) in acknacks {
+                let header = RtpsMessageHeader {
+                    protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
+                    guid_prefix: stateful_rtps_reader.guid().prefix(),
+                };
+
+                let message = RtpsMessage {
+                    header,
+                    submessages: acknacks
+
+                };
+
+                for &locator in &locator_list {
+                    transport.write(&message, locator);
+                }
+            }
+        }
     }
 }
 

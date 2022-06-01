@@ -1,9 +1,12 @@
 use rtps_pim::{
     messages::{
+        overall_structure::RtpsSubmessageType,
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage},
+        types::FragmentNumber,
     },
-    structure::types::{GuidPrefix, SequenceNumber},
+    structure::types::{GuidPrefix, Locator, SequenceNumber},
+    transport::TransportWrite,
 };
 
 pub trait ReceiveRtpsDataSubmessage {
@@ -27,5 +30,22 @@ pub trait ReceiveRtpsAckNackSubmessage {
         &self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
         source_guid_prefix: GuidPrefix,
+    );
+}
+
+pub trait SendRtpsMessage {
+    fn send_message(
+        &self,
+        transport: &mut impl for<'a> TransportWrite<
+            Vec<
+                RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<Parameter<'a>>,
+                    &'a [u8],
+                    Vec<Locator>,
+                    Vec<FragmentNumber>,
+                >,
+            >,
+        >,
     );
 }

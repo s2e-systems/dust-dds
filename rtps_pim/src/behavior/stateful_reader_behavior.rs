@@ -23,6 +23,15 @@ pub trait FromDataSubmessageAndGuidPrefix<P, D> {
     fn from(source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self;
 }
 
+pub trait RtpsStatefulReaderSendSubmessages<S> {
+    type WriterProxyType;
+
+    fn send_submessages(
+        &mut self,
+        send_acknack: impl FnMut(&Self::WriterProxyType, AckNackSubmessage<S>),
+    );
+}
+
 pub trait RtpsStatefulReaderReceiveDataSubmessage<P, D> {
     fn on_data_submessage_received(
         &mut self,

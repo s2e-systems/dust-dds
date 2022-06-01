@@ -187,11 +187,10 @@ pub fn task_spdp_discovery(
         .upgrade()?;
 
     let mut sedp_builtin_publication_rtps_writer = sedp_builtin_publication_writer_shared
-        .extended_rtps_writer
-        .write_lock();
-    let sedp_builtin_publication_writer = sedp_builtin_publication_rtps_writer
         .rtps_writer
-        .try_as_stateful_writer()?;
+        .write_lock();
+    let sedp_builtin_publication_writer =
+        sedp_builtin_publication_rtps_writer.try_as_stateful_writer()?;
 
     let mut sedp_builtin_publication_rtps_reader = sedp_builtin_publication_reader_shared
         .rtps_reader
@@ -200,11 +199,10 @@ pub fn task_spdp_discovery(
         sedp_builtin_publication_rtps_reader.try_as_stateful_reader()?;
 
     let mut sedp_builtin_subscription_rtps_writer = sedp_builtin_subscription_writer_shared
-        .extended_rtps_writer
-        .write_lock();
-    let sedp_builtin_subscription_writer = sedp_builtin_subscription_rtps_writer
         .rtps_writer
-        .try_as_stateful_writer()?;
+        .write_lock();
+    let sedp_builtin_subscription_writer =
+        sedp_builtin_subscription_rtps_writer.try_as_stateful_writer()?;
 
     let mut sedp_builtin_subscription_rtps_reader = sedp_builtin_subscription_reader_shared
         .rtps_reader
@@ -212,12 +210,9 @@ pub fn task_spdp_discovery(
     let sedp_builtin_subscription_reader =
         sedp_builtin_subscription_rtps_reader.try_as_stateful_reader()?;
 
-    let mut sedp_builtin_topic_rtps_writer = sedp_builtin_topic_writer_shared
-        .extended_rtps_writer
-        .write_lock();
-    let sedp_builtin_topic_writer = sedp_builtin_topic_rtps_writer
-        .rtps_writer
-        .try_as_stateful_writer()?;
+    let mut sedp_builtin_topic_rtps_writer =
+        sedp_builtin_topic_writer_shared.rtps_writer.write_lock();
+    let sedp_builtin_topic_writer = sedp_builtin_topic_rtps_writer.try_as_stateful_writer()?;
 
     let mut sedp_builtin_topic_rtps_reader =
         sedp_builtin_topic_reader_shared.rtps_reader.write_lock();
@@ -526,9 +521,8 @@ mod tests {
                 .as_ref()
                 .upgrade()
                 .unwrap()
-                .extended_rtps_writer
-                .write_lock()
                 .rtps_writer
+                .write_lock()
                 .try_as_stateful_writer()
                 .unwrap()
                 .matched_readers()
