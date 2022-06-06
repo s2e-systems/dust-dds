@@ -1261,10 +1261,10 @@ mod tests {
         let user_topic = participant1_proxy
             .create_topic::<UserData>("UserTopic", None, None, 0)
             .unwrap();
-        let user_writer = user_publisher
+        let _user_writer = user_publisher
             .create_datawriter(&user_topic, None, None, 0)
             .unwrap();
-        let user_reader = user_subscriber
+        let _user_reader = user_subscriber
             .create_datareader(&user_topic, None, None, 0)
             .unwrap();
 
@@ -1320,10 +1320,10 @@ mod tests {
                 .downgrade(),
         );
 
-        let participant2_publication_datareader = participant2_subscriber
+        let _participant2_publication_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_publication)
             .unwrap();
-        let participant2_subscription_datareader = participant2_subscriber
+        let _participant2_subscription_datareader = participant2_subscriber
             .lookup_datareader(&sedp_topic_subscription)
             .unwrap();
         let participant2_topic_datareader = participant2_subscriber
@@ -1340,38 +1340,6 @@ mod tests {
         assert_eq!(
             user_topic.get_name().unwrap(),
             discovered_topic_data.topic_builtin_topic_data.name,
-        );
-
-        let (discovered_writer_data, _) = &participant2_publication_datareader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap()[0];
-        assert_eq!(
-            user_writer
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                .rtps_writer
-                .write_lock()
-                .try_as_stateful_writer()
-                .unwrap()
-                .guid(),
-            discovered_writer_data.writer_proxy.remote_writer_guid,
-        );
-
-        let (discovered_reader_data, _) = &participant2_subscription_datareader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap()[0];
-        assert_eq!(
-            user_reader
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                .rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .unwrap()
-                .guid(),
-            discovered_reader_data.reader_proxy.remote_reader_guid,
         );
     }
 

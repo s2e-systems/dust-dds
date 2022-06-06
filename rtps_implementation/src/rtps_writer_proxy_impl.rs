@@ -69,6 +69,28 @@ impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
     }
 }
 
+impl<'a> RtpsWriterProxyAttributes for &'a mut RtpsWriterProxyImpl {
+    fn remote_writer_guid(&self) -> Guid {
+        self.remote_writer_guid
+    }
+
+    fn unicast_locator_list(&self) -> &[Locator] {
+        self.unicast_locator_list.as_ref()
+    }
+
+    fn multicast_locator_list(&self) -> &[Locator] {
+        self.multicast_locator_list.as_ref()
+    }
+
+    fn data_max_size_serialized(&self) -> Option<i32> {
+        self.data_max_size_serialized
+    }
+
+    fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
+    }
+}
+
 impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
     type SequenceNumberListType = Vec<SequenceNumber>;
 

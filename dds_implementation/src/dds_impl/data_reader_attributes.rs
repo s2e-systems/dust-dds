@@ -28,7 +28,7 @@ use rtps_pim::{
     behavior::{
         reader::{
             reader::RtpsReaderAttributes,
-            stateful_reader::RtpsStatefulReaderOperations,
+            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
             writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
         },
         stateful_reader_behavior::{
@@ -36,6 +36,10 @@ use rtps_pim::{
             RtpsStatefulReaderSendSubmessages,
         },
         stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
+    },
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
     },
     messages::{
         overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
@@ -53,8 +57,12 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-    dds_type::DdsDeserialize,
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
+        discovered_writer_data::DiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
+    dds_type::{DdsDeserialize, DdsType},
     utils::{
         discovery_traits::AddMatchedWriter,
         rtps_communication_traits::{
@@ -274,6 +282,40 @@ where
         };
 
         (data_value, sample_info)
+    }
+}
+
+impl<Rtps, T> DataReaderAttributes<Rtps, T>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a> + RtpsStatefulReaderOperations,
+    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType: RtpsWriterProxyConstructor,
+    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
+        IntoIterator,
+    for<'a> <<Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType as IntoIterator>::Item:
+        RtpsWriterProxyAttributes,
+{
+    pub fn add_matched_participant(
+        &self,
+        participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
+    ) {
+        let mut rtps_reader_lock = self.rtps_reader.write_lock();
+        if let RtpsReader::Stateful(rtps_reader) = &mut *rtps_reader_lock {
+            if !rtps_reader
+                .matched_writers()
+                .into_iter()
+                .any(|r| r.remote_writer_guid().prefix == participant_discovery.guid_prefix())
+            {
+                let type_name = self.topic.get_type_name().unwrap();
+                if type_name == DiscoveredWriterData::type_name() {
+                    participant_discovery.discovered_participant_add_publications_reader(rtps_reader);
+                } else if type_name == DiscoveredReaderData::type_name() {
+                    participant_discovery.discovered_participant_add_subscriptions_reader(rtps_reader);
+                } else if type_name == DiscoveredTopicData::type_name() {
+                    participant_discovery.discovered_participant_add_topics_reader(rtps_reader);
+                }
+            }
+        }
     }
 }
 
@@ -501,6 +543,9 @@ where
 impl<Rtps, T, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<Rtps, T>>
 where
     Rtps: RtpsStructure,
+    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a>,
+    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
+        IntoIterator,
     T: Timer,
     Foo: for<'de> DdsDeserialize<'de>,
 {
@@ -779,7 +824,18 @@ where
     }
 
     fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        todo!()
+        let mut rtps_reader_lock = self.rtps_reader.write_lock();
+        let matched_publications = match &mut *rtps_reader_lock {
+            RtpsReader::Stateless(_) => vec![],
+            RtpsReader::Stateful(r) => r
+                .matched_writers()
+                .into_iter()
+                .enumerate()
+                .map(|x| x.0 as i32)
+                .collect(),
+        };
+
+        Ok(matched_publications)
     }
 }
 

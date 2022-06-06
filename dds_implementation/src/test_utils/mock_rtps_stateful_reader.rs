@@ -1,7 +1,10 @@
 use mockall::mock;
 use rtps_pim::{
     behavior::{
-        reader::{reader::RtpsReaderAttributes, stateful_reader::RtpsStatefulReaderConstructor},
+        reader::{
+            reader::RtpsReaderAttributes,
+            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor},
+        },
         types::Duration,
     },
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
@@ -34,5 +37,13 @@ impl RtpsStatefulReaderConstructor for MockRtpsStatefulReader {
         _expects_inline_qos: bool,
     ) -> Self {
         MockRtpsStatefulReader::new()
+    }
+}
+
+impl RtpsStatefulReaderAttributes<'_> for MockRtpsStatefulReader {
+    type WriterProxyListType = Vec<()>;
+
+    fn matched_writers(&'_ mut self) -> Self::WriterProxyListType {
+        vec![]
     }
 }

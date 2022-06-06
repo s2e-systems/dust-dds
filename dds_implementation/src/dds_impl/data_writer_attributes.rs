@@ -30,9 +30,13 @@ use rtps_pim::{
         writer::{
             reader_locator::RtpsReaderLocatorAttributes,
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::RtpsStatefulWriterOperations,
+            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
             writer::RtpsWriterOperations,
         },
+    },
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
     },
     messages::{
         overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
@@ -52,8 +56,12 @@ use rtps_pim::{
 };
 
 use crate::{
-    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-    dds_type::{DdsSerialize, LittleEndian},
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
+        discovered_writer_data::DiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
+    dds_type::{DdsSerialize, DdsType, LittleEndian},
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
@@ -160,13 +168,13 @@ pub struct DataWriterAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub _qos: DataWriterQos,
-    pub rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
-    pub sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
-    pub listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener<DdsShared<Self>> + Send + Sync>>>,
-    pub topic: DdsShared<TopicAttributes<Rtps>>,
-    pub publisher: DdsWeak<PublisherAttributes<Rtps>>,
-    pub status: DdsRwLock<PublicationMatchedStatus>,
+    _qos: DataWriterQos,
+    rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
+    sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener<DdsShared<Self>> + Send + Sync>>>,
+    topic: DdsShared<TopicAttributes<Rtps>>,
+    publisher: DdsWeak<PublisherAttributes<Rtps>>,
+    status: DdsRwLock<PublicationMatchedStatus>,
 }
 
 impl<Rtps> DataWriterAttributes<Rtps>
@@ -195,6 +203,40 @@ where
                 current_count_change: 0,
             }),
         })
+    }
+}
+
+impl<Rtps> DataWriterAttributes<Rtps>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a> + RtpsStatefulWriterOperations,
+    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
+        IntoIterator,
+    for<'a> <<Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType as IntoIterator>::Item:
+        RtpsReaderProxyAttributes,
+    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType: RtpsReaderProxyConstructor,
+{
+    pub fn add_matched_participant(
+        &self,
+        participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
+    ) {
+        let mut rtps_writer_lock = self.rtps_writer.write_lock();
+        if let RtpsWriter::Stateful(rtps_writer) = &mut *rtps_writer_lock {
+            if !rtps_writer
+                .matched_readers()
+                .into_iter()
+                .any(|r| r.remote_reader_guid().prefix == participant_discovery.guid_prefix())
+            {
+                let type_name = self.topic.get_type_name().unwrap();
+                if type_name == DiscoveredWriterData::type_name() {
+                    participant_discovery.discovered_participant_add_publications_writer(rtps_writer);
+                } else if type_name == DiscoveredReaderData::type_name() {
+                    participant_discovery.discovered_participant_add_subscriptions_writer(rtps_writer);
+                } else if type_name == DiscoveredTopicData::type_name() {
+                    participant_discovery.discovered_participant_add_topics_writer(rtps_writer);
+                }
+            }
+        }
     }
 }
 
@@ -273,6 +315,9 @@ where
 impl<Rtps, Foo> DataWriter<Foo> for DdsShared<DataWriterAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
+    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
+    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
+        IntoIterator,
     Foo: DdsSerialize,
 {
     fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
@@ -405,7 +450,18 @@ where
     }
 
     fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        todo!()
+        let mut rpts_writer_lock = self.rtps_writer.write_lock();
+        let matched_subscriptions = match &mut *rpts_writer_lock {
+            RtpsWriter::Stateless(_) => vec![],
+            RtpsWriter::Stateful(w) => w
+                .matched_readers()
+                .into_iter()
+                .enumerate()
+                .map(|x| x.0 as i32)
+                .collect(),
+        };
+
+        Ok(matched_subscriptions)
     }
 }
 

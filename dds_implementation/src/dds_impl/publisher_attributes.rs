@@ -16,7 +16,7 @@ use dds_api::{
         },
     },
     publication::{
-        data_writer::DataWriter,
+        data_writer::{DataWriter, DataWriterGetTopic},
         publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
@@ -29,7 +29,10 @@ use rtps_pim::{
         stateless_writer_behavior::RtpsStatelessWriterReceiveAckNackSubmessage,
         writer::{
             reader_proxy::RtpsReaderProxyConstructor,
-            stateful_writer::{RtpsStatefulWriterConstructor, RtpsStatefulWriterOperations},
+            stateful_writer::{
+                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
+                RtpsStatefulWriterOperations,
+            },
         },
     },
     messages::submessages::AckNackSubmessage,
@@ -102,6 +105,9 @@ where
 impl<Rtps, Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
+    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
+    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
+        IntoIterator,
     Foo: DdsType,
 {
     type TopicType = DdsShared<TopicAttributes<Rtps>>;
@@ -280,7 +286,7 @@ where
         data_writer_list
             .iter()
             .find_map(|data_writer_shared| {
-                let data_writer_topic = &data_writer_shared.topic;
+                let data_writer_topic = data_writer_shared.datawriter_get_topic().ok()?;
 
                 if data_writer_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_writer_topic.get_type_name().ok()? == Foo::type_name()

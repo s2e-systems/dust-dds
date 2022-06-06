@@ -4,10 +4,7 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
-use rtps_pim::behavior::{
-    reader::stateful_reader::RtpsStatefulReaderAttributes,
-    writer::stateful_writer::RtpsStatefulWriterAttributes,
-};
+use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -69,18 +66,7 @@ fn main() {
     }
     println!("{:?} [P] Matched participant", std::time::SystemTime::now());
 
-    while writer
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .rtps_writer
-        .write_lock()
-        .try_as_stateful_writer()
-        .unwrap()
-        .matched_readers()
-        .len()
-        == 0
-    {
+    while writer.get_matched_subscriptions().unwrap().len() == 0 {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     println!("{:?} [P] Matched with reader", std::time::SystemTime::now());

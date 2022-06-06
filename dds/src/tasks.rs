@@ -16,32 +16,21 @@ use dds_api::{
 use dds_implementation::{
     data_representation_builtin_endpoints::{
         discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
         discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         spdp_discovered_participant_data::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
     },
-    dds_impl::domain_participant_attributes::DomainParticipantAttributes,
+    dds_impl::domain_participant_attributes::{
+        AddDiscoveredParticipant, DomainParticipantAttributes,
+    },
     utils::{
         discovery_traits::{AddMatchedReader, AddMatchedWriter},
         shared_object::DdsShared,
     },
 };
 use rtps_pim::{
-    behavior::{
-        reader::{
-            stateful_reader::RtpsStatefulReaderAttributes, writer_proxy::RtpsWriterProxyAttributes,
-        },
-        writer::{
-            reader_proxy::RtpsReaderProxyAttributes, stateful_writer::RtpsStatefulWriterAttributes,
-        },
-    },
-    discovery::{
-        participant_discovery::ParticipantDiscovery,
-        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
-        types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
+    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     structure::{entity::RtpsEntityAttributes, participant::RtpsParticipantAttributes},
 };
 
@@ -122,101 +111,13 @@ pub struct EnabledPeriodicTask {
 pub fn task_spdp_discovery(
     domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
 ) -> DdsResult<()> {
-    let domain_participant_proxy = DomainParticipantProxy::new(domain_participant.downgrade());
-    let builtin_subscriber = SubscriberProxy::new(
-        domain_participant
-            .builtin_subscriber
-            .read_lock()
-            .as_ref()
-            .ok_or(DdsError::PreconditionNotMet(
-                "Domain participant has no builtin subscriber".to_string(),
-            ))?
-            .downgrade(),
-    );
-    let builtin_publisher = PublisherProxy::new(
-        domain_participant
-            .builtin_publisher
-            .read_lock()
-            .as_ref()
-            .ok_or(DdsError::PreconditionNotMet(
-                "Domain participant has no builtin publisher".to_string(),
-            ))?
-            .downgrade(),
-    );
+    let builtin_subscriber = domain_participant.get_builtin_subscriber().unwrap();
 
-    let dcps_participant_topic = domain_participant_proxy
+    let dcps_participant_topic = domain_participant
         .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
-    let dcps_publication_topic = domain_participant_proxy
-        .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)?;
-    let dcps_subscription_topic = domain_participant_proxy
-        .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
-    let dcps_topic_topic =
-        domain_participant_proxy.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)?;
 
-    let spdp_builtin_participant_data_reader =
-        builtin_subscriber.lookup_datareader(&dcps_participant_topic)?;
-
-    let sedp_builtin_publication_writer_shared = builtin_publisher
-        .lookup_datawriter(&dcps_publication_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let sedp_builtin_publication_reader_shared = builtin_subscriber
-        .lookup_datareader(&dcps_publication_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let sedp_builtin_subscription_writer_shared = builtin_publisher
-        .lookup_datawriter(&dcps_subscription_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let sedp_builtin_subscription_reader_shared = builtin_subscriber
-        .lookup_datareader(&dcps_subscription_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let sedp_builtin_topic_writer_shared = builtin_publisher
-        .lookup_datawriter(&dcps_topic_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let sedp_builtin_topic_reader_shared = builtin_subscriber
-        .lookup_datareader(&dcps_topic_topic)?
-        .as_ref()
-        .upgrade()?;
-
-    let mut sedp_builtin_publication_rtps_writer = sedp_builtin_publication_writer_shared
-        .rtps_writer
-        .write_lock();
-    let sedp_builtin_publication_writer =
-        sedp_builtin_publication_rtps_writer.try_as_stateful_writer()?;
-
-    let mut sedp_builtin_publication_rtps_reader = sedp_builtin_publication_reader_shared
-        .rtps_reader
-        .write_lock();
-    let sedp_builtin_publication_reader =
-        sedp_builtin_publication_rtps_reader.try_as_stateful_reader()?;
-
-    let mut sedp_builtin_subscription_rtps_writer = sedp_builtin_subscription_writer_shared
-        .rtps_writer
-        .write_lock();
-    let sedp_builtin_subscription_writer =
-        sedp_builtin_subscription_rtps_writer.try_as_stateful_writer()?;
-
-    let mut sedp_builtin_subscription_rtps_reader = sedp_builtin_subscription_reader_shared
-        .rtps_reader
-        .write_lock();
-    let sedp_builtin_subscription_reader =
-        sedp_builtin_subscription_rtps_reader.try_as_stateful_reader()?;
-
-    let mut sedp_builtin_topic_rtps_writer =
-        sedp_builtin_topic_writer_shared.rtps_writer.write_lock();
-    let sedp_builtin_topic_writer = sedp_builtin_topic_rtps_writer.try_as_stateful_writer()?;
-
-    let mut sedp_builtin_topic_rtps_reader =
-        sedp_builtin_topic_reader_shared.rtps_reader.write_lock();
-    let sedp_builtin_topic_reader = sedp_builtin_topic_rtps_reader.try_as_stateful_reader()?;
+    let spdp_builtin_participant_data_reader = builtin_subscriber
+        .lookup_datareader::<SpdpDiscoveredParticipantData>(&dcps_participant_topic)?;
 
     if let Ok(samples) = spdp_builtin_participant_data_reader.take(
         1,
@@ -224,70 +125,8 @@ pub fn task_spdp_discovery(
         ANY_VIEW_STATE,
         ANY_INSTANCE_STATE,
     ) {
-        for (discovered_participant, _) in samples.iter() {
-            if let Ok(participant_discovery) = ParticipantDiscovery::new(
-                discovered_participant,
-                domain_participant.domain_id as u32,
-                &domain_participant.domain_tag,
-            ) {
-                if !sedp_builtin_publication_writer
-                    .matched_readers()
-                    .iter()
-                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery.discovered_participant_add_publications_writer(
-                        sedp_builtin_publication_writer,
-                    );
-                }
-
-                if !sedp_builtin_publication_reader
-                    .matched_writers()
-                    .iter()
-                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery.discovered_participant_add_publications_reader(
-                        sedp_builtin_publication_reader,
-                    );
-                }
-
-                if !sedp_builtin_subscription_writer
-                    .matched_readers()
-                    .iter()
-                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery.discovered_participant_add_subscriptions_writer(
-                        sedp_builtin_subscription_writer,
-                    );
-                }
-
-                if !sedp_builtin_subscription_reader
-                    .matched_writers()
-                    .iter()
-                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery.discovered_participant_add_subscriptions_reader(
-                        sedp_builtin_subscription_reader,
-                    );
-                }
-
-                if !sedp_builtin_topic_writer
-                    .matched_readers()
-                    .iter()
-                    .any(|r| r.remote_reader_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery
-                        .discovered_participant_add_topics_writer(sedp_builtin_topic_writer);
-                }
-
-                if !sedp_builtin_topic_reader
-                    .matched_writers()
-                    .iter()
-                    .any(|w| w.remote_writer_guid().prefix == discovered_participant.guid_prefix())
-                {
-                    participant_discovery
-                        .discovered_participant_add_topics_reader(sedp_builtin_topic_reader);
-                }
-            }
+        for (discovered_participant_data, _) in samples.iter() {
+            domain_participant.add_discovered_participant(discovered_participant_data)
         }
     }
 
@@ -456,9 +295,9 @@ mod tests {
     use dds_api::{
         domain::domain_participant::DomainParticipant,
         infrastructure::qos::DomainParticipantQos,
-        publication::publisher::Publisher,
+        publication::{data_writer::DataWriter, publisher::Publisher},
         return_type::{DdsError, DdsResult},
-        subscription::subscriber::Subscriber,
+        subscription::{data_reader::DataReader, subscriber::Subscriber},
     };
     use dds_implementation::{
         data_representation_builtin_endpoints::{
@@ -469,10 +308,6 @@ mod tests {
         dds_impl::domain_participant_attributes::DomainParticipantAttributes,
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
         utils::shared_object::DdsShared,
-    };
-    use rtps_pim::behavior::{
-        reader::stateful_reader::RtpsStatefulReaderAttributes,
-        writer::stateful_writer::RtpsStatefulWriterAttributes,
     };
 
     use crate::{
@@ -513,34 +348,6 @@ mod tests {
         fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
             Ok(UserData(buf[0]))
         }
-    }
-
-    macro_rules! matched_readers {
-        ($writer:ident) => {
-            $writer
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                .rtps_writer
-                .write_lock()
-                .try_as_stateful_writer()
-                .unwrap()
-                .matched_readers()
-        };
-    }
-
-    macro_rules! matched_writers {
-        ($reader:ident) => {
-            $reader
-                .as_ref()
-                .upgrade()
-                .unwrap()
-                .rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .unwrap()
-                .matched_writers()
-        };
     }
 
     #[test]
@@ -677,40 +484,88 @@ mod tests {
         {
             assert_eq!(
                 0,
-                matched_readers!(participant1_sedp_publication_writer).len()
+                participant1_sedp_publication_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_writers!(participant1_sedp_publication_reader).len()
+                participant1_sedp_publication_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_readers!(participant1_sedp_subscription_writer).len()
+                participant1_sedp_subscription_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_writers!(participant1_sedp_subscription_reader).len()
-            );
-            assert_eq!(0, matched_readers!(participant1_sedp_topic_writer).len());
-            assert_eq!(0, matched_writers!(participant1_sedp_topic_reader).len());
-            assert_eq!(
-                0,
-                matched_readers!(participant2_sedp_publication_writer).len()
+                participant1_sedp_subscription_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_writers!(participant2_sedp_publication_reader).len()
+                participant1_sedp_topic_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_readers!(participant2_sedp_subscription_writer).len()
+                participant1_sedp_topic_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 0,
-                matched_writers!(participant2_sedp_subscription_reader).len()
+                participant2_sedp_publication_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
-            assert_eq!(0, matched_readers!(participant2_sedp_topic_writer).len());
-            assert_eq!(0, matched_writers!(participant2_sedp_topic_reader).len());
+            assert_eq!(
+                0,
+                participant2_sedp_publication_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                0,
+                participant2_sedp_subscription_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                0,
+                participant2_sedp_subscription_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                0,
+                participant2_sedp_topic_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                0,
+                participant2_sedp_topic_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
         }
 
         // Announce the participant
@@ -754,40 +609,88 @@ mod tests {
         {
             assert_eq!(
                 2,
-                matched_readers!(participant1_sedp_publication_writer).len()
+                participant1_sedp_publication_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_writers!(participant1_sedp_publication_reader).len()
+                participant1_sedp_publication_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_readers!(participant1_sedp_subscription_writer).len()
+                participant1_sedp_subscription_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_writers!(participant1_sedp_subscription_reader).len()
-            );
-            assert_eq!(2, matched_readers!(participant1_sedp_topic_writer).len());
-            assert_eq!(2, matched_writers!(participant1_sedp_topic_reader).len());
-            assert_eq!(
-                2,
-                matched_readers!(participant2_sedp_publication_writer).len()
+                participant1_sedp_subscription_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_writers!(participant2_sedp_publication_reader).len()
+                participant1_sedp_topic_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_readers!(participant2_sedp_subscription_writer).len()
+                participant1_sedp_topic_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
             );
             assert_eq!(
                 2,
-                matched_writers!(participant2_sedp_subscription_reader).len()
+                participant2_sedp_publication_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
             );
-            assert_eq!(2, matched_readers!(participant2_sedp_topic_writer).len());
-            assert_eq!(2, matched_writers!(participant2_sedp_topic_reader).len());
+            assert_eq!(
+                2,
+                participant2_sedp_publication_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                2,
+                participant2_sedp_subscription_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                2,
+                participant2_sedp_subscription_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                2,
+                participant2_sedp_topic_writer
+                    .get_matched_subscriptions()
+                    .unwrap()
+                    .len()
+            );
+            assert_eq!(
+                2,
+                participant2_sedp_topic_reader
+                    .get_matched_publications()
+                    .unwrap()
+                    .len()
+            );
         }
     }
 
@@ -930,10 +833,10 @@ mod tests {
 
         // Before the SEDP task the readers/writers are not matched
         {
-            assert_eq!(0, matched_readers!(writer1).len());
-            assert_eq!(0, matched_readers!(writer2).len());
-            assert_eq!(0, matched_writers!(reader1).len());
-            assert_eq!(0, matched_writers!(reader2).len());
+            assert_eq!(0, writer1.get_matched_subscriptions().unwrap().len());
+            assert_eq!(0, writer2.get_matched_subscriptions().unwrap().len());
+            assert_eq!(0, reader1.get_matched_publications().unwrap().len());
+            assert_eq!(0, reader2.get_matched_publications().unwrap().len());
         }
 
         // call SEDP task
@@ -944,10 +847,10 @@ mod tests {
 
         // After the SEDP task the readers/writers are matched
         {
-            assert_eq!(2, matched_readers!(writer1).len());
-            assert_eq!(2, matched_readers!(writer2).len());
-            assert_eq!(2, matched_writers!(reader1).len());
-            assert_eq!(2, matched_writers!(reader2).len());
+            assert_eq!(2, writer1.get_matched_subscriptions().unwrap().len());
+            assert_eq!(2, writer2.get_matched_subscriptions().unwrap().len());
+            assert_eq!(2, reader1.get_matched_publications().unwrap().len());
+            assert_eq!(2, reader2.get_matched_publications().unwrap().len());
         }
     }
 
@@ -1093,10 +996,10 @@ mod tests {
 
         // Before the SEDP task the readers/writers are not matched
         {
-            assert_eq!(0, matched_readers!(writer1).len());
-            assert_eq!(0, matched_readers!(writer2).len());
-            assert_eq!(0, matched_writers!(reader1).len());
-            assert_eq!(0, matched_writers!(reader2).len());
+            assert_eq!(0, writer1.get_matched_subscriptions().unwrap().len());
+            assert_eq!(0, writer2.get_matched_subscriptions().unwrap().len());
+            assert_eq!(0, reader1.get_matched_publications().unwrap().len());
+            assert_eq!(0, reader2.get_matched_publications().unwrap().len());
         }
 
         // call SEDP task
@@ -1107,10 +1010,10 @@ mod tests {
 
         // After the SEDP task the readers/writers are matched only on the same participant
         {
-            assert_eq!(1, matched_readers!(writer1).len());
-            assert_eq!(1, matched_readers!(writer2).len());
-            assert_eq!(1, matched_writers!(reader1).len());
-            assert_eq!(1, matched_writers!(reader2).len());
+            assert_eq!(1, writer1.get_matched_subscriptions().unwrap().len());
+            assert_eq!(1, writer2.get_matched_subscriptions().unwrap().len());
+            assert_eq!(1, reader1.get_matched_publications().unwrap().len());
+            assert_eq!(1, reader2.get_matched_publications().unwrap().len());
         }
     }
 }

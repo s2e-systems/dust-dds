@@ -34,6 +34,7 @@ use rtps_pim::{
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
         },
         stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
+        writer::stateful_writer::RtpsStatefulWriterAttributes,
     },
     messages::{
         submessage_elements::Parameter,
@@ -109,6 +110,9 @@ where
 impl<Rtps, Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberAttributes<Rtps>>
 where
     Rtps: RtpsStructure,
+    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
+    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
+        IntoIterator,
     Foo: DdsType,
 {
     type TopicType = DdsShared<TopicAttributes<Rtps>>;
@@ -163,12 +167,8 @@ where
                 guid,
                 topic_kind,
                 reliability_level,
-                &domain_participant
-                    .rtps_participant
-                    .default_unicast_locator_list(),
-                &domain_participant
-                    .rtps_participant
-                    .default_multicast_locator_list(),
+                domain_participant.default_unicast_locator_list(),
+                domain_participant.default_multicast_locator_list(),
                 rtps_pim::behavior::types::DURATION_ZERO,
                 rtps_pim::behavior::types::DURATION_ZERO,
                 false,
@@ -193,9 +193,9 @@ where
         {
             let domain_participant = self.parent_domain_participant.upgrade()?;
 
-            let builtin_publisher_option = domain_participant.builtin_publisher.read_lock().clone();
-            if let Some(builtin_publisher) = builtin_publisher_option {
-                if let Ok(subscription_topic) =
+            let builtin_publisher = domain_participant.get_builtin_publisher()?;
+
+            if let Ok(subscription_topic) =
                     DomainParticipantTopicFactory::<DiscoveredReaderData>::topic_factory_lookup_topicdescription(
                         &domain_participant,
                         DCPS_SUBSCRIPTION,
@@ -209,11 +209,9 @@ where
                                 remote_reader_guid: guid,
                                 remote_group_entity_id: entity_id,
                                 unicast_locator_list: domain_participant
-                                    .rtps_participant
                                     .default_unicast_locator_list()
                                     .to_vec(),
                                 multicast_locator_list: domain_participant
-                                    .rtps_participant
                                     .default_multicast_locator_list()
                                     .to_vec(),
                                 expects_inline_qos: false,
@@ -247,7 +245,7 @@ where
                             .write(&sedp_discovered_reader_data, None)
                             .unwrap();
                     }
-                }
+
             }
         }
 

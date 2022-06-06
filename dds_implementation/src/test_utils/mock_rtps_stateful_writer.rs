@@ -1,10 +1,12 @@
+use std::vec;
+
 use mockall::mock;
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::RtpsStatefulWriterSendSubmessages,
         types::Duration,
         writer::{
-            stateful_writer::RtpsStatefulWriterConstructor,
+            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor},
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
@@ -99,6 +101,14 @@ impl RtpsStatefulWriterConstructor for MockRtpsStatefulWriter {
         _data_max_size_serialized: Option<i32>,
     ) -> Self {
         MockRtpsStatefulWriter::new()
+    }
+}
+
+impl RtpsStatefulWriterAttributes<'_> for MockRtpsStatefulWriter {
+    type ReaderProxyListType = Vec<()>;
+
+    fn matched_readers(&'_ mut self) -> Self::ReaderProxyListType {
+        vec![]
     }
 }
 
