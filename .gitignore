@@ -8,3 +8,4 @@ dds_rtps_implementation/target/
 dds_types/target/
 rtps/target/
 tarpaulin-report.html
+*.profraw

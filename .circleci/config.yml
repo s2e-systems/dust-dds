@@ -3,18 +3,36 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/rust:1.59.0
+      - image: cimg/rust:1.61.0
     steps:
       - checkout
+      - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
           name: Run Tests
-          command: "cargo test"
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo test
       - run:
           name: Hello world publisher
           background: true
-          command: cargo run --example hello_world_publisher
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="hello_world-%p-%m.profraw"
+            cargo run --example hello_world_publisher
       - run:
           name: Hello world subscriber
           no_output_timeout: 10s
-          command: cargo run --example hello_world_subscriber
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="hello_world-%p-%m.profraw"
+            cargo run --example hello_world_subscriber
+      - run:
+          name: Gather coverage data
+          command: |
+            curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+            ./grcov . -s . --binary-path ./target/debug/ -t html --ignore-not-existing -o /tmp/coverage
+
+      - store_artifacts:
+          path: /tmp/coverage
