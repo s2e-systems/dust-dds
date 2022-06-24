@@ -25,17 +25,22 @@ use dds_api::{
 };
 use rtps_pim::{
     behavior::{
-        stateful_writer_behavior::RtpsStatefulWriterReceiveAckNackSubmessage,
-        stateless_writer_behavior::RtpsStatelessWriterReceiveAckNackSubmessage,
+        stateful_writer_behavior::{
+            RtpsStatefulWriterReceiveAckNackSubmessage, RtpsStatefulWriterSendSubmessages,
+        },
+        stateless_writer_behavior::{
+            RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
+        },
         writer::{
-            reader_proxy::RtpsReaderProxyConstructor,
+            reader_locator::RtpsReaderLocatorAttributes,
+            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
             stateful_writer::{
                 RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
                 RtpsStatefulWriterOperations,
             },
         },
     },
-    messages::submessages::AckNackSubmessage,
+    messages::{submessage_elements::Parameter, submessages::AckNackSubmessage},
     structure::{
         entity::RtpsEntityAttributes,
         participant::RtpsParticipantAttributes,
@@ -54,7 +59,7 @@ use crate::{
     dds_type::DdsType,
     utils::{
         discovery_traits::AddMatchedReader,
-        rtps_communication_traits::ReceiveRtpsAckNackSubmessage,
+        rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
@@ -70,12 +75,12 @@ pub struct PublisherAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub _qos: PublisherQos,
-    pub rtps_group: Rtps::Group,
-    pub data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes<Rtps>>>>,
-    pub user_defined_data_writer_counter: AtomicU8,
-    pub default_datawriter_qos: DataWriterQos,
-    pub parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    _qos: PublisherQos,
+    rtps_group: Rtps::Group,
+    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes<Rtps>>>>,
+    user_defined_data_writer_counter: AtomicU8,
+    default_datawriter_qos: DataWriterQos,
+    parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
 impl<Rtps> PublisherAttributes<Rtps>
@@ -99,6 +104,10 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
+    }
+
+    pub fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
+        self.data_writer_list.write_lock().push(writer);
     }
 }
 
@@ -164,17 +173,19 @@ where
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let domain_participant = self.parent_participant.upgrade()?;
+            let domain_participant = self.parent_participant.upgrade().ok();
             let rtps_writer_impl = RtpsWriter::Stateful(Rtps::StatefulWriter::new(
                 guid,
                 topic_kind,
                 reliability_level,
-                &domain_participant
-                    .rtps_participant
-                    .default_unicast_locator_list(),
-                &domain_participant
-                    .rtps_participant
-                    .default_multicast_locator_list(),
+                domain_participant
+                    .as_ref()
+                    .map(|dp| dp.default_unicast_locator_list())
+                    .unwrap_or(&[]),
+                domain_participant
+                    .as_ref()
+                    .map(|dp| dp.default_multicast_locator_list())
+                    .unwrap_or(&[]),
                 true,
                 rtps_pim::behavior::types::Duration::new(0, 200_000_000),
                 rtps_pim::behavior::types::DURATION_ZERO,
@@ -198,11 +209,8 @@ where
         };
 
         // /////// Announce the data writer creation
-        {
-            let domain_participant = self.parent_participant.upgrade()?;
-
-            let builtin_publisher_option = domain_participant.builtin_publisher.read_lock().clone();
-            if let Some(builtin_publisher) = builtin_publisher_option {
+        if let Ok(domain_participant) = self.parent_participant.upgrade() {
+            if let Ok(builtin_publisher) = domain_participant.get_builtin_publisher() {
                 if let Ok(publication_topic) =
                     DomainParticipantTopicFactory::<DiscoveredWriterData>::topic_factory_lookup_topicdescription(&domain_participant, DCPS_PUBLICATION)
                 {
@@ -213,11 +221,9 @@ where
                             writer_proxy: RtpsWriterProxy {
                                 remote_writer_guid: guid,
                                 unicast_locator_list: domain_participant
-                                    .rtps_participant
                                     .default_unicast_locator_list()
                                     .to_vec(),
                                 multicast_locator_list: domain_participant
-                                    .rtps_participant
                                     .default_multicast_locator_list()
                                     .to_vec(),
                                 data_max_size_serialized: None,
@@ -430,16 +436,63 @@ where
     }
 }
 
+impl<Rtps> SendRtpsMessage for DdsShared<PublisherAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Rtps::StatelessWriter: RtpsEntityAttributes
+        + for<'a> RtpsStatelessWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >,
+    for<'a> <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
+        'a,
+        Vec<Parameter<'a>>,
+        &'a [u8],
+        Vec<SequenceNumber>,
+    >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
+    Rtps::StatefulWriter: RtpsEntityAttributes
+        + for<'a> RtpsStatefulWriterSendSubmessages<
+            'a,
+            Vec<Parameter<'a>>,
+            &'a [u8],
+            Vec<SequenceNumber>,
+        >,
+    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
+        'a,
+        Vec<Parameter<'a>>,
+        &'a [u8],
+        Vec<SequenceNumber>,
+    >>::ReaderProxyType: RtpsReaderProxyAttributes,
+{
+    fn send_message(
+        &self,
+        transport: &mut impl for<'a> rtps_pim::transport::TransportWrite<
+            Vec<
+                rtps_pim::messages::overall_structure::RtpsSubmessageType<
+                    Vec<SequenceNumber>,
+                    Vec<rtps_pim::messages::submessage_elements::Parameter<'a>>,
+                    &'a [u8],
+                    Vec<rtps_pim::structure::types::Locator>,
+                    Vec<rtps_pim::messages::types::FragmentNumber>,
+                >,
+            >,
+        >,
+    ) {
+        for data_writer in self.data_writer_list.read_lock().iter() {
+            data_writer.send_message(transport);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         dds_type::{DdsSerialize, DdsType, Endianness},
         test_utils::mock_rtps_group::MockRtpsGroup,
     };
-    use dds_api::{
-        dcps_psm::DomainId,
-        infrastructure::qos::{DomainParticipantQos, TopicQos},
-    };
+    use dds_api::infrastructure::qos::TopicQos;
     use rtps_pim::structure::types::GuidPrefix;
     use std::io::Write;
 
@@ -473,41 +526,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_create_datawriter() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -530,41 +555,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -592,41 +589,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -640,7 +609,7 @@ mod tests {
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         let publisher2 = DdsShared::new(publisher2_attributes);
 
@@ -666,33 +635,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         let publisher = DdsShared::new(publisher_attributes);
 
@@ -708,41 +657,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -768,41 +689,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -833,41 +726,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -898,41 +763,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group
@@ -968,41 +805,13 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let mut domain_participant_attributes: DomainParticipantAttributes<MockRtps> =
-            DomainParticipantAttributes::new(
-                GuidPrefix([1; 12]),
-                DomainId::default(),
-                "".to_string(),
-                DomainParticipantQos::default(),
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            );
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_unicast_locator_list()
-            .return_const(vec![]);
-        domain_participant_attributes
-            .rtps_participant
-            .expect_default_multicast_locator_list()
-            .return_const(vec![]);
-
-        let domain_participant = DdsShared::new(domain_participant_attributes);
-
-        *domain_participant.builtin_publisher.write_lock() = Some(PublisherAttributes::new(
-            PublisherQos::default(),
-            MockRtpsGroup::new(),
-            domain_participant.downgrade(),
-        ));
-
         let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
             _qos: PublisherQos::default(),
             rtps_group: MockRtpsGroup::new(),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: domain_participant.downgrade(),
+            parent_participant: DdsWeak::new(),
         };
         publisher_attributes
             .rtps_group

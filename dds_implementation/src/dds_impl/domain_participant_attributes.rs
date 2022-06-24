@@ -30,7 +30,10 @@ use rtps_pim::{
             stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
         },
     },
-    discovery::participant_discovery::ParticipantDiscovery,
+    discovery::{
+        participant_discovery::ParticipantDiscovery,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
     messages::types::Count,
     structure::{
         entity::RtpsEntityAttributes,
@@ -48,16 +51,18 @@ use crate::{
         discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
         discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
         discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        spdp_discovered_participant_data::{ParticipantProxy, SpdpDiscoveredParticipantData},
     },
     dds_type::DdsType,
     utils::{
         rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared},
+        timer::ThreadTimer,
     },
 };
 
 use super::{
+    data_reader_attributes::DataReaderAttributes, data_writer_attributes::DataWriterAttributes,
     publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
     topic_attributes::TopicAttributes,
 };
@@ -66,25 +71,25 @@ pub struct DomainParticipantAttributes<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub rtps_participant: Rtps::Participant,
-    pub domain_id: DomainId,
-    pub domain_tag: String,
-    pub qos: DomainParticipantQos,
-    pub builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes<Rtps>>>>,
-    pub builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes<Rtps>>>>,
-    pub user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes<Rtps>>>>,
-    pub user_defined_subscriber_counter: AtomicU8,
-    pub default_subscriber_qos: SubscriberQos,
-    pub user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes<Rtps>>>>,
-    pub user_defined_publisher_counter: AtomicU8,
-    pub default_publisher_qos: PublisherQos,
-    pub topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<Rtps>>>>,
-    pub default_topic_qos: TopicQos,
-    pub manual_liveliness_count: Count,
-    pub lease_duration: rtps_pim::behavior::types::Duration,
-    pub metatraffic_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub enabled: DdsRwLock<bool>,
+    rtps_participant: Rtps::Participant,
+    domain_id: DomainId,
+    domain_tag: String,
+    qos: DomainParticipantQos,
+    builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes<Rtps>>>>,
+    builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes<Rtps>>>>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes<Rtps>>>>,
+    user_defined_subscriber_counter: AtomicU8,
+    default_subscriber_qos: SubscriberQos,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes<Rtps>>>>,
+    user_defined_publisher_counter: AtomicU8,
+    default_publisher_qos: PublisherQos,
+    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<Rtps>>>>,
+    default_topic_qos: TopicQos,
+    manual_liveliness_count: Count,
+    lease_duration: rtps_pim::behavior::types::Duration,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl<Rtps> DomainParticipantAttributes<Rtps>
@@ -128,7 +133,7 @@ where
             topic_list: DdsRwLock::new(Vec::new()),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
-            lease_duration,
+            lease_duration: lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             enabled: DdsRwLock::new(false),
@@ -137,6 +142,47 @@ where
 
     pub fn get_builtin_publisher(&self) -> DdsResult<DdsShared<PublisherAttributes<Rtps>>> {
         Ok(self.builtin_publisher.read_lock().as_ref().unwrap().clone())
+    }
+
+    pub fn get_user_defined_publisher_list(&self) -> Vec<DdsShared<PublisherAttributes<Rtps>>> {
+        self.user_defined_publisher_list.read_lock().clone()
+    }
+
+    pub fn get_user_defined_subscriber_list(&self) -> Vec<DdsShared<SubscriberAttributes<Rtps>>> {
+        self.user_defined_subscriber_list.read_lock().clone()
+    }
+
+    pub fn corresponding_discovered_participant_data(&self) -> SpdpDiscoveredParticipantData {
+        SpdpDiscoveredParticipantData {
+            dds_participant_data: ParticipantBuiltinTopicData {
+                key: BuiltInTopicKey {
+                    value: self.rtps_participant.guid().into(),
+                },
+                user_data: self.qos.user_data.clone(),
+            },
+            participant_proxy: ParticipantProxy {
+                domain_id: self.domain_id as u32,
+                domain_tag: self.domain_tag.clone(),
+                protocol_version: self.rtps_participant.protocol_version(),
+                guid_prefix: self.rtps_participant.guid().prefix(),
+                vendor_id: self.rtps_participant.vendor_id(),
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
+                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+                default_unicast_locator_list: self
+                    .rtps_participant
+                    .default_unicast_locator_list()
+                    .to_vec(),
+                default_multicast_locator_list: self
+                    .rtps_participant
+                    .default_multicast_locator_list()
+                    .to_vec(),
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: self.manual_liveliness_count,
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: self.lease_duration,
+        }
     }
 }
 
@@ -425,7 +471,7 @@ where
     }
 
     fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        todo!()
+        Ok(self.default_topic_qos.clone())
     }
 
     fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
@@ -510,6 +556,39 @@ where
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         todo!()
+    }
+}
+
+pub trait InitialiseBuiltins<Rtps: RtpsStructure> {
+    fn initialise_builtin_publisher(&self, rtps_group: Rtps::Group);
+    fn initialise_builtin_subscriber(&self, rtps_group: Rtps::Group);
+    fn add_builtin_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>);
+    fn add_builtin_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>);
+}
+
+impl<Rtps: RtpsStructure> InitialiseBuiltins<Rtps>
+    for DdsShared<DomainParticipantAttributes<Rtps>>
+{
+    fn initialise_builtin_publisher(&self, rtps_group: Rtps::Group) {
+        let builtin_publisher =
+            PublisherAttributes::new(PublisherQos::default(), rtps_group, self.downgrade());
+
+        *self.builtin_publisher.write_lock() = Some(builtin_publisher);
+    }
+
+    fn initialise_builtin_subscriber(&self, rtps_group: Rtps::Group) {
+        let builtin_subscriber =
+            SubscriberAttributes::new(SubscriberQos::default(), rtps_group, self.downgrade());
+
+        *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
+    }
+
+    fn add_builtin_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>) {
+        self.builtin_subscriber.write_lock().as_ref().unwrap().add_data_reader(reader);
+    }
+
+    fn add_builtin_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
+        self.builtin_publisher.write_lock().as_ref().unwrap().add_data_writer(writer);
     }
 }
 

@@ -199,16 +199,16 @@ pub struct DataReaderAttributes<Rtps, T>
 where
     Rtps: RtpsStructure,
 {
-    pub rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
-    pub qos: DdsRwLock<DataReaderQos>,
-    pub topic: DdsShared<TopicAttributes<Rtps>>,
-    pub listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<DdsShared<Self>> + Send + Sync>>>,
-    pub parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
-    pub samples_read: DdsRwLock<HashSet<SequenceNumber>>,
-    pub deadline_timer: DdsRwLock<T>,
-    pub status_change: DdsRwLock<StatusMask>,
-    pub subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
-    pub requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
+    rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
+    qos: DdsRwLock<DataReaderQos>,
+    topic: DdsShared<TopicAttributes<Rtps>>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<DdsShared<Self>> + Send + Sync>>>,
+    parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+    samples_read: DdsRwLock<HashSet<SequenceNumber>>,
+    deadline_timer: DdsRwLock<T>,
+    status_change: DdsRwLock<StatusMask>,
+    subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
+    requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
 impl<Rtps, T> DataReaderAttributes<Rtps, T>

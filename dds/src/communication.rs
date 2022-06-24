@@ -37,19 +37,18 @@ where
         >,
     >,
 {
-    pub fn send_publisher_message(&mut self, publisher: &PublisherAttributes<RtpsStructureImpl>) {
-        for any_data_writer in publisher.data_writer_list.write_lock().iter_mut() {
-            any_data_writer.send_message(&mut self.transport)
-        }
+    pub fn send_publisher_message(
+        &mut self,
+        publisher: DdsShared<PublisherAttributes<RtpsStructureImpl>>,
+    ) {
+        publisher.send_message(&mut self.transport);
     }
 
     pub fn send_subscriber_message(
         &mut self,
-        subscriber: &SubscriberAttributes<RtpsStructureImpl>,
+        subscriber: DdsShared<SubscriberAttributes<RtpsStructureImpl>>,
     ) {
-        for any_data_reader in subscriber.data_reader_list.write_lock().iter_mut() {
-            any_data_reader.send_message(&mut self.transport)
-        }
+        subscriber.send_message(&mut self.transport);
     }
 }
 

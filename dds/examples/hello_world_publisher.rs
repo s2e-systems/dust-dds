@@ -4,7 +4,6 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
-use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -41,30 +40,6 @@ fn main() {
     let publisher = participant.create_publisher(None, None, 0).unwrap();
     let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
     println!("{:?} [P] Created writer", std::time::SystemTime::now());
-
-    while participant
-        .get_builtin_subscriber()
-        .unwrap()
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .data_reader_list
-        .read_lock()
-        .iter()
-        .filter_map(|r| {
-            r.rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .ok()
-                .map(|sr| sr.matched_writers().len())
-        })
-        .next()
-        .unwrap()
-        < 2
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-    println!("{:?} [P] Matched participant", std::time::SystemTime::now());
 
     while writer.get_matched_subscriptions().unwrap().len() == 0 {
         std::thread::sleep(std::time::Duration::from_millis(50));

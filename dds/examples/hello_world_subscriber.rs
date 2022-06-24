@@ -9,7 +9,6 @@ use dds::{
     DdsError,
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
-use rtps_pim::behavior::reader::stateful_reader::RtpsStatefulReaderAttributes;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize)]
@@ -60,48 +59,13 @@ fn main() {
     qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+
     let reader = subscriber
         .create_datareader(&topic, Some(qos), Some(Box::new(ExampleListener)), 0)
         .unwrap();
     println!("{:?} [S] Created reader", std::time::SystemTime::now());
 
-    while participant
-        .get_builtin_subscriber()
-        .unwrap()
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .data_reader_list
-        .read_lock()
-        .iter()
-        .filter_map(|r| {
-            r.rtps_reader
-                .write_lock()
-                .try_as_stateful_reader()
-                .ok()
-                .map(|sr| sr.matched_writers().len())
-        })
-        .next()
-        .unwrap()
-        < 2
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-    println!("{:?} [S] Matched participant", std::time::SystemTime::now());
-
-    // Wait for reader to be aware of the user writer
-    while reader
-        .as_ref()
-        .upgrade()
-        .unwrap()
-        .rtps_reader
-        .write_lock()
-        .try_as_stateful_reader()
-        .unwrap()
-        .matched_writers()
-        .len()
-        == 0
-    {
+    while reader.get_matched_publications().unwrap().len() == 0 {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
     println!("{:?} [S] Matched with writer", std::time::SystemTime::now());
