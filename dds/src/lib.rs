@@ -1,9 +1,7 @@
-pub mod communication;
 pub mod data_reader_proxy;
 pub mod data_writer_proxy;
 pub mod domain_participant_factory;
 pub mod domain_participant_proxy;
-pub mod message_receiver;
 pub mod publisher_proxy;
 pub mod subscriber_proxy;
 pub mod topic_proxy;

@@ -202,7 +202,7 @@ where
     rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
     qos: DdsRwLock<DataReaderQos>,
     topic: DdsShared<TopicAttributes<Rtps>>,
-    listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener<DdsShared<Self>> + Send + Sync>>>,
+    listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<T>,
@@ -211,22 +211,36 @@ where
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
-impl<Rtps, T> DataReaderAttributes<Rtps, T>
+pub trait DataReaderConstructor<Rtps>
+where
+    Rtps: RtpsStructure,
+    Self: Entity,
+{
+    fn new(
+        qos: DataReaderQos,
+        rtps_reader: RtpsReader<Rtps>,
+        topic: DdsShared<TopicAttributes<Rtps>>,
+        listener: Option<<Self as Entity>::Listener>,
+        parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+    ) -> Self;
+}
+
+impl<Rtps, T> DataReaderConstructor<Rtps> for DdsShared<DataReaderAttributes<Rtps, T>>
 where
     Rtps: RtpsStructure,
     T: Timer,
 {
-    pub fn new(
+    fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader<Rtps>,
         topic: DdsShared<TopicAttributes<Rtps>>,
-        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        listener: Option<<Self as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
-    ) -> DdsShared<Self> {
+    ) -> Self {
         let deadline_duration = std::time::Duration::from_secs(*qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
 
-        DdsShared::new(Self {
+        DdsShared::new(DataReaderAttributes {
             rtps_reader: DdsRwLock::new(rtps_reader),
             qos: DdsRwLock::new(qos),
             topic,
@@ -249,40 +263,46 @@ where
             }),
         })
     }
+}
 
-    pub fn read_sample<'a>(&self, cache_change: &'a Rtps::CacheChange) -> (&'a [u8], SampleInfo) {
-        *self.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
+fn read_sample<'a, Rtps, T>(
+    data_reader_attributes: &DataReaderAttributes<Rtps, T>,
+    cache_change: &'a Rtps::CacheChange,
+) -> (&'a [u8], SampleInfo)
+where
+    Rtps: RtpsStructure,
+{
+    *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
 
-        let mut samples_read = self.samples_read.write_lock();
-        let data_value = cache_change.data_value();
+    let mut samples_read = data_reader_attributes.samples_read.write_lock();
+    let data_value = cache_change.data_value();
 
-        let sample_state = {
-            let sn = cache_change.sequence_number();
-            if samples_read.contains(&sn) {
-                READ_SAMPLE_STATE
-            } else {
-                samples_read.insert(sn);
-                NOT_READ_SAMPLE_STATE
-            }
-        };
+    let sample_state = {
+        let sn = cache_change.sequence_number();
+        if samples_read.contains(&sn) {
+            READ_SAMPLE_STATE
+        } else {
+            samples_read.insert(sn);
+            NOT_READ_SAMPLE_STATE
+        }
+    };
 
-        let sample_info = SampleInfo {
-            sample_state,
-            view_state: NEW_VIEW_STATE,
-            instance_state: ALIVE_INSTANCE_STATE,
-            disposed_generation_count: 0,
-            no_writers_generation_count: 0,
-            sample_rank: 0,
-            generation_rank: 0,
-            absolute_generation_rank: 0,
-            source_timestamp: Time { sec: 0, nanosec: 0 },
-            instance_handle: 0,
-            publication_handle: 0,
-            valid_data: true,
-        };
+    let sample_info = SampleInfo {
+        sample_state,
+        view_state: NEW_VIEW_STATE,
+        instance_state: ALIVE_INSTANCE_STATE,
+        disposed_generation_count: 0,
+        no_writers_generation_count: 0,
+        sample_rank: 0,
+        generation_rank: 0,
+        absolute_generation_rank: 0,
+        source_timestamp: Time { sec: 0, nanosec: 0 },
+        instance_handle: 0,
+        publication_handle: 0,
+        valid_data: true,
+    };
 
-        (data_value, sample_info)
-    }
+    (data_value, sample_info)
 }
 
 impl<Rtps, T> DataReaderAttributes<Rtps, T>
@@ -563,7 +583,7 @@ where
             .changes()
             .iter()
             .map(|sample| {
-                let (mut data_value, sample_info) = self.read_sample(sample);
+                let (mut data_value, sample_info) = read_sample(self, sample);
                 let foo = DdsDeserialize::deserialize(&mut data_value)?;
                 Ok((foo, sample_info))
             })
@@ -598,7 +618,7 @@ where
             .changes()
             .iter()
             .map(|sample| {
-                let (mut data_value, sample_info) = self.read_sample(sample);
+                let (mut data_value, sample_info) = read_sample(self, sample);
                 let foo = DdsDeserialize::deserialize(&mut data_value)?;
 
                 Ok(((foo, sample_info), sample.sequence_number()))
@@ -1027,7 +1047,7 @@ mod tests {
             .expect_reader_cache()
             .return_var(history_cache);
 
-        DataReaderAttributes::new(
+        DataReaderConstructor::new(
             DataReaderQos {
                 history: HistoryQosPolicy {
                     kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -1314,7 +1334,7 @@ mod tests {
             .expect_reader_cache()
             .return_var(history_cache);
 
-        DataReaderAttributes::new(
+        DataReaderConstructor::new(
             DataReaderQos {
                 history: HistoryQosPolicy {
                     kind: HistoryQosPolicyKind::KeepLastHistoryQoS,

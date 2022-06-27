@@ -171,24 +171,39 @@ where
     _qos: DataWriterQos,
     rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
-    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener<DdsShared<Self>> + Send + Sync>>>,
+    listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     topic: DdsShared<TopicAttributes<Rtps>>,
     publisher: DdsWeak<PublisherAttributes<Rtps>>,
     status: DdsRwLock<PublicationMatchedStatus>,
 }
 
-impl<Rtps> DataWriterAttributes<Rtps>
+pub trait DataWriterConstructor<Rtps>
 where
     Rtps: RtpsStructure,
+    Self: Entity,
 {
-    pub fn new(
+    fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter<Rtps>,
-        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        listener: Option<<Self as Entity>::Listener>,
         topic: DdsShared<TopicAttributes<Rtps>>,
         publisher: DdsWeak<PublisherAttributes<Rtps>>,
-    ) -> DdsShared<Self> {
-        DdsShared::new(Self {
+    ) -> Self;
+}
+
+impl<Rtps> DataWriterConstructor<Rtps> for DdsShared<DataWriterAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+    Self: Entity,
+{
+    fn new(
+        qos: DataWriterQos,
+        rtps_writer: RtpsWriter<Rtps>,
+        listener: Option<<Self as Entity>::Listener>,
+        topic: DdsShared<TopicAttributes<Rtps>>,
+        publisher: DdsWeak<PublisherAttributes<Rtps>>,
+    ) -> Self {
+        DdsShared::new(DataWriterAttributes {
             _qos: qos,
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
@@ -492,7 +507,8 @@ where
     Rtps: RtpsStructure,
 {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn AnyDataWriterListener<Self> + Send + Sync>;
+    type Listener =
+        Box<dyn AnyDataWriterListener<DdsShared<DataWriterAttributes<Rtps>>> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         todo!()
@@ -763,7 +779,7 @@ mod test {
         let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
         let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
-            DataWriterAttributes::new(
+            DataWriterConstructor::new(
                 DataWriterQos::default(),
                 RtpsWriter::Stateless(mock_writer),
                 None,
@@ -796,7 +812,7 @@ mod test {
         let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
         let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
-            DataWriterAttributes::new(
+            DataWriterConstructor::new(
                 DataWriterQos::default(),
                 RtpsWriter::Stateful(mock_writer),
                 None,

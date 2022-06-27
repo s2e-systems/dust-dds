@@ -3,7 +3,6 @@ use std::sync::atomic::{self, AtomicU8};
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{BuiltInTopicKey, Duration, StatusMask},
-    domain::domain_participant::DomainParticipantTopicFactory,
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -16,7 +15,7 @@ use dds_api::{
         },
     },
     publication::{
-        data_writer::{DataWriter, DataWriterGetTopic},
+        data_writer::DataWriterGetTopic,
         publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
@@ -54,7 +53,7 @@ use rtps_pim::{
 use crate::{
     data_representation_builtin_endpoints::{
         discovered_reader_data::DiscoveredReaderData,
-        discovered_writer_data::{DiscoveredWriterData, RtpsWriterProxy, DCPS_PUBLICATION},
+        discovered_writer_data::{DiscoveredWriterData, RtpsWriterProxy},
     },
     dds_type::DdsType,
     utils::{
@@ -66,8 +65,8 @@ use crate::{
 };
 
 use super::{
-    data_writer_attributes::{DataWriterAttributes, RtpsWriter},
-    domain_participant_attributes::DomainParticipantAttributes,
+    data_writer_attributes::{DataWriterAttributes, DataWriterConstructor, RtpsWriter},
+    domain_participant_attributes::{DataWriterDiscovery, DomainParticipantAttributes},
     topic_attributes::TopicAttributes,
 };
 
@@ -83,16 +82,27 @@ where
     parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl<Rtps> PublisherAttributes<Rtps>
+pub trait PublisherConstructor<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(
+    fn new(
         qos: PublisherQos,
         rtps_group: Rtps::Group,
         parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> DdsShared<Self> {
-        DdsShared::new(Self {
+    ) -> Self;
+}
+
+impl<Rtps> PublisherConstructor<Rtps> for DdsShared<PublisherAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn new(
+        qos: PublisherQos,
+        rtps_group: <Rtps as RtpsStructure>::Group,
+        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    ) -> Self {
+        DdsShared::new(PublisherAttributes {
             _qos: qos,
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -101,12 +111,33 @@ where
             parent_participant,
         })
     }
+}
 
-    pub fn is_empty(&self) -> bool {
+pub trait PublisherEmpty {
+    fn is_empty(&self) -> bool;
+}
+
+impl<Rtps> PublisherEmpty for DdsShared<PublisherAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
+}
 
-    pub fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
+pub trait AddDataWriter<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>);
+}
+
+impl<Rtps> AddDataWriter<Rtps> for DdsShared<PublisherAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
         self.data_writer_list.write_lock().push(writer);
     }
 }
@@ -193,13 +224,14 @@ where
                 None,
             ));
 
-            let data_writer_shared = DataWriterAttributes::new(
-                qos,
-                rtps_writer_impl,
-                a_listener,
-                topic_shared.clone(),
-                self.downgrade(),
-            );
+            let data_writer_shared: DdsShared<DataWriterAttributes<Rtps>> =
+                DataWriterConstructor::new(
+                    qos,
+                    rtps_writer_impl,
+                    a_listener,
+                    topic_shared.clone(),
+                    self.downgrade(),
+                );
 
             self.data_writer_list
                 .write_lock()
@@ -210,58 +242,45 @@ where
 
         // /////// Announce the data writer creation
         if let Ok(domain_participant) = self.parent_participant.upgrade() {
-            if let Ok(builtin_publisher) = domain_participant.get_builtin_publisher() {
-                if let Ok(publication_topic) =
-                    DomainParticipantTopicFactory::<DiscoveredWriterData>::topic_factory_lookup_topicdescription(&domain_participant, DCPS_PUBLICATION)
-                {
-                    if let Ok(sedp_builtin_publications_announcer) =
-                        PublisherDataWriterFactory::<DiscoveredWriterData>::datawriter_factory_lookup_datawriter(&builtin_publisher, &publication_topic)
-                    {
-                        let sedp_discovered_writer_data = DiscoveredWriterData {
-                            writer_proxy: RtpsWriterProxy {
-                                remote_writer_guid: guid,
-                                unicast_locator_list: domain_participant
-                                    .default_unicast_locator_list()
-                                    .to_vec(),
-                                multicast_locator_list: domain_participant
-                                    .default_multicast_locator_list()
-                                    .to_vec(),
-                                data_max_size_serialized: None,
-                                remote_group_entity_id: EntityId::new([0; 3], 0),
-                            },
+            let sedp_discovered_writer_data = DiscoveredWriterData {
+                writer_proxy: RtpsWriterProxy {
+                    remote_writer_guid: guid,
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    data_max_size_serialized: None,
+                    remote_group_entity_id: EntityId::new([0; 3], 0),
+                },
 
-                            publication_builtin_topic_data: PublicationBuiltinTopicData {
-                                key: BuiltInTopicKey { value: guid.into() },
-                                participant_key: BuiltInTopicKey { value: [1; 16] },
-                                topic_name: topic_shared.get_name().unwrap(),
-                                type_name: Foo::type_name().to_string(),
-                                durability: DurabilityQosPolicy::default(),
-                                durability_service: DurabilityServiceQosPolicy::default(),
-                                deadline: DeadlineQosPolicy::default(),
-                                latency_budget: LatencyBudgetQosPolicy::default(),
-                                liveliness: LivelinessQosPolicy::default(),
-                                reliability: ReliabilityQosPolicy {
-                                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                                    max_blocking_time: Duration::new(3, 0),
-                                },
-                                lifespan: LifespanQosPolicy::default(),
-                                user_data: UserDataQosPolicy::default(),
-                                ownership: OwnershipQosPolicy::default(),
-                                ownership_strength: OwnershipStrengthQosPolicy::default(),
-                                destination_order: DestinationOrderQosPolicy::default(),
-                                presentation: PresentationQosPolicy::default(),
-                                partition: PartitionQosPolicy::default(),
-                                topic_data: TopicDataQosPolicy::default(),
-                                group_data: GroupDataQosPolicy::default(),
-                            },
-                        };
-
-                        sedp_builtin_publications_announcer
-                            .write(&sedp_discovered_writer_data, None)
-                            .unwrap();
-                    }
-                }
-            }
+                publication_builtin_topic_data: PublicationBuiltinTopicData {
+                    key: BuiltInTopicKey { value: guid.into() },
+                    participant_key: BuiltInTopicKey { value: [1; 16] },
+                    topic_name: topic_shared.get_name().unwrap(),
+                    type_name: Foo::type_name().to_string(),
+                    durability: DurabilityQosPolicy::default(),
+                    durability_service: DurabilityServiceQosPolicy::default(),
+                    deadline: DeadlineQosPolicy::default(),
+                    latency_budget: LatencyBudgetQosPolicy::default(),
+                    liveliness: LivelinessQosPolicy::default(),
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        max_blocking_time: Duration::new(3, 0),
+                    },
+                    lifespan: LifespanQosPolicy::default(),
+                    user_data: UserDataQosPolicy::default(),
+                    ownership: OwnershipQosPolicy::default(),
+                    ownership_strength: OwnershipStrengthQosPolicy::default(),
+                    destination_order: DestinationOrderQosPolicy::default(),
+                    presentation: PresentationQosPolicy::default(),
+                    partition: PartitionQosPolicy::default(),
+                    topic_data: TopicDataQosPolicy::default(),
+                    group_data: GroupDataQosPolicy::default(),
+                },
+            };
+            domain_participant.add_created_data_writer(&sedp_discovered_writer_data);
         }
 
         Ok(data_writer_shared)

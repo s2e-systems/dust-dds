@@ -4,7 +4,6 @@ use dds_api::{
         BuiltInTopicKey, Duration, InstanceHandle, InstanceStateMask, SampleLostStatus,
         SampleStateMask, StatusMask, ViewStateMask,
     },
-    domain::domain_participant::DomainParticipantTopicFactory,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -15,7 +14,6 @@ use dds_api::{
             TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         },
     },
-    publication::{data_writer::DataWriter, publisher::PublisherDataWriterFactory},
     return_type::{DdsError, DdsResult},
     subscription::{
         data_reader::{AnyDataReader, DataReaderGetTopicDescription},
@@ -53,7 +51,7 @@ use rtps_pim::{
 
 use crate::{
     data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy, DCPS_SUBSCRIPTION},
+        discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
         discovered_writer_data::DiscoveredWriterData,
     },
     dds_type::DdsType,
@@ -69,8 +67,8 @@ use crate::{
 };
 
 use super::{
-    data_reader_attributes::{DataReaderAttributes, RtpsReader},
-    domain_participant_attributes::DomainParticipantAttributes,
+    data_reader_attributes::{DataReaderAttributes, DataReaderConstructor, RtpsReader},
+    domain_participant_attributes::{DataReaderDiscovery, DomainParticipantAttributes},
     topic_attributes::TopicAttributes,
 };
 
@@ -86,16 +84,27 @@ where
     parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
 }
 
-impl<Rtps> SubscriberAttributes<Rtps>
+pub trait SubscriberConstructor<Rtps>
 where
     Rtps: RtpsStructure,
 {
-    pub fn new(
+    fn new(
         qos: SubscriberQos,
         rtps_group: Rtps::Group,
         parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
-    ) -> DdsShared<Self> {
-        DdsShared::new(Self {
+    ) -> Self;
+}
+
+impl<Rtps> SubscriberConstructor<Rtps> for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn new(
+        qos: SubscriberQos,
+        rtps_group: <Rtps>::Group,
+        parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    ) -> Self {
+        DdsShared::new(SubscriberAttributes {
             qos,
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
@@ -104,12 +113,32 @@ where
             parent_domain_participant,
         })
     }
+}
 
-    pub fn is_empty(&self) -> bool {
+pub trait SubscriberEmpty {
+    fn is_empty(&self) -> bool;
+}
+
+impl<Rtps> SubscriberEmpty for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn is_empty(&self) -> bool {
         self.data_reader_list.read_lock().is_empty()
     }
+}
+pub trait AddDataReader<Rtps>
+where
+    Rtps: RtpsStructure,
+{
+    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>);
+}
 
-    pub fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>) {
+impl<Rtps> AddDataReader<Rtps> for DdsShared<SubscriberAttributes<Rtps>>
+where
+    Rtps: RtpsStructure,
+{
+    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>) {
         self.data_reader_list.write_lock().push(reader);
     }
 }
@@ -187,13 +216,14 @@ where
                 false,
             ));
 
-            let data_reader_shared = DataReaderAttributes::new(
-                qos,
-                rtps_reader,
-                a_topic.clone(),
-                a_listener,
-                self.downgrade(),
-            );
+            let data_reader_shared: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>> =
+                DataReaderConstructor::new(
+                    qos,
+                    rtps_reader,
+                    a_topic.clone(),
+                    a_listener,
+                    self.downgrade(),
+                );
 
             self.data_reader_list
                 .write_lock()
@@ -204,60 +234,43 @@ where
 
         // /////// Announce the data reader creation
         if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
-            let builtin_publisher = domain_participant.get_builtin_publisher()?;
+            let sedp_discovered_reader_data = DiscoveredReaderData {
+                reader_proxy: RtpsReaderProxy {
+                    remote_reader_guid: guid,
+                    remote_group_entity_id: entity_id,
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    expects_inline_qos: false,
+                },
 
-            if let Ok(subscription_topic) =
-                    DomainParticipantTopicFactory::<DiscoveredReaderData>::topic_factory_lookup_topicdescription(
-                        &domain_participant,
-                        DCPS_SUBSCRIPTION,
-                    )
-                {
-                    if let Ok(sedp_builtin_subscription_announcer) =
-                        PublisherDataWriterFactory::<DiscoveredReaderData>::datawriter_factory_lookup_datawriter(&builtin_publisher, &subscription_topic)
-                    {
-                        let sedp_discovered_reader_data = DiscoveredReaderData {
-                            reader_proxy: RtpsReaderProxy {
-                                remote_reader_guid: guid,
-                                remote_group_entity_id: entity_id,
-                                unicast_locator_list: domain_participant
-                                    .default_unicast_locator_list()
-                                    .to_vec(),
-                                multicast_locator_list: domain_participant
-                                    .default_multicast_locator_list()
-                                    .to_vec(),
-                                expects_inline_qos: false,
-                            },
-
-                            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                                key: BuiltInTopicKey { value: guid.into() },
-                                participant_key: BuiltInTopicKey { value: [1; 16] },
-                                topic_name: a_topic.get_name().unwrap().clone(),
-                                type_name: Foo::type_name().to_string(),
-                                durability: DurabilityQosPolicy::default(),
-                                deadline: DeadlineQosPolicy::default(),
-                                latency_budget: LatencyBudgetQosPolicy::default(),
-                                liveliness: LivelinessQosPolicy::default(),
-                                reliability: ReliabilityQosPolicy {
-                                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                                    max_blocking_time: Duration::new(3, 0),
-                                },
-                                ownership: OwnershipQosPolicy::default(),
-                                destination_order: DestinationOrderQosPolicy::default(),
-                                user_data: UserDataQosPolicy::default(),
-                                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                                presentation: PresentationQosPolicy::default(),
-                                partition: PartitionQosPolicy::default(),
-                                topic_data: TopicDataQosPolicy::default(),
-                                group_data: GroupDataQosPolicy::default(),
-                            },
-                        };
-
-                        sedp_builtin_subscription_announcer
-                            .write(&sedp_discovered_reader_data, None)
-                            .unwrap();
-                    }
-
-            }
+                subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                    key: BuiltInTopicKey { value: guid.into() },
+                    participant_key: BuiltInTopicKey { value: [1; 16] },
+                    topic_name: a_topic.get_name().unwrap().clone(),
+                    type_name: Foo::type_name().to_string(),
+                    durability: DurabilityQosPolicy::default(),
+                    deadline: DeadlineQosPolicy::default(),
+                    latency_budget: LatencyBudgetQosPolicy::default(),
+                    liveliness: LivelinessQosPolicy::default(),
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        max_blocking_time: Duration::new(3, 0),
+                    },
+                    ownership: OwnershipQosPolicy::default(),
+                    destination_order: DestinationOrderQosPolicy::default(),
+                    user_data: UserDataQosPolicy::default(),
+                    time_based_filter: TimeBasedFilterQosPolicy::default(),
+                    presentation: PresentationQosPolicy::default(),
+                    partition: PartitionQosPolicy::default(),
+                    topic_data: TopicDataQosPolicy::default(),
+                    group_data: GroupDataQosPolicy::default(),
+                },
+            };
+            domain_participant.add_created_data_reader(&sedp_discovered_reader_data);
         }
 
         Ok(data_reader_shared)

@@ -1,4 +1,4 @@
-use dds_implementation::{
+use crate::{
     dds_impl::{
         publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
     },
@@ -6,6 +6,7 @@ use dds_implementation::{
         rtps_communication_traits::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,
         },
+        rtps_structure::RtpsStructure,
         shared_object::DdsShared,
     },
 };
@@ -21,8 +22,6 @@ use rtps_pim::{
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
-
-use crate::domain_participant_factory::RtpsStructureImpl;
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -49,11 +48,11 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message(
+    pub fn process_message<Rtps>(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &[DdsShared<PublisherAttributes<RtpsStructureImpl>>],
-        subscriber_list: &[DdsShared<SubscriberAttributes<RtpsStructureImpl>>],
+        publisher_list: &[DdsShared<PublisherAttributes<Rtps>>],
+        subscriber_list: &[DdsShared<SubscriberAttributes<Rtps>>],
         source_locator: Locator,
         message: &RtpsMessage<
             Vec<
@@ -66,7 +65,12 @@ impl MessageReceiver {
                 >,
             >,
         >,
-    ) {
+    ) where
+        Rtps: RtpsStructure,
+        DdsShared<PublisherAttributes<Rtps>>: ReceiveRtpsAckNackSubmessage,
+        DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsDataSubmessage,
+        DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsHeartbeatSubmessage,
+    {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;
