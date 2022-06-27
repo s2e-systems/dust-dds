@@ -4,22 +4,13 @@ use dds::{
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
+use dds_derive::DdsType;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, DdsType)]
 struct HelloWorldType {
     id: u8,
     msg: String,
-}
-
-impl DdsType for HelloWorldType {
-    fn type_name() -> &'static str {
-        "HelloWorldType"
-    }
-
-    fn has_key() -> bool {
-        false
-    }
 }
 
 impl DdsSerde for HelloWorldType {}
