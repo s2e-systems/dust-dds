@@ -562,47 +562,6 @@ where
     }
 }
 
-pub trait InitialiseBuiltins<Rtps: RtpsStructure> {
-    fn initialise_builtin_publisher(&self, rtps_group: Rtps::Group);
-    fn initialise_builtin_subscriber(&self, rtps_group: Rtps::Group);
-    fn add_builtin_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>);
-    fn add_builtin_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>);
-}
-
-impl<Rtps: RtpsStructure> InitialiseBuiltins<Rtps>
-    for DdsShared<DomainParticipantAttributes<Rtps>>
-{
-    fn initialise_builtin_publisher(&self, rtps_group: Rtps::Group) {
-        let builtin_publisher: DdsShared<PublisherAttributes<Rtps>> =
-            PublisherConstructor::new(PublisherQos::default(), rtps_group, self.downgrade());
-
-        *self.builtin_publisher.write_lock() = Some(builtin_publisher);
-    }
-
-    fn initialise_builtin_subscriber(&self, rtps_group: Rtps::Group) {
-        let builtin_subscriber: DdsShared<SubscriberAttributes<Rtps>> =
-            SubscriberConstructor::new(SubscriberQos::default(), rtps_group, self.downgrade());
-
-        *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
-    }
-
-    fn add_builtin_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>) {
-        self.builtin_subscriber
-            .write_lock()
-            .as_ref()
-            .unwrap()
-            .add_data_reader(reader);
-    }
-
-    fn add_builtin_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
-        self.builtin_publisher
-            .write_lock()
-            .as_ref()
-            .unwrap()
-            .add_data_writer(writer);
-    }
-}
-
 pub trait AnnounceParticipant {
     fn announce_participant(&self) -> DdsResult<()>;
 }
@@ -940,15 +899,27 @@ where
         let guid_prefix = self.rtps_participant.guid().prefix;
         ///////// Create the built-in publisher and subcriber
 
-        self.initialise_builtin_subscriber(Rtps::Group::new(Guid::new(
-            guid_prefix,
-            EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-        )));
+        let builtin_subscriber: DdsShared<SubscriberAttributes<Rtps>> = SubscriberConstructor::new(
+            SubscriberQos::default(),
+            Rtps::Group::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
+            )),
+            self.downgrade(),
+        );
 
-        self.initialise_builtin_publisher(Rtps::Group::new(Guid::new(
-            guid_prefix,
-            EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-        )));
+        *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
+
+        let builtin_publisher: DdsShared<PublisherAttributes<Rtps>> = PublisherConstructor::new(
+            PublisherQos::default(),
+            Rtps::Group::new(Guid::new(
+                guid_prefix,
+                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
+            )),
+            self.downgrade(),
+        );
+
+        *self.builtin_publisher.write_lock() = Some(builtin_publisher);
 
         ///////// Create built-in DDS data readers and data writers
 
@@ -986,7 +957,11 @@ where
                     .unwrap()
                     .downgrade(),
             );
-            self.add_builtin_reader(spdp_builtin_participant_data_reader);
+            self.builtin_subscriber
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_reader(spdp_builtin_participant_data_reader);
 
             let spdp_reader_locators: Vec<<Rtps::StatelessWriter as RtpsStatelessWriterOperations>::ReaderLocatorType> =
                 self.metatraffic_multicast_locator_list
@@ -1014,7 +989,11 @@ where
                         .unwrap()
                         .downgrade(),
                 );
-            self.add_builtin_writer(spdp_builtin_participant_data_writer);
+            self.builtin_publisher
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_writer(spdp_builtin_participant_data_writer);
         }
 
         ////////// SEDP built-in publication topic, reader and writer
@@ -1042,7 +1021,11 @@ where
                     .unwrap()
                     .downgrade(),
             );
-            self.add_builtin_reader(sedp_builtin_publications_data_reader);
+            self.builtin_subscriber
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_reader(sedp_builtin_publications_data_reader);
 
             let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
                 Rtps::StatefulWriter,
@@ -1059,7 +1042,12 @@ where
                         .unwrap()
                         .downgrade(),
                 );
-            self.add_builtin_writer(sedp_builtin_publications_data_writer);
+
+            self.builtin_publisher
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_writer(sedp_builtin_publications_data_writer);
         }
 
         ////////// SEDP built-in subcriptions topic, reader and writer
@@ -1087,7 +1075,11 @@ where
                     .unwrap()
                     .downgrade(),
             );
-            self.add_builtin_reader(sedp_builtin_subscriptions_data_reader);
+            self.builtin_subscriber
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_reader(sedp_builtin_subscriptions_data_reader);
 
             let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
                 Rtps::StatefulWriter,
@@ -1104,7 +1096,11 @@ where
                         .unwrap()
                         .downgrade(),
                 );
-            self.add_builtin_writer(sedp_builtin_subscriptions_data_writer);
+            self.builtin_publisher
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_writer(sedp_builtin_subscriptions_data_writer);
         }
 
         ////////// SEDP built-in topics topic, reader and writer
@@ -1131,7 +1127,11 @@ where
                     .unwrap()
                     .downgrade(),
             );
-            self.add_builtin_reader(sedp_builtin_topics_data_reader);
+            self.builtin_subscriber
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_reader(sedp_builtin_topics_data_reader);
 
             let sedp_builtin_topics_rtps_writer =
                 SedpBuiltinTopicsWriter::create::<Rtps::StatefulWriter>(guid_prefix, &[], &[]);
@@ -1147,7 +1147,11 @@ where
                         .unwrap()
                         .downgrade(),
                 );
-            self.add_builtin_writer(sedp_builtin_topics_data_writer);
+            self.builtin_publisher
+                .write_lock()
+                .as_ref()
+                .unwrap()
+                .add_data_writer(sedp_builtin_topics_data_writer);
         }
 
         Ok(())

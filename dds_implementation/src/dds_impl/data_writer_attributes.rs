@@ -16,7 +16,7 @@ use dds_api::{
         data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
-    return_type::{DdsError, DdsResult},
+    return_type::DdsResult,
     topic::topic_description::TopicDescription,
 };
 use rtps_pim::{
@@ -138,28 +138,6 @@ where
         match self {
             RtpsWriter::Stateless(w) => w.guid(),
             RtpsWriter::Stateful(w) => w.guid(),
-        }
-    }
-}
-
-impl<Rtps> RtpsWriter<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    pub fn try_as_stateless_writer(&mut self) -> DdsResult<&mut Rtps::StatelessWriter> {
-        match self {
-            RtpsWriter::Stateless(x) => Ok(x),
-            RtpsWriter::Stateful(_) => Err(DdsError::PreconditionNotMet(
-                "Not a stateless writer".to_string(),
-            )),
-        }
-    }
-    pub fn try_as_stateful_writer(&mut self) -> DdsResult<&mut Rtps::StatefulWriter> {
-        match self {
-            RtpsWriter::Stateless(_) => Err(DdsError::PreconditionNotMet(
-                "Not a stateful writer".to_string(),
-            )),
-            RtpsWriter::Stateful(x) => Ok(x),
         }
     }
 }
@@ -725,42 +703,6 @@ mod test {
         fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
-    }
-
-    #[test]
-    fn try_as_stateful_writer_on_stateful_is_ok() {
-        assert!(
-            RtpsWriter::<MockRtps>::Stateful(MockRtpsStatefulWriter::new())
-                .try_as_stateful_writer()
-                .is_ok()
-        );
-    }
-
-    #[test]
-    fn try_as_stateful_writer_on_stateless_is_err() {
-        assert!(
-            RtpsWriter::<MockRtps>::Stateless(MockRtpsStatelessWriter::new())
-                .try_as_stateful_writer()
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn try_as_stateless_writer_on_stateless_is_ok() {
-        assert!(
-            RtpsWriter::<MockRtps>::Stateless(MockRtpsStatelessWriter::new())
-                .try_as_stateless_writer()
-                .is_ok()
-        );
-    }
-
-    #[test]
-    fn try_as_stateless_writer_on_stateful_is_err() {
-        assert!(
-            RtpsWriter::<MockRtps>::Stateful(MockRtpsStatefulWriter::new())
-                .try_as_stateless_writer()
-                .is_err()
-        );
     }
 
     #[test]

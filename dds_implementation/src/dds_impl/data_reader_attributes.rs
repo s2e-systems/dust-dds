@@ -143,26 +143,6 @@ where
     Stateful(Rtps::StatefulReader),
 }
 
-impl<Rtps: RtpsStructure> RtpsReader<Rtps> {
-    pub fn try_as_stateless_reader(&mut self) -> DdsResult<&mut Rtps::StatelessReader> {
-        match self {
-            RtpsReader::Stateless(x) => Ok(x),
-            RtpsReader::Stateful(_) => Err(DdsError::PreconditionNotMet(
-                "Not a stateless reader".to_string(),
-            )),
-        }
-    }
-
-    pub fn try_as_stateful_reader(&mut self) -> DdsResult<&mut Rtps::StatefulReader> {
-        match self {
-            RtpsReader::Stateless(_) => Err(DdsError::PreconditionNotMet(
-                "Not a stateful reader".to_string(),
-            )),
-            RtpsReader::Stateful(x) => Ok(x),
-        }
-    }
-}
-
 impl<Rtps: RtpsStructure> RtpsReaderAttributes for RtpsReader<Rtps> {
     type HistoryCacheType = Rtps::HistoryCache;
 
