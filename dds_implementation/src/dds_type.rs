@@ -10,8 +10,8 @@ pub trait Endianness {
     const REPRESENTATION_OPTIONS: RepresentationType;
 }
 
-const PL_CDR_BE: RepresentationType = [0x00, 0x02];
-const PL_CDR_LE: RepresentationType = [0x00, 0x03];
+pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
+pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 
 pub enum LittleEndian {}
 impl Endianness for LittleEndian {
@@ -31,6 +31,14 @@ pub trait DdsType {
     fn type_name() -> &'static str;
 
     fn has_key() -> bool;
+
+    fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
+        if Self::has_key() {
+            unimplemented!("DdsType with key must provide an implementation for the key getter")
+        } else {
+            vec![]
+        }
+    }
 }
 
 pub trait DdsSerialize {
