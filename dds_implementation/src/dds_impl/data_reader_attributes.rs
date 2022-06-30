@@ -24,6 +24,11 @@ use dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
+use rtps_implementation::{
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+};
 use rtps_pim::{
     behavior::{
         reader::{
@@ -68,7 +73,6 @@ use crate::{
         rtps_communication_traits::{
             ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
         },
-        rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         timer::Timer,
     },
@@ -135,16 +139,13 @@ where
     }
 }
 
-pub enum RtpsReader<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    Stateless(Rtps::StatelessReader),
-    Stateful(Rtps::StatefulReader),
+pub enum RtpsReader {
+    Stateless(RtpsStatelessReaderImpl),
+    Stateful(RtpsStatefulReaderImpl),
 }
 
-impl<Rtps: RtpsStructure> RtpsReaderAttributes for RtpsReader<Rtps> {
-    type HistoryCacheType = Rtps::HistoryCache;
+impl RtpsReaderAttributes for RtpsReader {
+    type HistoryCacheType = RtpsHistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> rtps_pim::behavior::types::Duration {
         match self {
@@ -175,15 +176,12 @@ impl<Rtps: RtpsStructure> RtpsReaderAttributes for RtpsReader<Rtps> {
     }
 }
 
-pub struct DataReaderAttributes<Rtps, T>
-where
-    Rtps: RtpsStructure,
-{
-    rtps_reader: DdsRwLock<RtpsReader<Rtps>>,
+pub struct DataReaderAttributes<T> {
+    rtps_reader: DdsRwLock<RtpsReader>,
     qos: DdsRwLock<DataReaderQos>,
-    topic: DdsShared<TopicAttributes<Rtps>>,
+    topic: DdsShared<TopicAttributes>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+    parent_subscriber: DdsWeak<SubscriberAttributes>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<T>,
     status_change: DdsRwLock<StatusMask>,
@@ -191,31 +189,29 @@ where
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
-pub trait DataReaderConstructor<Rtps>
+pub trait DataReaderConstructor
 where
-    Rtps: RtpsStructure,
     Self: Entity,
 {
     fn new(
         qos: DataReaderQos,
-        rtps_reader: RtpsReader<Rtps>,
-        topic: DdsShared<TopicAttributes<Rtps>>,
+        rtps_reader: RtpsReader,
+        topic: DdsShared<TopicAttributes>,
         listener: Option<<Self as Entity>::Listener>,
-        parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+        parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self;
 }
 
-impl<Rtps, T> DataReaderConstructor<Rtps> for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T> DataReaderConstructor for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure,
     T: Timer,
 {
     fn new(
         qos: DataReaderQos,
-        rtps_reader: RtpsReader<Rtps>,
-        topic: DdsShared<TopicAttributes<Rtps>>,
+        rtps_reader: RtpsReader,
+        topic: DdsShared<TopicAttributes>,
         listener: Option<<Self as Entity>::Listener>,
-        parent_subscriber: DdsWeak<SubscriberAttributes<Rtps>>,
+        parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self {
         let deadline_duration = std::time::Duration::from_secs(*qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
@@ -245,13 +241,10 @@ where
     }
 }
 
-fn read_sample<'a, Rtps, T>(
-    data_reader_attributes: &DataReaderAttributes<Rtps, T>,
-    cache_change: &'a Rtps::CacheChange,
-) -> (&'a [u8], SampleInfo)
-where
-    Rtps: RtpsStructure,
-{
+fn read_sample<'a, T>(
+    data_reader_attributes: &DataReaderAttributes<T>,
+    cache_change: &'a RtpsCacheChangeImpl,
+) -> (&'a [u8], SampleInfo) {
     *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
 
     let mut samples_read = data_reader_attributes.samples_read.write_lock();
@@ -285,16 +278,7 @@ where
     (data_value, sample_info)
 }
 
-impl<Rtps, T> DataReaderAttributes<Rtps, T>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a> + RtpsStatefulReaderOperations,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType: RtpsWriterProxyConstructor,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType as IntoIterator>::Item:
-        RtpsWriterProxyAttributes,
-{
+impl<T> DataReaderAttributes<T> {
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -308,9 +292,11 @@ where
             {
                 let type_name = self.topic.get_type_name().unwrap();
                 if type_name == DiscoveredWriterData::type_name() {
-                    participant_discovery.discovered_participant_add_publications_reader(rtps_reader);
+                    participant_discovery
+                        .discovered_participant_add_publications_reader(rtps_reader);
                 } else if type_name == DiscoveredReaderData::type_name() {
-                    participant_discovery.discovered_participant_add_subscriptions_reader(rtps_reader);
+                    participant_discovery
+                        .discovered_participant_add_subscriptions_reader(rtps_reader);
                 } else if type_name == DiscoveredTopicData::type_name() {
                     participant_discovery.discovered_participant_add_topics_reader(rtps_reader);
                 }
@@ -319,22 +305,8 @@ where
     }
 }
 
-impl<Rtps, T> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure + 'static,
-    Rtps::Group: Send + Sync,
-    Rtps::Participant: Send + Sync,
-
-    Rtps::StatelessWriter: Send + Sync,
-    Rtps::StatefulWriter: Send + Sync,
-
-    Rtps::StatelessReader: for<'a> RtpsStatelessReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]>
-        + Send
-        + Sync,
-    Rtps::StatefulReader:
-        for<'a> RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]> + Send + Sync,
-    Rtps::HistoryCache: Send + Sync,
-    Rtps::CacheChange: Send + Sync,
     T: Timer + Send + Sync + 'static,
 {
     fn on_data_submessage_received(
@@ -371,11 +343,7 @@ where
     }
 }
 
-impl<Rtps, T> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<Rtps, T>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: RtpsStatefulReaderReceiveHeartbeatSubmessage,
-{
+impl<T> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<T>> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -389,12 +357,8 @@ where
     }
 }
 
-impl<Rtps, T> AddMatchedWriter for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T> AddMatchedWriter for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: RtpsStatefulReaderOperations,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType:
-        RtpsWriterProxyConstructor,
     T: Timer,
 {
     fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
@@ -408,7 +372,7 @@ where
         let reader_type_name = self.topic.get_type_name().unwrap();
         if topic_name == reader_topic_name && type_name == reader_type_name {
             let writer_proxy =
-                <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType::new(
+                <RtpsStatefulReaderImpl as RtpsStatefulReaderOperations>::WriterProxyType::new(
                     discovered_writer_data.writer_proxy.remote_writer_guid,
                     discovered_writer_data
                         .writer_proxy
@@ -445,20 +409,9 @@ where
     }
 }
 
-impl<Rtps, T> DataReaderAttributes<Rtps, T>
+impl<T> DataReaderAttributes<T>
 where
     T: Timer + Send + Sync + 'static,
-    Rtps: RtpsStructure + 'static,
-    Rtps::Group: Send + Sync,
-    Rtps::Participant: Send + Sync,
-
-    Rtps::StatelessWriter: Send + Sync,
-    Rtps::StatefulWriter: Send + Sync,
-
-    Rtps::StatelessReader: Send + Sync,
-    Rtps::StatefulReader: Send + Sync,
-    Rtps::HistoryCache: Send + Sync,
-    Rtps::CacheChange: Send + Sync,
 {
     pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
         if reader.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
@@ -516,36 +469,30 @@ where
     }
 }
 
-impl<Rtps, T> DataReaderGetSubscriber for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T> DataReaderGetSubscriber for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure,
     T: Timer,
 {
-    type Subscriber = DdsShared<SubscriberAttributes<Rtps>>;
+    type Subscriber = DdsShared<SubscriberAttributes>;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
         Ok(self.parent_subscriber.upgrade()?.clone())
     }
 }
 
-impl<Rtps, T> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure,
     T: Timer,
 {
-    type TopicDescription = DdsShared<TopicAttributes<Rtps>>;
+    type TopicDescription = DdsShared<TopicAttributes>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         Ok(self.topic.clone())
     }
 }
 
-impl<Rtps, T, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<Rtps, T>>
+impl<T, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<T>>
 where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a>,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
     T: Timer,
     Foo: for<'de> DdsDeserialize<'de>,
 {
@@ -839,10 +786,7 @@ where
     }
 }
 
-impl<Rtps, T> Entity for DdsShared<DataReaderAttributes<Rtps, T>>
-where
-    Rtps: RtpsStructure,
-{
+impl<T> Entity for DdsShared<DataReaderAttributes<T>> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn AnyDataReaderListener<Self> + Send + Sync>;
 
@@ -880,14 +824,7 @@ where
     }
 }
 
-impl<Rtps, T> SendRtpsMessage for DdsShared<DataReaderAttributes<Rtps, T>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader:
-        RtpsEntityAttributes + RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>,
-    <Rtps::StatefulReader as RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>>::WriterProxyType:
-    RtpsWriterProxyAttributes,
-{
+impl<T> SendRtpsMessage for DdsShared<DataReaderAttributes<T>> {
     fn send_message(
         &self,
         transport: &mut impl for<'a> TransportWrite<
@@ -905,7 +842,10 @@ where
         if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
             let mut acknacks = Vec::new();
             stateful_rtps_reader.send_submessages(|wp, acknack| {
-                acknacks.push((wp.unicast_locator_list().to_vec(), vec![RtpsSubmessageType::AckNack(acknack)]))
+                acknacks.push((
+                    wp.unicast_locator_list().to_vec(),
+                    vec![RtpsSubmessageType::AckNack(acknack)],
+                ))
             });
 
             for (locator_list, acknacks) in acknacks {
@@ -918,8 +858,7 @@ where
 
                 let message = RtpsMessage {
                     header,
-                    submessages: acknacks
-
+                    submessages: acknacks,
                 };
 
                 for &locator in &locator_list {
@@ -936,11 +875,6 @@ mod tests {
     use crate::{
         dds_impl::{data_reader_attributes::RtpsReader, topic_attributes::TopicAttributes},
         dds_type::{DdsSerialize, DdsType, Endianness},
-        test_utils::{
-            mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
-            mock_rtps_history_cache::MockRtpsHistoryCache,
-            mock_rtps_stateful_reader::MockRtpsStatefulReader,
-        },
         utils::shared_object::DdsShared,
     };
     use dds_api::{
@@ -949,6 +883,13 @@ mod tests {
         return_type::DdsResult,
     };
     use mockall::mock;
+    use rtps_pim::{
+        behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::DURATION_ZERO},
+        structure::{
+            cache_change::RtpsCacheChangeConstructor, history_cache::RtpsHistoryCacheConstructor,
+            types::GUID_UNKNOWN,
+        },
+    };
     use std::{io::Write, time::Duration};
 
     pub struct ManualTimer {
@@ -1008,24 +949,35 @@ mod tests {
         }
     }
 
-    fn cache_change(value: u8, sn: SequenceNumber) -> MockRtpsCacheChange {
-        let mut cache_change = MockRtpsCacheChange::new();
-        cache_change.expect_data_value().return_const(vec![value]);
-        cache_change.expect_sequence_number().return_const(sn);
+    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsCacheChangeImpl {
+        let cache_change = RtpsCacheChangeImpl::new(
+            rtps_pim::structure::types::ChangeKind::Alive,
+            GUID_UNKNOWN,
+            0,
+            sn,
+            vec![value],
+            vec![],
+        );
 
         cache_change
     }
 
     fn reader_with_changes<T: Timer>(
-        changes: Vec<MockRtpsCacheChange>,
-    ) -> DdsShared<DataReaderAttributes<MockRtps, T>> {
-        let mut history_cache = MockRtpsHistoryCache::new();
-        history_cache.expect_changes().return_const(changes);
-
-        let mut stateful_reader = MockRtpsStatefulReader::new();
-        stateful_reader
-            .expect_reader_cache()
-            .return_var(history_cache);
+        changes: Vec<RtpsCacheChangeImpl>,
+    ) -> DdsShared<DataReaderAttributes<T>> {
+        let mut stateful_reader = RtpsStatefulReaderImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
+        for change in changes {
+            stateful_reader.reader_cache().add_change(change);
+        }
 
         DataReaderConstructor::new(
             DataReaderQos {
@@ -1137,36 +1089,36 @@ mod tests {
 
     mock! {
         Listener {}
-        impl AnyDataReaderListener<DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>> for Listener {
-            fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>);
+        impl AnyDataReaderListener<DdsShared<DataReaderAttributes<ManualTimer>>> for Listener {
+            fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<ManualTimer>>);
             fn trigger_on_sample_rejected(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: SampleRejectedStatus,
             );
             fn trigger_on_liveliness_changed(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: LivelinessChangedStatus,
             );
             fn trigger_on_requested_deadline_missed(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: RequestedDeadlineMissedStatus,
             );
             fn trigger_on_requested_incompatible_qos(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: RequestedIncompatibleQosStatus,
             );
             fn trigger_on_subscription_matched(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: SubscriptionMatchedStatus,
             );
             fn trigger_on_sample_lost(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<MockRtps, ManualTimer>>,
+                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
                 status: SampleLostStatus,
             );
         }
@@ -1304,15 +1256,23 @@ mod tests {
 
     fn reader_with_max_depth<T: Timer>(
         max_depth: i32,
-        changes: Vec<MockRtpsCacheChange>,
-    ) -> DdsShared<DataReaderAttributes<MockRtps, T>> {
-        let mut history_cache = MockRtpsHistoryCache::new();
-        history_cache.expect_changes().return_const(changes);
+        changes: Vec<RtpsCacheChangeImpl>,
+    ) -> DdsShared<DataReaderAttributes<T>> {
+        let mut history_cache = RtpsHistoryCacheImpl::new();
+        for change in changes {
+            history_cache.add_change(change);
+        }
 
-        let mut stateful_reader = MockRtpsStatefulReader::new();
-        stateful_reader
-            .expect_reader_cache()
-            .return_var(history_cache);
+        let stateful_reader = RtpsStatefulReaderImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
 
         DataReaderConstructor::new(
             DataReaderQos {
@@ -1346,19 +1306,6 @@ mod tests {
                     cache_change(4, 4),
                 ],
             );
-
-            reader
-                .rtps_reader
-                .write_lock()
-                .reader_cache()
-                .expect_remove_change_()
-                .returning(|f| {
-                    assert!(f(&cache_change(1, 1)) == true);
-                    assert!(f(&cache_change(2, 2)) == true);
-                    assert!(f(&cache_change(3, 3)) == false);
-                    assert!(f(&cache_change(4, 4)) == false);
-                    ()
-                });
 
             reader
         };

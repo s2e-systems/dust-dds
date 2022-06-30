@@ -6,7 +6,6 @@ use crate::{
         rtps_communication_traits::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,
         },
-        rtps_structure::RtpsStructure,
         shared_object::DdsShared,
     },
 };
@@ -48,11 +47,11 @@ impl MessageReceiver {
         }
     }
 
-    pub fn process_message<Rtps>(
+    pub fn process_message(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &[DdsShared<PublisherAttributes<Rtps>>],
-        subscriber_list: &[DdsShared<SubscriberAttributes<Rtps>>],
+        publisher_list: &[DdsShared<PublisherAttributes>],
+        subscriber_list: &[DdsShared<SubscriberAttributes>],
         source_locator: Locator,
         message: &RtpsMessage<
             Vec<
@@ -66,10 +65,9 @@ impl MessageReceiver {
             >,
         >,
     ) where
-        Rtps: RtpsStructure,
-        DdsShared<PublisherAttributes<Rtps>>: ReceiveRtpsAckNackSubmessage,
-        DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsDataSubmessage,
-        DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsHeartbeatSubmessage,
+        DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
+        DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
+        DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
     {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;

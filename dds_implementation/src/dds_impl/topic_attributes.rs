@@ -8,32 +8,23 @@ use dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use crate::utils::{
-    rtps_structure::RtpsStructure,
-    shared_object::{DdsShared, DdsWeak},
-};
+use crate::utils::shared_object::{DdsShared, DdsWeak};
 
 use super::domain_participant_attributes::DomainParticipantAttributes;
 
-pub struct TopicAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub struct TopicAttributes {
     _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    parent_participant: DdsWeak<DomainParticipantAttributes>,
 }
 
-impl<Rtps> TopicAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+impl TopicAttributes {
     pub fn new(
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+        parent_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
             _qos: qos,
@@ -44,21 +35,15 @@ where
     }
 }
 
-impl<Rtps> Topic for DdsShared<TopicAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Topic for DdsShared<TopicAttributes> {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
 }
 
-impl<Rtps> TopicDescription for DdsShared<TopicAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type DomainParticipant = DdsShared<DomainParticipantAttributes<Rtps>>;
+impl TopicDescription for DdsShared<TopicAttributes> {
+    type DomainParticipant = DdsShared<DomainParticipantAttributes>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.parent_participant.clone().upgrade()
@@ -73,10 +58,7 @@ where
     }
 }
 
-impl<Rtps> Entity for DdsShared<TopicAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Entity for DdsShared<TopicAttributes> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 

@@ -18,19 +18,10 @@ use dds_implementation::{
         SedpReaderDiscovery, SedpWriterDiscovery, SendBuiltInData, SendUserDefinedData,
         SpdpParticipantDiscovery,
     },
-    utils::{rtps_structure::RtpsStructure, shared_object::DdsShared},
+    utils::shared_object::DdsShared,
 };
 use mac_address::MacAddress;
-use rtps_implementation::{
-    rtps_group_impl::RtpsGroupImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_participant_impl::RtpsParticipantImpl,
-    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    utils::clock::StdTimer,
-};
+
 use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
 use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
@@ -39,19 +30,6 @@ use crate::{
     domain_participant_proxy::DomainParticipantProxy,
     tasks::{Executor, Spawner},
 };
-
-pub struct RtpsStructureImpl;
-
-impl RtpsStructure for RtpsStructureImpl {
-    type Group = RtpsGroupImpl;
-    type Participant = RtpsParticipantImpl;
-    type StatelessWriter = RtpsStatelessWriterImpl<StdTimer>;
-    type StatefulWriter = RtpsStatefulWriterImpl<StdTimer>;
-    type StatelessReader = RtpsStatelessReaderImpl;
-    type StatefulReader = RtpsStatefulReaderImpl;
-    type HistoryCache = RtpsHistoryCacheImpl;
-    type CacheChange = RtpsCacheChangeImpl;
-}
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -243,7 +221,7 @@ impl Communications {
 }
 
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>>>,
+    participant_list: Mutex<Vec<DdsShared<DomainParticipantAttributes>>>,
 }
 
 impl DomainParticipantFactory {
@@ -265,7 +243,7 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> DdsResult<DomainParticipantProxy<DomainParticipantAttributes<RtpsStructureImpl>>> {
+    ) -> DdsResult<DomainParticipantProxy<DomainParticipantAttributes>> {
         let qos = qos.unwrap_or_default();
 
         let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
@@ -299,7 +277,7 @@ impl DomainParticipantFactory {
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
-        let domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications.guid_prefix,
                 domain_id,
@@ -327,7 +305,7 @@ impl DomainParticipantFactory {
 
     fn enable(
         &self,
-        domain_participant: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>>,
+        domain_participant: DdsShared<DomainParticipantAttributes>,
         communications: Communications,
     ) -> DdsResult<()> {
         // ////////// Task creation
@@ -439,7 +417,7 @@ impl DomainParticipantFactory {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_participant(
         &self,
-        _a_participant: DomainParticipantProxy<RtpsStructureImpl>,
+        _a_participant: DomainParticipantProxy<DomainParticipantAttributes>,
     ) -> DdsResult<()> {
         todo!()
     }
@@ -463,7 +441,7 @@ impl DomainParticipantFactory {
     pub fn lookup_participant(
         &self,
         _domain_id: DomainId,
-    ) -> DomainParticipantProxy<RtpsStructureImpl> {
+    ) -> DomainParticipantProxy<DomainParticipantAttributes> {
         todo!()
     }
 
@@ -502,9 +480,7 @@ impl DomainParticipantFactory {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
-    };
+    use crate::{subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy};
 
     use super::*;
     use dds_api::{
@@ -600,7 +576,7 @@ mod tests {
             multicast_ip.into(),
         )
         .unwrap();
-        let participant1: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant1: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications1.guid_prefix,
                 domain_id,
@@ -621,7 +597,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant2: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications2.guid_prefix,
                 domain_id,
@@ -755,7 +731,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant1: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications1.guid_prefix,
                 domain_id,
@@ -777,7 +753,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant2: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications2.guid_prefix,
                 domain_id,
@@ -931,7 +907,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant1: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications1.guid_prefix,
                 domain_id,
@@ -953,7 +929,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant2: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications2.guid_prefix,
                 domain_id,
@@ -1065,7 +1041,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant1: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications1.guid_prefix,
                 domain_id,
@@ -1087,7 +1063,7 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes<RtpsStructureImpl>> =
+        let participant2: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 communications2.guid_prefix,
                 domain_id,

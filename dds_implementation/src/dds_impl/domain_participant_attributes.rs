@@ -26,19 +26,14 @@ use dds_api::{
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     topic::topic_description::TopicDescription,
 };
+use rtps_implementation::{
+    rtps_group_impl::RtpsGroupImpl,
+    rtps_participant_impl::RtpsParticipantImpl,
+    rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
+    utils::clock::StdTimer,
+};
 use rtps_pim::{
-    behavior::{
-        reader::{
-            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
-        },
-        writer::{
-            reader_locator::RtpsReaderLocatorConstructor,
-            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
-            stateless_writer::RtpsStatelessWriterOperations,
-        },
-    },
+    behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
     discovery::{
         participant_discovery::ParticipantDiscovery,
         sedp::builtin_endpoints::{
@@ -83,7 +78,6 @@ use crate::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage,
             ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
         },
-        rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
@@ -102,23 +96,20 @@ use super::{
     topic_attributes::TopicAttributes,
 };
 
-pub struct DomainParticipantAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    rtps_participant: Rtps::Participant,
+pub struct DomainParticipantAttributes {
+    rtps_participant: RtpsParticipantImpl,
     domain_id: DomainId,
     domain_tag: String,
     qos: DomainParticipantQos,
-    builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes<Rtps>>>>,
-    builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes<Rtps>>>>,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes<Rtps>>>>,
+    builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberAttributes>>>,
+    builtin_publisher: DdsRwLock<Option<DdsShared<PublisherAttributes>>>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberAttributes>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes<Rtps>>>>,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<Rtps>>>>,
+    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes>>>,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rtps_pim::behavior::types::Duration,
@@ -140,10 +131,7 @@ pub trait DomainParticipantConstructor {
     ) -> Self;
 }
 
-impl<Rtps> DomainParticipantConstructor for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl DomainParticipantConstructor for DdsShared<DomainParticipantAttributes> {
     fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -157,7 +145,7 @@ where
         let lease_duration = rtps_pim::behavior::types::Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
-        let rtps_participant = Rtps::Participant::new(
+        let rtps_participant = RtpsParticipantImpl::new(
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
             &default_unicast_locator_list,
             &default_multicast_locator_list,
@@ -189,15 +177,11 @@ where
     }
 }
 
-impl<Rtps, Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantAttributes<Rtps>>
+impl<Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantAttributes>
 where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<Rtps>>;
+    type TopicType = DdsShared<TopicAttributes>;
 
     fn topic_factory_create_topic(
         &self,
@@ -320,12 +304,9 @@ where
     }
 }
 
-impl<Rtps> DomainParticipant for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type PublisherType = DdsShared<PublisherAttributes<Rtps>>;
-    type SubscriberType = DdsShared<SubscriberAttributes<Rtps>>;
+impl DomainParticipant for DdsShared<DomainParticipantAttributes> {
+    type PublisherType = DdsShared<PublisherAttributes>;
+    type SubscriberType = DdsShared<SubscriberAttributes>;
 
     fn create_publisher(
         &self,
@@ -342,8 +323,8 @@ where
             .fetch_add(1, Ordering::Relaxed);
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = Rtps::Group::new(guid);
-        let publisher_impl_shared: DdsShared<PublisherAttributes<Rtps>> =
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let publisher_impl_shared: DdsShared<PublisherAttributes> =
             PublisherConstructor::new(publisher_qos, rtps_group, self.downgrade());
         self.user_defined_publisher_list
             .write_lock()
@@ -387,8 +368,8 @@ where
             .fetch_add(1, Ordering::Relaxed);
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = Rtps::Group::new(guid);
-        let subscriber_shared: DdsShared<SubscriberAttributes<Rtps>> =
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let subscriber_shared: DdsShared<SubscriberAttributes> =
             SubscriberConstructor::new(subscriber_qos, rtps_group, self.downgrade());
         self.user_defined_subscriber_list
             .write_lock()
@@ -517,10 +498,7 @@ where
     }
 }
 
-impl<Rtps> Entity for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Entity for DdsShared<DomainParticipantAttributes> {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
@@ -566,13 +544,7 @@ pub trait AnnounceParticipant {
     fn announce_participant(&self) -> DdsResult<()>;
 }
 
-impl<Rtps> AnnounceParticipant for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-{
+impl AnnounceParticipant for DdsShared<DomainParticipantAttributes> {
     fn announce_participant(&self) -> DdsResult<()> {
         let dcps_topic_participant =
             self.lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
@@ -625,22 +597,7 @@ pub trait AddDiscoveredParticipant {
     );
 }
 
-impl<Rtps> AddDiscoveredParticipant for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a> + RtpsStatefulWriterOperations,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType: RtpsReaderProxyConstructor,
-    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a> + RtpsStatefulReaderOperations,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType: RtpsWriterProxyConstructor,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType as
-        IntoIterator>::Item: RtpsReaderProxyAttributes,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType as
-        IntoIterator>::Item: RtpsWriterProxyAttributes,
-{
+impl AddDiscoveredParticipant for DdsShared<DomainParticipantAttributes> {
     fn add_discovered_participant(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -697,10 +654,7 @@ where
     }
 }
 
-impl<Rtps> RtpsParticipantAttributes for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl RtpsParticipantAttributes for DdsShared<DomainParticipantAttributes> {
     fn default_unicast_locator_list(&self) -> &[Locator] {
         self.rtps_participant.default_unicast_locator_list()
     }
@@ -722,13 +676,7 @@ pub trait DataWriterDiscovery {
     fn add_created_data_writer(&self, writer_data: &DiscoveredWriterData);
 }
 
-impl<Rtps> DataWriterDiscovery for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-{
+impl DataWriterDiscovery for DdsShared<DomainParticipantAttributes> {
     fn add_created_data_writer(&self, writer_data: &DiscoveredWriterData) {
         let builtin_publisher = self.builtin_publisher.read_lock();
         if let Some(builtin_publisher) = builtin_publisher.as_ref() {
@@ -751,13 +699,7 @@ pub trait DataReaderDiscovery {
     fn add_created_data_reader(&self, reader_data: &DiscoveredReaderData);
 }
 
-impl<Rtps> DataReaderDiscovery for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-{
+impl DataReaderDiscovery for DdsShared<DomainParticipantAttributes> {
     fn add_created_data_reader(&self, reader_data: &DiscoveredReaderData) {
         let builtin_publisher = self.builtin_publisher.read_lock();
         if let Some(builtin_publisher) = builtin_publisher.as_ref() {
@@ -793,11 +735,10 @@ pub trait SendBuiltInData {
     );
 }
 
-impl<Rtps> SendBuiltInData for DdsShared<DomainParticipantAttributes<Rtps>>
+impl SendBuiltInData for DdsShared<DomainParticipantAttributes>
 where
-    Rtps: RtpsStructure,
-    DdsShared<PublisherAttributes<Rtps>>: SendRtpsMessage,
-    DdsShared<SubscriberAttributes<Rtps>>: SendRtpsMessage,
+    DdsShared<PublisherAttributes>: SendRtpsMessage,
+    DdsShared<SubscriberAttributes>: SendRtpsMessage,
 {
     fn send_built_in_data(
         &self,
@@ -844,12 +785,11 @@ pub trait ReceiveBuiltInData {
     );
 }
 
-impl<Rtps> ReceiveBuiltInData for DdsShared<DomainParticipantAttributes<Rtps>>
+impl ReceiveBuiltInData for DdsShared<DomainParticipantAttributes>
 where
-    Rtps: RtpsStructure,
-    DdsShared<PublisherAttributes<Rtps>>: ReceiveRtpsAckNackSubmessage,
-    DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsDataSubmessage,
-    DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsHeartbeatSubmessage,
+    DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
+    DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
+    DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
 {
     fn receive_built_in_data(
         &self,
@@ -884,24 +824,14 @@ pub trait CreateBuiltIns {
     fn create_builtins(&self) -> DdsResult<()>;
 }
 
-impl<Rtps> CreateBuiltIns for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::Group: RtpsGroupConstructor,
-    Rtps::StatelessWriter: RtpsStatelessWriterOperations,
-    <Rtps::StatelessWriter as RtpsStatelessWriterOperations>::ReaderLocatorType:
-        RtpsReaderLocatorConstructor,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-{
+impl CreateBuiltIns for DdsShared<DomainParticipantAttributes> {
     fn create_builtins(&self) -> DdsResult<()> {
         let guid_prefix = self.rtps_participant.guid().prefix;
         ///////// Create the built-in publisher and subcriber
 
-        let builtin_subscriber: DdsShared<SubscriberAttributes<Rtps>> = SubscriberConstructor::new(
+        let builtin_subscriber: DdsShared<SubscriberAttributes> = SubscriberConstructor::new(
             SubscriberQos::default(),
-            Rtps::Group::new(Guid::new(
+            RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
@@ -910,9 +840,9 @@ where
 
         *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
 
-        let builtin_publisher: DdsShared<PublisherAttributes<Rtps>> = PublisherConstructor::new(
+        let builtin_publisher: DdsShared<PublisherAttributes> = PublisherConstructor::new(
             PublisherQos::default(),
-            Rtps::Group::new(Guid::new(
+            RtpsGroupImpl::new(Guid::new(
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
@@ -940,44 +870,42 @@ where
                 0,
             )?;
 
-            let spdp_builtin_participant_rtps_reader = SpdpBuiltinParticipantReader::create::<
-                Rtps::StatelessReader,
-            >(guid_prefix, &[], &[]);
+            let spdp_builtin_participant_rtps_reader =
+                SpdpBuiltinParticipantReader::create(guid_prefix, &[], &[]);
 
-            let spdp_builtin_participant_data_reader: DdsShared<
-                DataReaderAttributes<Rtps, ThreadTimer>,
-            > = DataReaderConstructor::new(
-                builtin_reader_qos.clone(),
-                RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
-                spdp_topic_participant.clone(),
-                None,
-                self.builtin_subscriber
-                    .read_lock()
-                    .clone()
-                    .unwrap()
-                    .downgrade(),
-            );
+            let spdp_builtin_participant_data_reader: DdsShared<DataReaderAttributes<ThreadTimer>> =
+                DataReaderConstructor::new(
+                    builtin_reader_qos.clone(),
+                    RtpsReader::Stateless(spdp_builtin_participant_rtps_reader),
+                    spdp_topic_participant.clone(),
+                    None,
+                    self.builtin_subscriber
+                        .read_lock()
+                        .clone()
+                        .unwrap()
+                        .downgrade(),
+                );
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
                 .unwrap()
                 .add_data_reader(spdp_builtin_participant_data_reader);
 
-            let spdp_reader_locators: Vec<<Rtps::StatelessWriter as RtpsStatelessWriterOperations>::ReaderLocatorType> =
-                self.metatraffic_multicast_locator_list
-                    .iter()
-                    .map(|locator| <<Rtps::StatelessWriter as RtpsStatelessWriterOperations>::ReaderLocatorType as RtpsReaderLocatorConstructor>::new(locator.clone(), false))
-                    .collect();
+            let spdp_reader_locators: Vec<RtpsReaderLocatorAttributesImpl> = self
+                .metatraffic_multicast_locator_list
+                .iter()
+                .map(|locator| RtpsReaderLocatorAttributesImpl::new(locator.clone(), false))
+                .collect();
 
             let spdp_builtin_participant_rtps_writer =
-                SpdpBuiltinParticipantWriter::create::<Rtps::StatelessWriter, _>(
+                SpdpBuiltinParticipantWriter::create::<RtpsStatelessWriterImpl<StdTimer>, _>(
                     guid_prefix,
                     &[],
                     &[],
                     spdp_reader_locators,
                 );
 
-            let spdp_builtin_participant_data_writer: DdsShared<DataWriterAttributes<Rtps>> =
+            let spdp_builtin_participant_data_writer: DdsShared<DataWriterAttributes> =
                 DataWriterConstructor::new(
                     DataWriterQos::default(),
                     RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
@@ -1005,11 +933,10 @@ where
                 0,
             )?;
 
-            let sedp_builtin_publications_rtps_reader = SedpBuiltinPublicationsReader::create::<
-                Rtps::StatefulReader,
-            >(guid_prefix, &[], &[]);
+            let sedp_builtin_publications_rtps_reader =
+                SedpBuiltinPublicationsReader::create(guid_prefix, &[], &[]);
             let sedp_builtin_publications_data_reader: DdsShared<
-                DataReaderAttributes<Rtps, ThreadTimer>,
+                DataReaderAttributes<ThreadTimer>,
             > = DataReaderConstructor::new(
                 builtin_reader_qos.clone(),
                 RtpsReader::Stateful(sedp_builtin_publications_rtps_reader),
@@ -1027,10 +954,9 @@ where
                 .unwrap()
                 .add_data_reader(sedp_builtin_publications_data_reader);
 
-            let sedp_builtin_publications_rtps_writer = SedpBuiltinPublicationsWriter::create::<
-                Rtps::StatefulWriter,
-            >(guid_prefix, &[], &[]);
-            let sedp_builtin_publications_data_writer: DdsShared<DataWriterAttributes<Rtps>> =
+            let sedp_builtin_publications_rtps_writer =
+                SedpBuiltinPublicationsWriter::create(guid_prefix, &[], &[]);
+            let sedp_builtin_publications_data_writer: DdsShared<DataWriterAttributes> =
                 DataWriterConstructor::new(
                     DataWriterQos::default(),
                     RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
@@ -1059,11 +985,10 @@ where
                 0,
             )?;
 
-            let sedp_builtin_subscriptions_rtps_reader = SedpBuiltinSubscriptionsReader::create::<
-                Rtps::StatefulReader,
-            >(guid_prefix, &[], &[]);
+            let sedp_builtin_subscriptions_rtps_reader =
+                SedpBuiltinSubscriptionsReader::create(guid_prefix, &[], &[]);
             let sedp_builtin_subscriptions_data_reader: DdsShared<
-                DataReaderAttributes<Rtps, ThreadTimer>,
+                DataReaderAttributes<ThreadTimer>,
             > = DataReaderConstructor::new(
                 builtin_reader_qos.clone(),
                 RtpsReader::Stateful(sedp_builtin_subscriptions_rtps_reader),
@@ -1081,10 +1006,9 @@ where
                 .unwrap()
                 .add_data_reader(sedp_builtin_subscriptions_data_reader);
 
-            let sedp_builtin_subscriptions_rtps_writer = SedpBuiltinSubscriptionsWriter::create::<
-                Rtps::StatefulWriter,
-            >(guid_prefix, &[], &[]);
-            let sedp_builtin_subscriptions_data_writer: DdsShared<DataWriterAttributes<Rtps>> =
+            let sedp_builtin_subscriptions_rtps_writer =
+                SedpBuiltinSubscriptionsWriter::create(guid_prefix, &[], &[]);
+            let sedp_builtin_subscriptions_data_writer: DdsShared<DataWriterAttributes> =
                 DataWriterConstructor::new(
                     DataWriterQos::default(),
                     RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
@@ -1113,20 +1037,19 @@ where
             )?;
 
             let sedp_builtin_topics_rtps_reader =
-                SedpBuiltinTopicsReader::create::<Rtps::StatefulReader>(guid_prefix, &[], &[]);
-            let sedp_builtin_topics_data_reader: DdsShared<
-                DataReaderAttributes<Rtps, ThreadTimer>,
-            > = DataReaderConstructor::new(
-                builtin_reader_qos.clone(),
-                RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
-                sedp_topic_topic.clone(),
-                None,
-                self.builtin_subscriber
-                    .read_lock()
-                    .clone()
-                    .unwrap()
-                    .downgrade(),
-            );
+                SedpBuiltinTopicsReader::create(guid_prefix, &[], &[]);
+            let sedp_builtin_topics_data_reader: DdsShared<DataReaderAttributes<ThreadTimer>> =
+                DataReaderConstructor::new(
+                    builtin_reader_qos.clone(),
+                    RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
+                    sedp_topic_topic.clone(),
+                    None,
+                    self.builtin_subscriber
+                        .read_lock()
+                        .clone()
+                        .unwrap()
+                        .downgrade(),
+                );
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -1134,8 +1057,8 @@ where
                 .add_data_reader(sedp_builtin_topics_data_reader);
 
             let sedp_builtin_topics_rtps_writer =
-                SedpBuiltinTopicsWriter::create::<Rtps::StatefulWriter>(guid_prefix, &[], &[]);
-            let sedp_builtin_topics_data_writer: DdsShared<DataWriterAttributes<Rtps>> =
+                SedpBuiltinTopicsWriter::create(guid_prefix, &[], &[]);
+            let sedp_builtin_topics_data_writer: DdsShared<DataWriterAttributes> =
                 DataWriterConstructor::new(
                     DataWriterQos::default(),
                     RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
@@ -1175,11 +1098,10 @@ pub trait SendUserDefinedData {
     );
 }
 
-impl<Rtps> SendUserDefinedData for DdsShared<DomainParticipantAttributes<Rtps>>
+impl SendUserDefinedData for DdsShared<DomainParticipantAttributes>
 where
-    Rtps: RtpsStructure,
-    DdsShared<PublisherAttributes<Rtps>>: SendRtpsMessage,
-    DdsShared<SubscriberAttributes<Rtps>>: SendRtpsMessage,
+    DdsShared<PublisherAttributes>: SendRtpsMessage,
+    DdsShared<SubscriberAttributes>: SendRtpsMessage,
 {
     fn send_user_defined_data(
         &self,
@@ -1226,12 +1148,11 @@ pub trait ReceiveUserDefinedData {
     );
 }
 
-impl<Rtps> ReceiveUserDefinedData for DdsShared<DomainParticipantAttributes<Rtps>>
+impl ReceiveUserDefinedData for DdsShared<DomainParticipantAttributes>
 where
-    Rtps: RtpsStructure,
-    DdsShared<PublisherAttributes<Rtps>>: ReceiveRtpsAckNackSubmessage,
-    DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsDataSubmessage,
-    DdsShared<SubscriberAttributes<Rtps>>: ReceiveRtpsHeartbeatSubmessage,
+    DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
+    DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
+    DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
 {
     fn receive_user_defined_data(
         &self,
@@ -1266,22 +1187,7 @@ pub trait SpdpParticipantDiscovery {
     fn discover_matched_participants(&self) -> DdsResult<()>;
 }
 
-impl<Rtps> SpdpParticipantDiscovery for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a> + RtpsStatefulWriterOperations,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType: RtpsReaderProxyConstructor,
-    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a> + RtpsStatefulReaderOperations,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType: RtpsWriterProxyConstructor,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType as
-        IntoIterator>::Item: RtpsReaderProxyAttributes,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType as
-        IntoIterator>::Item: RtpsWriterProxyAttributes,
-{
+impl SpdpParticipantDiscovery for DdsShared<DomainParticipantAttributes> {
     fn discover_matched_participants(&self) -> DdsResult<()> {
         let builtin_subscriber = self.builtin_subscriber.read_lock();
 
@@ -1313,18 +1219,7 @@ pub trait SedpWriterDiscovery {
     fn discover_matched_writers(&self) -> DdsResult<()>;
 }
 
-impl<Rtps> SedpWriterDiscovery for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-    Rtps::StatefulReader: RtpsStatefulReaderOperations + for<'a> RtpsStatefulReaderAttributes<'a>,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType:
-        RtpsWriterProxyConstructor,
-{
+impl SedpWriterDiscovery for DdsShared<DomainParticipantAttributes> {
     fn discover_matched_writers(&self) -> DdsResult<()> {
         let user_defined_subscribers = self.user_defined_subscriber_list.read_lock();
 
@@ -1363,18 +1258,7 @@ pub trait SedpReaderDiscovery {
     fn discover_matched_readers(&self) -> DdsResult<()>;
 }
 
-impl<Rtps> SedpReaderDiscovery for DdsShared<DomainParticipantAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    for<'a> Rtps::StatefulWriter: RtpsStatefulWriterOperations + RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType:
-        RtpsReaderProxyConstructor,
-    Rtps::StatefulReader: for<'a> RtpsStatefulReaderAttributes<'a>,
-    for<'a> <Rtps::StatefulReader as RtpsStatefulReaderAttributes<'a>>::WriterProxyListType:
-        IntoIterator,
-{
+impl SedpReaderDiscovery for DdsShared<DomainParticipantAttributes> {
     fn discover_matched_readers(&self) -> DdsResult<()> {
         let user_defined_publishers = self.user_defined_publisher_list.read_lock();
 
@@ -1415,10 +1299,7 @@ mod tests {
     use dds_api::return_type::{DdsError, DdsResult};
 
     use super::*;
-    use crate::{
-        dds_type::{DdsSerialize, DdsType, Endianness},
-        test_utils::mock_rtps::MockRtps,
-    };
+    use crate::dds_type::{DdsSerialize, DdsType, Endianness};
     use std::io::Write;
 
     macro_rules! make_empty_dds_type {
@@ -1447,7 +1328,7 @@ mod tests {
 
     #[test]
     fn topic_factory_create_topic() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1472,7 +1353,7 @@ mod tests {
 
     #[test]
     fn topic_factory_delete_topic() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1502,7 +1383,7 @@ mod tests {
 
     #[test]
     fn topic_factory_delete_topic_from_other_participant() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1514,7 +1395,7 @@ mod tests {
                 vec![],
             );
 
-        let domain_participant2: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant2: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1550,7 +1431,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_no_topic() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1569,7 +1450,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1597,7 +1478,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic_with_wrong_type() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1620,7 +1501,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_one_topic_with_wrong_name() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1643,7 +1524,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_two_types() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),
@@ -1679,7 +1560,7 @@ mod tests {
 
     #[test]
     fn topic_factory_lookup_topic_with_two_topics() {
-        let domain_participant: DdsShared<DomainParticipantAttributes<MockRtps>> =
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
             DomainParticipantConstructor::new(
                 GuidPrefix([1; 12]),
                 DomainId::default(),

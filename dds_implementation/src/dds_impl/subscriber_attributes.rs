@@ -22,19 +22,11 @@ use dds_api::{
     },
     topic::topic_description::TopicDescription,
 };
+use rtps_implementation::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+};
 use rtps_pim::{
-    behavior::{
-        reader::{
-            stateful_reader::{RtpsStatefulReaderConstructor, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
-        },
-        stateful_reader_behavior::{
-            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
-            RtpsStatefulReaderSendSubmessages,
-        },
-        stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
-        writer::stateful_writer::RtpsStatefulWriterAttributes,
-    },
+    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
     messages::{
         submessage_elements::Parameter,
         submessages::{DataSubmessage, HeartbeatSubmessage},
@@ -43,8 +35,8 @@ use rtps_pim::{
         entity::RtpsEntityAttributes,
         participant::RtpsParticipantAttributes,
         types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, TopicKind,
-            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+            USER_DEFINED_WRITER_WITH_KEY,
         },
     },
 };
@@ -60,7 +52,6 @@ use crate::{
         rtps_communication_traits::{
             ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
         },
-        rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
         timer::ThreadTimer,
     },
@@ -72,37 +63,28 @@ use super::{
     topic_attributes::TopicAttributes,
 };
 
-pub struct SubscriberAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub struct SubscriberAttributes {
     qos: SubscriberQos,
-    rtps_group: Rtps::Group,
-    data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>>>,
+    rtps_group: RtpsGroupImpl,
+    data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderAttributes<ThreadTimer>>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
-    parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    parent_domain_participant: DdsWeak<DomainParticipantAttributes>,
 }
 
-pub trait SubscriberConstructor<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub trait SubscriberConstructor {
     fn new(
         qos: SubscriberQos,
-        rtps_group: Rtps::Group,
-        parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+        rtps_group: RtpsGroupImpl,
+        parent_domain_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> Self;
 }
 
-impl<Rtps> SubscriberConstructor<Rtps> for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl SubscriberConstructor for DdsShared<SubscriberAttributes> {
     fn new(
         qos: SubscriberQos,
-        rtps_group: <Rtps>::Group,
-        parent_domain_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+        rtps_group: RtpsGroupImpl,
+        parent_domain_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> Self {
         DdsShared::new(SubscriberAttributes {
             qos,
@@ -119,40 +101,27 @@ pub trait SubscriberEmpty {
     fn is_empty(&self) -> bool;
 }
 
-impl<Rtps> SubscriberEmpty for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl SubscriberEmpty for DdsShared<SubscriberAttributes> {
     fn is_empty(&self) -> bool {
         self.data_reader_list.read_lock().is_empty()
     }
 }
-pub trait AddDataReader<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>);
+pub trait AddDataReader {
+    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<ThreadTimer>>);
 }
 
-impl<Rtps> AddDataReader<Rtps> for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>) {
+impl AddDataReader for DdsShared<SubscriberAttributes> {
+    fn add_data_reader(&self, reader: DdsShared<DataReaderAttributes<ThreadTimer>>) {
         self.data_reader_list.write_lock().push(reader);
     }
 }
 
-impl<Rtps, Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberAttributes<Rtps>>
+impl<Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberAttributes>
 where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<Rtps>>;
-    type DataReaderType = DdsShared<DataReaderAttributes<Rtps, ThreadTimer>>;
+    type TopicType = DdsShared<TopicAttributes>;
+    type DataReaderType = DdsShared<DataReaderAttributes<ThreadTimer>>;
 
     fn datareader_factory_create_datareader(
         &self,
@@ -199,7 +168,7 @@ where
             };
 
             let domain_participant = self.parent_domain_participant.upgrade().ok();
-            let rtps_reader = RtpsReader::Stateful(Rtps::StatefulReader::new(
+            let rtps_reader = RtpsReader::Stateful(RtpsStatefulReaderImpl::new(
                 guid,
                 topic_kind,
                 reliability_level,
@@ -216,7 +185,7 @@ where
                 false,
             ));
 
-            let data_reader_shared: DdsShared<DataReaderAttributes<Rtps, ThreadTimer>> =
+            let data_reader_shared: DdsShared<DataReaderAttributes<ThreadTimer>> =
                 DataReaderConstructor::new(
                     qos,
                     rtps_reader,
@@ -317,10 +286,7 @@ where
     }
 }
 
-impl<Rtps> Subscriber for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Subscriber for DdsShared<SubscriberAttributes> {
     fn begin_access(&self) -> DdsResult<()> {
         todo!()
     }
@@ -368,21 +334,15 @@ where
     }
 }
 
-impl<Rtps> SubscriberGetParticipant for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+impl SubscriberGetParticipant for DdsShared<SubscriberAttributes> {
+    type DomainParticipant = DdsWeak<DomainParticipantAttributes>;
 
     fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         Ok(self.parent_domain_participant.clone())
     }
 }
 
-impl<Rtps> Entity for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Entity for DdsShared<SubscriberAttributes> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
@@ -423,13 +383,7 @@ where
     }
 }
 
-impl<Rtps> AddMatchedWriter for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: RtpsStatefulReaderOperations,
-    <Rtps::StatefulReader as RtpsStatefulReaderOperations>::WriterProxyType:
-        RtpsWriterProxyConstructor,
-{
+impl AddMatchedWriter for DdsShared<SubscriberAttributes> {
     fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.add_matched_writer(&discovered_writer_data)
@@ -437,21 +391,7 @@ where
     }
 }
 
-impl<Rtps> ReceiveRtpsDataSubmessage for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure + 'static,
-    Rtps::Group: Send + Sync,
-    Rtps::Participant: Send + Sync,
-    Rtps::StatelessWriter: Send + Sync,
-    Rtps::StatefulWriter: Send + Sync,
-    Rtps::StatelessReader: for<'a> RtpsStatelessReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]>
-        + Send
-        + Sync,
-    Rtps::StatefulReader:
-        for<'a> RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'a>>, &'a [u8]> + Send + Sync,
-    Rtps::HistoryCache: Send + Sync,
-    Rtps::CacheChange: Send + Sync,
-{
+impl ReceiveRtpsDataSubmessage for DdsShared<SubscriberAttributes> {
     fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
@@ -463,11 +403,7 @@ where
     }
 }
 
-impl<Rtps> ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: RtpsStatefulReaderReceiveHeartbeatSubmessage,
-{
+impl ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberAttributes> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -479,14 +415,7 @@ where
     }
 }
 
-impl<Rtps> SendRtpsMessage for DdsShared<SubscriberAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulReader: RtpsEntityAttributes
-        + RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>,
-    <Rtps::StatefulReader as RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>>>::WriterProxyType:
-        RtpsWriterProxyAttributes,
-{
+impl SendRtpsMessage for DdsShared<SubscriberAttributes> {
     fn send_message(
         &self,
         transport: &mut impl for<'a> rtps_pim::transport::TransportWrite<
@@ -510,12 +439,9 @@ where
 #[cfg(test)]
 mod tests {
     use dds_api::return_type::DdsError;
-    use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
+    use rtps_pim::structure::{group::RtpsGroupConstructor, types::GUID_UNKNOWN};
 
-    use crate::{
-        dds_type::{DdsDeserialize, DdsType},
-        test_utils::{mock_rtps::MockRtps, mock_rtps_group::MockRtpsGroup},
-    };
+    use crate::dds_type::{DdsDeserialize, DdsType};
 
     use super::*;
 
@@ -545,18 +471,14 @@ mod tests {
 
     #[test]
     fn create_datareader() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
 
         let subscriber = DdsShared::new(subscriber_attributes);
 
@@ -574,18 +496,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -607,32 +525,24 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader_from_other_subscriber() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
-        let mut subscriber2_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber2_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber2_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber2 = DdsShared::new(subscriber2_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -657,18 +567,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_empty() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -683,18 +589,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -715,18 +617,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
@@ -752,18 +650,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
@@ -789,18 +683,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_types() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
@@ -831,18 +721,14 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_topics() {
-        let mut subscriber_attributes = SubscriberAttributes::<MockRtps> {
+        let subscriber_attributes = SubscriberAttributes {
             qos: SubscriberQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant: DdsWeak::new(),
         };
-        subscriber_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(

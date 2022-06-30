@@ -19,6 +19,10 @@ use dds_api::{
     return_type::DdsResult,
     topic::topic_description::TopicDescription,
 };
+use rtps_implementation::{
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
+};
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
@@ -65,7 +69,6 @@ use crate::{
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
-        rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
@@ -120,20 +123,12 @@ where
     }
 }
 
-pub enum RtpsWriter<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    Stateless(Rtps::StatelessWriter),
-    Stateful(Rtps::StatefulWriter),
+pub enum RtpsWriter {
+    Stateless(RtpsStatelessWriterImpl<StdTimer>),
+    Stateful(RtpsStatefulWriterImpl<StdTimer>),
 }
 
-impl<Rtps> RtpsEntityAttributes for RtpsWriter<Rtps>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsEntityAttributes,
-    Rtps::StatefulWriter: RtpsEntityAttributes,
-{
+impl RtpsEntityAttributes for RtpsWriter {
     fn guid(&self) -> Guid {
         match self {
             RtpsWriter::Stateless(w) => w.guid(),
@@ -142,44 +137,39 @@ where
     }
 }
 
-pub struct DataWriterAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub struct DataWriterAttributes {
     _qos: DataWriterQos,
-    rtps_writer: DdsRwLock<RtpsWriter<Rtps>>,
+    rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    topic: DdsShared<TopicAttributes<Rtps>>,
-    publisher: DdsWeak<PublisherAttributes<Rtps>>,
+    topic: DdsShared<TopicAttributes>,
+    publisher: DdsWeak<PublisherAttributes>,
     status: DdsRwLock<PublicationMatchedStatus>,
 }
 
-pub trait DataWriterConstructor<Rtps>
+pub trait DataWriterConstructor
 where
-    Rtps: RtpsStructure,
     Self: Entity,
 {
     fn new(
         qos: DataWriterQos,
-        rtps_writer: RtpsWriter<Rtps>,
+        rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes<Rtps>>,
-        publisher: DdsWeak<PublisherAttributes<Rtps>>,
+        topic: DdsShared<TopicAttributes>,
+        publisher: DdsWeak<PublisherAttributes>,
     ) -> Self;
 }
 
-impl<Rtps> DataWriterConstructor<Rtps> for DdsShared<DataWriterAttributes<Rtps>>
+impl DataWriterConstructor for DdsShared<DataWriterAttributes>
 where
-    Rtps: RtpsStructure,
     Self: Entity,
 {
     fn new(
         qos: DataWriterQos,
-        rtps_writer: RtpsWriter<Rtps>,
+        rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes<Rtps>>,
-        publisher: DdsWeak<PublisherAttributes<Rtps>>,
+        topic: DdsShared<TopicAttributes>,
+        publisher: DdsWeak<PublisherAttributes>,
     ) -> Self {
         DdsShared::new(DataWriterAttributes {
             _qos: qos,
@@ -199,16 +189,7 @@ where
     }
 }
 
-impl<Rtps> DataWriterAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a> + RtpsStatefulWriterOperations,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
-    for<'a> <<Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType as IntoIterator>::Item:
-        RtpsReaderProxyAttributes,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType: RtpsReaderProxyConstructor,
-{
+impl DataWriterAttributes {
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -222,9 +203,11 @@ where
             {
                 let type_name = self.topic.get_type_name().unwrap();
                 if type_name == DiscoveredWriterData::type_name() {
-                    participant_discovery.discovered_participant_add_publications_writer(rtps_writer);
+                    participant_discovery
+                        .discovered_participant_add_publications_writer(rtps_writer);
                 } else if type_name == DiscoveredReaderData::type_name() {
-                    participant_discovery.discovered_participant_add_subscriptions_writer(rtps_writer);
+                    participant_discovery
+                        .discovered_participant_add_subscriptions_writer(rtps_writer);
                 } else if type_name == DiscoveredTopicData::type_name() {
                     participant_discovery.discovered_participant_add_topics_writer(rtps_writer);
                 }
@@ -233,12 +216,7 @@ where
     }
 }
 
-impl<Rtps> ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
-    Rtps::StatefulWriter: RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
-{
+impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterAttributes> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
@@ -254,13 +232,7 @@ where
     }
 }
 
-impl<Rtps> AddMatchedReader for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: RtpsStatefulWriterOperations,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType:
-        RtpsReaderProxyConstructor,
-{
+impl AddMatchedReader for DdsShared<DataWriterAttributes> {
     fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         let topic_name = &discovered_reader_data
             .subscription_builtin_topic_data
@@ -272,7 +244,7 @@ where
         let writer_type_name = self.topic.get_type_name().unwrap();
         if topic_name == writer_topic_name && type_name == writer_type_name {
             let reader_proxy =
-                <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType::new(
+                <RtpsStatefulWriterImpl<StdTimer> as RtpsStatefulWriterOperations>::ReaderProxyType::new(
                     discovered_reader_data.reader_proxy.remote_reader_guid,
                     discovered_reader_data.reader_proxy.remote_group_entity_id,
                     discovered_reader_data
@@ -305,12 +277,8 @@ where
     }
 }
 
-impl<Rtps, Foo> DataWriter<Foo> for DdsShared<DataWriterAttributes<Rtps>>
+impl<Foo> DataWriter<Foo> for DdsShared<DataWriterAttributes>
 where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
     Foo: DdsSerialize,
 {
     fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
@@ -458,35 +426,25 @@ where
     }
 }
 
-impl<Rtps> DataWriterGetPublisher for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type PublisherType = DdsShared<PublisherAttributes<Rtps>>;
+impl DataWriterGetPublisher for DdsShared<DataWriterAttributes> {
+    type PublisherType = DdsShared<PublisherAttributes>;
 
     fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
         Ok(self.publisher.upgrade()?.clone())
     }
 }
 
-impl<Rtps> DataWriterGetTopic for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type TopicType = DdsShared<TopicAttributes<Rtps>>;
+impl DataWriterGetTopic for DdsShared<DataWriterAttributes> {
+    type TopicType = DdsShared<TopicAttributes>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
         Ok(self.topic.clone())
     }
 }
 
-impl<Rtps> Entity for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Entity for DdsShared<DataWriterAttributes> {
     type Qos = DataWriterQos;
-    type Listener =
-        Box<dyn AnyDataWriterListener<DdsShared<DataWriterAttributes<Rtps>>> + Send + Sync>;
+    type Listener = Box<dyn AnyDataWriterListener<DdsShared<DataWriterAttributes>> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         todo!()
@@ -522,36 +480,7 @@ where
     }
 }
 
-impl<Rtps> SendRtpsMessage for DdsShared<DataWriterAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsEntityAttributes
-        + for<'a> RtpsStatelessWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-    for<'a> <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
-        'a,
-        Vec<Parameter<'a>>,
-        &'a [u8],
-        Vec<SequenceNumber>,
-    >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
-    Rtps::StatefulWriter: RtpsEntityAttributes
-        + for<'a> RtpsStatefulWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
-        'a,
-        Vec<Parameter<'a>>,
-        &'a [u8],
-        Vec<SequenceNumber>,
-    >>::ReaderProxyType: RtpsReaderProxyAttributes,
-{
+impl SendRtpsMessage for DdsShared<DataWriterAttributes> {
     fn send_message(
         &self,
         transport: &mut impl for<'a> TransportWrite<
@@ -684,16 +613,18 @@ mod test {
     use std::io::Write;
 
     use dds_api::infrastructure::qos::TopicQos;
-
-    use crate::{
-        dds_type::Endianness,
-        test_utils::{
-            mock_rtps::MockRtps, mock_rtps_cache_change::MockRtpsCacheChange,
-            mock_rtps_history_cache::MockRtpsHistoryCache,
-            mock_rtps_stateful_writer::MockRtpsStatefulWriter,
-            mock_rtps_stateless_writer::MockRtpsStatelessWriter,
+    use rtps_pim::{
+        behavior::{
+            types::DURATION_ZERO,
+            writer::{
+                stateful_writer::RtpsStatefulWriterConstructor,
+                stateless_writer::RtpsStatelessWriterConstructor,
+            },
         },
+        structure::types::GUID_UNKNOWN,
     };
+
+    use crate::dds_type::Endianness;
 
     use super::*;
 
@@ -707,27 +638,28 @@ mod test {
 
     #[test]
     fn write_w_timestamp_stateless() {
-        let mut mock_writer = MockRtpsStatelessWriter::new();
-        mock_writer
-            .expect_new_change()
-            .once()
-            .return_once(|_, _, _, _| {
-                let mut mock_cache_change = MockRtpsCacheChange::new();
-                mock_cache_change.expect_sequence_number().return_const(1);
-                mock_cache_change
-            });
-        mock_writer.expect_add_change_().once().return_const(());
+        let rtps_writer = RtpsStatelessWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
 
         let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
-        let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
-            DataWriterConstructor::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateless(mock_writer),
-                None,
-                dummy_topic,
-                DdsWeak::new(),
-            );
+        let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
 
         shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -736,31 +668,28 @@ mod test {
 
     #[test]
     fn write_w_timestamp_stateful() {
-        let mock_writer_history_cache = MockRtpsHistoryCache::new();
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
 
-        let mut mock_writer = MockRtpsStatefulWriter::new();
-        mock_writer
-            .expect_new_change()
-            .once()
-            .return_once(|_, _, _, _| {
-                let mut mock_cache_change = MockRtpsCacheChange::new();
-                mock_cache_change.expect_sequence_number().return_const(1);
-                mock_cache_change
-            });
-        mock_writer
-            .expect_writer_cache()
-            .return_var(mock_writer_history_cache);
-        mock_writer.expect_add_change_().once().return_const(());
         let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
 
-        let shared_data_writer: DdsShared<DataWriterAttributes<MockRtps>> =
-            DataWriterConstructor::new(
-                DataWriterQos::default(),
-                RtpsWriter::Stateful(mock_writer),
-                None,
-                dummy_topic,
-                DdsWeak::new(),
-            );
+        let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
 
         shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })

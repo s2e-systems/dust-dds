@@ -22,24 +22,12 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
     topic::topic_description::TopicDescription,
 };
+use rtps_implementation::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+};
 use rtps_pim::{
-    behavior::{
-        stateful_writer_behavior::{
-            RtpsStatefulWriterReceiveAckNackSubmessage, RtpsStatefulWriterSendSubmessages,
-        },
-        stateless_writer_behavior::{
-            RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
-        },
-        writer::{
-            reader_locator::RtpsReaderLocatorAttributes,
-            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::{
-                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
-                RtpsStatefulWriterOperations,
-            },
-        },
-    },
-    messages::{submessage_elements::Parameter, submessages::AckNackSubmessage},
+    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
+    messages::submessages::AckNackSubmessage,
     structure::{
         entity::RtpsEntityAttributes,
         participant::RtpsParticipantAttributes,
@@ -59,7 +47,6 @@ use crate::{
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
-        rtps_structure::RtpsStructure,
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
@@ -70,37 +57,28 @@ use super::{
     topic_attributes::TopicAttributes,
 };
 
-pub struct PublisherAttributes<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub struct PublisherAttributes {
     _qos: PublisherQos,
-    rtps_group: Rtps::Group,
-    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes<Rtps>>>>,
+    rtps_group: RtpsGroupImpl,
+    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+    parent_participant: DdsWeak<DomainParticipantAttributes>,
 }
 
-pub trait PublisherConstructor<Rtps>
-where
-    Rtps: RtpsStructure,
-{
+pub trait PublisherConstructor {
     fn new(
         qos: PublisherQos,
-        rtps_group: Rtps::Group,
-        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+        rtps_group: RtpsGroupImpl,
+        parent_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> Self;
 }
 
-impl<Rtps> PublisherConstructor<Rtps> for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl PublisherConstructor for DdsShared<PublisherAttributes> {
     fn new(
         qos: PublisherQos,
-        rtps_group: <Rtps as RtpsStructure>::Group,
-        parent_participant: DdsWeak<DomainParticipantAttributes<Rtps>>,
+        rtps_group: RtpsGroupImpl,
+        parent_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> Self {
         DdsShared::new(PublisherAttributes {
             _qos: qos,
@@ -117,41 +95,28 @@ pub trait PublisherEmpty {
     fn is_empty(&self) -> bool;
 }
 
-impl<Rtps> PublisherEmpty for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl PublisherEmpty for DdsShared<PublisherAttributes> {
     fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
 }
 
-pub trait AddDataWriter<Rtps>
-where
-    Rtps: RtpsStructure,
-{
-    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>);
+pub trait AddDataWriter {
+    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes>);
 }
 
-impl<Rtps> AddDataWriter<Rtps> for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes<Rtps>>) {
+impl AddDataWriter for DdsShared<PublisherAttributes> {
+    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes>) {
         self.data_writer_list.write_lock().push(writer);
     }
 }
 
-impl<Rtps, Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes<Rtps>>
+impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes>
 where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: for<'a> RtpsStatefulWriterAttributes<'a>,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterAttributes<'a>>::ReaderProxyListType:
-        IntoIterator,
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<Rtps>>;
-    type DataWriterType = DdsShared<DataWriterAttributes<Rtps>>;
+    type TopicType = DdsShared<TopicAttributes>;
+    type DataWriterType = DdsShared<DataWriterAttributes>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -205,7 +170,7 @@ where
             };
 
             let domain_participant = self.parent_participant.upgrade().ok();
-            let rtps_writer_impl = RtpsWriter::Stateful(Rtps::StatefulWriter::new(
+            let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
                 guid,
                 topic_kind,
                 reliability_level,
@@ -224,14 +189,13 @@ where
                 None,
             ));
 
-            let data_writer_shared: DdsShared<DataWriterAttributes<Rtps>> =
-                DataWriterConstructor::new(
-                    qos,
-                    rtps_writer_impl,
-                    a_listener,
-                    topic_shared.clone(),
-                    self.downgrade(),
-                );
+            let data_writer_shared: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+                qos,
+                rtps_writer_impl,
+                a_listener,
+                topic_shared.clone(),
+                self.downgrade(),
+            );
 
             self.data_writer_list
                 .write_lock()
@@ -324,10 +288,7 @@ where
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
-impl<Rtps> Publisher for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Publisher for DdsShared<PublisherAttributes> {
     fn suspend_publications(&self) -> DdsResult<()> {
         todo!()
     }
@@ -369,21 +330,15 @@ where
     }
 }
 
-impl<Rtps> PublisherGetParticipant for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes<Rtps>>;
+impl PublisherGetParticipant for DdsShared<PublisherAttributes> {
+    type DomainParticipant = DdsWeak<DomainParticipantAttributes>;
 
     fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         Ok(self.parent_participant.clone())
     }
 }
 
-impl<Rtps> Entity for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-{
+impl Entity for DdsShared<PublisherAttributes> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
@@ -424,13 +379,7 @@ where
     }
 }
 
-impl<Rtps> AddMatchedReader for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatefulWriter: RtpsStatefulWriterOperations,
-    <Rtps::StatefulWriter as RtpsStatefulWriterOperations>::ReaderProxyType:
-        RtpsReaderProxyConstructor,
-{
+impl AddMatchedReader for DdsShared<PublisherAttributes> {
     fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.add_matched_reader(discovered_reader_data)
@@ -438,12 +387,7 @@ where
     }
 }
 
-impl<Rtps> ReceiveRtpsAckNackSubmessage for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
-    Rtps::StatefulWriter: RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>,
-{
+impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherAttributes> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
@@ -455,36 +399,7 @@ where
     }
 }
 
-impl<Rtps> SendRtpsMessage for DdsShared<PublisherAttributes<Rtps>>
-where
-    Rtps: RtpsStructure,
-    Rtps::StatelessWriter: RtpsEntityAttributes
-        + for<'a> RtpsStatelessWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-    for<'a> <Rtps::StatelessWriter as RtpsStatelessWriterSendSubmessages<
-        'a,
-        Vec<Parameter<'a>>,
-        &'a [u8],
-        Vec<SequenceNumber>,
-    >>::ReaderLocatorType: RtpsReaderLocatorAttributes,
-    Rtps::StatefulWriter: RtpsEntityAttributes
-        + for<'a> RtpsStatefulWriterSendSubmessages<
-            'a,
-            Vec<Parameter<'a>>,
-            &'a [u8],
-            Vec<SequenceNumber>,
-        >,
-    for<'a> <Rtps::StatefulWriter as RtpsStatefulWriterSendSubmessages<
-        'a,
-        Vec<Parameter<'a>>,
-        &'a [u8],
-        Vec<SequenceNumber>,
-    >>::ReaderProxyType: RtpsReaderProxyAttributes,
-{
+impl SendRtpsMessage for DdsShared<PublisherAttributes> {
     fn send_message(
         &self,
         transport: &mut impl for<'a> rtps_pim::transport::TransportWrite<
@@ -507,15 +422,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        dds_type::{DdsSerialize, DdsType, Endianness},
-        test_utils::mock_rtps_group::MockRtpsGroup,
-    };
+    use crate::dds_type::{DdsSerialize, DdsType, Endianness};
     use dds_api::infrastructure::qos::TopicQos;
-    use rtps_pim::structure::types::GuidPrefix;
+    use rtps_pim::structure::{group::RtpsGroupConstructor, types::GUID_UNKNOWN};
     use std::io::Write;
 
-    use crate::{dds_impl::topic_attributes::TopicAttributes, test_utils::mock_rtps::MockRtps};
+    use crate::dds_impl::topic_attributes::TopicAttributes;
 
     use super::*;
 
@@ -545,18 +457,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_create_datawriter() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -574,18 +482,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -608,23 +512,20 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
+
         let publisher = DdsShared::new(publisher_attributes);
 
-        let publisher2_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher2_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
@@ -654,9 +555,9 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
@@ -676,18 +577,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
@@ -708,18 +605,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
@@ -745,18 +638,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
@@ -782,18 +671,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
@@ -824,18 +709,14 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let mut publisher_attributes: PublisherAttributes<MockRtps> = PublisherAttributes {
+        let publisher_attributes = PublisherAttributes {
             _qos: PublisherQos::default(),
-            rtps_group: MockRtpsGroup::new(),
+            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant: DdsWeak::new(),
         };
-        publisher_attributes
-            .rtps_group
-            .expect_guid()
-            .return_const(Guid::new(GuidPrefix([1; 12]), EntityId::new([1; 3], 1)));
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
