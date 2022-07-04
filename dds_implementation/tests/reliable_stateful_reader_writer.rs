@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 
-use mockall::{mock, Sequence};
-use rtps_implementation::{
+use dds_implementation::rtps_impl::{
     rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
     rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
     rtps_writer_proxy_impl::RtpsWriterProxyImpl,
     utils::clock::{Timer, TimerConstructor},
 };
+use mockall::{mock, Sequence};
 use rtps_pim::{
     behavior::{
         reader::{

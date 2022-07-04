@@ -1,5 +1,10 @@
 use std::collections::HashSet;
 
+use crate::rtps_impl::{
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+};
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -23,11 +28,6 @@ use dds_api::{
         query_condition::QueryCondition,
     },
     topic::topic_description::TopicDescription,
-};
-use rtps_implementation::{
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
 };
 use rtps_pim::{
     behavior::{
@@ -78,7 +78,10 @@ use crate::{
     },
 };
 
-use super::{subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes};
+use super::{
+    domain_participant_attributes::DomainParticipantAttributes,
+    subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes,
+};
 
 pub trait AnyDataReaderListener<DR> {
     fn trigger_on_data_available(&mut self, reader: DR);
@@ -176,14 +179,14 @@ impl RtpsReaderAttributes for RtpsReader {
     }
 }
 
-pub struct DataReaderAttributes<T> {
+pub struct DataReaderAttributes<Tim> {
     rtps_reader: DdsRwLock<RtpsReader>,
     qos: DdsRwLock<DataReaderQos>,
-    topic: DdsShared<TopicAttributes>,
+    topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     parent_subscriber: DdsWeak<SubscriberAttributes>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
-    deadline_timer: DdsRwLock<T>,
+    deadline_timer: DdsRwLock<Tim>,
     status_change: DdsRwLock<StatusMask>,
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
@@ -196,20 +199,20 @@ where
     fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes>,
+        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
         listener: Option<<Self as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self;
 }
 
-impl<T> DataReaderConstructor for DdsShared<DataReaderAttributes<T>>
+impl<Tim> DataReaderConstructor for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer,
+    Tim: Timer,
 {
     fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes>,
+        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
         listener: Option<<Self as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self {
@@ -223,7 +226,7 @@ where
             listener: DdsRwLock::new(listener),
             parent_subscriber,
             samples_read: DdsRwLock::new(HashSet::new()),
-            deadline_timer: DdsRwLock::new(T::new(deadline_duration)),
+            deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
             status_change: DdsRwLock::new(0),
             subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
@@ -241,8 +244,8 @@ where
     }
 }
 
-fn read_sample<'a, T>(
-    data_reader_attributes: &DataReaderAttributes<T>,
+fn read_sample<'a, Tim>(
+    data_reader_attributes: &DataReaderAttributes<Tim>,
     cache_change: &'a RtpsCacheChangeImpl,
 ) -> (&'a [u8], SampleInfo) {
     *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
@@ -278,7 +281,7 @@ fn read_sample<'a, T>(
     (data_value, sample_info)
 }
 
-impl<T> DataReaderAttributes<T> {
+impl<Tim> DataReaderAttributes<Tim> {
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -305,9 +308,9 @@ impl<T> DataReaderAttributes<T> {
     }
 }
 
-impl<T> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<T>>
+impl<Tim> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer + Send + Sync + 'static,
+    Tim: Timer + Send + Sync + 'static,
 {
     fn on_data_submessage_received(
         &self,
@@ -343,7 +346,7 @@ where
     }
 }
 
-impl<T> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<T>> {
+impl<Tim> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<Tim>> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -357,9 +360,9 @@ impl<T> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<T>> {
     }
 }
 
-impl<T> AddMatchedWriter for DdsShared<DataReaderAttributes<T>>
+impl<Tim> AddMatchedWriter for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer,
+    Tim: Timer,
 {
     fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let topic_name = &discovered_writer_data
@@ -409,9 +412,9 @@ where
     }
 }
 
-impl<T> DataReaderAttributes<T>
+impl<Tim> DataReaderAttributes<Tim>
 where
-    T: Timer + Send + Sync + 'static,
+    Tim: Timer + Send + Sync + 'static,
 {
     pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
         if reader.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
@@ -469,9 +472,9 @@ where
     }
 }
 
-impl<T> DataReaderGetSubscriber for DdsShared<DataReaderAttributes<T>>
+impl<Tim> DataReaderGetSubscriber for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer,
+    Tim: Timer,
 {
     type Subscriber = DdsShared<SubscriberAttributes>;
 
@@ -480,20 +483,20 @@ where
     }
 }
 
-impl<T> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<T>>
+impl<Tim> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer,
+    Tim: Timer,
 {
-    type TopicDescription = DdsShared<TopicAttributes>;
+    type TopicDescription = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         Ok(self.topic.clone())
     }
 }
 
-impl<T, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<T>>
+impl<Tim, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<Tim>>
 where
-    T: Timer,
+    Tim: Timer,
     Foo: for<'de> DdsDeserialize<'de>,
 {
     fn read(
@@ -786,7 +789,7 @@ where
     }
 }
 
-impl<T> Entity for DdsShared<DataReaderAttributes<T>> {
+impl<Tim> Entity for DdsShared<DataReaderAttributes<Tim>> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn AnyDataReaderListener<Self> + Send + Sync>;
 
@@ -824,7 +827,7 @@ impl<T> Entity for DdsShared<DataReaderAttributes<T>> {
     }
 }
 
-impl<T> SendRtpsMessage for DdsShared<DataReaderAttributes<T>> {
+impl<Tim> SendRtpsMessage for DdsShared<DataReaderAttributes<Tim>> {
     fn send_message(
         &self,
         transport: &mut impl for<'a> TransportWrite<
@@ -962,9 +965,9 @@ mod tests {
         cache_change
     }
 
-    fn reader_with_changes<T: Timer>(
+    fn reader_with_changes<Tim: Timer>(
         changes: Vec<RtpsCacheChangeImpl>,
-    ) -> DdsShared<DataReaderAttributes<T>> {
+    ) -> DdsShared<DataReaderAttributes<Tim>> {
         let mut stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
             rtps_pim::structure::types::TopicKind::NoKey,
@@ -1254,10 +1257,10 @@ mod tests {
         );
     }
 
-    fn reader_with_max_depth<T: Timer>(
+    fn reader_with_max_depth<Tim: Timer>(
         max_depth: i32,
         changes: Vec<RtpsCacheChangeImpl>,
-    ) -> DdsShared<DataReaderAttributes<T>> {
+    ) -> DdsShared<DataReaderAttributes<Tim>> {
         let mut history_cache = RtpsHistoryCacheImpl::new();
         for change in changes {
             history_cache.add_change(change);

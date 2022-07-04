@@ -1,5 +1,8 @@
 use std::sync::atomic::{self, AtomicU8};
 
+use crate::rtps_impl::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+};
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{BuiltInTopicKey, Duration, StatusMask},
@@ -21,9 +24,6 @@ use dds_api::{
     },
     return_type::{DdsError, DdsResult},
     topic::topic_description::TopicDescription,
-};
-use rtps_implementation::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
 };
 use rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
@@ -115,7 +115,7 @@ impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes>
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes>;
+    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
     type DataWriterType = DdsShared<DataWriterAttributes>;
 
     fn datawriter_factory_create_datawriter(

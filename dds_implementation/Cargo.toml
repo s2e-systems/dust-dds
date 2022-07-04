@@ -10,7 +10,6 @@ edition = "2018"
 [dependencies]
 dds-api = {path="../dds_api"}
 rtps-pim = {path="../rtps_pim"}
-rtps-implementation = {path="../rtps_implementation"}
 
 byteorder = "1.4.3"
 cdr = "0.2.4"

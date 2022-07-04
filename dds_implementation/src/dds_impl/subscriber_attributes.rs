@@ -1,3 +1,6 @@
+use crate::rtps_impl::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+};
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -21,9 +24,6 @@ use dds_api::{
         subscriber_listener::SubscriberListener,
     },
     topic::topic_description::TopicDescription,
-};
-use rtps_implementation::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
 };
 use rtps_pim::{
     behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
@@ -120,7 +120,7 @@ impl<Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberAttributes>
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes>;
+    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
     type DataReaderType = DdsShared<DataReaderAttributes<ThreadTimer>>;
 
     fn datareader_factory_create_datareader(

@@ -10,21 +10,19 @@ use dds_api::{
 
 use crate::utils::shared_object::{DdsShared, DdsWeak};
 
-use super::domain_participant_attributes::DomainParticipantAttributes;
-
-pub struct TopicAttributes {
+pub struct TopicAttributes<DP> {
     _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    parent_participant: DdsWeak<DomainParticipantAttributes>,
+    parent_participant: DdsWeak<DP>,
 }
 
-impl TopicAttributes {
+impl<DP> TopicAttributes<DP> {
     pub fn new(
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: DdsWeak<DomainParticipantAttributes>,
+        parent_participant: DdsWeak<DP>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
             _qos: qos,
@@ -35,15 +33,15 @@ impl TopicAttributes {
     }
 }
 
-impl Topic for DdsShared<TopicAttributes> {
+impl<DP> Topic for DdsShared<TopicAttributes<DP>> {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
 }
 
-impl TopicDescription for DdsShared<TopicAttributes> {
-    type DomainParticipant = DdsShared<DomainParticipantAttributes>;
+impl<DP> TopicDescription for DdsShared<TopicAttributes<DP>> {
+    type DomainParticipant = DdsShared<DP>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.parent_participant.clone().upgrade()
@@ -58,7 +56,7 @@ impl TopicDescription for DdsShared<TopicAttributes> {
     }
 }
 
-impl Entity for DdsShared<TopicAttributes> {
+impl<DP> Entity for DdsShared<TopicAttributes<DP>> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 

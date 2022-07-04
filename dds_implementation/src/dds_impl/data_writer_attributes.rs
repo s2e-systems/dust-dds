@@ -1,5 +1,9 @@
 use std::{cell::RefCell, collections::HashMap};
 
+use crate::rtps_impl::{
+    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
+};
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -18,10 +22,6 @@ use dds_api::{
     },
     return_type::DdsResult,
     topic::topic_description::TopicDescription,
-};
-use rtps_implementation::{
-    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::{
@@ -73,7 +73,10 @@ use crate::{
     },
 };
 
-use super::{publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes};
+use super::{
+    domain_participant_attributes::DomainParticipantAttributes,
+    publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes,
+};
 
 pub trait AnyDataWriterListener<DW> {
     fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
@@ -142,7 +145,7 @@ pub struct DataWriterAttributes {
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    topic: DdsShared<TopicAttributes>,
+    topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
     publisher: DdsWeak<PublisherAttributes>,
     status: DdsRwLock<PublicationMatchedStatus>,
 }
@@ -155,7 +158,7 @@ where
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes>,
+        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
         publisher: DdsWeak<PublisherAttributes>,
     ) -> Self;
 }
@@ -168,7 +171,7 @@ where
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes>,
+        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
         publisher: DdsWeak<PublisherAttributes>,
     ) -> Self {
         DdsShared::new(DataWriterAttributes {
@@ -435,7 +438,7 @@ impl DataWriterGetPublisher for DdsShared<DataWriterAttributes> {
 }
 
 impl DataWriterGetTopic for DdsShared<DataWriterAttributes> {
-    type TopicType = DdsShared<TopicAttributes>;
+    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
         Ok(self.topic.clone())

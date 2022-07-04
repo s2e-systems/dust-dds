@@ -17,7 +17,7 @@ use rtps_pim::{
     },
 };
 
-use crate::rtps_history_cache_impl::RtpsHistoryCacheImpl;
+use crate::rtps_impl::rtps_history_cache_impl::RtpsHistoryCacheImpl;
 
 use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl};
 

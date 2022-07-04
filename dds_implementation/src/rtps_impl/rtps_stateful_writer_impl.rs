@@ -40,7 +40,7 @@ use rtps_pim::{
     },
 };
 
-use crate::utils::clock::{Timer, TimerConstructor};
+use crate::rtps_impl::utils::clock::{Timer, TimerConstructor};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
@@ -748,7 +748,7 @@ mod tests {
         types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
     };
 
-    use crate::rtps_history_cache_impl::RtpsCacheChangeImpl;
+    use crate::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
 
     use super::*;
 

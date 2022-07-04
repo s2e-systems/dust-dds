@@ -64,11 +64,7 @@ impl MessageReceiver {
                 >,
             >,
         >,
-    ) where
-        DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
-        DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
-        DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
-    {
+    ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;

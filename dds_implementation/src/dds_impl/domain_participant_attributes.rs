@@ -3,6 +3,12 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::rtps_impl::{
+    rtps_group_impl::RtpsGroupImpl,
+    rtps_participant_impl::RtpsParticipantImpl,
+    rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
+    utils::clock::StdTimer,
+};
 use dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{
@@ -25,12 +31,6 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     topic::topic_description::TopicDescription,
-};
-use rtps_implementation::{
-    rtps_group_impl::RtpsGroupImpl,
-    rtps_participant_impl::RtpsParticipantImpl,
-    rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
-    utils::clock::StdTimer,
 };
 use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -74,10 +74,7 @@ use crate::{
     dds_type::DdsType,
     utils::{
         discovery_traits::{AddMatchedReader, AddMatchedWriter},
-        rtps_communication_traits::{
-            ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage,
-            ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
-        },
+        rtps_communication_traits::SendRtpsMessage,
         shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
@@ -109,7 +106,7 @@ pub struct DomainParticipantAttributes {
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes>>>,
+    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<DomainParticipantAttributes>>>>,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rtps_pim::behavior::types::Duration,
@@ -181,7 +178,7 @@ impl<Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantAttr
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes>;
+    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
 
     fn topic_factory_create_topic(
         &self,
@@ -735,11 +732,7 @@ pub trait SendBuiltInData {
     );
 }
 
-impl SendBuiltInData for DdsShared<DomainParticipantAttributes>
-where
-    DdsShared<PublisherAttributes>: SendRtpsMessage,
-    DdsShared<SubscriberAttributes>: SendRtpsMessage,
-{
+impl SendBuiltInData for DdsShared<DomainParticipantAttributes> {
     fn send_built_in_data(
         &self,
         transport: &mut impl for<'a> TransportWrite<
@@ -785,12 +778,7 @@ pub trait ReceiveBuiltInData {
     );
 }
 
-impl ReceiveBuiltInData for DdsShared<DomainParticipantAttributes>
-where
-    DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
-    DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
-    DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
-{
+impl ReceiveBuiltInData for DdsShared<DomainParticipantAttributes> {
     fn receive_built_in_data(
         &self,
         transport: &mut impl for<'a> TransportRead<
@@ -1098,11 +1086,7 @@ pub trait SendUserDefinedData {
     );
 }
 
-impl SendUserDefinedData for DdsShared<DomainParticipantAttributes>
-where
-    DdsShared<PublisherAttributes>: SendRtpsMessage,
-    DdsShared<SubscriberAttributes>: SendRtpsMessage,
-{
+impl SendUserDefinedData for DdsShared<DomainParticipantAttributes> {
     fn send_user_defined_data(
         &self,
         transport: &mut impl for<'a> TransportWrite<
@@ -1148,12 +1132,7 @@ pub trait ReceiveUserDefinedData {
     );
 }
 
-impl ReceiveUserDefinedData for DdsShared<DomainParticipantAttributes>
-where
-    DdsShared<PublisherAttributes>: ReceiveRtpsAckNackSubmessage,
-    DdsShared<SubscriberAttributes>: ReceiveRtpsDataSubmessage,
-    DdsShared<SubscriberAttributes>: ReceiveRtpsHeartbeatSubmessage,
-{
+impl ReceiveUserDefinedData for DdsShared<DomainParticipantAttributes> {
     fn receive_user_defined_data(
         &self,
         transport: &mut impl for<'a> TransportRead<
