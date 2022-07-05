@@ -1,7 +1,10 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use crate::rtps_impl::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+use crate::{
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+    },
+    transport::TransportWrite,
 };
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -400,20 +403,7 @@ impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherAttributes> {
 }
 
 impl SendRtpsMessage for DdsShared<PublisherAttributes> {
-    fn send_message(
-        &self,
-        transport: &mut impl for<'a> rtps_pim::transport::TransportWrite<
-            Vec<
-                rtps_pim::messages::overall_structure::RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<rtps_pim::messages::submessage_elements::Parameter<'a>>,
-                    &'a [u8],
-                    Vec<rtps_pim::structure::types::Locator>,
-                    Vec<rtps_pim::messages::types::FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);
         }

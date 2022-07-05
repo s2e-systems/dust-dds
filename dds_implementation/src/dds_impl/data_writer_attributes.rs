@@ -43,20 +43,17 @@ use rtps_pim::{
         spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
     },
     messages::{
-        overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
-        submessage_elements::{Parameter, TimestampSubmessageElement},
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::TimestampSubmessageElement,
         submessages::{AckNackSubmessage, InfoTimestampSubmessage},
-        types::{FragmentNumber, TIME_INVALID},
+        types::TIME_INVALID,
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{
-            ChangeKind, Guid, GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
-        },
+        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
-    transport::TransportWrite,
 };
 
 use crate::{
@@ -66,6 +63,7 @@ use crate::{
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     dds_type::{DdsSerialize, DdsType, LittleEndian},
+    transport::{RtpsMessage, RtpsSubmessageType, TransportWrite},
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
@@ -484,20 +482,7 @@ impl Entity for DdsShared<DataWriterAttributes> {
 }
 
 impl SendRtpsMessage for DdsShared<DataWriterAttributes> {
-    fn send_message(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_message(&self, transport: &mut impl TransportWrite) {
         let destined_submessages = RefCell::new(Vec::new());
 
         let mut rtps_writer_lock = self.rtps_writer.write_lock();

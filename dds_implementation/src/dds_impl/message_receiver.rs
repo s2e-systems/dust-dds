@@ -2,6 +2,7 @@ use crate::{
     dds_impl::{
         publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
     },
+    transport::{RtpsMessage, RtpsSubmessageType},
     utils::{
         rtps_communication_traits::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,
@@ -11,13 +12,11 @@ use crate::{
 };
 use rtps_pim::{
     messages::{
-        overall_structure::{RtpsMessage, RtpsSubmessageType},
-        submessage_elements::Parameter,
         submessages::InfoTimestampSubmessage,
-        types::{FragmentNumber, Time, TIME_INVALID},
+        types::{Time, TIME_INVALID},
     },
     structure::types::{
-        GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUIDPREFIX_UNKNOWN,
+        GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
         LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
     },
 };
@@ -53,17 +52,7 @@ impl MessageReceiver {
         publisher_list: &[DdsShared<PublisherAttributes>],
         subscriber_list: &[DdsShared<SubscriberAttributes>],
         source_locator: Locator,
-        message: &RtpsMessage<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'_>>,
-                    &'_ [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
+        message: &RtpsMessage<'_>,
     ) {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;

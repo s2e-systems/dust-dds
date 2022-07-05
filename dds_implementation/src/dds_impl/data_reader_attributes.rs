@@ -1,9 +1,26 @@
 use std::collections::HashSet;
 
-use crate::rtps_impl::{
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+use crate::{
+    data_representation_builtin_endpoints::{
+        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
+        discovered_writer_data::DiscoveredWriterData,
+        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+    },
+    dds_type::{DdsDeserialize, DdsType},
+    rtps_impl::{
+        rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+    },
+    transport::{RtpsMessage, RtpsSubmessageType, TransportWrite},
+    utils::{
+        discovery_traits::AddMatchedWriter,
+        rtps_communication_traits::{
+            ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
+        },
+        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        timer::Timer,
+    },
 };
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -47,34 +64,15 @@ use rtps_pim::{
         spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
     },
     messages::{
-        overall_structure::{RtpsMessage, RtpsMessageHeader, RtpsSubmessageType},
+        overall_structure::RtpsMessageHeader,
         submessage_elements::Parameter,
         submessages::{DataSubmessage, HeartbeatSubmessage},
-        types::FragmentNumber,
     },
     structure::{
         cache_change::RtpsCacheChangeAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
-    },
-    transport::TransportWrite,
-};
-
-use crate::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
-        discovered_writer_data::DiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-    },
-    dds_type::{DdsDeserialize, DdsType},
-    utils::{
-        discovery_traits::AddMatchedWriter,
-        rtps_communication_traits::{
-            ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
-        },
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
-        timer::Timer,
+        types::{GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
 };
 
@@ -828,20 +826,7 @@ impl<Tim> Entity for DdsShared<DataReaderAttributes<Tim>> {
 }
 
 impl<Tim> SendRtpsMessage for DdsShared<DataReaderAttributes<Tim>> {
-    fn send_message(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_message(&self, transport: &mut impl TransportWrite) {
         if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
             let mut acknacks = Vec::new();
             stateful_rtps_reader.send_submessages(|wp, acknack| {

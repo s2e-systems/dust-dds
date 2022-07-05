@@ -1,13 +1,9 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 
-use crate::{
-    mapping_rtps_messages::overall_structure::{RtpsMessage, RtpsSubmessageType},
-    mapping_traits::{from_bytes, to_bytes},
-};
-use rtps_pim::{
-    structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
-    transport::{TransportRead, TransportWrite},
-};
+use crate::mapping_traits::{from_bytes, to_bytes};
+use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+
+use dds_implementation::transport::{RtpsMessage, TransportRead, TransportWrite};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpUnicastTransport {
@@ -24,7 +20,7 @@ impl UdpUnicastTransport {
     }
 }
 
-impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpUnicastTransport {
+impl TransportWrite for UdpUnicastTransport {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
         let buf = to_bytes(message).unwrap();
         self.socket
@@ -33,7 +29,7 @@ impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpUnicastTransport {
     }
 }
 
-impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpUnicastTransport {
+impl<'a> TransportRead<'a> for UdpUnicastTransport {
     fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {
@@ -65,7 +61,7 @@ impl UdpMulticastTransport {
     }
 }
 
-impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpMulticastTransport {
+impl TransportWrite for UdpMulticastTransport {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
         let buf = to_bytes(message).unwrap();
         let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
@@ -89,7 +85,7 @@ impl TransportWrite<Vec<RtpsSubmessageType<'_>>> for UdpMulticastTransport {
     }
 }
 
-impl<'a> TransportRead<'a, Vec<RtpsSubmessageType<'a>>> for UdpMulticastTransport {
+impl<'a> TransportRead<'a> for UdpMulticastTransport {
     fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
         match self.socket.recv_from(&mut self.receive_buffer) {
             Ok((bytes, source_address)) => {

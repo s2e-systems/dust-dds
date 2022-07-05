@@ -1,5 +1,8 @@
-use crate::rtps_impl::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+use crate::{
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+    },
+    transport::TransportWrite,
 };
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -416,20 +419,7 @@ impl ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberAttributes> {
 }
 
 impl SendRtpsMessage for DdsShared<SubscriberAttributes> {
-    fn send_message(
-        &self,
-        transport: &mut impl for<'a> rtps_pim::transport::TransportWrite<
-            Vec<
-                rtps_pim::messages::overall_structure::RtpsSubmessageType<
-                    Vec<rtps_pim::structure::types::SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<rtps_pim::structure::types::Locator>,
-                    Vec<rtps_pim::messages::types::FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.send_message(transport);
         }

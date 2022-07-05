@@ -9,6 +9,7 @@ edition = "2018"
 
 [dependencies]
 rtps-pim = {path="../rtps_pim"}
+dds-implementation = {path="../dds_implementation"}
 byteorder = "1.4.3"
 socket2 = "0.4"
 ifcfg = "0.1"

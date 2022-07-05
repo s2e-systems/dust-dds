@@ -3,11 +3,14 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::rtps_impl::{
-    rtps_group_impl::RtpsGroupImpl,
-    rtps_participant_impl::RtpsParticipantImpl,
-    rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
-    utils::clock::StdTimer,
+use crate::{
+    rtps_impl::{
+        rtps_group_impl::RtpsGroupImpl,
+        rtps_participant_impl::RtpsParticipantImpl,
+        rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
+        utils::clock::StdTimer,
+    },
+    utils::rtps_communication_traits::SendRtpsMessage,
 };
 use dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -44,22 +47,17 @@ use rtps_pim::{
         spdp::builtin_endpoints::{SpdpBuiltinParticipantReader, SpdpBuiltinParticipantWriter},
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
     },
-    messages::{
-        overall_structure::RtpsSubmessageType,
-        submessage_elements::Parameter,
-        types::{Count, FragmentNumber},
-    },
+    messages::types::Count,
     structure::{
         entity::RtpsEntityAttributes,
         group::RtpsGroupConstructor,
         participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
-            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
+            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, BUILT_IN_READER_GROUP,
+            BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
-    transport::{TransportRead, TransportWrite},
 };
 
 use crate::{
@@ -72,9 +70,9 @@ use crate::{
         },
     },
     dds_type::DdsType,
+    transport::{TransportRead, TransportWrite},
     utils::{
         discovery_traits::{AddMatchedReader, AddMatchedWriter},
-        rtps_communication_traits::SendRtpsMessage,
         shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
@@ -716,37 +714,11 @@ impl DataReaderDiscovery for DdsShared<DomainParticipantAttributes> {
 }
 
 pub trait SendBuiltInData {
-    fn send_built_in_data(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    );
+    fn send_built_in_data(&self, transport: &mut impl TransportWrite);
 }
 
 impl SendBuiltInData for DdsShared<DomainParticipantAttributes> {
-    fn send_built_in_data(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
         let builtin_publisher = self.builtin_publisher.read_lock();
         let builtin_subscriber = self.builtin_subscriber.read_lock();
         if let (Some(builtin_publisher), Some(builtin_subscriber)) =
@@ -761,39 +733,11 @@ impl SendBuiltInData for DdsShared<DomainParticipantAttributes> {
 }
 
 pub trait ReceiveBuiltInData {
-    fn receive_built_in_data(
-        &self,
-        transport: &mut impl for<'a> TransportRead<
-            'a,
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    );
+    fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>);
 }
 
 impl ReceiveBuiltInData for DdsShared<DomainParticipantAttributes> {
-    fn receive_built_in_data(
-        &self,
-        transport: &mut impl for<'a> TransportRead<
-            'a,
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
         let publisher_list = self.builtin_publisher.read_lock();
         let subscriber_list = self.builtin_subscriber.read_lock();
         while let Some((source_locator, message)) = transport.read() {
@@ -1070,37 +1014,11 @@ impl CreateBuiltIns for DdsShared<DomainParticipantAttributes> {
 }
 
 pub trait SendUserDefinedData {
-    fn send_user_defined_data(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    );
+    fn send_user_defined_data(&self, transport: &mut impl TransportWrite);
 }
 
 impl SendUserDefinedData for DdsShared<DomainParticipantAttributes> {
-    fn send_user_defined_data(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
         let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
         let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
 
@@ -1115,39 +1033,11 @@ impl SendUserDefinedData for DdsShared<DomainParticipantAttributes> {
 }
 
 pub trait ReceiveUserDefinedData {
-    fn receive_user_defined_data(
-        &self,
-        transport: &mut impl for<'a> TransportRead<
-            'a,
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    );
+    fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>);
 }
 
 impl ReceiveUserDefinedData for DdsShared<DomainParticipantAttributes> {
-    fn receive_user_defined_data(
-        &self,
-        transport: &mut impl for<'a> TransportRead<
-            'a,
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    ) {
+    fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
         let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
         let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
         while let Some((source_locator, message)) = transport.read() {

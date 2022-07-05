@@ -1,13 +1,12 @@
 use rtps_pim::{
     messages::{
-        overall_structure::RtpsSubmessageType,
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage},
-        types::FragmentNumber,
     },
-    structure::types::{GuidPrefix, Locator, SequenceNumber},
-    transport::TransportWrite,
+    structure::types::{GuidPrefix, SequenceNumber},
 };
+
+use crate::transport::TransportWrite;
 
 pub trait ReceiveRtpsDataSubmessage {
     fn on_data_submessage_received(
@@ -34,18 +33,5 @@ pub trait ReceiveRtpsAckNackSubmessage {
 }
 
 pub trait SendRtpsMessage {
-    fn send_message(
-        &self,
-        transport: &mut impl for<'a> TransportWrite<
-            Vec<
-                RtpsSubmessageType<
-                    Vec<SequenceNumber>,
-                    Vec<Parameter<'a>>,
-                    &'a [u8],
-                    Vec<Locator>,
-                    Vec<FragmentNumber>,
-                >,
-            >,
-        >,
-    );
+    fn send_message(&self, transport: &mut impl TransportWrite);
 }
