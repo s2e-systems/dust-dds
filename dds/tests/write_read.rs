@@ -1,6 +1,6 @@
 use dds::{
-    domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory,
+    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain_participant_factory::DomainParticipantFactoryImpl,
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{data_reader::DataReader, subscriber::Subscriber},
     types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -42,7 +42,7 @@ impl<'de> DdsDeserialize<'de> for UserData {
 #[test]
 fn user_defined_write_read_auto_enable() {
     let domain_id = 8;
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant_factory = DomainParticipantFactoryImpl::get_instance();
 
     let participant1 = participant_factory
         .create_participant(domain_id, None, None, 0)

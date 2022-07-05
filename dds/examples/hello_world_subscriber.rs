@@ -1,6 +1,6 @@
 use dds::{
-    domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory,
+    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain_participant_factory::DomainParticipantFactoryImpl,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     subscription::{
         data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
@@ -35,7 +35,7 @@ impl DataReaderListener for ExampleListener {
 
 fn main() {
     let domain_id = 0;
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant_factory = DomainParticipantFactoryImpl::get_instance();
 
     let participant = participant_factory
         .create_participant(domain_id, None, None, 0)

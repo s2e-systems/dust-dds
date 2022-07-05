@@ -1,6 +1,6 @@
 use dds::{
-    domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory,
+    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain_participant_factory::DomainParticipantFactoryImpl,
     publication::{data_writer::DataWriter, publisher::Publisher},
 };
 use dds_implementation::dds_type::{DdsSerde, DdsType};
@@ -17,7 +17,7 @@ impl DdsSerde for HelloWorldType {}
 
 fn main() {
     let domain_id = 0;
-    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant_factory = DomainParticipantFactoryImpl::get_instance();
 
     let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
