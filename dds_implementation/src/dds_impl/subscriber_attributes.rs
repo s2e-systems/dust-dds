@@ -123,7 +123,7 @@ impl<Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberAttributes>
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
+    type TopicType = DdsShared<TopicAttributes>;
     type DataReaderType = DdsShared<DataReaderAttributes<ThreadTimer>>;
 
     fn datareader_factory_create_datareader(
@@ -382,7 +382,7 @@ impl Entity for DdsShared<SubscriberAttributes> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
+        Ok(self.rtps_group.guid().into())
     }
 }
 
@@ -473,6 +473,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -497,6 +498,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -536,6 +538,7 @@ mod tests {
         let subscriber2 = DdsShared::new(subscriber2_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -568,6 +571,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -590,6 +594,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -618,6 +623,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -625,6 +631,7 @@ mod tests {
         ));
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
             "topic",
@@ -651,6 +658,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic1",
@@ -658,6 +666,7 @@ mod tests {
         ));
 
         let topic2 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic2",
@@ -684,6 +693,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -691,6 +701,7 @@ mod tests {
         ));
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
             "topic",
@@ -722,6 +733,7 @@ mod tests {
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic1",
@@ -729,6 +741,7 @@ mod tests {
         ));
 
         let topic2 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic2",
@@ -745,5 +758,25 @@ mod tests {
         assert!(subscriber.lookup_datareader::<Foo>(&topic1).unwrap() == data_reader1);
 
         assert!(subscriber.lookup_datareader::<Foo>(&topic2).unwrap() == data_reader2);
+    }
+
+    #[test]
+    fn get_instance_handle() {
+        let guid = Guid::new(
+            GuidPrefix([2; 12]),
+            EntityId {
+                entity_key: [3; 3],
+                entity_kind: 1,
+            },
+        );
+        let subscriber: DdsShared<SubscriberAttributes> = SubscriberConstructor::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(guid),
+            DdsWeak::new(),
+        );
+
+        let expected_instance_handle: [u8; 16] = guid.into();
+        let instance_handle = subscriber.get_instance_handle().unwrap();
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }

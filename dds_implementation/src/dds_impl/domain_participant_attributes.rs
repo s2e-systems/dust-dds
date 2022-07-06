@@ -53,8 +53,8 @@ use rtps_pim::{
         group::RtpsGroupConstructor,
         participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
         types::{
-            EntityId, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, BUILT_IN_READER_GROUP,
-            BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
+            EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId,
+            BUILT_IN_READER_GROUP, BUILT_IN_WRITER_GROUP, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
             USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
         },
     },
@@ -91,6 +91,9 @@ use super::{
     topic_attributes::TopicAttributes,
 };
 
+pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
+pub const BUILT_IN_TOPIC: EntityKind = 0xca;
+
 pub struct DomainParticipantAttributes {
     rtps_participant: RtpsParticipantImpl,
     domain_id: DomainId,
@@ -104,7 +107,8 @@ pub struct DomainParticipantAttributes {
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherAttributes>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
-    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes<DomainParticipantAttributes>>>>,
+    topic_list: DdsRwLock<Vec<DdsShared<TopicAttributes>>>,
+    user_defined_topic_counter: AtomicU8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
     lease_duration: rtps_pim::behavior::types::Duration,
@@ -162,6 +166,7 @@ impl DomainParticipantConstructor for DdsShared<DomainParticipantAttributes> {
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: PublisherQos::default(),
             topic_list: DdsRwLock::new(Vec::new()),
+            user_defined_topic_counter: AtomicU8::new(0),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
             lease_duration: lease_duration,
@@ -176,7 +181,7 @@ impl<Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantAttr
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
+    type TopicType = DdsShared<TopicAttributes>;
 
     fn topic_factory_create_topic(
         &self,
@@ -188,11 +193,26 @@ where
     where
         Self::TopicType: Entity,
     {
+        let topic_counter = self
+            .user_defined_topic_counter
+            .fetch_add(1, Ordering::Relaxed);
+        let topic_guid = Guid::new(
+            self.rtps_participant.guid().prefix(),
+            EntityId {
+                entity_key: [topic_counter, 0, 0],
+                entity_kind: USER_DEFINED_TOPIC,
+            },
+        );
         let qos = qos.unwrap_or(self.default_topic_qos.clone());
 
         // /////// Create topic
-        let topic_shared =
-            TopicAttributes::new(qos.clone(), Foo::type_name(), topic_name, self.downgrade());
+        let topic_shared = TopicAttributes::new(
+            topic_guid,
+            qos.clone(),
+            Foo::type_name(),
+            topic_name,
+            self.downgrade(),
+        );
 
         self.topic_list.write_lock().push(topic_shared.clone());
 
@@ -531,7 +551,7 @@ impl Entity for DdsShared<DomainParticipantAttributes> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
+        Ok(self.rtps_participant.guid().into())
     }
 }
 
@@ -1461,5 +1481,27 @@ mod tests {
                 .unwrap()
                 == topic2
         );
+    }
+
+    #[test]
+    fn get_instance_handle() {
+        let guid_prefix = GuidPrefix([1; 12]);
+        let domain_participant: DdsShared<DomainParticipantAttributes> =
+            DomainParticipantConstructor::new(
+                guid_prefix,
+                DomainId::default(),
+                "".to_string(),
+                DomainParticipantQos::default(),
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            );
+
+        let expected_instance_handle: [u8; 16] =
+            Guid::new(guid_prefix, ENTITYID_PARTICIPANT).into();
+        let instance_handle = domain_participant.get_instance_handle().unwrap();
+
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }

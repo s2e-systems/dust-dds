@@ -8,7 +8,7 @@ use crate::{
 };
 use dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, Duration, StatusMask},
+    dcps_psm::{BuiltInTopicKey, Duration, InstanceHandle, StatusMask},
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -118,7 +118,7 @@ impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes>
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
+    type TopicType = DdsShared<TopicAttributes>;
     type DataWriterType = DdsShared<DataWriterAttributes>;
 
     fn datawriter_factory_create_datawriter(
@@ -377,8 +377,8 @@ impl Entity for DdsShared<PublisherAttributes> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DdsResult<dds_api::dcps_psm::InstanceHandle> {
-        todo!()
+    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.rtps_group.guid().into())
     }
 }
 
@@ -458,6 +458,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -483,6 +484,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -524,6 +526,7 @@ mod tests {
         let publisher2 = DdsShared::new(publisher2_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -556,6 +559,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -578,6 +582,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -606,6 +611,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -613,6 +619,7 @@ mod tests {
         ));
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
             "topic",
@@ -639,6 +646,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic1",
@@ -646,6 +654,7 @@ mod tests {
         ));
 
         let topic2 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic2",
@@ -672,6 +681,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic",
@@ -679,6 +689,7 @@ mod tests {
         ));
 
         let topic_bar = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
             "topic",
@@ -710,6 +721,7 @@ mod tests {
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic1",
@@ -717,6 +729,7 @@ mod tests {
         ));
 
         let topic2 = DdsShared::new(TopicAttributes::new(
+            GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
             "topic2",
@@ -733,5 +746,25 @@ mod tests {
         assert!(publisher.lookup_datawriter::<Foo>(&topic1).unwrap() == data_writer1);
 
         assert!(publisher.lookup_datawriter::<Foo>(&topic2).unwrap() == data_writer2);
+    }
+
+    #[test]
+    fn get_instance_handle() {
+        let guid = Guid::new(
+            GuidPrefix([2; 12]),
+            EntityId {
+                entity_key: [3; 3],
+                entity_kind: 1,
+            },
+        );
+        let publisher: DdsShared<PublisherAttributes> = PublisherConstructor::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(guid),
+            DdsWeak::new(),
+        );
+
+        let expected_instance_handle: [u8; 16] = guid.into();
+        let instance_handle = publisher.get_instance_handle().unwrap();
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }

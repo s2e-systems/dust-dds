@@ -1,6 +1,6 @@
 pub type DomainIdTypeNative = i32;
-pub type HandleTypeNative = i32;
-pub const HANDLE_NIL_NATIVE: HandleTypeNative = 0;
+pub type HandleTypeNative = [u8; 16];
+pub const HANDLE_NIL_NATIVE: HandleTypeNative = [0; 16];
 pub type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
 
 pub type DomainId = DomainIdTypeNative;

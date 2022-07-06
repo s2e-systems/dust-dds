@@ -7,24 +7,30 @@ use dds_api::{
     return_type::DdsResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rtps_pim::structure::types::Guid;
 
 use crate::utils::shared_object::{DdsShared, DdsWeak};
 
-pub struct TopicAttributes<DP> {
+use super::domain_participant_attributes::DomainParticipantAttributes;
+
+pub struct TopicAttributes {
+    guid: Guid,
     _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    parent_participant: DdsWeak<DP>,
+    parent_participant: DdsWeak<DomainParticipantAttributes>,
 }
 
-impl<DP> TopicAttributes<DP> {
+impl TopicAttributes {
     pub fn new(
+        guid: Guid,
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: DdsWeak<DP>,
+        parent_participant: DdsWeak<DomainParticipantAttributes>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
+            guid,
             _qos: qos,
             type_name,
             topic_name: topic_name.to_string(),
@@ -33,15 +39,15 @@ impl<DP> TopicAttributes<DP> {
     }
 }
 
-impl<DP> Topic for DdsShared<TopicAttributes<DP>> {
+impl Topic for DdsShared<TopicAttributes> {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
 }
 
-impl<DP> TopicDescription for DdsShared<TopicAttributes<DP>> {
-    type DomainParticipant = DdsShared<DP>;
+impl TopicDescription for DdsShared<TopicAttributes> {
+    type DomainParticipant = DdsShared<DomainParticipantAttributes>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.parent_participant.clone().upgrade()
@@ -56,7 +62,7 @@ impl<DP> TopicDescription for DdsShared<TopicAttributes<DP>> {
     }
 }
 
-impl<DP> Entity for DdsShared<TopicAttributes<DP>> {
+impl Entity for DdsShared<TopicAttributes> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
@@ -100,7 +106,29 @@ impl<DP> Entity for DdsShared<TopicAttributes<DP>> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_instance_handle()
-        todo!()
+        Ok(self.guid.into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rtps_pim::structure::types::{EntityId, GuidPrefix};
+
+    use super::*;
+
+    #[test]
+    fn get_instance_handle() {
+        let guid = Guid::new(
+            GuidPrefix([2; 12]),
+            EntityId {
+                entity_key: [3; 3],
+                entity_kind: 1,
+            },
+        );
+        let topic = TopicAttributes::new(guid, TopicQos::default(), "", "", DdsWeak::new());
+
+        let expected_instance_handle: [u8; 16] = guid.into();
+        let instance_handle = topic.get_instance_handle().unwrap();
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }

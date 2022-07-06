@@ -9,6 +9,7 @@ use dds_api::{
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
+        HANDLE_NIL_NATIVE,
     },
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -71,10 +72,7 @@ use crate::{
     },
 };
 
-use super::{
-    domain_participant_attributes::DomainParticipantAttributes,
-    publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes,
-};
+use super::{publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes};
 
 pub trait AnyDataWriterListener<DW> {
     fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
@@ -143,7 +141,7 @@ pub struct DataWriterAttributes {
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+    topic: DdsShared<TopicAttributes>,
     publisher: DdsWeak<PublisherAttributes>,
     status: DdsRwLock<PublicationMatchedStatus>,
 }
@@ -156,7 +154,7 @@ where
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+        topic: DdsShared<TopicAttributes>,
         publisher: DdsWeak<PublisherAttributes>,
     ) -> Self;
 }
@@ -169,7 +167,7 @@ where
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
         listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+        topic: DdsShared<TopicAttributes>,
         publisher: DdsWeak<PublisherAttributes>,
     ) -> Self {
         DdsShared::new(DataWriterAttributes {
@@ -182,7 +180,7 @@ where
             status: DdsRwLock::new(PublicationMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
-                last_subscription_handle: 0,
+                last_subscription_handle: HANDLE_NIL_NATIVE,
                 current_count: 0,
                 current_count_change: 0,
             }),
@@ -418,8 +416,7 @@ where
             RtpsWriter::Stateful(w) => w
                 .matched_readers()
                 .into_iter()
-                .enumerate()
-                .map(|x| x.0 as i32)
+                .map(|x| x.remote_reader_guid().into())
                 .collect(),
         };
 
@@ -436,7 +433,7 @@ impl DataWriterGetPublisher for DdsShared<DataWriterAttributes> {
 }
 
 impl DataWriterGetTopic for DdsShared<DataWriterAttributes> {
-    type TopicType = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
+    type TopicType = DdsShared<TopicAttributes>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
         Ok(self.topic.clone())
@@ -477,7 +474,7 @@ impl Entity for DdsShared<DataWriterAttributes> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
+        Ok(self.rtps_writer.read_lock().guid().into())
     }
 }
 
@@ -609,7 +606,7 @@ mod test {
                 stateless_writer::RtpsStatelessWriterConstructor,
             },
         },
-        structure::types::GUID_UNKNOWN,
+        structure::types::{EntityId, GUID_UNKNOWN},
     };
 
     use crate::dds_type::Endianness;
@@ -639,7 +636,8 @@ mod test {
             None,
         );
 
-        let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic =
+            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
             DataWriterQos::default(),
@@ -669,7 +667,8 @@ mod test {
             None,
         );
 
-        let dummy_topic = TopicAttributes::new(TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic =
+            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
             DataWriterQos::default(),
@@ -682,5 +681,43 @@ mod test {
         shared_data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
             .unwrap();
+    }
+
+    #[test]
+    fn get_instance_handle() {
+        let guid = Guid::new(
+            GuidPrefix([3; 12]),
+            EntityId {
+                entity_key: [3; 3],
+                entity_kind: 1,
+            },
+        );
+        let dummy_topic =
+            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            guid,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let expected_instance_handle: [u8; 16] = guid.into();
+        let instance_handle = data_writer.get_instance_handle().unwrap();
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }

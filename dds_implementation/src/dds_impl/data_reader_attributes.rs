@@ -28,8 +28,8 @@ use dds_api::{
         InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
         StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
-        DATA_AVAILABLE_STATUS, NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
-        REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
+        DATA_AVAILABLE_STATUS, HANDLE_NIL_NATIVE, NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE,
+        READ_SAMPLE_STATE, REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -72,14 +72,11 @@ use rtps_pim::{
         cache_change::RtpsCacheChangeAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
 };
 
-use super::{
-    domain_participant_attributes::DomainParticipantAttributes,
-    subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes,
-};
+use super::{subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes};
 
 pub trait AnyDataReaderListener<DR> {
     fn trigger_on_data_available(&mut self, reader: DR);
@@ -177,10 +174,19 @@ impl RtpsReaderAttributes for RtpsReader {
     }
 }
 
+impl RtpsEntityAttributes for RtpsReader {
+    fn guid(&self) -> Guid {
+        match self {
+            RtpsReader::Stateless(r) => r.guid(),
+            RtpsReader::Stateful(r) => r.guid(),
+        }
+    }
+}
+
 pub struct DataReaderAttributes<Tim> {
     rtps_reader: DdsRwLock<RtpsReader>,
     qos: DdsRwLock<DataReaderQos>,
-    topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+    topic: DdsShared<TopicAttributes>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     parent_subscriber: DdsWeak<SubscriberAttributes>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
@@ -197,7 +203,7 @@ where
     fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+        topic: DdsShared<TopicAttributes>,
         listener: Option<<Self as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self;
@@ -210,7 +216,7 @@ where
     fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes<DomainParticipantAttributes>>,
+        topic: DdsShared<TopicAttributes>,
         listener: Option<<Self as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberAttributes>,
     ) -> Self {
@@ -229,14 +235,14 @@ where
             subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
-                last_publication_handle: 0,
+                last_publication_handle: HANDLE_NIL_NATIVE,
                 current_count: 0,
                 current_count_change: 0,
             }),
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
                 total_count_change: 0,
-                last_instance_handle: 0,
+                last_instance_handle: HANDLE_NIL_NATIVE,
             }),
         })
     }
@@ -271,8 +277,8 @@ fn read_sample<'a, Tim>(
         generation_rank: 0,
         absolute_generation_rank: 0,
         source_timestamp: Time { sec: 0, nanosec: 0 },
-        instance_handle: 0,
-        publication_handle: 0,
+        instance_handle: HANDLE_NIL_NATIVE,
+        publication_handle: HANDLE_NIL_NATIVE,
         valid_data: true,
     };
 
@@ -485,7 +491,7 @@ impl<Tim> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<Tim>>
 where
     Tim: Timer,
 {
-    type TopicDescription = DdsShared<TopicAttributes<DomainParticipantAttributes>>;
+    type TopicDescription = DdsShared<TopicAttributes>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         Ok(self.topic.clone())
@@ -778,8 +784,7 @@ where
             RtpsReader::Stateful(r) => r
                 .matched_writers()
                 .into_iter()
-                .enumerate()
-                .map(|x| x.0 as i32)
+                .map(|x| x.remote_writer_guid().into())
                 .collect(),
         };
 
@@ -821,7 +826,7 @@ impl<Tim> Entity for DdsShared<DataReaderAttributes<Tim>> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
+        Ok(self.rtps_reader.read_lock().guid().into())
     }
 }
 
@@ -867,15 +872,19 @@ mod tests {
     };
     use dds_api::{
         dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        infrastructure::qos_policy::{DeadlineQosPolicy, HistoryQosPolicy},
+        infrastructure::{
+            qos::TopicQos,
+            qos_policy::{DeadlineQosPolicy, HistoryQosPolicy},
+        },
         return_type::DdsResult,
     };
     use mockall::mock;
     use rtps_pim::{
         behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::DURATION_ZERO},
         structure::{
-            cache_change::RtpsCacheChangeConstructor, history_cache::RtpsHistoryCacheConstructor,
-            types::GUID_UNKNOWN,
+            cache_change::RtpsCacheChangeConstructor,
+            history_cache::RtpsHistoryCacheConstructor,
+            types::{EntityId, Guid, GUID_UNKNOWN},
         },
     };
     use std::{io::Write, time::Duration};
@@ -977,6 +986,7 @@ mod tests {
             },
             RtpsReader::Stateful(stateful_reader),
             TopicAttributes::new(
+                GUID_UNKNOWN,
                 Default::default(),
                 "type_name",
                 "topic_name",
@@ -1272,6 +1282,7 @@ mod tests {
             },
             RtpsReader::Stateful(stateful_reader),
             TopicAttributes::new(
+                GUID_UNKNOWN,
                 Default::default(),
                 "type_name",
                 "topic_name",
@@ -1299,5 +1310,41 @@ mod tests {
         };
 
         DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+    }
+
+    #[test]
+    fn get_instance_handle() {
+        let guid = Guid::new(
+            GuidPrefix([4; 12]),
+            EntityId {
+                entity_key: [3; 3],
+                entity_kind: 1,
+            },
+        );
+        let dummy_topic =
+            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let stateful_reader = RtpsStatefulReaderImpl::new(
+            guid,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
+
+        let data_reader: DdsShared<DataReaderAttributes<ManualTimer>> = DataReaderConstructor::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateful(stateful_reader),
+            dummy_topic,
+            None,
+            DdsWeak::new(),
+        );
+
+        let expected_instance_handle: [u8; 16] = guid.into();
+        let instance_handle = data_reader.get_instance_handle().unwrap();
+        assert_eq!(expected_instance_handle, instance_handle);
     }
 }
