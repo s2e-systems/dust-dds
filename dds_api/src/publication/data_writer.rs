@@ -199,28 +199,19 @@ pub trait DataWriter<Foo> {
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
-    fn get_liveliness_lost_status(&self, status: &mut LivelinessLostStatus) -> DdsResult<()>;
+    fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus>;
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    fn get_offered_deadline_missed_status(
-        &self,
-        status: &mut OfferedDeadlineMissedStatus,
-    ) -> DdsResult<()>;
+    fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus>;
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    fn get_offered_incompatible_qos_status(
-        &self,
-        status: &mut OfferedIncompatibleQosStatus,
-    ) -> DdsResult<()>;
+    fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus>;
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    fn get_publication_matched_status(
-        &self,
-        status: &mut PublicationMatchedStatus,
-    ) -> DdsResult<()>;
+    fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> DdsResult<Self::TopicType>
@@ -257,9 +248,8 @@ pub trait DataWriter<Foo> {
     /// case the operation will return UNSUPPORTED.
     fn get_matched_subscription_data(
         &self,
-        subscription_data: SubscriptionBuiltinTopicData,
         subscription_handle: InstanceHandle,
-    ) -> DdsResult<()>;
+    ) -> DdsResult<SubscriptionBuiltinTopicData>;
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
     /// matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the

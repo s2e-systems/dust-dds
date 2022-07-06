@@ -143,7 +143,10 @@ pub struct DataWriterImpl {
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<PublisherImpl>,
-    status: DdsRwLock<PublicationMatchedStatus>,
+    publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
+    offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
+    offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
+    liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
 }
 
 impl DataWriterImpl {
@@ -154,6 +157,32 @@ impl DataWriterImpl {
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<PublisherImpl>,
     ) -> DdsShared<Self> {
+        let liveliness_lost_status = LivelinessLostStatus {
+            total_count: 0,
+            total_count_change: 0,
+        };
+
+        let publication_matched_status = PublicationMatchedStatus {
+            total_count: 0,
+            total_count_change: 0,
+            last_subscription_handle: HANDLE_NIL_NATIVE,
+            current_count: 0,
+            current_count_change: 0,
+        };
+
+        let offered_deadline_missed_status = OfferedDeadlineMissedStatus {
+            total_count: 0,
+            total_count_change: 0,
+            last_instance_handle: HANDLE_NIL_NATIVE,
+        };
+
+        let offered_incompatible_qos_status = OfferedIncompatibleQosStatus {
+            total_count: 0,
+            total_count_change: 0,
+            last_policy_id: 0,
+            policies: vec![],
+        };
+
         DdsShared::new(DataWriterImpl {
             _qos: qos,
             rtps_writer: DdsRwLock::new(rtps_writer),
@@ -161,18 +190,15 @@ impl DataWriterImpl {
             listener: DdsRwLock::new(listener),
             topic,
             publisher,
-            status: DdsRwLock::new(PublicationMatchedStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_subscription_handle: HANDLE_NIL_NATIVE,
-                current_count: 0,
-                current_count_change: 0,
-            }),
+            liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
+            offered_deadline_missed_status: DdsRwLock::new(offered_deadline_missed_status),
+            offered_incompatible_qos_status: DdsRwLock::new(offered_incompatible_qos_status),
+            publication_matched_status: DdsRwLock::new(publication_matched_status),
         })
     }
-}
 
-impl DataWriterImpl {
+    /// NOTE: This function is only useful for the SEDP writers so we probably need a separate
+    /// type for those.
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -246,8 +272,8 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                 RtpsWriter::Stateful(rtps_stateful_writer) => {
                     rtps_stateful_writer.matched_reader_add(reader_proxy);
 
-                    let mut status = self.status.write_lock();
-                    1;
+                    let mut status = self.publication_matched_status.write_lock();
+                    status.current_count_change += 1;
                     status.total_count += 1;
 
                     self.listener
@@ -264,8 +290,14 @@ impl<Foo> DataWriter<Foo> for DdsShared<DataWriterImpl>
 where
     Foo: DdsSerialize,
 {
-    fn register_instance(&self, _instance: Foo) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+    fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
+        let timestamp = self
+            .publisher
+            .upgrade()?
+            .get_participant()?
+            .upgrade()?
+            .get_current_time()?;
+        self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
@@ -276,12 +308,14 @@ where
         todo!()
     }
 
-    fn unregister_instance(
-        &self,
-        _instance: Foo,
-        _handle: Option<InstanceHandle>,
-    ) -> DdsResult<()> {
-        todo!()
+    fn unregister_instance(&self, instance: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        let timestamp = self
+            .publisher
+            .upgrade()?
+            .get_participant()?
+            .upgrade()?
+            .get_current_time()?;
+        self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     fn unregister_instance_w_timestamp(
@@ -339,8 +373,14 @@ where
         Ok(())
     }
 
-    fn dispose(&self, _data: Foo, _handle: Option<InstanceHandle>) -> DdsResult<()> {
-        todo!()
+    fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        let timestamp = self
+            .publisher
+            .upgrade()?
+            .get_participant()?
+            .upgrade()?
+            .get_current_time()?;
+        self.dispose_w_timestamp(data, handle, timestamp)
     }
 
     fn dispose_w_timestamp(
@@ -356,29 +396,36 @@ where
         todo!()
     }
 
-    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DdsResult<()> {
-        todo!()
+    fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
+        let liveliness_lost_status = self.liveliness_lost_status.read_lock().clone();
+        self.liveliness_lost_status.write_lock().total_count_change = 0;
+        Ok(liveliness_lost_status)
     }
 
-    fn get_offered_deadline_missed_status(
-        &self,
-        _status: &mut OfferedDeadlineMissedStatus,
-    ) -> DdsResult<()> {
-        todo!()
+    fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
+        let offered_deadline_missed_status =
+            self.offered_deadline_missed_status.read_lock().clone();
+        self.offered_deadline_missed_status
+            .write_lock()
+            .total_count_change = 0;
+        Ok(offered_deadline_missed_status)
     }
 
-    fn get_offered_incompatible_qos_status(
-        &self,
-        _status: &mut OfferedIncompatibleQosStatus,
-    ) -> DdsResult<()> {
-        todo!()
+    fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
+        let offered_incompatible_qos_status =
+            self.offered_incompatible_qos_status.read_lock().clone();
+        self.offered_incompatible_qos_status
+            .write_lock()
+            .total_count_change = 0;
+        Ok(offered_incompatible_qos_status)
     }
 
-    fn get_publication_matched_status(
-        &self,
-        _status: &mut PublicationMatchedStatus,
-    ) -> DdsResult<()> {
-        todo!()
+    fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
+        let publication_matched_status = self.publication_matched_status.read_lock().clone();
+        let mut publication_matched_status_lock = self.publication_matched_status.write_lock();
+        publication_matched_status_lock.current_count_change = 0;
+        publication_matched_status_lock.total_count_change = 0;
+        Ok(publication_matched_status)
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
@@ -387,9 +434,8 @@ where
 
     fn get_matched_subscription_data(
         &self,
-        _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<SubscriptionBuiltinTopicData> {
         todo!()
     }
 

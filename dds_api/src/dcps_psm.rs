@@ -1,5 +1,5 @@
 pub type DomainIdTypeNative = i32;
-pub type HandleTypeNative = [u8; 16];
+pub type HandleTypeNative = [u8; 16]; // Originally in the DDS idl i32
 pub const HANDLE_NIL_NATIVE: HandleTypeNative = [0; 16];
 pub type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
 
@@ -96,6 +96,7 @@ pub const LIVELINESS_CHANGED_STATUS: StatusMask = 0x0001 << 12;
 pub const PUBLICATION_MATCHED_STATUS: StatusMask = 0x0001 << 13;
 pub const SUBSCRIPTION_MATCHED_STATUS: StatusMask = 0x0001 << 14;
 
+#[derive(Clone)]
 pub struct InconsistentTopicStatus {
     /// Total cumulative count of the Topics discovered whose name matches
     /// the Topic to which this status is attached and whose type is inconsistent with the Topic.
@@ -105,6 +106,7 @@ pub struct InconsistentTopicStatus {
     pub total_count_change: i32,
 }
 
+#[derive(Clone)]
 pub struct SampleLostStatus {
     /// Total cumulative count of all samples lost across of instances of data published under the Topic.
     pub total_count: i32,
@@ -112,6 +114,7 @@ pub struct SampleLostStatus {
     pub total_count_change: i32,
 }
 
+#[derive(Clone)]
 pub enum SampleRejectedStatusKind {
     NotRejected,
     RejectedByInstancesLimit,
@@ -119,6 +122,7 @@ pub enum SampleRejectedStatusKind {
     RejectedBySamplesPerInstanceLimit,
 }
 
+#[derive(Clone)]
 pub struct SampleRejectedStatus {
     /// Total cumulative count of samples rejected by the DataReader.
     pub total_count: i32,
@@ -130,6 +134,7 @@ pub struct SampleRejectedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+#[derive(Clone)]
 pub struct LivelinessLostStatus {
     /// Total cumulative number of times that a previously-alive DataWriter
     /// became not alive due to a failure to actively signal its liveliness within
@@ -142,6 +147,7 @@ pub struct LivelinessLostStatus {
     pub total_count_change: i32,
 }
 
+#[derive(Clone)]
 pub struct LivelinessChangedStatus {
     /// The total number of currently active DataWriters that write the Topic
     /// read by the DataReader. This count increases when a newly matched
@@ -169,6 +175,7 @@ pub struct LivelinessChangedStatus {
     pub last_publication_handle: InstanceHandle,
 }
 
+#[derive(Clone)]
 pub struct OfferedDeadlineMissedStatus {
     /// Total cumulative number of offered deadline periods elapsed during
     /// which a DataWriter failed to provide data. Missed deadlines
@@ -197,6 +204,7 @@ pub struct RequestedDeadlineMissedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+#[derive(Clone)]
 pub struct QosPolicyCount {
     pub policy_id: QosPolicyId,
     pub count: i32,
@@ -204,6 +212,7 @@ pub struct QosPolicyCount {
 
 pub type QosPolicyCountSeq = Vec<QosPolicyCount>;
 
+#[derive(Clone)]
 pub struct OfferedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataWriter
     /// discovered a DataReader for the same Topic with a requested QoS that
@@ -222,6 +231,7 @@ pub struct OfferedIncompatibleQosStatus {
     pub policies: QosPolicyCountSeq,
 }
 
+#[derive(Clone)]
 pub struct RequestedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataReader
     /// discovered a DataWriter for the same Topic with an offered QoS that

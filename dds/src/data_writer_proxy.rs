@@ -21,7 +21,7 @@ use dds_implementation::{
     utils::shared_object::{DdsShared, DdsWeak},
 };
 
-use crate::{topic_proxy::TopicProxy, publisher_proxy::PublisherProxy};
+use crate::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
 
 pub struct DataWriterProxy<Foo, I> {
     data_writer_attributes: DdsWeak<I>,
@@ -141,41 +141,24 @@ where
         )
     }
 
-    fn get_liveliness_lost_status(&self, status: &mut LivelinessLostStatus) -> DdsResult<()> {
-        DataWriter::<Foo>::get_liveliness_lost_status(
-            &self.data_writer_attributes.upgrade()?,
-            status,
-        )
+    fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
+        DataWriter::<Foo>::get_liveliness_lost_status(&self.data_writer_attributes.upgrade()?)
     }
 
-    fn get_offered_deadline_missed_status(
-        &self,
-        status: &mut OfferedDeadlineMissedStatus,
-    ) -> DdsResult<()> {
+    fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
         DataWriter::<Foo>::get_offered_deadline_missed_status(
             &self.data_writer_attributes.upgrade()?,
-            status,
         )
     }
 
-    fn get_offered_incompatible_qos_status(
-        &self,
-        status: &mut OfferedIncompatibleQosStatus,
-    ) -> DdsResult<()> {
+    fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         DataWriter::<Foo>::get_offered_incompatible_qos_status(
             &self.data_writer_attributes.upgrade()?,
-            status,
         )
     }
 
-    fn get_publication_matched_status(
-        &self,
-        status: &mut PublicationMatchedStatus,
-    ) -> DdsResult<()> {
-        DataWriter::<Foo>::get_publication_matched_status(
-            &self.data_writer_attributes.upgrade()?,
-            status,
-        )
+    fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
+        DataWriter::<Foo>::get_publication_matched_status(&self.data_writer_attributes.upgrade()?)
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
@@ -184,12 +167,10 @@ where
 
     fn get_matched_subscription_data(
         &self,
-        subscription_data: SubscriptionBuiltinTopicData,
         subscription_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<SubscriptionBuiltinTopicData> {
         DataWriter::<Foo>::get_matched_subscription_data(
             &self.data_writer_attributes.upgrade()?,
-            subscription_data,
             subscription_handle,
         )
     }
