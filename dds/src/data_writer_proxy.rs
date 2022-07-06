@@ -11,7 +11,7 @@ use dds_api::{
         qos::DataWriterQos,
     },
     publication::{
-        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic},
+        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic, FooDataWriter},
         data_writer_listener::DataWriterListener,
     },
     return_type::DdsResult,
@@ -53,11 +53,9 @@ impl<Foo, I> AsRef<DdsWeak<I>> for DataWriterProxy<Foo, I> {
     }
 }
 
-impl<Foo, I, P, T> DataWriter<Foo> for DataWriterProxy<Foo, I>
+impl<Foo, I> FooDataWriter<Foo> for DataWriterProxy<Foo, I>
 where
-    DdsShared<I>: DataWriter<Foo>
-        + DataWriterGetPublisher<PublisherType = DdsShared<P>>
-        + DataWriterGetTopic<TopicType = DdsShared<T>>,
+    DdsShared<I>: FooDataWriter<Foo>,
 {
     fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes
@@ -133,73 +131,73 @@ where
             .upgrade()?
             .dispose_w_timestamp(data, handle, timestamp)
     }
+}
 
+impl<Foo, I, P, T> DataWriter for DataWriterProxy<Foo, I>
+where
+    DdsShared<I>: DataWriter
+        + DataWriterGetPublisher<PublisherType = DdsShared<P>>
+        + DataWriterGetTopic<TopicType = DdsShared<T>>,
+{
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        DataWriter::<Foo>::wait_for_acknowledgments(
-            &self.data_writer_attributes.upgrade()?,
-            max_wait,
-        )
+        DataWriter::wait_for_acknowledgments(&self.data_writer_attributes.upgrade()?, max_wait)
     }
 
     fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        DataWriter::<Foo>::get_liveliness_lost_status(&self.data_writer_attributes.upgrade()?)
+        DataWriter::get_liveliness_lost_status(&self.data_writer_attributes.upgrade()?)
     }
 
     fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        DataWriter::<Foo>::get_offered_deadline_missed_status(
-            &self.data_writer_attributes.upgrade()?,
-        )
+        DataWriter::get_offered_deadline_missed_status(&self.data_writer_attributes.upgrade()?)
     }
 
     fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        DataWriter::<Foo>::get_offered_incompatible_qos_status(
-            &self.data_writer_attributes.upgrade()?,
-        )
+        DataWriter::get_offered_incompatible_qos_status(&self.data_writer_attributes.upgrade()?)
     }
 
     fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        DataWriter::<Foo>::get_publication_matched_status(&self.data_writer_attributes.upgrade()?)
+        DataWriter::get_publication_matched_status(&self.data_writer_attributes.upgrade()?)
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
-        DataWriter::<Foo>::assert_liveliness(&self.data_writer_attributes.upgrade()?)
+        DataWriter::assert_liveliness(&self.data_writer_attributes.upgrade()?)
     }
 
     fn get_matched_subscription_data(
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        DataWriter::<Foo>::get_matched_subscription_data(
+        DataWriter::get_matched_subscription_data(
             &self.data_writer_attributes.upgrade()?,
             subscription_handle,
         )
     }
 
     fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        DataWriter::<Foo>::get_matched_subscriptions(&self.data_writer_attributes.upgrade()?)
+        DataWriter::get_matched_subscriptions(&self.data_writer_attributes.upgrade()?)
     }
 }
 
 impl<Foo, I, P> DataWriterGetPublisher for DataWriterProxy<Foo, I>
 where
-    DdsShared<I>: DataWriter<Foo> + DataWriterGetPublisher<PublisherType = DdsShared<P>>,
+    DdsShared<I>: DataWriter + DataWriterGetPublisher<PublisherType = DdsShared<P>>,
 {
     type PublisherType = PublisherProxy<P>;
 
     fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
-        DataWriter::<Foo>::get_publisher(&self.data_writer_attributes.upgrade()?)
+        DataWriter::get_publisher(&self.data_writer_attributes.upgrade()?)
             .map(|x| PublisherProxy::new(x.downgrade()))
     }
 }
 
 impl<Foo, I, T> DataWriterGetTopic for DataWriterProxy<Foo, I>
 where
-    DdsShared<I>: DataWriter<Foo> + DataWriterGetTopic<TopicType = DdsShared<T>>,
+    DdsShared<I>: DataWriter + DataWriterGetTopic<TopicType = DdsShared<T>>,
 {
     type TopicType = TopicProxy<Foo, T>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
-        DataWriter::<Foo>::get_topic(&self.data_writer_attributes.upgrade()?)
+        DataWriter::get_topic(&self.data_writer_attributes.upgrade()?)
             .map(|x| TopicProxy::new(x.downgrade()))
     }
 }
@@ -207,10 +205,9 @@ where
 impl<Foo, I> Entity for DataWriterProxy<Foo, I>
 where
     DdsShared<I>: Entity<
-        Qos = DataWriterQos,
-        Listener = Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>,
-    >,
-    DdsShared<I>: DataWriter<Foo>,
+            Qos = DataWriterQos,
+            Listener = Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>,
+        > + FooDataWriter<Foo>,
     Foo: 'static,
 {
     type Qos = <DdsShared<I> as Entity>::Qos;

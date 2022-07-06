@@ -5,7 +5,7 @@ use dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer::DataWriter,
+        data_writer::FooDataWriter,
         publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
@@ -45,10 +45,9 @@ where
     DdsShared<I>:
         PublisherDataWriterFactory<Foo, TopicType = DdsShared<T>, DataWriterType = DdsShared<DW>>,
     DdsShared<DW>: Entity<
-        Qos = DataWriterQos,
-        Listener = Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>,
-    >,
-    DdsShared<DW>: DataWriter<Foo>,
+            Qos = DataWriterQos,
+            Listener = Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>,
+        > + FooDataWriter<Foo>,
     Foo: 'static,
 {
     type TopicType = TopicProxy<Foo, T>;

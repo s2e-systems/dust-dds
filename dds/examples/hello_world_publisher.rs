@@ -1,10 +1,15 @@
 use dds::{
-    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain::{
+        domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
+    },
     domain_participant_factory::DomainParticipantFactoryImpl,
-    publication::{data_writer::DataWriter, publisher::Publisher},
+    publication::{
+        data_writer::{DataWriter, FooDataWriter},
+        publisher::Publisher,
+    },
 };
-use dds_implementation::dds_type::{DdsSerde, DdsType};
 use dds_derive::DdsType;
+use dds_implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]

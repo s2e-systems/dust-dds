@@ -34,7 +34,7 @@ pub trait DataReaderGetTopicDescription {
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<Foo> {
+pub trait FooDataReader<Foo> {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -398,7 +398,9 @@ pub trait DataReader<Foo> {
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     fn lookup_instance(&self, instance: &Foo) -> DdsResult<InstanceHandle>;
+}
 
+pub trait DataReader {
     /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_readcondition(

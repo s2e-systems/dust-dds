@@ -13,7 +13,9 @@ use dds_api::{
     },
     return_type::DdsResult,
     subscription::{
-        data_reader::{DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription},
+        data_reader::{
+            DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription, FooDataReader,
+        },
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
@@ -85,9 +87,9 @@ where
     }
 }
 
-impl<Foo, I> DataReader<Foo> for DataReaderProxy<Foo, I>
+impl<Foo, I> FooDataReader<Foo> for DataReaderProxy<Foo, I>
 where
-    DdsShared<I>: DataReader<Foo>,
+    DdsShared<I>: FooDataReader<Foo>,
 {
     fn read(
         &self,
@@ -312,15 +314,19 @@ where
             .upgrade()?
             .lookup_instance(instance)
     }
+}
 
+impl<Foo, I> DataReader for DataReaderProxy<Foo, I>
+where
+    DdsShared<I>: DataReader,
+{
     fn create_readcondition(
         &self,
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
         instance_states: InstanceStateMask,
     ) -> DdsResult<ReadCondition> {
-        DataReader::<Foo>::create_readcondition(
-            &self.data_reader_attributes.upgrade()?,
+        self.data_reader_attributes.upgrade()?.create_readcondition(
             sample_states,
             view_states,
             instance_states,
@@ -335,67 +341,72 @@ where
         query_expression: &'static str,
         query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition> {
-        DataReader::<Foo>::create_querycondition(
-            &self.data_reader_attributes.upgrade()?,
-            sample_states,
-            view_states,
-            instance_states,
-            query_expression,
-            query_parameters,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .create_querycondition(
+                sample_states,
+                view_states,
+                instance_states,
+                query_expression,
+                query_parameters,
+            )
     }
 
     fn delete_readcondition(&self, a_condition: ReadCondition) -> DdsResult<()> {
-        DataReader::<Foo>::delete_readcondition(
-            &self.data_reader_attributes.upgrade()?,
-            a_condition,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .delete_readcondition(a_condition)
     }
 
     fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DdsResult<()> {
-        DataReader::<Foo>::get_liveliness_changed_status(
-            &self.data_reader_attributes.upgrade()?,
-            status,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .get_liveliness_changed_status(status)
     }
 
     fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        DataReader::<Foo>::get_requested_deadline_missed_status(
-            &self.data_reader_attributes.upgrade()?,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .get_requested_deadline_missed_status()
     }
 
     fn get_requested_incompatible_qos_status(
         &self,
         status: &mut RequestedIncompatibleQosStatus,
     ) -> DdsResult<()> {
-        DataReader::<Foo>::get_requested_incompatible_qos_status(
-            &self.data_reader_attributes.upgrade()?,
-            status,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .get_requested_incompatible_qos_status(status)
     }
 
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DdsResult<()> {
-        DataReader::<Foo>::get_sample_lost_status(&self.data_reader_attributes.upgrade()?, status)
+        self.data_reader_attributes
+            .upgrade()?
+            .get_sample_lost_status(status)
     }
 
     fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DdsResult<()> {
-        DataReader::<Foo>::get_sample_rejected_status(
-            &self.data_reader_attributes.upgrade()?,
-            status,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .get_sample_rejected_status(status)
     }
 
     fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        DataReader::<Foo>::get_subscription_matched_status(&self.data_reader_attributes.upgrade()?)
+        self.data_reader_attributes
+            .upgrade()?
+            .get_subscription_matched_status()
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
-        DataReader::<Foo>::delete_contained_entities(&self.data_reader_attributes.upgrade()?)
+        self.data_reader_attributes
+            .upgrade()?
+            .delete_contained_entities()
     }
 
     fn wait_for_historical_data(&self) -> DdsResult<()> {
-        DataReader::<Foo>::wait_for_historical_data(&self.data_reader_attributes.upgrade()?)
+        self.data_reader_attributes
+            .upgrade()?
+            .wait_for_historical_data()
     }
 
     fn get_matched_publication_data(
@@ -403,25 +414,24 @@ where
         publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
     ) -> DdsResult<()> {
-        DataReader::<Foo>::get_matched_publication_data(
-            &self.data_reader_attributes.upgrade()?,
-            publication_data,
-            publication_handle,
-        )
+        self.data_reader_attributes
+            .upgrade()?
+            .get_matched_publication_data(publication_data, publication_handle)
     }
 
     fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        DataReader::<Foo>::get_matched_publications(&self.data_reader_attributes.upgrade()?)
+        self.data_reader_attributes
+            .upgrade()?
+            .get_matched_publications()
     }
 }
 
 impl<Foo, I> Entity for DataReaderProxy<Foo, I>
 where
     DdsShared<I>: Entity<
-        Qos = DataReaderQos,
-        Listener = Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>,
-    >,
-    DdsShared<I>: DataReader<Foo>,
+            Qos = DataReaderQos,
+            Listener = Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>,
+        > + FooDataReader<Foo>,
     Foo: 'static,
 {
     type Qos = <DdsShared<I> as Entity>::Qos;

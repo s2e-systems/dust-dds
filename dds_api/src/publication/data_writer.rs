@@ -7,7 +7,7 @@ use crate::{
     return_type::DdsResult,
 };
 
-pub trait DataWriter<Foo> {
+pub trait FooDataWriter<Foo> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -187,7 +187,9 @@ pub trait DataWriter<Foo> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>;
+}
 
+pub trait DataWriter {
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
     /// operation will return immediately with RETCODE_OK.
     /// The operation wait_for_acknowledgments blocks the calling thread until either all data written by the DataWriter is

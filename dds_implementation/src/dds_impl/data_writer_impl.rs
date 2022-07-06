@@ -17,7 +17,7 @@ use dds_api::{
         qos::DataWriterQos,
     },
     publication::{
-        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic},
+        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic, FooDataWriter},
         data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
@@ -95,7 +95,7 @@ pub trait AnyDataWriterListener<DW> {
 
 impl<Foo, DW> AnyDataWriterListener<DW> for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
 where
-    DW: DataWriter<Foo>,
+    DW: FooDataWriter<Foo>,
 {
     fn trigger_on_liveliness_lost(&mut self, the_writer: DW, status: LivelinessLostStatus) {
         self.on_liveliness_lost(&the_writer, status);
@@ -286,7 +286,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
     }
 }
 
-impl<Foo> DataWriter<Foo> for DdsShared<DataWriterImpl>
+impl<Foo> FooDataWriter<Foo> for DdsShared<DataWriterImpl>
 where
     Foo: DdsSerialize,
 {
@@ -391,7 +391,9 @@ where
     ) -> DdsResult<()> {
         todo!()
     }
+}
 
+impl DataWriter for DdsShared<DataWriterImpl> {
     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         todo!()
     }

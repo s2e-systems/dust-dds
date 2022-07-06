@@ -451,10 +451,11 @@ mod tests {
             entity::Entity, qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind,
         },
         publication::{
-            data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
+            data_writer::FooDataWriter, data_writer_listener::DataWriterListener,
+            publisher::Publisher,
         },
         subscription::subscriber::Subscriber,
-        subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+        subscription::{data_reader::FooDataReader, data_reader_listener::DataReaderListener},
         topic::topic_description::TopicDescription,
     };
     use dds_implementation::{
@@ -808,8 +809,8 @@ mod tests {
 
         impl DataReaderListener for ReaderListener {
             type Foo = UserData;
-            fn on_subscription_matched(&mut self, the_reader: &dyn DataReader<UserData>, status: SubscriptionMatchedStatus);
-            fn on_data_available(&mut self, the_reader: &dyn DataReader<UserData>);
+            fn on_subscription_matched(&mut self, the_reader: &dyn FooDataReader<UserData>, status: SubscriptionMatchedStatus);
+            fn on_data_available(&mut self, the_reader: &dyn FooDataReader<UserData>);
         }
     }
 
@@ -822,25 +823,25 @@ mod tests {
 
             fn on_publication_matched(
                 &mut self,
-                the_writer: &dyn DataWriter<UserData>,
+                the_writer: &dyn FooDataWriter<UserData>,
                 status: PublicationMatchedStatus,
             );
 
             fn on_liveliness_lost(
                 &mut self,
-                _the_writer: &dyn DataWriter<UserData>,
+                _the_writer: &dyn FooDataWriter<UserData>,
                 _status: dds_api::dcps_psm::LivelinessLostStatus,
             );
 
             fn on_offered_deadline_missed(
                 &mut self,
-                _the_writer: &dyn DataWriter<UserData>,
+                _the_writer: &dyn FooDataWriter<UserData>,
                 _status: dds_api::dcps_psm::OfferedDeadlineMissedStatus,
             );
 
             fn on_offered_incompatible_qos(
                 &mut self,
-                _the_writer: &dyn DataWriter<UserData>,
+                _the_writer: &dyn FooDataWriter<UserData>,
                 _status: dds_api::dcps_psm::OfferedIncompatibleQosStatus,
             );
         }

@@ -30,9 +30,9 @@ use dds_api::{
         },
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
     },
-    publication::{data_writer::DataWriter, publisher::Publisher},
+    publication::{data_writer::FooDataWriter, publisher::Publisher},
     return_type::{DdsError, DdsResult},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    subscription::{data_reader::FooDataReader, subscriber::Subscriber},
     topic::topic_description::TopicDescription,
 };
 use rtps_pim::{

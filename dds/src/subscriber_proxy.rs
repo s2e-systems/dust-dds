@@ -9,7 +9,7 @@ use dds_api::{
     },
     return_type::DdsResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
+        data_reader::{AnyDataReader, FooDataReader},
         subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
         subscriber_listener::SubscriberListener,
     },
@@ -50,7 +50,7 @@ where
     DdsShared<DR>: Entity<
             Qos = DataReaderQos,
             Listener = Box<dyn AnyDataReaderListener<DdsShared<DR>> + Send + Sync>,
-        > + DataReader<Foo>,
+        > + FooDataReader<Foo>,
     Foo: 'static,
 {
     type TopicType = TopicProxy<Foo, T>;

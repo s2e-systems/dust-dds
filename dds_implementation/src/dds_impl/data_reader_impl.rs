@@ -40,7 +40,9 @@ use dds_api::{
     },
     return_type::{DdsError, DdsResult},
     subscription::{
-        data_reader::{DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription},
+        data_reader::{
+            DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription, FooDataReader,
+        },
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
@@ -98,7 +100,7 @@ pub trait AnyDataReaderListener<DR> {
 
 impl<Foo, DR> AnyDataReaderListener<DR> for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
 where
-    DR: DataReader<Foo>,
+    DR: FooDataReader<Foo>,
 {
     fn trigger_on_data_available(&mut self, reader: DR) {
         self.on_data_available(&reader)
@@ -485,7 +487,7 @@ where
     }
 }
 
-impl<Tim, Foo> DataReader<Foo> for DdsShared<DataReaderImpl<Tim>>
+impl<Tim, Foo> FooDataReader<Foo> for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer,
     Foo: for<'de> DdsDeserialize<'de>,
@@ -687,7 +689,12 @@ where
     fn lookup_instance(&self, _instance: &Foo) -> DdsResult<InstanceHandle> {
         todo!()
     }
+}
 
+impl<Tim> DataReader for DdsShared<DataReaderImpl<Tim>>
+where
+    Tim: Timer,
+{
     fn create_readcondition(
         &self,
         _sample_states: SampleStateMask,
@@ -1012,7 +1019,7 @@ mod tests {
     fn read_only_unread() {
         let reader = reader_with_changes::<ManualTimer>(vec![cache_change(1, 1)]);
 
-        let unread_samples = DataReader::<UserData>::read(
+        let unread_samples = FooDataReader::<UserData>::read(
             &reader,
             i32::MAX,
             NOT_READ_SAMPLE_STATE,
@@ -1023,7 +1030,7 @@ mod tests {
 
         assert_eq!(1, unread_samples.len());
 
-        assert!(DataReader::<UserData>::read(
+        assert!(FooDataReader::<UserData>::read(
             &reader,
             i32::MAX,
             NOT_READ_SAMPLE_STATE,
@@ -1048,7 +1055,8 @@ mod tests {
 
         assert_eq!(
             0,
-            DataReader::<UserData>::get_requested_deadline_missed_status(&reader)
+            reader
+                .get_requested_deadline_missed_status()
                 .unwrap()
                 .total_count
         );
@@ -1057,7 +1065,8 @@ mod tests {
 
         assert_eq!(
             0,
-            DataReader::<UserData>::get_requested_deadline_missed_status(&reader)
+            reader
+                .get_requested_deadline_missed_status()
                 .unwrap()
                 .total_count
         );
@@ -1066,7 +1075,8 @@ mod tests {
 
         assert_eq!(
             1,
-            DataReader::<UserData>::get_requested_deadline_missed_status(&reader)
+            reader
+                .get_requested_deadline_missed_status()
                 .unwrap()
                 .total_count
         );

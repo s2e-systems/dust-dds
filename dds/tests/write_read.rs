@@ -1,8 +1,13 @@
 use dds::{
-    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain::{
+        domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
+    },
     domain_participant_factory::DomainParticipantFactoryImpl,
-    publication::{data_writer::DataWriter, publisher::Publisher},
-    subscription::{data_reader::DataReader, subscriber::Subscriber},
+    publication::{data_writer::FooDataWriter, publisher::Publisher},
+    subscription::{
+        data_reader::{DataReader, FooDataReader},
+        subscriber::Subscriber,
+    },
     types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     DdsError,
 };

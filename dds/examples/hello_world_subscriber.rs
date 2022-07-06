@@ -1,15 +1,19 @@
 use dds::{
-    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
+    domain::{
+        domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
+    },
     domain_participant_factory::DomainParticipantFactoryImpl,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener, subscriber::Subscriber,
+        data_reader::{DataReader, FooDataReader},
+        data_reader_listener::DataReaderListener,
+        subscriber::Subscriber,
     },
     types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     DdsError,
 };
-use dds_implementation::dds_type::{DdsSerde, DdsType};
 use dds_derive::DdsType;
+use dds_implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]
@@ -25,7 +29,7 @@ struct ExampleListener;
 impl DataReaderListener for ExampleListener {
     type Foo = HelloWorldType;
 
-    fn on_data_available(&mut self, the_reader: &dyn DataReader<Self::Foo>) {
+    fn on_data_available(&mut self, the_reader: &dyn FooDataReader<Self::Foo>) {
         let sample = the_reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();
