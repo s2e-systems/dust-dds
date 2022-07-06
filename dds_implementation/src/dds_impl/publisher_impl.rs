@@ -55,35 +55,27 @@ use crate::{
 };
 
 use super::{
-    data_writer_attributes::{DataWriterAttributes, DataWriterConstructor, RtpsWriter},
-    domain_participant_attributes::{DataWriterDiscovery, DomainParticipantAttributes},
-    topic_attributes::TopicAttributes,
+    data_writer_impl::{DataWriterImpl, RtpsWriter},
+    domain_participant_impl::{DataWriterDiscovery, DomainParticipantImpl},
+    topic_impl::TopicImpl,
 };
 
-pub struct PublisherAttributes {
+pub struct PublisherImpl {
     _qos: PublisherQos,
     rtps_group: RtpsGroupImpl,
-    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterAttributes>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    parent_participant: DdsWeak<DomainParticipantAttributes>,
+    parent_participant: DdsWeak<DomainParticipantImpl>,
 }
 
-pub trait PublisherConstructor {
-    fn new(
+impl PublisherImpl {
+    pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
-        parent_participant: DdsWeak<DomainParticipantAttributes>,
-    ) -> Self;
-}
-
-impl PublisherConstructor for DdsShared<PublisherAttributes> {
-    fn new(
-        qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
-        parent_participant: DdsWeak<DomainParticipantAttributes>,
-    ) -> Self {
-        DdsShared::new(PublisherAttributes {
+        parent_participant: DdsWeak<DomainParticipantImpl>,
+    ) -> DdsShared<Self> {
+        DdsShared::new(PublisherImpl {
             _qos: qos,
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -98,28 +90,28 @@ pub trait PublisherEmpty {
     fn is_empty(&self) -> bool;
 }
 
-impl PublisherEmpty for DdsShared<PublisherAttributes> {
+impl PublisherEmpty for DdsShared<PublisherImpl> {
     fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
 }
 
 pub trait AddDataWriter {
-    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes>);
+    fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>);
 }
 
-impl AddDataWriter for DdsShared<PublisherAttributes> {
-    fn add_data_writer(&self, writer: DdsShared<DataWriterAttributes>) {
+impl AddDataWriter for DdsShared<PublisherImpl> {
+    fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>) {
         self.data_writer_list.write_lock().push(writer);
     }
 }
 
-impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherAttributes>
+impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherImpl>
 where
     Foo: DdsType,
 {
-    type TopicType = DdsShared<TopicAttributes>;
-    type DataWriterType = DdsShared<DataWriterAttributes>;
+    type TopicType = DdsShared<TopicImpl>;
+    type DataWriterType = DdsShared<DataWriterImpl>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -192,7 +184,7 @@ where
                 None,
             ));
 
-            let data_writer_shared: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+            let data_writer_shared = DataWriterImpl::new(
                 qos,
                 rtps_writer_impl,
                 a_listener,
@@ -291,7 +283,7 @@ where
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
-impl Publisher for DdsShared<PublisherAttributes> {
+impl Publisher for DdsShared<PublisherImpl> {
     fn suspend_publications(&self) -> DdsResult<()> {
         todo!()
     }
@@ -333,15 +325,15 @@ impl Publisher for DdsShared<PublisherAttributes> {
     }
 }
 
-impl PublisherGetParticipant for DdsShared<PublisherAttributes> {
-    type DomainParticipant = DdsWeak<DomainParticipantAttributes>;
+impl PublisherGetParticipant for DdsShared<PublisherImpl> {
+    type DomainParticipant = DdsWeak<DomainParticipantImpl>;
 
     fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         Ok(self.parent_participant.clone())
     }
 }
 
-impl Entity for DdsShared<PublisherAttributes> {
+impl Entity for DdsShared<PublisherImpl> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
@@ -382,7 +374,7 @@ impl Entity for DdsShared<PublisherAttributes> {
     }
 }
 
-impl AddMatchedReader for DdsShared<PublisherAttributes> {
+impl AddMatchedReader for DdsShared<PublisherImpl> {
     fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.add_matched_reader(discovered_reader_data)
@@ -390,7 +382,7 @@ impl AddMatchedReader for DdsShared<PublisherAttributes> {
     }
 }
 
-impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherAttributes> {
+impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherImpl> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
@@ -402,7 +394,7 @@ impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherAttributes> {
     }
 }
 
-impl SendRtpsMessage for DdsShared<PublisherAttributes> {
+impl SendRtpsMessage for DdsShared<PublisherImpl> {
     fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);
@@ -417,7 +409,7 @@ mod tests {
     use rtps_pim::structure::{group::RtpsGroupConstructor, types::GUID_UNKNOWN};
     use std::io::Write;
 
-    use crate::dds_impl::topic_attributes::TopicAttributes;
+    use crate::dds_impl::topic_impl::TopicImpl;
 
     use super::*;
 
@@ -447,7 +439,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_create_datawriter() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -457,7 +449,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic = DdsShared::new(TopicAttributes::new(
+        let topic = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -473,7 +465,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -483,7 +475,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic = DdsShared::new(TopicAttributes::new(
+        let topic = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -504,7 +496,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -515,7 +507,7 @@ mod tests {
 
         let publisher = DdsShared::new(publisher_attributes);
 
-        let publisher2_attributes = PublisherAttributes {
+        let publisher2_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -525,7 +517,7 @@ mod tests {
         };
         let publisher2 = DdsShared::new(publisher2_attributes);
 
-        let topic = DdsShared::new(TopicAttributes::new(
+        let topic = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -548,7 +540,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -558,7 +550,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic = DdsShared::new(TopicAttributes::new(
+        let topic = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -571,7 +563,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -581,7 +573,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic = DdsShared::new(TopicAttributes::new(
+        let topic = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -600,7 +592,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -610,7 +602,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic_foo = DdsShared::new(TopicAttributes::new(
+        let topic_foo = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -618,7 +610,7 @@ mod tests {
             DdsWeak::new(),
         ));
 
-        let topic_bar = DdsShared::new(TopicAttributes::new(
+        let topic_bar = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
@@ -635,7 +627,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -645,7 +637,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic1 = DdsShared::new(TopicAttributes::new(
+        let topic1 = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -653,7 +645,7 @@ mod tests {
             DdsWeak::new(),
         ));
 
-        let topic2 = DdsShared::new(TopicAttributes::new(
+        let topic2 = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -670,7 +662,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -680,7 +672,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic_foo = DdsShared::new(TopicAttributes::new(
+        let topic_foo = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -688,7 +680,7 @@ mod tests {
             DdsWeak::new(),
         ));
 
-        let topic_bar = DdsShared::new(TopicAttributes::new(
+        let topic_bar = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Bar::type_name(),
@@ -710,7 +702,7 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let publisher_attributes = PublisherAttributes {
+        let publisher_attributes = PublisherImpl {
             _qos: PublisherQos::default(),
             rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -720,7 +712,7 @@ mod tests {
         };
         let publisher = DdsShared::new(publisher_attributes);
 
-        let topic1 = DdsShared::new(TopicAttributes::new(
+        let topic1 = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -728,7 +720,7 @@ mod tests {
             DdsWeak::new(),
         ));
 
-        let topic2 = DdsShared::new(TopicAttributes::new(
+        let topic2 = DdsShared::new(TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
             Foo::type_name(),
@@ -757,7 +749,7 @@ mod tests {
                 entity_kind: 1,
             },
         );
-        let publisher: DdsShared<PublisherAttributes> = PublisherConstructor::new(
+        let publisher = PublisherImpl::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(guid),
             DdsWeak::new(),

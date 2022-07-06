@@ -1,8 +1,8 @@
-pub mod data_reader_attributes;
-pub mod data_writer_attributes;
-pub mod domain_participant_attributes;
-pub mod publisher_attributes;
-pub mod subscriber_attributes;
-pub mod topic_attributes;
+pub mod data_reader_impl;
+pub mod data_writer_impl;
+pub mod domain_participant_impl;
+pub mod publisher_impl;
+pub mod subscriber_impl;
+pub mod topic_impl;
 
 pub mod message_receiver;

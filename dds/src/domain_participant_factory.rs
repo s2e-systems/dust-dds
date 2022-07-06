@@ -15,11 +15,10 @@ use dds_api::{
     return_type::{DdsError, DdsResult},
 };
 use dds_implementation::{
-    dds_impl::domain_participant_attributes::{
-        AnnounceParticipant, CreateBuiltIns, DomainParticipantAttributes,
-        DomainParticipantConstructor, ReceiveBuiltInData, ReceiveUserDefinedData,
-        SedpReaderDiscovery, SedpWriterDiscovery, SendBuiltInData, SendUserDefinedData,
-        SpdpParticipantDiscovery,
+    dds_impl::domain_participant_impl::{
+        AnnounceParticipant, CreateBuiltIns, DomainParticipantImpl, ReceiveBuiltInData,
+        ReceiveUserDefinedData, SedpReaderDiscovery, SedpWriterDiscovery, SendBuiltInData,
+        SendUserDefinedData, SpdpParticipantDiscovery,
     },
     utils::shared_object::DdsShared,
 };
@@ -224,11 +223,11 @@ impl Communications {
 }
 
 pub struct DomainParticipantFactoryImpl {
-    participant_list: Mutex<Vec<DdsShared<DomainParticipantAttributes>>>,
+    participant_list: Mutex<Vec<DdsShared<DomainParticipantImpl>>>,
 }
 
 impl DomainParticipantFactory for DomainParticipantFactoryImpl {
-    type DomainParticipant = DomainParticipantProxy<DomainParticipantAttributes>;
+    type DomainParticipant = DomainParticipantProxy<DomainParticipantImpl>;
 
     fn create_participant(
         &self,
@@ -270,17 +269,16 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
         )?;
 
-        let domain_participant: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications.guid_prefix,
-                domain_id,
-                "".to_string(),
-                qos.clone(),
-                communications.metatraffic_unicast_locator_list(),
-                communications.metatraffic_multicast_locator_list(),
-                communications.default_unicast_locator_list(),
-                vec![],
-            );
+        let domain_participant = DomainParticipantImpl::new(
+            communications.guid_prefix,
+            domain_id,
+            "".to_string(),
+            qos.clone(),
+            communications.metatraffic_unicast_locator_list(),
+            communications.metatraffic_multicast_locator_list(),
+            communications.default_unicast_locator_list(),
+            vec![],
+        );
 
         domain_participant.create_builtins()?;
 
@@ -330,7 +328,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 impl DomainParticipantFactoryImpl {
     fn enable(
         &self,
-        domain_participant: DdsShared<DomainParticipantAttributes>,
+        domain_participant: DdsShared<DomainParticipantImpl>,
         communications: Communications,
     ) -> DdsResult<()> {
         // ////////// Task creation
@@ -466,7 +464,7 @@ mod tests {
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
-        dds_impl::domain_participant_attributes::CreateBuiltIns,
+        dds_impl::domain_participant_impl::CreateBuiltIns,
         dds_type::{DdsDeserialize, DdsSerialize, DdsType},
     };
     use mockall::mock;
@@ -536,17 +534,16 @@ mod tests {
             multicast_ip.into(),
         )
         .unwrap();
-        let participant1: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications1.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications1.metatraffic_unicast_locator_list(),
-                communications1.metatraffic_multicast_locator_list(),
-                communications1.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant1 = DomainParticipantImpl::new(
+            communications1.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
+            vec![],
+        );
         participant1.create_builtins().unwrap();
 
         let mut communications2 = Communications::find_available(
@@ -557,17 +554,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications2.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications2.metatraffic_unicast_locator_list(),
-                communications2.metatraffic_multicast_locator_list(),
-                communications2.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant2 = DomainParticipantImpl::new(
+            communications2.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
+            vec![],
+        );
         participant2.create_builtins().unwrap();
 
         // ////////// Send and receive SPDP data
@@ -691,17 +687,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications1.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications1.metatraffic_unicast_locator_list(),
-                communications1.metatraffic_multicast_locator_list(),
-                communications1.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant1 = DomainParticipantImpl::new(
+            communications1.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
+            vec![],
+        );
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -713,17 +708,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications2.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications2.metatraffic_unicast_locator_list(),
-                communications2.metatraffic_multicast_locator_list(),
-                communications2.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant2 = DomainParticipantImpl::new(
+            communications2.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
+            vec![],
+        );
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 
@@ -867,17 +861,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications1.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications1.metatraffic_unicast_locator_list(),
-                communications1.metatraffic_multicast_locator_list(),
-                communications1.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant1 = DomainParticipantImpl::new(
+            communications1.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
+            vec![],
+        );
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -889,17 +882,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications2.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications2.metatraffic_unicast_locator_list(),
-                communications2.metatraffic_multicast_locator_list(),
-                communications2.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant2 = DomainParticipantImpl::new(
+            communications2.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
+            vec![],
+        );
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 
@@ -1001,17 +993,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant1: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications1.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications1.metatraffic_unicast_locator_list(),
-                communications1.metatraffic_multicast_locator_list(),
-                communications1.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant1 = DomainParticipantImpl::new(
+            communications1.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications1.metatraffic_unicast_locator_list(),
+            communications1.metatraffic_multicast_locator_list(),
+            communications1.default_unicast_locator_list(),
+            vec![],
+        );
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -1023,17 +1014,16 @@ mod tests {
         )
         .unwrap();
 
-        let participant2: DdsShared<DomainParticipantAttributes> =
-            DomainParticipantConstructor::new(
-                communications2.guid_prefix,
-                domain_id,
-                "".to_string(),
-                DomainParticipantQos::default(),
-                communications2.metatraffic_unicast_locator_list(),
-                communications2.metatraffic_multicast_locator_list(),
-                communications2.default_unicast_locator_list(),
-                vec![],
-            );
+        let participant2 = DomainParticipantImpl::new(
+            communications2.guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            communications2.metatraffic_unicast_locator_list(),
+            communications2.metatraffic_multicast_locator_list(),
+            communications2.default_unicast_locator_list(),
+            vec![],
+        );
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 

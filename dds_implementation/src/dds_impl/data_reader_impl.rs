@@ -76,7 +76,7 @@ use rtps_pim::{
     },
 };
 
-use super::{subscriber_attributes::SubscriberAttributes, topic_attributes::TopicAttributes};
+use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
 pub trait AnyDataReaderListener<DR> {
     fn trigger_on_data_available(&mut self, reader: DR);
@@ -183,12 +183,12 @@ impl RtpsEntityAttributes for RtpsReader {
     }
 }
 
-pub struct DataReaderAttributes<Tim> {
+pub struct DataReaderImpl<Tim> {
     rtps_reader: DdsRwLock<RtpsReader>,
     qos: DdsRwLock<DataReaderQos>,
-    topic: DdsShared<TopicAttributes>,
+    topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    parent_subscriber: DdsWeak<SubscriberAttributes>,
+    parent_subscriber: DdsWeak<SubscriberImpl>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
     status_change: DdsRwLock<StatusMask>,
@@ -196,34 +196,21 @@ pub struct DataReaderAttributes<Tim> {
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
 }
 
-pub trait DataReaderConstructor
-where
-    Self: Entity,
-{
-    fn new(
-        qos: DataReaderQos,
-        rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes>,
-        listener: Option<<Self as Entity>::Listener>,
-        parent_subscriber: DdsWeak<SubscriberAttributes>,
-    ) -> Self;
-}
-
-impl<Tim> DataReaderConstructor for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim> DataReaderImpl<Tim>
 where
     Tim: Timer,
 {
-    fn new(
+    pub fn new(
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
-        topic: DdsShared<TopicAttributes>,
-        listener: Option<<Self as Entity>::Listener>,
-        parent_subscriber: DdsWeak<SubscriberAttributes>,
-    ) -> Self {
+        topic: DdsShared<TopicImpl>,
+        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        parent_subscriber: DdsWeak<SubscriberImpl>,
+    ) -> DdsShared<Self> {
         let deadline_duration = std::time::Duration::from_secs(*qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
 
-        DdsShared::new(DataReaderAttributes {
+        DdsShared::new(DataReaderImpl {
             rtps_reader: DdsRwLock::new(rtps_reader),
             qos: DdsRwLock::new(qos),
             topic,
@@ -249,7 +236,7 @@ where
 }
 
 fn read_sample<'a, Tim>(
-    data_reader_attributes: &DataReaderAttributes<Tim>,
+    data_reader_attributes: &DataReaderImpl<Tim>,
     cache_change: &'a RtpsCacheChangeImpl,
 ) -> (&'a [u8], SampleInfo) {
     *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
@@ -285,7 +272,7 @@ fn read_sample<'a, Tim>(
     (data_value, sample_info)
 }
 
-impl<Tim> DataReaderAttributes<Tim> {
+impl<Tim> DataReaderImpl<Tim> {
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -312,7 +299,7 @@ impl<Tim> DataReaderAttributes<Tim> {
     }
 }
 
-impl<Tim> ReceiveRtpsDataSubmessage for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim> ReceiveRtpsDataSubmessage for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer + Send + Sync + 'static,
 {
@@ -345,12 +332,12 @@ where
         // Call the listener after dropping the rtps_reader lock to avoid deadlock
         drop(rtps_reader);
         if before_data_cache_len < after_data_cache_len {
-            DataReaderAttributes::on_data_received(self.clone()).unwrap();
+            DataReaderImpl::on_data_received(self.clone()).unwrap();
         }
     }
 }
 
-impl<Tim> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<Tim>> {
+impl<Tim> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderImpl<Tim>> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -364,7 +351,7 @@ impl<Tim> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderAttributes<Tim>
     }
 }
 
-impl<Tim> AddMatchedWriter for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim> AddMatchedWriter for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer,
 {
@@ -416,7 +403,7 @@ where
     }
 }
 
-impl<Tim> DataReaderAttributes<Tim>
+impl<Tim> DataReaderImpl<Tim>
 where
     Tim: Timer + Send + Sync + 'static,
 {
@@ -476,29 +463,29 @@ where
     }
 }
 
-impl<Tim> DataReaderGetSubscriber for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim> DataReaderGetSubscriber for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer,
 {
-    type Subscriber = DdsShared<SubscriberAttributes>;
+    type Subscriber = DdsShared<SubscriberImpl>;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
         Ok(self.parent_subscriber.upgrade()?.clone())
     }
 }
 
-impl<Tim> DataReaderGetTopicDescription for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim> DataReaderGetTopicDescription for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer,
 {
-    type TopicDescription = DdsShared<TopicAttributes>;
+    type TopicDescription = DdsShared<TopicImpl>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         Ok(self.topic.clone())
     }
 }
 
-impl<Tim, Foo> DataReader<Foo> for DdsShared<DataReaderAttributes<Tim>>
+impl<Tim, Foo> DataReader<Foo> for DdsShared<DataReaderImpl<Tim>>
 where
     Tim: Timer,
     Foo: for<'de> DdsDeserialize<'de>,
@@ -792,7 +779,7 @@ where
     }
 }
 
-impl<Tim> Entity for DdsShared<DataReaderAttributes<Tim>> {
+impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn AnyDataReaderListener<Self> + Send + Sync>;
 
@@ -830,7 +817,7 @@ impl<Tim> Entity for DdsShared<DataReaderAttributes<Tim>> {
     }
 }
 
-impl<Tim> SendRtpsMessage for DdsShared<DataReaderAttributes<Tim>> {
+impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
     fn send_message(&self, transport: &mut impl TransportWrite) {
         if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
             let mut acknacks = Vec::new();
@@ -866,7 +853,7 @@ impl<Tim> SendRtpsMessage for DdsShared<DataReaderAttributes<Tim>> {
 mod tests {
     use super::*;
     use crate::{
-        dds_impl::{data_reader_attributes::RtpsReader, topic_attributes::TopicAttributes},
+        dds_impl::{data_reader_impl::RtpsReader, topic_impl::TopicImpl},
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::shared_object::DdsShared,
     };
@@ -961,7 +948,7 @@ mod tests {
 
     fn reader_with_changes<Tim: Timer>(
         changes: Vec<RtpsCacheChangeImpl>,
-    ) -> DdsShared<DataReaderAttributes<Tim>> {
+    ) -> DdsShared<DataReaderImpl<Tim>> {
         let mut stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
             rtps_pim::structure::types::TopicKind::NoKey,
@@ -976,7 +963,7 @@ mod tests {
             stateful_reader.reader_cache().add_change(change);
         }
 
-        DataReaderConstructor::new(
+        DataReaderImpl::new(
             DataReaderQos {
                 history: HistoryQosPolicy {
                     kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -985,7 +972,7 @@ mod tests {
                 ..Default::default()
             },
             RtpsReader::Stateful(stateful_reader),
-            TopicAttributes::new(
+            TopicImpl::new(
                 GUID_UNKNOWN,
                 Default::default(),
                 "type_name",
@@ -1066,7 +1053,7 @@ mod tests {
                 .total_count
         );
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
 
         assert_eq!(
             0,
@@ -1087,36 +1074,36 @@ mod tests {
 
     mock! {
         Listener {}
-        impl AnyDataReaderListener<DdsShared<DataReaderAttributes<ManualTimer>>> for Listener {
-            fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderAttributes<ManualTimer>>);
+        impl AnyDataReaderListener<DdsShared<DataReaderImpl<ManualTimer>>> for Listener {
+            fn trigger_on_data_available(&mut self, reader: DdsShared<DataReaderImpl<ManualTimer>>);
             fn trigger_on_sample_rejected(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: SampleRejectedStatus,
             );
             fn trigger_on_liveliness_changed(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: LivelinessChangedStatus,
             );
             fn trigger_on_requested_deadline_missed(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: RequestedDeadlineMissedStatus,
             );
             fn trigger_on_requested_incompatible_qos(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: RequestedIncompatibleQosStatus,
             );
             fn trigger_on_subscription_matched(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: SubscriptionMatchedStatus,
             );
             fn trigger_on_sample_lost(
                 &mut self,
-                reader: DdsShared<DataReaderAttributes<ManualTimer>>,
+                reader: DdsShared<DataReaderImpl<ManualTimer>>,
                 status: SampleLostStatus,
             );
         }
@@ -1135,7 +1122,7 @@ mod tests {
             reader
         };
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
 
         let mut listener = MockListener::new();
         listener
@@ -1160,7 +1147,7 @@ mod tests {
             reader
         };
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
 
         assert!(reader.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS > 0);
     }
@@ -1188,7 +1175,7 @@ mod tests {
         };
         reader.set_listener(Some(Box::new(listener)), 0).unwrap();
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
 
         assert_eq!(
             0,
@@ -1209,7 +1196,7 @@ mod tests {
             reader
         };
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
         reader.deadline_timer.write_lock().trigger();
 
         assert!(reader.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS > 0);
@@ -1243,7 +1230,7 @@ mod tests {
 
         reader.set_listener(Some(listener), 0).unwrap();
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
         reader.deadline_timer.write_lock().trigger();
 
         assert_eq!(
@@ -1255,7 +1242,7 @@ mod tests {
     fn reader_with_max_depth<Tim: Timer>(
         max_depth: i32,
         changes: Vec<RtpsCacheChangeImpl>,
-    ) -> DdsShared<DataReaderAttributes<Tim>> {
+    ) -> DdsShared<DataReaderImpl<Tim>> {
         let mut history_cache = RtpsHistoryCacheImpl::new();
         for change in changes {
             history_cache.add_change(change);
@@ -1272,7 +1259,7 @@ mod tests {
             false,
         );
 
-        DataReaderConstructor::new(
+        DataReaderImpl::new(
             DataReaderQos {
                 history: HistoryQosPolicy {
                     kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
@@ -1281,7 +1268,7 @@ mod tests {
                 ..Default::default()
             },
             RtpsReader::Stateful(stateful_reader),
-            TopicAttributes::new(
+            TopicImpl::new(
                 GUID_UNKNOWN,
                 Default::default(),
                 "type_name",
@@ -1309,7 +1296,7 @@ mod tests {
             reader
         };
 
-        DataReaderAttributes::on_data_received(reader.clone()).unwrap();
+        DataReaderImpl::on_data_received(reader.clone()).unwrap();
     }
 
     #[test]
@@ -1321,8 +1308,7 @@ mod tests {
                 entity_kind: 1,
             },
         );
-        let dummy_topic =
-            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let stateful_reader = RtpsStatefulReaderImpl::new(
             guid,
@@ -1335,7 +1321,7 @@ mod tests {
             false,
         );
 
-        let data_reader: DdsShared<DataReaderAttributes<ManualTimer>> = DataReaderConstructor::new(
+        let data_reader: DdsShared<DataReaderImpl<ManualTimer>> = DataReaderImpl::new(
             DataReaderQos::default(),
             RtpsReader::Stateful(stateful_reader),
             dummy_topic,

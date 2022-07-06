@@ -15,7 +15,7 @@ use dds_api::{
     },
 };
 use dds_implementation::{
-    dds_impl::data_reader_attributes::AnyDataReaderListener,
+    dds_impl::data_reader_impl::AnyDataReaderListener,
     utils::shared_object::{DdsShared, DdsWeak},
 };
 

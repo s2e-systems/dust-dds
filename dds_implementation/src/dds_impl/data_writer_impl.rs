@@ -72,7 +72,7 @@ use crate::{
     },
 };
 
-use super::{publisher_attributes::PublisherAttributes, topic_attributes::TopicAttributes};
+use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub trait AnyDataWriterListener<DW> {
     fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
@@ -136,41 +136,25 @@ impl RtpsEntityAttributes for RtpsWriter {
     }
 }
 
-pub struct DataWriterAttributes {
+pub struct DataWriterImpl {
     _qos: DataWriterQos,
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
-    topic: DdsShared<TopicAttributes>,
-    publisher: DdsWeak<PublisherAttributes>,
+    topic: DdsShared<TopicImpl>,
+    publisher: DdsWeak<PublisherImpl>,
     status: DdsRwLock<PublicationMatchedStatus>,
 }
 
-pub trait DataWriterConstructor
-where
-    Self: Entity,
-{
-    fn new(
+impl DataWriterImpl {
+    pub fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
-        listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes>,
-        publisher: DdsWeak<PublisherAttributes>,
-    ) -> Self;
-}
-
-impl DataWriterConstructor for DdsShared<DataWriterAttributes>
-where
-    Self: Entity,
-{
-    fn new(
-        qos: DataWriterQos,
-        rtps_writer: RtpsWriter,
-        listener: Option<<Self as Entity>::Listener>,
-        topic: DdsShared<TopicAttributes>,
-        publisher: DdsWeak<PublisherAttributes>,
-    ) -> Self {
-        DdsShared::new(DataWriterAttributes {
+        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        topic: DdsShared<TopicImpl>,
+        publisher: DdsWeak<PublisherImpl>,
+    ) -> DdsShared<Self> {
+        DdsShared::new(DataWriterImpl {
             _qos: qos,
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
@@ -188,7 +172,7 @@ where
     }
 }
 
-impl DataWriterAttributes {
+impl DataWriterImpl {
     pub fn add_matched_participant(
         &self,
         participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
@@ -215,7 +199,7 @@ impl DataWriterAttributes {
     }
 }
 
-impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterAttributes> {
+impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
@@ -231,7 +215,7 @@ impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterAttributes> {
     }
 }
 
-impl AddMatchedReader for DdsShared<DataWriterAttributes> {
+impl AddMatchedReader for DdsShared<DataWriterImpl> {
     fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         let topic_name = &discovered_reader_data
             .subscription_builtin_topic_data
@@ -276,7 +260,7 @@ impl AddMatchedReader for DdsShared<DataWriterAttributes> {
     }
 }
 
-impl<Foo> DataWriter<Foo> for DdsShared<DataWriterAttributes>
+impl<Foo> DataWriter<Foo> for DdsShared<DataWriterImpl>
 where
     Foo: DdsSerialize,
 {
@@ -424,25 +408,25 @@ where
     }
 }
 
-impl DataWriterGetPublisher for DdsShared<DataWriterAttributes> {
-    type PublisherType = DdsShared<PublisherAttributes>;
+impl DataWriterGetPublisher for DdsShared<DataWriterImpl> {
+    type PublisherType = DdsShared<PublisherImpl>;
 
     fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
         Ok(self.publisher.upgrade()?.clone())
     }
 }
 
-impl DataWriterGetTopic for DdsShared<DataWriterAttributes> {
-    type TopicType = DdsShared<TopicAttributes>;
+impl DataWriterGetTopic for DdsShared<DataWriterImpl> {
+    type TopicType = DdsShared<TopicImpl>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
         Ok(self.topic.clone())
     }
 }
 
-impl Entity for DdsShared<DataWriterAttributes> {
+impl Entity for DdsShared<DataWriterImpl> {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn AnyDataWriterListener<DdsShared<DataWriterAttributes>> + Send + Sync>;
+    type Listener = Box<dyn AnyDataWriterListener<DdsShared<DataWriterImpl>> + Send + Sync>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
         todo!()
@@ -478,7 +462,7 @@ impl Entity for DdsShared<DataWriterAttributes> {
     }
 }
 
-impl SendRtpsMessage for DdsShared<DataWriterAttributes> {
+impl SendRtpsMessage for DdsShared<DataWriterImpl> {
     fn send_message(&self, transport: &mut impl TransportWrite) {
         let destined_submessages = RefCell::new(Vec::new());
 
@@ -636,10 +620,9 @@ mod test {
             None,
         );
 
-        let dummy_topic =
-            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
-        let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+        let shared_data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             RtpsWriter::Stateless(rtps_writer),
             None,
@@ -667,10 +650,9 @@ mod test {
             None,
         );
 
-        let dummy_topic =
-            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
-        let shared_data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+        let shared_data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(rtps_writer),
             None,
@@ -692,8 +674,7 @@ mod test {
                 entity_kind: 1,
             },
         );
-        let dummy_topic =
-            TopicAttributes::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let rtps_writer = RtpsStatefulWriterImpl::new(
             guid,
@@ -708,7 +689,7 @@ mod test {
             None,
         );
 
-        let data_writer: DdsShared<DataWriterAttributes> = DataWriterConstructor::new(
+        let data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(rtps_writer),
             None,

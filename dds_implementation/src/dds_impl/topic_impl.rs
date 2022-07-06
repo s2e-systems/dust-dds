@@ -11,23 +11,23 @@ use rtps_pim::structure::types::Guid;
 
 use crate::utils::shared_object::{DdsShared, DdsWeak};
 
-use super::domain_participant_attributes::DomainParticipantAttributes;
+use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct TopicAttributes {
+pub struct TopicImpl {
     guid: Guid,
     _qos: TopicQos,
     type_name: &'static str,
     topic_name: String,
-    parent_participant: DdsWeak<DomainParticipantAttributes>,
+    parent_participant: DdsWeak<DomainParticipantImpl>,
 }
 
-impl TopicAttributes {
+impl TopicImpl {
     pub fn new(
         guid: Guid,
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
-        parent_participant: DdsWeak<DomainParticipantAttributes>,
+        parent_participant: DdsWeak<DomainParticipantImpl>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
             guid,
@@ -39,15 +39,15 @@ impl TopicAttributes {
     }
 }
 
-impl Topic for DdsShared<TopicAttributes> {
+impl Topic for DdsShared<TopicImpl> {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
 }
 
-impl TopicDescription for DdsShared<TopicAttributes> {
-    type DomainParticipant = DdsShared<DomainParticipantAttributes>;
+impl TopicDescription for DdsShared<TopicImpl> {
+    type DomainParticipant = DdsShared<DomainParticipantImpl>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.parent_participant.clone().upgrade()
@@ -62,7 +62,7 @@ impl TopicDescription for DdsShared<TopicAttributes> {
     }
 }
 
-impl Entity for DdsShared<TopicAttributes> {
+impl Entity for DdsShared<TopicImpl> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
@@ -125,7 +125,7 @@ mod tests {
                 entity_kind: 1,
             },
         );
-        let topic = TopicAttributes::new(guid, TopicQos::default(), "", "", DdsWeak::new());
+        let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = topic.get_instance_handle().unwrap();

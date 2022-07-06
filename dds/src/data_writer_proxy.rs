@@ -17,7 +17,7 @@ use dds_api::{
     return_type::DdsResult,
 };
 use dds_implementation::{
-    dds_impl::data_writer_attributes::AnyDataWriterListener,
+    dds_impl::data_writer_impl::AnyDataWriterListener,
     utils::shared_object::{DdsShared, DdsWeak},
 };
 

@@ -1,6 +1,6 @@
 use crate::{
     dds_impl::{
-        publisher_attributes::PublisherAttributes, subscriber_attributes::SubscriberAttributes,
+        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
     },
     transport::{RtpsMessage, RtpsSubmessageType},
     utils::{
@@ -49,8 +49,8 @@ impl MessageReceiver {
     pub fn process_message(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &[DdsShared<PublisherAttributes>],
-        subscriber_list: &[DdsShared<SubscriberAttributes>],
+        publisher_list: &[DdsShared<PublisherImpl>],
+        subscriber_list: &[DdsShared<SubscriberImpl>],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
     ) {
