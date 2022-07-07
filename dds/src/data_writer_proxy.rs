@@ -73,7 +73,7 @@ where
             .register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn unregister_instance(&self, instance: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    fn unregister_instance(&self, instance: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         self.data_writer_attributes
             .upgrade()?
             .unregister_instance(instance, handle)
@@ -81,7 +81,7 @@ where
 
     fn unregister_instance_w_timestamp(
         &self,
-        instance: Foo,
+        instance: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {

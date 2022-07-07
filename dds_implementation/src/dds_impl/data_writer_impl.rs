@@ -1,8 +1,10 @@
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::rtps_impl::{
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl, utils::clock::StdTimer,
+    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+    utils::clock::StdTimer,
 };
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -37,7 +39,7 @@ use rtps_pim::{
             reader_locator::RtpsReaderLocatorAttributes,
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
             stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
-            writer::RtpsWriterOperations,
+            writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
     discovery::{
@@ -143,6 +145,113 @@ impl RtpsEntityAttributes for RtpsWriter {
         match self {
             RtpsWriter::Stateless(w) => w.guid(),
             RtpsWriter::Stateful(w) => w.guid(),
+        }
+    }
+}
+
+impl RtpsWriterOperations for RtpsWriter {
+    type DataType = Vec<u8>;
+    type ParameterListType = Vec<u8>;
+    type CacheChangeType = RtpsCacheChangeImpl;
+
+    fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Self::DataType,
+        inline_qos: Self::ParameterListType,
+        handle: rtps_pim::structure::types::InstanceHandle,
+    ) -> Self::CacheChangeType {
+        match self {
+            RtpsWriter::Stateless(w) => w.new_change(kind, data, inline_qos, handle),
+            RtpsWriter::Stateful(w) => w.new_change(kind, data, inline_qos, handle),
+        }
+    }
+}
+
+impl RtpsHistoryCacheOperations for RtpsWriter {
+    type CacheChangeType = RtpsCacheChangeImpl;
+
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        match self {
+            RtpsWriter::Stateless(w) => w.add_change(change),
+            RtpsWriter::Stateful(w) => w.add_change(change),
+        }
+    }
+
+    fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&Self::CacheChangeType) -> bool,
+    {
+        match self {
+            RtpsWriter::Stateless(w) => w.remove_change(f),
+            RtpsWriter::Stateful(w) => w.remove_change(f),
+        }
+    }
+
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        match self {
+            RtpsWriter::Stateless(w) => w.get_seq_num_min(),
+            RtpsWriter::Stateful(w) => w.get_seq_num_min(),
+        }
+    }
+
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        match self {
+            RtpsWriter::Stateless(w) => w.get_seq_num_max(),
+            RtpsWriter::Stateful(w) => w.get_seq_num_max(),
+        }
+    }
+}
+
+impl RtpsWriterAttributes for RtpsWriter {
+    type HistoryCacheType = RtpsHistoryCacheImpl;
+
+    fn push_mode(&self) -> bool {
+        match self {
+            RtpsWriter::Stateless(w) => w.push_mode(),
+            RtpsWriter::Stateful(w) => w.push_mode(),
+        }
+    }
+
+    fn heartbeat_period(&self) -> rtps_pim::behavior::types::Duration {
+        match self {
+            RtpsWriter::Stateless(w) => w.heartbeat_period(),
+            RtpsWriter::Stateful(w) => w.heartbeat_period(),
+        }
+    }
+
+    fn nack_response_delay(&self) -> rtps_pim::behavior::types::Duration {
+        match self {
+            RtpsWriter::Stateless(w) => w.nack_response_delay(),
+            RtpsWriter::Stateful(w) => w.nack_response_delay(),
+        }
+    }
+
+    fn nack_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
+        match self {
+            RtpsWriter::Stateless(w) => w.nack_suppression_duration(),
+            RtpsWriter::Stateful(w) => w.nack_suppression_duration(),
+        }
+    }
+
+    fn last_change_sequence_number(&self) -> SequenceNumber {
+        match self {
+            RtpsWriter::Stateless(w) => w.last_change_sequence_number(),
+            RtpsWriter::Stateful(w) => w.last_change_sequence_number(),
+        }
+    }
+
+    fn data_max_size_serialized(&self) -> Option<i32> {
+        match self {
+            RtpsWriter::Stateless(w) => w.data_max_size_serialized(),
+            RtpsWriter::Stateful(w) => w.data_max_size_serialized(),
+        }
+    }
+
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+        match self {
+            RtpsWriter::Stateless(w) => w.writer_cache(),
+            RtpsWriter::Stateful(w) => w.writer_cache(),
         }
     }
 }
@@ -339,7 +448,7 @@ where
         }
     }
 
-    fn unregister_instance(&self, instance: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    fn unregister_instance(&self, instance: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         let timestamp = self
             .publisher
             .upgrade()?
@@ -351,11 +460,54 @@ where
 
     fn unregister_instance_w_timestamp(
         &self,
-        _instance: Foo,
-        _handle: Option<InstanceHandle>,
+        instance: &Foo,
+        handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DdsResult<()> {
-        todo!()
+        if Foo::has_key() {
+            let serialized_key = instance.serialized_key::<LittleEndian>();
+
+            let mut rtps_writer_lock = self.rtps_writer.write_lock();
+            let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
+
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_key) = registered_instance_list_lock.get(&h) {
+                        if stored_key == &serialized_key {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    let instance_handle = calculate_instance_handle(&serialized_key);
+                    if registered_instance_list_lock.contains_key(&instance_handle) {
+                        Ok(instance_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
+            let change = rtps_writer_lock.new_change(
+                ChangeKind::NotAliveUnregistered,
+                serialized_key,
+                vec![],
+                [0; 16],
+            );
+            rtps_writer_lock.writer_cache().add_change(change);
+            registered_instance_list_lock.remove(&instance_handle);
+            Ok(())
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
     }
 
     fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
@@ -393,21 +545,11 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         let mut sample_info_lock = self.sample_info.write_lock();
-        let sequence_number;
-        match &mut *rtps_writer_lock {
-            RtpsWriter::Stateless(rtps_writer) => {
-                let change =
-                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
-                sequence_number = change.sequence_number();
-                rtps_writer.add_change(change);
-            }
-            RtpsWriter::Stateful(rtps_writer) => {
-                let change =
-                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
-                sequence_number = change.sequence_number();
-                rtps_writer.add_change(change);
-            }
-        }
+        let change =
+            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
+        let sequence_number = change.sequence_number();
+        rtps_writer_lock.add_change(change);
+
         sample_info_lock.insert(sequence_number, timestamp);
 
         Ok(())
@@ -669,7 +811,10 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
 mod test {
     use std::io::Write;
 
-    use dds_api::infrastructure::{qos::TopicQos, qos_policy::ResourceLimitsQosPolicy};
+    use dds_api::{
+        dcps_psm::TIME_INVALID,
+        infrastructure::{qos::TopicQos, qos_policy::ResourceLimitsQosPolicy},
+    };
     use rtps_pim::{
         behavior::{
             types::DURATION_ZERO,
@@ -733,6 +878,31 @@ mod test {
         fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
+    }
+
+    fn create_data_writer_test_fixture() -> DdsShared<DataWriterImpl> {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        )
     }
 
     #[test]
@@ -834,28 +1004,7 @@ mod test {
 
     #[test]
     fn register_instance_w_timestamp_different_keys() {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let rtps_writer = RtpsStatefulWriterImpl::new(
-            GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
+        let data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
             .register_instance_w_timestamp(
@@ -900,31 +1049,10 @@ mod test {
 
     #[test]
     fn register_instance_w_timestamp_no_key() {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let rtps_writer = RtpsStatefulWriterImpl::new(
-            GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
+        let data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
-            .register_instance_w_timestamp(&MockFoo {}, Time { sec: 0, nanosec: 0 })
+            .register_instance_w_timestamp(&MockFoo {}, TIME_INVALID)
             .unwrap();
         assert_eq!(instance_handle, None);
     }
@@ -961,62 +1089,30 @@ mod test {
         );
 
         data_writer
-            .register_instance_w_timestamp(
-                &MockKeyedFoo { key: vec![1] },
-                Time { sec: 0, nanosec: 0 },
-            )
+            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1] }, TIME_INVALID)
             .unwrap();
         data_writer
-            .register_instance_w_timestamp(
-                &MockKeyedFoo { key: vec![2] },
-                Time { sec: 0, nanosec: 0 },
-            )
+            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![2] }, TIME_INVALID)
             .unwrap();
-        let instance_handle_result = data_writer.register_instance_w_timestamp(
-            &MockKeyedFoo { key: vec![3] },
-            Time { sec: 0, nanosec: 0 },
-        );
+        let instance_handle_result =
+            data_writer.register_instance_w_timestamp(&MockKeyedFoo { key: vec![3] }, TIME_INVALID);
         assert_eq!(instance_handle_result, Err(DdsError::OutOfResources));
 
         // Already registered sample does not cause OutOfResources error
         data_writer
-            .register_instance_w_timestamp(
-                &MockKeyedFoo { key: vec![2] },
-                Time { sec: 0, nanosec: 0 },
-            )
+            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![2] }, TIME_INVALID)
             .unwrap();
     }
 
     #[test]
     fn lookup_instance() {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let rtps_writer = RtpsStatefulWriterImpl::new(
-            GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
+        let data_writer = create_data_writer_test_fixture();
 
         let instance1 = MockKeyedFoo { key: vec![1] };
         let instance2 = MockKeyedFoo { key: vec![2] };
 
         let instance_handle1 = data_writer
-            .register_instance_w_timestamp(&instance1, Time { sec: 0, nanosec: 0 })
+            .register_instance_w_timestamp(&instance1, TIME_INVALID)
             .unwrap();
 
         assert_eq!(
@@ -1024,5 +1120,70 @@ mod test {
             Ok(instance_handle1)
         );
         assert_eq!(data_writer.lookup_instance(&instance2), Ok(None));
+    }
+
+    #[test]
+    fn unregister_registered_instance() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance = MockKeyedFoo { key: vec![1] };
+        data_writer
+            .register_instance_w_timestamp(&instance, TIME_INVALID)
+            .unwrap();
+        data_writer
+            .unregister_instance_w_timestamp(&instance, None, TIME_INVALID)
+            .unwrap();
+        assert!(data_writer.lookup_instance(&instance).unwrap().is_none());
+    }
+
+    #[test]
+    fn unregister_instance_not_registered() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance = MockKeyedFoo { key: vec![1] };
+        let result = data_writer.unregister_instance_w_timestamp(&instance, None, TIME_INVALID);
+        assert_eq!(
+            result,
+            Err(DdsError::PreconditionNotMet(
+                "Instance not registered with this DataWriter".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn unregister_instance_non_registered_handle() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance = MockKeyedFoo { key: vec![1] };
+        data_writer
+            .register_instance_w_timestamp(&instance, TIME_INVALID)
+            .unwrap();
+        let result = data_writer.unregister_instance_w_timestamp(
+            &instance,
+            Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            TIME_INVALID,
+        );
+        assert_eq!(result, Err(DdsError::BadParameter));
+    }
+
+    #[test]
+    fn unregister_instance_not_matching_handle() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance1 = MockKeyedFoo { key: vec![1] };
+        let instance2 = MockKeyedFoo { key: vec![2] };
+        data_writer
+            .register_instance_w_timestamp(&instance1, TIME_INVALID)
+            .unwrap();
+        data_writer
+            .register_instance_w_timestamp(&instance2, TIME_INVALID)
+            .unwrap();
+        let result = data_writer.unregister_instance_w_timestamp(
+            &instance1,
+            Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            TIME_INVALID,
+        );
+        assert_eq!(
+            result,
+            Err(DdsError::PreconditionNotMet(
+                "Handle does not match instance".to_string()
+            ))
+        );
     }
 }
