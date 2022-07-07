@@ -24,6 +24,8 @@ use dds_implementation::{
 };
 use mac_address::MacAddress;
 
+use lazy_static::lazy_static;
+
 use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
 use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
@@ -219,9 +221,16 @@ impl Communications {
     }
 }
 
-pub struct DomainParticipantFactoryImpl {
-    participant_with_tasks_list: Mutex<Vec<(DdsShared<DomainParticipantImpl>, TaskManager)>>,
+struct ParticipantManager {
+    participant: DdsShared<DomainParticipantImpl>,
+    task_manager: TaskManager,
 }
+
+lazy_static! {
+    static ref PARTICIPANT_MANAGER_LIST: Mutex<Vec<ParticipantManager>> = Mutex::new(vec![]);
+}
+
+pub struct DomainParticipantFactoryImpl;
 
 impl DomainParticipantFactory for DomainParticipantFactoryImpl {
     type DomainParticipant = DomainParticipantProxy<DomainParticipantImpl>;
@@ -289,35 +298,35 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             )?;
         }
 
-        self.participant_with_tasks_list
+        PARTICIPANT_MANAGER_LIST
             .lock()
             .unwrap()
-            .push((domain_participant.clone(), task_manager));
+            .push(ParticipantManager {
+                participant: domain_participant.clone(),
+                task_manager,
+            });
 
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
     fn delete_participant(&self, participant: &Self::DomainParticipant) -> DdsResult<()> {
-        let mut participant_list = self
-            .participant_with_tasks_list
+        let mut participant_list = PARTICIPANT_MANAGER_LIST
             .lock()
             .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e.to_string())))?;
 
         let index = participant_list
             .iter()
-            .position(|(p, _)| DomainParticipantProxy::new(p.downgrade()).eq(participant))
+            .position(|pm| DomainParticipantProxy::new(pm.participant.downgrade()).eq(participant))
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let (_, mut task_manager) = participant_list.remove(index);
-        task_manager.shutdown_tasks();
+        let mut pm = participant_list.remove(index);
+        pm.task_manager.shutdown_tasks();
 
         Ok(())
     }
 
     fn get_instance() -> Self {
-        Self {
-            participant_with_tasks_list: Mutex::new(Vec::new()),
-        }
+        Self
     }
 
     fn lookup_participant(&self, _domain_id: DomainId) -> DdsResult<Self::DomainParticipant> {
@@ -1125,8 +1134,14 @@ mod tests {
         }
     }
 
+    fn reset_singleton() {
+        *PARTICIPANT_MANAGER_LIST.lock().unwrap() = vec![];
+    }
+
     #[test]
     fn test_delete_participant() {
+        reset_singleton();
+
         let participant_factory = DomainParticipantFactoryImpl::get_instance();
 
         let participant1 = participant_factory
@@ -1141,10 +1156,7 @@ mod tests {
             .delete_participant(&participant1)
             .unwrap();
 
-        assert_eq!(
-            1,
-            participant_factory.participant_with_tasks_list.lock().unwrap().len()
-        );
+        assert_eq!(1, PARTICIPANT_MANAGER_LIST.lock().unwrap().len());
 
         assert!(participant1.enable().is_err());
         assert!(participant2.enable().is_ok());
