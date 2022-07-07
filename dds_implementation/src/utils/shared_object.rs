@@ -74,6 +74,10 @@ impl<T> DdsWeak<T> {
             .map(|x| DdsShared(x))
             .ok_or(DdsError::AlreadyDeleted)
     }
+
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
 }
 
 impl<T: ?Sized> Clone for DdsWeak<T> {

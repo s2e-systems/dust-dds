@@ -40,6 +40,13 @@ impl<I> DomainParticipantProxy<I> {
     }
 }
 
+impl<I> PartialEq for DomainParticipantProxy<I> {
+    fn eq(&self, other: &Self) -> bool {
+        self.domain_participant_attributes
+            .ptr_eq(&other.domain_participant_attributes)
+    }
+}
+
 impl<Foo, I, T> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy<I>
 where
     DdsShared<I>: DomainParticipantTopicFactory<Foo, TopicType = DdsShared<T>>,

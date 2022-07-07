@@ -294,8 +294,20 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
-    fn delete_participant(&self, _a_participant: &Self::DomainParticipant) -> DdsResult<()> {
-        todo!()
+    fn delete_participant(&self, participant: &Self::DomainParticipant) -> DdsResult<()> {
+        let mut participant_list = self
+            .participant_list
+            .lock()
+            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e.to_string())))?;
+
+        let index = participant_list
+            .iter()
+            .position(|p| DomainParticipantProxy::new(p.downgrade()).eq(participant))
+            .ok_or(DdsError::AlreadyDeleted)?;
+
+        participant_list.remove(index);
+
+        Ok(())
     }
 
     fn get_instance() -> Self {
@@ -1113,5 +1125,41 @@ mod tests {
                 .set_listener(Some(Box::new(MockReaderListener::new())), 0)
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn test_delete_participant() {
+        let participant_factory = DomainParticipantFactoryImpl::get_instance();
+
+        let participant1 = participant_factory
+            .create_participant(1, None, None, 0)
+            .unwrap();
+
+        let participant2 = participant_factory
+            .create_participant(2, None, None, 0)
+            .unwrap();
+
+        participant_factory
+            .delete_participant(&participant1)
+            .unwrap();
+
+        assert_eq!(
+            1,
+            participant_factory.participant_list.lock().unwrap().len()
+        );
+        assert!(participant_factory
+            .participant_list
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|p| DomainParticipantProxy::new(p.downgrade()).eq(&participant1))
+            .is_none());
+        assert!(participant_factory
+            .participant_list
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|p| DomainParticipantProxy::new(p.downgrade()).eq(&participant2))
+            .is_some());
     }
 }
