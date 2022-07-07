@@ -28,10 +28,7 @@ use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
 use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
 
-use crate::{
-    domain_participant_proxy::DomainParticipantProxy,
-    tasks::{Executor, Spawner},
-};
+use crate::{domain_participant_proxy::DomainParticipantProxy, tasks::TaskManager};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -223,7 +220,7 @@ impl Communications {
 }
 
 pub struct DomainParticipantFactoryImpl {
-    participant_list: Mutex<Vec<DdsShared<DomainParticipantImpl>>>,
+    participant_with_tasks_list: Mutex<Vec<(DdsShared<DomainParticipantImpl>, TaskManager)>>,
 }
 
 impl DomainParticipantFactory for DomainParticipantFactoryImpl {
@@ -282,37 +279,44 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 
         domain_participant.create_builtins()?;
 
+        let mut task_manager = TaskManager::new();
+
         if qos.entity_factory.autoenable_created_entities {
-            self.enable(domain_participant.clone(), communications)?;
+            self.enable(
+                domain_participant.clone(),
+                &mut task_manager,
+                communications,
+            )?;
         }
 
-        self.participant_list
+        self.participant_with_tasks_list
             .lock()
             .unwrap()
-            .push(domain_participant.clone());
+            .push((domain_participant.clone(), task_manager));
 
         Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
     }
 
     fn delete_participant(&self, participant: &Self::DomainParticipant) -> DdsResult<()> {
         let mut participant_list = self
-            .participant_list
+            .participant_with_tasks_list
             .lock()
             .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e.to_string())))?;
 
         let index = participant_list
             .iter()
-            .position(|p| DomainParticipantProxy::new(p.downgrade()).eq(participant))
+            .position(|(p, _)| DomainParticipantProxy::new(p.downgrade()).eq(participant))
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        participant_list.remove(index);
+        let (_, mut task_manager) = participant_list.remove(index);
+        task_manager.shutdown_tasks();
 
         Ok(())
     }
 
     fn get_instance() -> Self {
         Self {
-            participant_list: Mutex::new(Vec::new()),
+            participant_with_tasks_list: Mutex::new(Vec::new()),
         }
     }
 
@@ -341,14 +345,9 @@ impl DomainParticipantFactoryImpl {
     fn enable(
         &self,
         domain_participant: DdsShared<DomainParticipantImpl>,
+        task_manager: &mut TaskManager,
         communications: Communications,
     ) -> DdsResult<()> {
-        // ////////// Task creation
-        let (executor, spawner) = {
-            let (sender, receiver) = std::sync::mpsc::sync_channel(10);
-            (Executor { receiver }, Spawner::new(sender))
-        };
-
         let mut metatraffic_multicast_communication = communications.metatraffic_multicast;
         let mut metatraffic_unicast_communication = communications.metatraffic_unicast;
         let mut default_unicast_communication = communications.default_unicast;
@@ -358,7 +357,7 @@ impl DomainParticipantFactoryImpl {
         // ////////////// SPDP participant discovery
         {
             let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
+            task_manager.spawn_enabled_periodic_task(
                 "builtin multicast communication",
                 move || {
                     domain_participant
@@ -372,7 +371,7 @@ impl DomainParticipantFactoryImpl {
         {
             let domain_participant = domain_participant.clone();
 
-            spawner.spawn_enabled_periodic_task(
+            task_manager.spawn_enabled_periodic_task(
                 "spdp endpoint configuration",
                 move || match domain_participant.discover_matched_participants() {
                     Ok(()) => (),
@@ -385,7 +384,7 @@ impl DomainParticipantFactoryImpl {
         // //////////// Unicast Communication
         {
             let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
+            task_manager.spawn_enabled_periodic_task(
                 "builtin unicast communication",
                 move || {
                     domain_participant.send_built_in_data(&mut metatraffic_unicast_communication);
@@ -400,7 +399,7 @@ impl DomainParticipantFactoryImpl {
         {
             let domain_participant = domain_participant.clone();
 
-            spawner.spawn_enabled_periodic_task(
+            task_manager.spawn_enabled_periodic_task(
                 "sedp user endpoint configuration",
                 move || {
                     match domain_participant.discover_matched_writers() {
@@ -419,7 +418,7 @@ impl DomainParticipantFactoryImpl {
         // //////////// User-defined Communication
         {
             let domain_participant = domain_participant.clone();
-            spawner.spawn_enabled_periodic_task(
+            task_manager.spawn_enabled_periodic_task(
                 "user-defined communication",
                 move || {
                     domain_participant.send_user_defined_data(&mut default_unicast_communication);
@@ -431,7 +430,7 @@ impl DomainParticipantFactoryImpl {
         }
 
         // //////////// Announce participant
-        spawner.spawn_enabled_periodic_task(
+        task_manager.spawn_enabled_periodic_task(
             "participant announcement",
             move || match domain_participant.announce_participant() {
                 Ok(_) => (),
@@ -441,8 +440,7 @@ impl DomainParticipantFactoryImpl {
         );
 
         // //////////// Start running tasks
-        spawner.enable_tasks();
-        executor.run();
+        task_manager.enable_tasks();
 
         Ok(())
     }
@@ -1145,21 +1143,10 @@ mod tests {
 
         assert_eq!(
             1,
-            participant_factory.participant_list.lock().unwrap().len()
+            participant_factory.participant_with_tasks_list.lock().unwrap().len()
         );
-        assert!(participant_factory
-            .participant_list
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|p| DomainParticipantProxy::new(p.downgrade()).eq(&participant1))
-            .is_none());
-        assert!(participant_factory
-            .participant_list
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|p| DomainParticipantProxy::new(p.downgrade()).eq(&participant2))
-            .is_some());
+
+        assert!(participant1.enable().is_err());
+        assert!(participant2.enable().is_ok());
     }
 }

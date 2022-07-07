@@ -1,75 +1,62 @@
-use std::sync::{
-    atomic::{self, AtomicBool},
-    mpsc::{Receiver, SyncSender},
-    Arc,
+use std::{
+    sync::{atomic::{AtomicBool, self}, Arc},
+    thread::JoinHandle,
 };
 
-use async_std::prelude::StreamExt;
-
-pub struct Executor {
-    pub receiver: Receiver<EnabledPeriodicTask>,
+pub struct TaskManager {
+    enabled: Arc<AtomicBool>,
+    quit: Arc<AtomicBool>,
+    threads: Vec<JoinHandle<()>>,
 }
 
-impl Executor {
-    pub fn run(&self) {
-        while let Ok(mut enabled_periodic_task) = self.receiver.try_recv() {
-            async_std::task::spawn(async move {
-                let mut interval = async_std::stream::interval(enabled_periodic_task.period);
-                loop {
-                    if enabled_periodic_task.enabled.load(atomic::Ordering::SeqCst) {
-                        (enabled_periodic_task.task)();
-                    } else {
-                        println!("Task not enabled: {}", enabled_periodic_task.name);
-                    }
-                    interval.next().await;
-                }
-            });
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct Spawner {
-    pub task_sender: SyncSender<EnabledPeriodicTask>,
-    pub enabled: Arc<AtomicBool>,
-}
-
-impl Spawner {
-    pub fn new(task_sender: SyncSender<EnabledPeriodicTask>) -> Self {
+impl TaskManager {
+    pub fn new() -> Self {
         Self {
-            task_sender,
             enabled: Arc::new(AtomicBool::new(false)),
+            quit: Arc::new(AtomicBool::new(false)),
+            threads: vec![],
         }
     }
 
     pub fn spawn_enabled_periodic_task(
-        &self,
+        &mut self,
         name: &'static str,
-        task: impl FnMut() -> () + Send + Sync + 'static,
+        mut task: impl FnMut() -> () + Send + Sync + 'static,
         period: std::time::Duration,
     ) {
-        self.task_sender
-            .send(EnabledPeriodicTask {
-                name,
-                task: Box::new(task),
-                period,
-                enabled: self.enabled.clone(),
-            })
-            .unwrap();
+        let task_enabled = self.enabled.clone();
+        let task_quit = self.quit.clone();
+
+        self.threads.push(std::thread::spawn(move || {
+            loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
+                if task_enabled.load(atomic::Ordering::SeqCst) {
+                    task();
+                } else {
+                    println!("Task not enabled: {}", name);
+                }
+
+                std::thread::sleep(period);
+            }
+        }));
     }
 
-    pub fn enable_tasks(&self) {
+    pub fn enable_tasks(&mut self) {
         self.enabled.store(true, atomic::Ordering::SeqCst);
     }
 
-    pub fn _disable_tasks(&self) {
+    pub fn _disable_tasks(&mut self) {
         self.enabled.store(false, atomic::Ordering::SeqCst);
     }
-}
 
-pub struct EnabledPeriodicTask {
-    pub name: &'static str,
-    pub task: Box<dyn FnMut() -> () + Send + Sync>,
-    pub period: std::time::Duration,
-    pub enabled: Arc<AtomicBool>,
+    pub fn shutdown_tasks(&mut self) {
+        self.quit.store(true, atomic::Ordering::SeqCst);
+
+        while let Some(thread) = self.threads.pop() {
+            thread.join().unwrap();
+        }
+    }
 }
