@@ -57,7 +57,7 @@ impl<Foo, I> FooDataWriter<Foo> for DataWriterProxy<Foo, I>
 where
     DdsShared<I>: FooDataWriter<Foo>,
 {
-    fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
+    fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes
             .upgrade()?
             .register_instance(instance)
@@ -65,7 +65,7 @@ where
 
     fn register_instance_w_timestamp(
         &self,
-        instance: Foo,
+        instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes

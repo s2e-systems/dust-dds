@@ -228,7 +228,7 @@ pub enum ReliabilityKind {
 
 /// InstanceHandle_t
 /// Type used to represent the identity of a data-object whose changes in value are communicated by the RTPS protocol.
-pub type InstanceHandle = i32;
+pub type InstanceHandle = [u8; 16]; // Originally in the standard: i32
 
 /// ProtocolVersion_t
 /// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.

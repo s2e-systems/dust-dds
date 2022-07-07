@@ -22,7 +22,7 @@ pub trait FooDataWriter<Foo> {
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>>;
+    fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>;
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -33,7 +33,7 @@ pub trait FooDataWriter<Foo> {
     /// (2.2.2.4.2.11).
     fn register_instance_w_timestamp(
         &self,
-        instance: Foo,
+        instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>>;
 

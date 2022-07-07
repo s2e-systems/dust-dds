@@ -760,7 +760,7 @@ mod tests {
         writer_cache.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             sequence_number,
             vec![],
             vec![],
@@ -782,7 +782,7 @@ mod tests {
         writer_cache.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             sequence_number,
             vec![],
             vec![],

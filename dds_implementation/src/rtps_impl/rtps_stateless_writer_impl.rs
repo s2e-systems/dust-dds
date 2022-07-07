@@ -507,7 +507,7 @@ mod tests {
         hc.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             1,
             vec![],
             vec![],
@@ -515,7 +515,7 @@ mod tests {
         hc.add_change(RtpsCacheChangeImpl::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             2,
             vec![],
             vec![],

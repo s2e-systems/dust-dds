@@ -217,11 +217,11 @@ fn reliable_stateful_reader_writer_dropped_data() {
     // Write 5 changes
     {
         let changes = vec![
-            stateful_writer.new_change(ChangeKind::Alive, vec![0, 1], vec![], 0), // SN: 1
-            stateful_writer.new_change(ChangeKind::Alive, vec![2, 3], vec![], 0), // SN: 2
-            stateful_writer.new_change(ChangeKind::Alive, vec![4, 5], vec![], 0), // SN: 3
-            stateful_writer.new_change(ChangeKind::Alive, vec![6, 7], vec![], 0), // SN: 4
-            stateful_writer.new_change(ChangeKind::Alive, vec![8, 9], vec![], 0), // SN: 5
+            stateful_writer.new_change(ChangeKind::Alive, vec![0, 1], vec![], [0; 16]), // SN: 1
+            stateful_writer.new_change(ChangeKind::Alive, vec![2, 3], vec![], [0; 16]), // SN: 2
+            stateful_writer.new_change(ChangeKind::Alive, vec![4, 5], vec![], [0; 16]), // SN: 3
+            stateful_writer.new_change(ChangeKind::Alive, vec![6, 7], vec![], [0; 16]), // SN: 4
+            stateful_writer.new_change(ChangeKind::Alive, vec![8, 9], vec![], [0; 16]), // SN: 5
         ];
 
         for change in changes {

@@ -51,7 +51,7 @@ impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheCha
             (false, true) => ChangeKind::NotAliveDisposed,
             _ => todo!(),
         };
-        let instance_handle = 0;
+        let instance_handle = [0; 16];
         let sequence_number = data.writer_sn.value;
         let data_value = data.serialized_payload.value.to_vec();
 
@@ -267,7 +267,7 @@ mod tests {
         let change = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             1,
             vec![],
             vec![],
@@ -283,7 +283,7 @@ mod tests {
         let change1 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             1,
             vec![],
             vec![],
@@ -291,7 +291,7 @@ mod tests {
         let change2 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             2,
             vec![],
             vec![],
@@ -307,7 +307,7 @@ mod tests {
         let change1 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             1,
             vec![],
             vec![],
@@ -315,7 +315,7 @@ mod tests {
         let change2 = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             2,
             vec![],
             vec![],

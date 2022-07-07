@@ -9,7 +9,7 @@ use dds_api::{
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-        HANDLE_NIL_NATIVE,
+        HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
     },
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -21,9 +21,10 @@ use dds_api::{
         data_writer_listener::DataWriterListener,
         publisher::Publisher,
     },
-    return_type::DdsResult,
+    return_type::{DdsError, DdsResult},
     topic::topic_description::TopicDescription,
 };
+
 use rtps_pim::{
     behavior::{
         stateful_writer_behavior::{
@@ -73,6 +74,16 @@ use crate::{
 };
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
+
+fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
+    if serialized_key.len() <= 16 {
+        let mut h = [0; 16];
+        h[..serialized_key.len()].clone_from_slice(serialized_key);
+        h
+    } else {
+        md5::compute(serialized_key).into()
+    }
+}
 
 pub trait AnyDataWriterListener<DW> {
     fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
@@ -137,9 +148,10 @@ impl RtpsEntityAttributes for RtpsWriter {
 }
 
 pub struct DataWriterImpl {
-    _qos: DataWriterQos,
+    qos: DataWriterQos,
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
+    registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<PublisherImpl>,
@@ -184,9 +196,10 @@ impl DataWriterImpl {
         };
 
         DdsShared::new(DataWriterImpl {
-            _qos: qos,
+            qos,
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
+            registered_instance_list: DdsRwLock::new(HashMap::new()),
             listener: DdsRwLock::new(listener),
             topic,
             publisher,
@@ -288,9 +301,9 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
 
 impl<Foo> FooDataWriter<Foo> for DdsShared<DataWriterImpl>
 where
-    Foo: DdsSerialize,
+    Foo: DdsType + DdsSerialize,
 {
-    fn register_instance(&self, instance: Foo) -> DdsResult<Option<InstanceHandle>> {
+    fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         let timestamp = self
             .publisher
             .upgrade()?
@@ -302,10 +315,28 @@ where
 
     fn register_instance_w_timestamp(
         &self,
-        _instance: Foo,
+        instance: &Foo,
         _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+        if Foo::has_key() {
+            let serialized_key = instance.serialized_key::<LittleEndian>();
+            let instance_handle = calculate_instance_handle(&serialized_key);
+
+            let mut registered_instances_lock = self.registered_instance_list.write_lock();
+            if !registered_instances_lock.contains_key(&instance_handle) {
+                if self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
+                    || (registered_instances_lock.len() as i32)
+                        < self.qos.resource_limits.max_instances
+                {
+                    registered_instances_lock.insert(instance_handle, serialized_key);
+                } else {
+                    return Err(DdsError::OutOfResources);
+                }
+            }
+            Ok(Some(instance_handle))
+        } else {
+            Ok(None)
+        }
     }
 
     fn unregister_instance(&self, instance: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
@@ -331,8 +362,15 @@ where
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        todo!()
+    fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        let serialized_key = instance.serialized_key::<LittleEndian>();
+        let instance_handle = calculate_instance_handle(&serialized_key);
+        let registered_instance_list_lock = self.registered_instance_list.read_lock();
+        if registered_instance_list_lock.contains_key(&instance_handle) {
+            Ok(Some(instance_handle))
+        } else {
+            Ok(None)
+        }
     }
 
     fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
@@ -358,12 +396,14 @@ where
         let sequence_number;
         match &mut *rtps_writer_lock {
             RtpsWriter::Stateless(rtps_writer) => {
-                let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                let change =
+                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
                 sequence_number = change.sequence_number();
                 rtps_writer.add_change(change);
             }
             RtpsWriter::Stateful(rtps_writer) => {
-                let change = rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], 0);
+                let change =
+                    rtps_writer.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
                 sequence_number = change.sequence_number();
                 rtps_writer.add_change(change);
             }
@@ -629,7 +669,7 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
 mod test {
     use std::io::Write;
 
-    use dds_api::infrastructure::qos::TopicQos;
+    use dds_api::infrastructure::{qos::TopicQos, qos_policy::ResourceLimitsQosPolicy};
     use rtps_pim::{
         behavior::{
             types::DURATION_ZERO,
@@ -648,6 +688,48 @@ mod test {
     struct MockFoo {}
 
     impl DdsSerialize for MockFoo {
+        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
+            Ok(())
+        }
+    }
+
+    impl DdsType for MockFoo {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            false
+        }
+
+        fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
+            if Self::has_key() {
+                unimplemented!("DdsType with key must provide an implementation for the key getter")
+            } else {
+                vec![]
+            }
+        }
+    }
+
+    struct MockKeyedFoo {
+        key: Vec<u8>,
+    }
+
+    impl DdsType for MockKeyedFoo {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            true
+        }
+
+        fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
+            self.key.clone()
+        }
+    }
+
+    impl DdsSerialize for MockKeyedFoo {
         fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
@@ -748,5 +830,199 @@ mod test {
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_writer.get_instance_handle().unwrap();
         assert_eq!(expected_instance_handle, instance_handle);
+    }
+
+    #[test]
+    fn register_instance_w_timestamp_different_keys() {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let instance_handle = data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![1, 2] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+        assert_eq!(
+            instance_handle,
+            Some([1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+
+        let instance_handle = data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo {
+                    key: vec![1, 2, 3, 4, 5, 6],
+                },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+        assert_eq!(
+            instance_handle,
+            Some([1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+
+        let instance_handle = data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo {
+                    key: vec![b'1'; 20],
+                },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+        assert_eq!(
+            instance_handle,
+            Some([
+                0x50, 0x20, 0x7f, 0xa2, 0x81, 0x4e, 0x81, 0xa0, 0x67, 0xbd, 0x26, 0x62, 0xba, 0x10,
+                0xb0, 0xf1
+            ])
+        );
+    }
+
+    #[test]
+    fn register_instance_w_timestamp_no_key() {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let instance_handle = data_writer
+            .register_instance_w_timestamp(&MockFoo {}, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+        assert_eq!(instance_handle, None);
+    }
+
+    #[test]
+    fn register_instance_w_timestamp_out_of_resources() {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos {
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_instances: 2,
+                    ..ResourceLimitsQosPolicy::default()
+                },
+                ..DataWriterQos::default()
+            },
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![1] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+        data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![2] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+        let instance_handle_result = data_writer.register_instance_w_timestamp(
+            &MockKeyedFoo { key: vec![3] },
+            Time { sec: 0, nanosec: 0 },
+        );
+        assert_eq!(instance_handle_result, Err(DdsError::OutOfResources));
+
+        // Already registered sample does not cause OutOfResources error
+        data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![2] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn lookup_instance() {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let instance1 = MockKeyedFoo { key: vec![1] };
+        let instance2 = MockKeyedFoo { key: vec![2] };
+
+        let instance_handle1 = data_writer
+            .register_instance_w_timestamp(&instance1, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        assert_eq!(
+            data_writer.lookup_instance(&instance1),
+            Ok(instance_handle1)
+        );
+        assert_eq!(data_writer.lookup_instance(&instance2), Ok(None));
     }
 }

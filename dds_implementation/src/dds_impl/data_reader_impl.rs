@@ -944,7 +944,7 @@ mod tests {
         let cache_change = RtpsCacheChangeImpl::new(
             rtps_pim::structure::types::ChangeKind::Alive,
             GUID_UNKNOWN,
-            0,
+            [0; 16],
             sn,
             vec![value],
             vec![],
