@@ -6,7 +6,7 @@ pub mod publisher_proxy;
 pub mod subscriber_proxy;
 pub mod topic_proxy;
 
-mod tasks;
+mod task_manager;
 
 pub use dds_api::dcps_psm as types;
 pub use dds_api::domain;

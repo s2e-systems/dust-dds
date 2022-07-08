@@ -30,7 +30,7 @@ use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
 use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
 
-use crate::{domain_participant_proxy::DomainParticipantProxy, tasks::TaskManager};
+use crate::{domain_participant_proxy::DomainParticipantProxy, task_manager::TaskManager};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -288,25 +288,24 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 
         domain_participant.create_builtins()?;
 
-        let mut task_manager = TaskManager::new();
+        let mut participant_manager = ParticipantManager {
+            participant: domain_participant,
+            task_manager: TaskManager::new(),
+        };
 
         if qos.entity_factory.autoenable_created_entities {
-            self.enable(
-                domain_participant.clone(),
-                &mut task_manager,
-                communications,
-            )?;
+            self.enable(&mut participant_manager, communications)?;
         }
+
+        let participant_proxy =
+            DomainParticipantProxy::new(participant_manager.participant.downgrade());
 
         PARTICIPANT_MANAGER_LIST
             .lock()
             .unwrap()
-            .push(ParticipantManager {
-                participant: domain_participant.clone(),
-                task_manager,
-            });
+            .push(participant_manager);
 
-        Ok(DomainParticipantProxy::new(domain_participant.downgrade()))
+        Ok(participant_proxy)
     }
 
     fn delete_participant(&self, participant: &Self::DomainParticipant) -> DdsResult<()> {
@@ -319,8 +318,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             .position(|pm| DomainParticipantProxy::new(pm.participant.downgrade()).eq(participant))
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        let mut pm = participant_list.remove(index);
-        pm.task_manager.shutdown_tasks();
+        participant_list.remove(index);
 
         Ok(())
     }
@@ -353,8 +351,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 impl DomainParticipantFactoryImpl {
     fn enable(
         &self,
-        domain_participant: DdsShared<DomainParticipantImpl>,
-        task_manager: &mut TaskManager,
+        participant_manager: &mut ParticipantManager,
         communications: Communications,
     ) -> DdsResult<()> {
         let mut metatraffic_multicast_communication = communications.metatraffic_multicast;
@@ -365,91 +362,106 @@ impl DomainParticipantFactoryImpl {
 
         // ////////////// SPDP participant discovery
         {
-            let domain_participant = domain_participant.clone();
-            task_manager.spawn_enabled_periodic_task(
-                "builtin multicast communication",
-                move || {
-                    domain_participant
-                        .receive_built_in_data(&mut metatraffic_multicast_communication);
-                },
-                std::time::Duration::from_millis(500),
-            );
+            let domain_participant = participant_manager.participant.clone();
+            participant_manager
+                .task_manager
+                .spawn_enabled_periodic_task(
+                    "builtin multicast communication",
+                    move || {
+                        domain_participant
+                            .receive_built_in_data(&mut metatraffic_multicast_communication);
+                    },
+                    std::time::Duration::from_millis(500),
+                );
         }
 
         // ////////////// SPDP builtin endpoint configuration
         {
-            let domain_participant = domain_participant.clone();
+            let domain_participant = participant_manager.participant.clone();
 
-            task_manager.spawn_enabled_periodic_task(
-                "spdp endpoint configuration",
-                move || match domain_participant.discover_matched_participants() {
-                    Ok(()) => (),
-                    Err(e) => println!("spdp discovery failed: {:?}", e),
-                },
-                std::time::Duration::from_millis(500),
-            );
+            participant_manager
+                .task_manager
+                .spawn_enabled_periodic_task(
+                    "spdp endpoint configuration",
+                    move || match domain_participant.discover_matched_participants() {
+                        Ok(()) => (),
+                        Err(e) => println!("spdp discovery failed: {:?}", e),
+                    },
+                    std::time::Duration::from_millis(500),
+                );
         }
 
         // //////////// Unicast Communication
         {
-            let domain_participant = domain_participant.clone();
-            task_manager.spawn_enabled_periodic_task(
-                "builtin unicast communication",
-                move || {
-                    domain_participant.send_built_in_data(&mut metatraffic_unicast_communication);
-                    domain_participant
-                        .receive_built_in_data(&mut metatraffic_unicast_communication);
-                },
-                std::time::Duration::from_millis(500),
-            );
+            let domain_participant = participant_manager.participant.clone();
+            participant_manager
+                .task_manager
+                .spawn_enabled_periodic_task(
+                    "builtin unicast communication",
+                    move || {
+                        domain_participant
+                            .send_built_in_data(&mut metatraffic_unicast_communication);
+                        domain_participant
+                            .receive_built_in_data(&mut metatraffic_unicast_communication);
+                    },
+                    std::time::Duration::from_millis(500),
+                );
         }
 
         // ////////////// SEDP user-defined endpoint configuration
         {
-            let domain_participant = domain_participant.clone();
+            let domain_participant = participant_manager.participant.clone();
 
-            task_manager.spawn_enabled_periodic_task(
-                "sedp user endpoint configuration",
-                move || {
-                    match domain_participant.discover_matched_writers() {
-                        Ok(()) => (),
-                        Err(e) => println!("sedp writer discovery failed: {:?}", e),
-                    }
-                    match domain_participant.discover_matched_readers() {
-                        Ok(()) => (),
-                        Err(e) => println!("sedp reader discovery failed: {:?}", e),
-                    }
-                },
-                std::time::Duration::from_millis(500),
-            );
+            participant_manager
+                .task_manager
+                .spawn_enabled_periodic_task(
+                    "sedp user endpoint configuration",
+                    move || {
+                        match domain_participant.discover_matched_writers() {
+                            Ok(()) => (),
+                            Err(e) => println!("sedp writer discovery failed: {:?}", e),
+                        }
+                        match domain_participant.discover_matched_readers() {
+                            Ok(()) => (),
+                            Err(e) => println!("sedp reader discovery failed: {:?}", e),
+                        }
+                    },
+                    std::time::Duration::from_millis(500),
+                );
         }
 
         // //////////// User-defined Communication
         {
-            let domain_participant = domain_participant.clone();
-            task_manager.spawn_enabled_periodic_task(
-                "user-defined communication",
-                move || {
-                    domain_participant.send_user_defined_data(&mut default_unicast_communication);
-                    domain_participant
-                        .receive_user_defined_data(&mut default_unicast_communication);
-                },
-                std::time::Duration::from_millis(50),
-            );
+            let domain_participant = participant_manager.participant.clone();
+            participant_manager
+                .task_manager
+                .spawn_enabled_periodic_task(
+                    "user-defined communication",
+                    move || {
+                        domain_participant
+                            .send_user_defined_data(&mut default_unicast_communication);
+                        domain_participant
+                            .receive_user_defined_data(&mut default_unicast_communication);
+                    },
+                    std::time::Duration::from_millis(50),
+                );
         }
 
         // //////////// Announce participant
-        task_manager.spawn_enabled_periodic_task(
-            "participant announcement",
-            move || match domain_participant.announce_participant() {
-                Ok(_) => (),
-                Err(e) => println!("participant announcement failed: {:?}", e),
-            },
-            std::time::Duration::from_millis(5000),
-        );
+        let domain_participant = participant_manager.participant.clone();
+        participant_manager
+            .task_manager
+            .spawn_enabled_periodic_task(
+                "participant announcement",
+                move || match domain_participant.announce_participant() {
+                    Ok(_) => (),
+                    Err(e) => println!("participant announcement failed: {:?}", e),
+                },
+                std::time::Duration::from_millis(5000),
+            );
 
         // //////////// Start running tasks
-        task_manager.enable_tasks();
+        participant_manager.task_manager.enable_tasks();
 
         Ok(())
     }
@@ -1135,7 +1147,7 @@ mod tests {
     }
 
     fn reset_singleton() {
-        *PARTICIPANT_MANAGER_LIST.lock().unwrap() = vec![];
+        PARTICIPANT_MANAGER_LIST.lock().unwrap().clear();
     }
 
     #[test]
