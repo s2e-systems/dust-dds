@@ -166,7 +166,7 @@ pub trait FooDataWriter<Foo> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()>;
+    fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()>;
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
     /// that is made available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo (see 2.2.2.5,
@@ -183,7 +183,7 @@ pub trait FooDataWriter<Foo> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     fn dispose_w_timestamp(
         &self,
-        data: Foo,
+        data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>;

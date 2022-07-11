@@ -50,7 +50,10 @@ impl TopicDescription for DdsShared<TopicImpl> {
     type DomainParticipant = DdsShared<DomainParticipantImpl>;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        self.parent_participant.clone().upgrade()
+        Ok(self
+            .parent_participant
+            .upgrade()
+            .expect("Failed to get parent participant of topic"))
     }
 
     fn get_type_name(&self) -> DdsResult<&'static str> {

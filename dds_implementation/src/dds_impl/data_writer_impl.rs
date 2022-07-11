@@ -2,7 +2,8 @@ use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     data_representation_inline_qos::{
-        parameter_id_values::PID_STATUS_INFO, types::STATUS_INFO_UNREGISTERED_FLAG,
+        parameter_id_values::PID_STATUS_INFO,
+        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
     },
     rtps_impl::{
         rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
@@ -90,6 +91,38 @@ fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
         h
     } else {
         md5::compute(serialized_key).into()
+    }
+}
+
+fn retrieve_instance_handle(
+    handle: Option<InstanceHandle>,
+    registered_instance_list: &HashMap<InstanceHandle, Vec<u8>>,
+    serialized_key: &[u8],
+) -> DdsResult<[u8; 16]> {
+    match handle {
+        Some(h) => {
+            if let Some(stored_key) = registered_instance_list.get(&h) {
+                if stored_key == &serialized_key {
+                    Ok(h)
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Handle does not match instance".to_string(),
+                    ))
+                }
+            } else {
+                Err(DdsError::BadParameter)
+            }
+        }
+        None => {
+            let instance_handle = calculate_instance_handle(&serialized_key);
+            if registered_instance_list.contains_key(&instance_handle) {
+                Ok(instance_handle)
+            } else {
+                Err(DdsError::PreconditionNotMet(
+                    "Instance not registered with this DataWriter".to_string(),
+                ))
+            }
+        }
     }
 }
 
@@ -351,6 +384,17 @@ impl DataWriterImpl {
     }
 }
 
+impl DdsShared<DataWriterImpl> {
+    fn get_timestamp(&self) -> Time {
+        self.datawriter_get_publisher()
+            .expect("Failed to get parent publisher of datawriter.")
+            .get_participant()
+            .expect("Failed to get parent participant of publisher")
+            .get_current_time()
+            .expect("Failed to get current time from participant")
+    }
+}
+
 impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
     fn on_acknack_submessage_received(
         &self,
@@ -417,12 +461,7 @@ where
     Foo: DdsType + DdsSerialize,
 {
     fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let timestamp = self
-            .publisher
-            .upgrade()?
-            .get_participant()?
-            .upgrade()?
-            .get_current_time()?;
+        let timestamp = self.get_timestamp();
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
@@ -453,12 +492,7 @@ where
     }
 
     fn unregister_instance(&self, instance: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self
-            .publisher
-            .upgrade()?
-            .get_participant()?
-            .upgrade()?
-            .get_current_time()?;
+        let timestamp = self.get_timestamp();
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
@@ -475,31 +509,11 @@ where
             let mut sample_info_lock = self.sample_info.write_lock();
             let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
 
-            let instance_handle = match handle {
-                Some(h) => {
-                    if let Some(stored_key) = registered_instance_list_lock.get(&h) {
-                        if stored_key == &serialized_key {
-                            Ok(h)
-                        } else {
-                            Err(DdsError::PreconditionNotMet(
-                                "Handle does not match instance".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(DdsError::BadParameter)
-                    }
-                }
-                None => {
-                    let instance_handle = calculate_instance_handle(&serialized_key);
-                    if registered_instance_list_lock.contains_key(&instance_handle) {
-                        Ok(instance_handle)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Instance not registered with this DataWriter".to_string(),
-                        ))
-                    }
-                }
-            }?;
+            let instance_handle = retrieve_instance_handle(
+                handle,
+                &*registered_instance_list_lock,
+                serialized_key.as_ref(),
+            )?;
             let mut serialized_status_info = Vec::new();
             let mut serializer =
                 cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
@@ -544,12 +558,7 @@ where
     }
 
     fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self
-            .publisher
-            .upgrade()?
-            .get_participant()?
-            .upgrade()?
-            .get_current_time()?;
+        let timestamp = self.get_timestamp();
         self.write_w_timestamp(data, handle, timestamp)
     }
 
@@ -573,23 +582,55 @@ where
         Ok(())
     }
 
-    fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        let timestamp = self
-            .publisher
-            .upgrade()?
-            .get_participant()?
-            .upgrade()?
-            .get_current_time()?;
+    fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        let timestamp = self.get_timestamp();
         self.dispose_w_timestamp(data, handle, timestamp)
     }
 
     fn dispose_w_timestamp(
         &self,
-        _data: Foo,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        data: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> DdsResult<()> {
-        todo!()
+        if Foo::has_key() {
+            let serialized_key = data.serialized_key::<LittleEndian>();
+
+            let mut rtps_writer_lock = self.rtps_writer.write_lock();
+            let mut sample_info_lock = self.sample_info.write_lock();
+            let registered_instance_list_lock = self.registered_instance_list.read_lock();
+
+            let instance_handle = retrieve_instance_handle(
+                handle,
+                &*registered_instance_list_lock,
+                serialized_key.as_ref(),
+            )?;
+            let mut serialized_status_info = Vec::new();
+            let mut serializer =
+                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            STATUS_INFO_DISPOSED_FLAG
+                .serialize(&mut serializer)
+                .unwrap();
+
+            let inline_qos = vec![RtpsParameter::new(
+                ParameterId(PID_STATUS_INFO),
+                serialized_status_info,
+            )];
+
+            let change = rtps_writer_lock.new_change(
+                ChangeKind::NotAliveDisposed,
+                serialized_key,
+                inline_qos,
+                instance_handle,
+            );
+            let sequence_number = change.sequence_number();
+            rtps_writer_lock.add_change(change);
+            sample_info_lock.insert(sequence_number, timestamp);
+
+            Ok(())
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
     }
 }
 
@@ -660,7 +701,10 @@ impl DataWriterGetPublisher for DdsShared<DataWriterImpl> {
     type PublisherType = DdsShared<PublisherImpl>;
 
     fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
-        Ok(self.publisher.upgrade()?.clone())
+        Ok(self
+            .publisher
+            .upgrade()
+            .expect("Failed to get parent publisher of data writer"))
     }
 }
 
@@ -1173,6 +1217,58 @@ mod test {
     }
 
     #[test]
+    fn dispose_not_registered() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance = MockKeyedFoo { key: vec![1] };
+        let result = data_writer.dispose_w_timestamp(&instance, None, TIME_INVALID);
+        assert_eq!(
+            result,
+            Err(DdsError::PreconditionNotMet(
+                "Instance not registered with this DataWriter".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn dispose_non_registered_handle() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance = MockKeyedFoo { key: vec![1] };
+        data_writer
+            .register_instance_w_timestamp(&instance, TIME_INVALID)
+            .unwrap();
+        let result = data_writer.dispose_w_timestamp(
+            &instance,
+            Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            TIME_INVALID,
+        );
+        assert_eq!(result, Err(DdsError::BadParameter));
+    }
+
+    #[test]
+    fn dispose_not_matching_handle() {
+        let data_writer = create_data_writer_test_fixture();
+        let instance1 = MockKeyedFoo { key: vec![1] };
+        let instance2 = MockKeyedFoo { key: vec![2] };
+        data_writer
+            .register_instance_w_timestamp(&instance1, TIME_INVALID)
+            .unwrap();
+        data_writer
+            .register_instance_w_timestamp(&instance2, TIME_INVALID)
+            .unwrap();
+        let result = data_writer.dispose_w_timestamp(
+            &instance1,
+            Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+            TIME_INVALID,
+        );
+        assert_eq!(
+            result,
+            Err(DdsError::PreconditionNotMet(
+                "Handle does not match instance".to_string()
+            ))
+        );
+    }
+
+    #[test]
     fn write_w_timestamp_stateless_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
             GUID_UNKNOWN,
@@ -1340,6 +1436,94 @@ mod test {
                             parameter_id: ParameterId(PID_STATUS_INFO),
                             length: 4,
                             value: &[2, 0, 0, 0],
+                        }],
+                    },
+                    serialized_payload: SerializedDataSubmessageElement { value: &[1] },
+                }),
+            ],
+        };
+        mock_transport
+            .expect_write()
+            .withf(move |message, destination_locator| {
+                message == &expected_message && destination_locator == &locator
+            })
+            .once()
+            .return_const(());
+        data_writer.send_message(&mut mock_transport);
+    }
+
+    #[test]
+    fn dispose_w_timestamp_message() {
+        let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let locator = Locator::new(1, 7400, [1; 16]);
+        let expects_inline_qos = false;
+        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        stateless_rtps_writer.reader_locator_add(reader_locator);
+
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(stateless_rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let instance = MockKeyedFoo { key: vec![1] };
+
+        data_writer
+            .register_instance_w_timestamp(&instance, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+        data_writer
+            .dispose_w_timestamp(&instance, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        let mut mock_transport = MockTransport::new();
+        let expected_message = RtpsMessage {
+            header: RtpsMessageHeader {
+                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION_2_4,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: GUIDPREFIX_UNKNOWN,
+            },
+            submessages: vec![
+                RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
+                    endianness_flag: true,
+                    invalidate_flag: false,
+                    timestamp: TimestampSubmessageElement {
+                        value: rtps_pim::messages::types::Time(0),
+                    },
+                }),
+                RtpsSubmessageType::Data(DataSubmessage {
+                    endianness_flag: true,
+                    inline_qos_flag: true,
+                    data_flag: false,
+                    key_flag: true,
+                    non_standard_payload_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_sn: SequenceNumberSubmessageElement { value: 1 },
+                    inline_qos: ParameterListSubmessageElement {
+                        parameter: vec![Parameter {
+                            parameter_id: ParameterId(PID_STATUS_INFO),
+                            length: 4,
+                            value: &[1, 0, 0, 0],
                         }],
                     },
                     serialized_payload: SerializedDataSubmessageElement { value: &[1] },

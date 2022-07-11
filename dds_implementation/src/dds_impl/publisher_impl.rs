@@ -326,10 +326,13 @@ impl Publisher for DdsShared<PublisherImpl> {
 }
 
 impl PublisherGetParticipant for DdsShared<PublisherImpl> {
-    type DomainParticipant = DdsWeak<DomainParticipantImpl>;
+    type DomainParticipant = DdsShared<DomainParticipantImpl>;
 
     fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_participant.clone())
+        Ok(self
+            .parent_participant
+            .upgrade()
+            .expect("Failed to get parent participant of publisher"))
     }
 }
 

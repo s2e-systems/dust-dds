@@ -117,13 +117,13 @@ where
             .write_w_timestamp(data, handle, timestamp)
     }
 
-    fn dispose(&self, data: Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.dispose(data, handle)
     }
 
     fn dispose_w_timestamp(
         &self,
-        data: Foo,
+        data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {

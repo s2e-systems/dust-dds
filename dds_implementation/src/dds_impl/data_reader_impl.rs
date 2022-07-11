@@ -472,7 +472,10 @@ where
     type Subscriber = DdsShared<SubscriberImpl>;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
-        Ok(self.parent_subscriber.upgrade()?.clone())
+        Ok(self
+            .parent_subscriber
+            .upgrade()
+            .expect("Failed to get parent subscriber of data reader"))
     }
 }
 

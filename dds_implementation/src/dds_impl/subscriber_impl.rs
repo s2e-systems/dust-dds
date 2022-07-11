@@ -329,10 +329,13 @@ impl Subscriber for DdsShared<SubscriberImpl> {
 }
 
 impl SubscriberGetParticipant for DdsShared<SubscriberImpl> {
-    type DomainParticipant = DdsWeak<DomainParticipantImpl>;
+    type DomainParticipant = DdsShared<DomainParticipantImpl>;
 
     fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self.parent_domain_participant.clone())
+        Ok(self
+            .parent_domain_participant
+            .upgrade()
+            .expect("Failed to get parent participant of subscriber"))
     }
 }
 
