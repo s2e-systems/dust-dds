@@ -9,7 +9,7 @@ use dds_api::{
 };
 use rtps_pim::structure::types::Guid;
 
-use crate::utils::shared_object::{DdsShared, DdsWeak};
+use crate::utils::shared_object::{DdsShared, DdsWeak, DdsRwLock};
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
@@ -19,6 +19,7 @@ pub struct TopicImpl {
     type_name: &'static str,
     topic_name: String,
     parent_participant: DdsWeak<DomainParticipantImpl>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl TopicImpl {
@@ -35,6 +36,7 @@ impl TopicImpl {
             type_name,
             topic_name: topic_name.to_string(),
             parent_participant,
+            enabled: DdsRwLock::new(false),
         })
     }
 }
@@ -104,8 +106,8 @@ impl Entity for DdsShared<TopicImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).enable()
-        todo!()
+        *self.enabled.write_lock() = true;
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

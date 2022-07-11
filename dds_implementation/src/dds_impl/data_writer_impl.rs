@@ -305,6 +305,7 @@ pub struct DataWriterImpl {
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl DataWriterImpl {
@@ -353,6 +354,7 @@ impl DataWriterImpl {
             offered_deadline_missed_status: DdsRwLock::new(offered_deadline_missed_status),
             offered_incompatible_qos_status: DdsRwLock::new(offered_incompatible_qos_status),
             publication_matched_status: DdsRwLock::new(publication_matched_status),
+            enabled: DdsRwLock::new(false),
         })
     }
 
@@ -746,7 +748,8 @@ impl Entity for DdsShared<DataWriterImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        todo!()
+        *self.enabled.write_lock() = true;
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

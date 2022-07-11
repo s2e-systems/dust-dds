@@ -67,6 +67,7 @@ pub struct PublisherImpl {
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     parent_participant: DdsWeak<DomainParticipantImpl>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl PublisherImpl {
@@ -82,6 +83,7 @@ impl PublisherImpl {
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             parent_participant,
+            enabled: DdsRwLock::new(false),
         })
     }
 }
@@ -369,7 +371,8 @@ impl Entity for DdsShared<PublisherImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        todo!()
+        *self.enabled.write_lock() = true;
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
@@ -442,14 +445,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_create_datawriter() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -468,14 +468,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -499,25 +496,19 @@ mod tests {
 
     #[test]
     fn datawriter_factory_delete_datawriter_from_other_publisher() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
 
         let publisher = DdsShared::new(publisher_attributes);
 
-        let publisher2_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher2_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher2 = DdsShared::new(publisher2_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -543,14 +534,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_no_datawriter() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -566,14 +554,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -595,14 +580,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_type() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicImpl::new(
@@ -630,14 +612,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_one_datawriter_with_wrong_topic() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicImpl::new(
@@ -665,14 +644,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_dawriters_with_different_types() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic_foo = DdsShared::new(TopicImpl::new(
@@ -705,14 +681,11 @@ mod tests {
 
     #[test]
     fn datawriter_factory_lookup_datawriter_with_two_datawriters_with_different_topics() {
-        let publisher_attributes = PublisherImpl {
-            _qos: PublisherQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
-            parent_participant: DdsWeak::new(),
-        };
+        let publisher_attributes = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let publisher = DdsShared::new(publisher_attributes);
 
         let topic1 = DdsShared::new(TopicImpl::new(

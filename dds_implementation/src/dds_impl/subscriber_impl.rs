@@ -73,6 +73,7 @@ pub struct SubscriberImpl {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     parent_domain_participant: DdsWeak<DomainParticipantImpl>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl SubscriberImpl {
@@ -88,6 +89,7 @@ impl SubscriberImpl {
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             parent_domain_participant,
+            enabled: DdsRwLock::new(false),
         })
     }
 }
@@ -372,7 +374,8 @@ impl Entity for DdsShared<SubscriberImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        todo!()
+        *self.enabled.write_lock() = true;
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
@@ -455,14 +458,11 @@ mod tests {
 
     #[test]
     fn create_datareader() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
 
         let subscriber = DdsShared::new(subscriber_attributes);
 
@@ -481,14 +481,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -511,24 +508,18 @@ mod tests {
 
     #[test]
     fn datareader_factory_delete_datareader_from_other_subscriber() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
-        let subscriber2_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber2_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber2 = DdsShared::new(subscriber2_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -554,14 +545,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_empty() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -577,14 +565,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic = DdsShared::new(TopicImpl::new(
@@ -606,14 +591,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_type() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicImpl::new(
@@ -641,14 +623,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_when_one_datareader_with_wrong_topic() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicImpl::new(
@@ -676,14 +655,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_types() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic_foo = DdsShared::new(TopicImpl::new(
@@ -716,14 +692,11 @@ mod tests {
 
     #[test]
     fn datareader_factory_lookup_datareader_with_two_topics() {
-        let subscriber_attributes = SubscriberImpl {
-            qos: SubscriberQos::default(),
-            rtps_group: RtpsGroupImpl::new(GUID_UNKNOWN),
-            data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant: DdsWeak::new(),
-        };
+        let subscriber_attributes = SubscriberImpl::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
         let subscriber = DdsShared::new(subscriber_attributes);
 
         let topic1 = DdsShared::new(TopicImpl::new(

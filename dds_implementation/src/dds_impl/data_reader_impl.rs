@@ -196,6 +196,7 @@ pub struct DataReaderImpl<Tim> {
     status_change: DdsRwLock<StatusMask>,
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
+    enabled: DdsRwLock<bool>,
 }
 
 impl<Tim> DataReaderImpl<Tim>
@@ -233,6 +234,7 @@ where
                 total_count_change: 0,
                 last_instance_handle: HANDLE_NIL_NATIVE,
             }),
+            enabled: DdsRwLock::new(false),
         })
     }
 }
@@ -819,7 +821,8 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        todo!()
+        *self.enabled.write_lock() = true;
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
