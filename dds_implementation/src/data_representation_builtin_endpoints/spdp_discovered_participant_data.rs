@@ -1,4 +1,22 @@
-use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use crate::{
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    parameter_list_serde::{
+        parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_serializer::ParameterListSerializer,
+        serde_remote_dds_api::{
+            BuiltinEndpointQosDeserialize, BuiltinEndpointQosSerialize,
+            BuiltinEndpointSetDeserialize, BuiltinEndpointSetSerialize,
+            UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
+        },
+        serde_remote_rtps_pim::{
+            CountDeserialize, CountSerdeSerialize, DomainTag, DomainTagDeserialize,
+            DomainTagSerialize, DurationDeserialize, DurationSerialize,
+            ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize, GuidDeserialize, GuidSerialize,
+            LocatorDeserialize, LocatorSerialize, ProtocolVersionDeserialize,
+            ProtocolVersionSerialize,
+        },
+    },
+};
 use dds_api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rtps_pim::{
     behavior::types::Duration,
@@ -12,26 +30,12 @@ use rtps_pim::{
     },
 };
 
-use super::{
-    parameter_id_values::{
-        PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-        PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-        PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-        PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-        PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
-    },
-    parameter_list_deserializer::ParameterListDeserializer,
-    parameter_list_serializer::ParameterListSerializer,
-    serde_remote_dds_api::{
-        BuiltinEndpointQosDeserialize, BuiltinEndpointQosSerialize, BuiltinEndpointSetDeserialize,
-        BuiltinEndpointSetSerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
-    },
-    serde_remote_rtps_pim::{
-        CountDeserialize, CountSerdeSerialize, DomainTag, DomainTagDeserialize, DomainTagSerialize,
-        DurationDeserialize, DurationSerialize, ExpectsInlineQosDeserialize,
-        ExpectsInlineQosSerialize, GuidDeserialize, GuidSerialize, LocatorDeserialize,
-        LocatorSerialize, ProtocolVersionDeserialize, ProtocolVersionSerialize,
-    },
+use super::parameter_id_values::{
+    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
+    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
+    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
+    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
+    PID_USER_DATA, PID_VENDORID,
 };
 
 pub const DCPS_PARTICIPANT: &'static str = "DCPSParticipant";

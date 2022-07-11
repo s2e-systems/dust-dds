@@ -1,10 +1,15 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::rtps_impl::{
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
-    utils::clock::StdTimer,
+use crate::{
+    data_representation_inline_qos::{
+        parameter_id_values::PID_STATUS_INFO, types::STATUS_INFO_UNREGISTERED_FLAG,
+    },
+    rtps_impl::{
+        rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        utils::clock::StdTimer,
+    },
 };
 use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -50,15 +55,16 @@ use rtps_pim::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::TimestampSubmessageElement,
         submessages::{AckNackSubmessage, InfoTimestampSubmessage},
-        types::TIME_INVALID,
+        types::{ParameterId, TIME_INVALID},
     },
     structure::{
-        cache_change::RtpsCacheChangeAttributes,
+        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
         types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
 };
+use serde::Serialize;
 
 use crate::{
     data_representation_builtin_endpoints::{
@@ -150,15 +156,13 @@ impl RtpsEntityAttributes for RtpsWriter {
 }
 
 impl RtpsWriterOperations for RtpsWriter {
-    type DataType = Vec<u8>;
-    type ParameterListType = Vec<u8>;
     type CacheChangeType = RtpsCacheChangeImpl;
 
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: rtps_pim::structure::types::InstanceHandle,
     ) -> Self::CacheChangeType {
         match self {
@@ -462,12 +466,13 @@ where
         &self,
         instance: &Foo,
         handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<()> {
         if Foo::has_key() {
             let serialized_key = instance.serialized_key::<LittleEndian>();
 
             let mut rtps_writer_lock = self.rtps_writer.write_lock();
+            let mut sample_info_lock = self.sample_info.write_lock();
             let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
 
             let instance_handle = match handle {
@@ -495,14 +500,27 @@ where
                     }
                 }
             }?;
+            let mut serialized_status_info = Vec::new();
+            let mut serializer =
+                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            STATUS_INFO_UNREGISTERED_FLAG
+                .serialize(&mut serializer)
+                .unwrap();
+
+            let inline_qos = vec![RtpsParameter::new(
+                ParameterId(PID_STATUS_INFO),
+                serialized_status_info,
+            )];
 
             let change = rtps_writer_lock.new_change(
                 ChangeKind::NotAliveUnregistered,
                 serialized_key,
-                vec![],
-                [0; 16],
+                inline_qos,
+                instance_handle,
             );
-            rtps_writer_lock.writer_cache().add_change(change);
+            let sequence_number = change.sequence_number();
+            rtps_writer_lock.add_change(change);
+            sample_info_lock.insert(sequence_number, timestamp);
             registered_instance_list_lock.remove(&instance_handle);
             Ok(())
         } else {
@@ -815,20 +833,47 @@ mod test {
         dcps_psm::TIME_INVALID,
         infrastructure::{qos::TopicQos, qos_policy::ResourceLimitsQosPolicy},
     };
+    use mockall::mock;
     use rtps_pim::{
         behavior::{
             types::DURATION_ZERO,
             writer::{
+                reader_locator::RtpsReaderLocatorConstructor,
                 stateful_writer::RtpsStatefulWriterConstructor,
-                stateless_writer::RtpsStatelessWriterConstructor,
+                stateless_writer::{RtpsStatelessWriterConstructor, RtpsStatelessWriterOperations},
             },
         },
-        structure::types::{EntityId, GUID_UNKNOWN},
+        messages::{
+            submessage_elements::Parameter,
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            submessages::DataSubmessage,
+        },
+        structure::types::{
+            EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+            PROTOCOLVERSION_2_4,
+        },
     };
 
-    use crate::dds_type::Endianness;
+    use crate::{
+        dds_type::Endianness,
+        rtps_impl::{
+            rtps_stateful_writer_impl::RtpsReaderProxyImpl,
+            rtps_stateless_writer_impl::RtpsReaderLocatorAttributesImpl,
+        },
+    };
 
     use super::*;
+
+    mock! {
+        Transport{}
+
+        impl TransportWrite for Transport {
+            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator: Locator);
+        }
+    }
 
     struct MockFoo {}
 
@@ -903,66 +948,6 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         )
-    }
-
-    #[test]
-    fn write_w_timestamp_stateless() {
-        let rtps_writer = RtpsStatelessWriterImpl::new(
-            GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let shared_data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateless(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-
-        shared_data_writer
-            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-    }
-
-    #[test]
-    fn write_w_timestamp_stateful() {
-        let rtps_writer = RtpsStatefulWriterImpl::new(
-            GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-        );
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let shared_data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
-            RtpsWriter::Stateful(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-
-        shared_data_writer
-            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
     }
 
     #[test]
@@ -1185,5 +1170,189 @@ mod test {
                 "Handle does not match instance".to_string()
             ))
         );
+    }
+
+    #[test]
+    fn write_w_timestamp_stateless_message() {
+        let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let locator = Locator::new(1, 7400, [1; 16]);
+        let expects_inline_qos = false;
+        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        stateless_rtps_writer.reader_locator_add(reader_locator);
+
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(stateless_rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        data_writer
+            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        let mut mock_transport = MockTransport::new();
+        mock_transport
+            .expect_write()
+            .withf(move |message, destination_locator| {
+                message.submessages.len() == 2 && destination_locator == &locator
+            })
+            .once()
+            .return_const(());
+        data_writer.send_message(&mut mock_transport);
+    }
+
+    #[test]
+    fn write_w_timestamp_stateful_message() {
+        let mut stateful_rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let locator = Locator::new(1, 7400, [1; 16]);
+        let expects_inline_qos = false;
+        let is_active = true;
+        let reader_proxy = RtpsReaderProxyImpl::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[locator],
+            &[],
+            expects_inline_qos,
+            is_active,
+        );
+        stateful_rtps_writer.matched_reader_add(reader_proxy);
+
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(stateful_rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        data_writer
+            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        let mut mock_transport = MockTransport::new();
+        mock_transport
+            .expect_write()
+            .withf(move |message, destination_locator| {
+                message.submessages.len() == 2 && destination_locator == &locator
+            })
+            .once()
+            .return_const(());
+        data_writer.send_message(&mut mock_transport);
+    }
+
+    #[test]
+    fn unregister_w_timestamp_message() {
+        let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let locator = Locator::new(1, 7400, [1; 16]);
+        let expects_inline_qos = false;
+        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        stateless_rtps_writer.reader_locator_add(reader_locator);
+
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateless(stateless_rtps_writer),
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+        );
+
+        let instance = MockKeyedFoo { key: vec![1] };
+
+        data_writer
+            .register_instance_w_timestamp(&instance, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+        data_writer
+            .unregister_instance_w_timestamp(&instance, None, Time { sec: 0, nanosec: 0 })
+            .unwrap();
+
+        let mut mock_transport = MockTransport::new();
+        let expected_message = RtpsMessage {
+            header: RtpsMessageHeader {
+                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION_2_4,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: GUIDPREFIX_UNKNOWN,
+            },
+            submessages: vec![
+                RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
+                    endianness_flag: true,
+                    invalidate_flag: false,
+                    timestamp: TimestampSubmessageElement {
+                        value: rtps_pim::messages::types::Time(0),
+                    },
+                }),
+                RtpsSubmessageType::Data(DataSubmessage {
+                    endianness_flag: true,
+                    inline_qos_flag: true,
+                    data_flag: false,
+                    key_flag: true,
+                    non_standard_payload_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN,
+                    },
+                    writer_sn: SequenceNumberSubmessageElement { value: 1 },
+                    inline_qos: ParameterListSubmessageElement {
+                        parameter: vec![Parameter {
+                            parameter_id: ParameterId(PID_STATUS_INFO),
+                            length: 4,
+                            value: &[2, 0, 0, 0],
+                        }],
+                    },
+                    serialized_payload: SerializedDataSubmessageElement { value: &[1] },
+                }),
+            ],
+        };
+        mock_transport
+            .expect_write()
+            .withf(move |message, destination_locator| {
+                message == &expected_message && destination_locator == &locator
+            })
+            .once()
+            .return_const(());
+        data_writer.send_message(&mut mock_transport);
     }
 }

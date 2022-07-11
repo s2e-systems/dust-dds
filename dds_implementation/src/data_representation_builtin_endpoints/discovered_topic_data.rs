@@ -1,32 +1,33 @@
-use crate::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use crate::{
+    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    parameter_list_serde::{
+        parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_serializer::ParameterListSerializer,
+        serde_remote_dds_api::{
+            BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
+            DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
+            DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
+            DurabilityQosPolicySerialize, DurabilityServiceQosPolicyDeserialize,
+            DurabilityServiceQosPolicySerialize, HistoryQosPolicyDeserialize,
+            HistoryQosPolicySerialize, LatencyBudgetQosPolicyDeserialize,
+            LatencyBudgetQosPolicySerialize, LifespanQosPolicyDeserialize,
+            LifespanQosPolicySerialize, LivelinessQosPolicyDeserialize,
+            LivelinessQosPolicySerialize, OwnershipQosPolicyDeserialize,
+            OwnershipQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
+            ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
+            ReliabilityQosPolicyDataReaderAndTopicsSerialize, ResourceLimitsQosPolicyDeserialize,
+            ResourceLimitsQosPolicySerialize, TopicDataQosPolicyDeserialize,
+            TopicDataQosPolicySerialize, TransportPriorityQosPolicyDeserialize,
+            TransportPriorityQosPolicySerialize,
+        },
+    },
+};
 use dds_api::builtin_topics::TopicBuiltinTopicData;
 
-use super::{
-    parameter_id_values::{
-        PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE,
-        PID_ENDPOINT_GUID, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-        PID_OWNERSHIP, PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME,
-        PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
-    },
-    parameter_list_deserializer::ParameterListDeserializer,
-    parameter_list_serializer::ParameterListSerializer,
-    serde_remote_dds_api::{
-        BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
-        DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
-        DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
-        DurabilityQosPolicySerialize, DurabilityServiceQosPolicyDeserialize,
-        DurabilityServiceQosPolicySerialize, HistoryQosPolicyDeserialize,
-        HistoryQosPolicySerialize, LatencyBudgetQosPolicyDeserialize,
-        LatencyBudgetQosPolicySerialize, LifespanQosPolicyDeserialize, LifespanQosPolicySerialize,
-        LivelinessQosPolicyDeserialize, LivelinessQosPolicySerialize,
-        OwnershipQosPolicyDeserialize, OwnershipQosPolicySerialize,
-        ReliabilityQosPolicyDataReaderAndTopics,
-        ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
-        ReliabilityQosPolicyDataReaderAndTopicsSerialize, ResourceLimitsQosPolicyDeserialize,
-        ResourceLimitsQosPolicySerialize, TopicDataQosPolicyDeserialize,
-        TopicDataQosPolicySerialize, TransportPriorityQosPolicyDeserialize,
-        TransportPriorityQosPolicySerialize,
-    },
+use super::parameter_id_values::{
+    PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
+    PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_RELIABILITY,
+    PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 
 pub const DCPS_TOPIC: &'static str = "DCPSTopic";

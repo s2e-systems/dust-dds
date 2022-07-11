@@ -29,7 +29,7 @@ use rtps_pim::{
         types::Count,
     },
     structure::{
-        cache_change::RtpsCacheChangeAttributes,
+        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
@@ -569,17 +569,15 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
 }
 
 impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
-    type DataType = Vec<u8>;
-    type ParameterListType = Vec<u8>;
     type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Self::DataType,
-        _inline_qos: Self::ParameterListType,
+        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
-        self.writer.new_change(kind, data, _inline_qos, handle)
+        self.writer.new_change(kind, data, inline_qos, handle)
     }
 }
 

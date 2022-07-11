@@ -113,14 +113,12 @@ impl RtpsWriterAttributes for RtpsWriterImpl {
 }
 
 impl RtpsWriterOperations for RtpsWriterImpl {
-    type DataType = Vec<u8>;
-    type ParameterListType = Vec<u8>;
     type CacheChangeType = RtpsCacheChangeImpl;
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Self::DataType,
-        _inline_qos: Self::ParameterListType,
+        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -130,7 +128,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
             handle,
             self.last_change_sequence_number,
             data,
-            vec![],
+            inline_qos,
         )
     }
 }

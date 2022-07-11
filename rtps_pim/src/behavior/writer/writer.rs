@@ -1,7 +1,10 @@
 use crate::{
     behavior::types::Duration,
-    structure::types::{
-        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+    structure::{
+        cache_change::RtpsCacheChangeConstructor,
+        types::{
+            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+        },
     },
 };
 
@@ -33,15 +36,13 @@ pub trait RtpsWriterConstructor {
 }
 
 pub trait RtpsWriterOperations {
-    type DataType;
-    type ParameterListType;
-    type CacheChangeType;
+    type CacheChangeType: RtpsCacheChangeConstructor;
 
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
+        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType;
 }

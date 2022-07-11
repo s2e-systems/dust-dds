@@ -4,7 +4,7 @@ use rtps_pim::{
     structure::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion},
 };
 
-use super::parameter_id_values::{
+use crate::data_representation_builtin_endpoints::parameter_id_values::{
     DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS, DEFAULT_PARTICIPANT_LEASE_DURATION,
 };
 

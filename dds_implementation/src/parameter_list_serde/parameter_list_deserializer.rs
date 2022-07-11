@@ -3,9 +3,10 @@ use std::io::Read;
 use byteorder::{ByteOrder, ReadBytesExt};
 use dds_api::return_type::{DdsError, DdsResult};
 
-use crate::dds_type::{BigEndian, Endianness, LittleEndian};
-
-use super::parameter_id_values::PID_SENTINEL;
+use crate::{
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    dds_type::{BigEndian, Endianness, LittleEndian},
+};
 
 #[derive(Debug, PartialEq)]
 struct Parameter<'a> {

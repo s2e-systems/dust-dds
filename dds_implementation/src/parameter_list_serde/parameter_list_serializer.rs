@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
-use crate::dds_type::Endianness;
+use crate::{
+    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL, dds_type::Endianness,
+};
 use dds_api::return_type::{DdsError, DdsResult};
 use serde::Serialize;
-
-use super::parameter_id_values::PID_SENTINEL;
 
 pub struct ParameterListSerializer<W, E>
 where

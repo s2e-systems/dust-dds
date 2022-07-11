@@ -23,6 +23,23 @@ pub struct RtpsParameter {
     value: Vec<u8>,
 }
 
+impl RtpsParameter {
+    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            value,
+        }
+    }
+
+    pub fn parameter_id(&self) -> ParameterId {
+        self.parameter_id
+    }
+
+    pub fn value(&self) -> &[u8] {
+        self.value.as_ref()
+    }
+}
+
 pub struct RtpsCacheChangeImpl {
     kind: ChangeKind,
     writer_guid: Guid,
