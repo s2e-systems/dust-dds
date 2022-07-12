@@ -11,7 +11,10 @@ use dds_api::{
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
     },
-    infrastructure::{qos::{DomainParticipantFactoryQos, DomainParticipantQos}, entity::Entity},
+    infrastructure::{
+        entity::Entity,
+        qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+    },
     return_type::{DdsError, DdsResult},
 };
 use dds_implementation::{
@@ -286,7 +289,6 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             vec![],
         );
 
-        domain_participant.enable()?;
         domain_participant.create_builtins()?;
 
         let mut participant_manager = ParticipantManager {
@@ -296,6 +298,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 
         if qos.entity_factory.autoenable_created_entities {
             self.enable(&mut participant_manager, communications)?;
+            participant_manager.participant.enable()?;
         }
 
         let participant_proxy =

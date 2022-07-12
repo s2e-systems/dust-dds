@@ -195,7 +195,13 @@ where
             topic_name,
             self.downgrade(),
         );
-        if *self.enabled.read_lock() {
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
             topic_shared.enable()?;
         }
 
@@ -325,7 +331,13 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group, self.downgrade());
-        if *self.enabled.read_lock() {
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
             publisher_impl_shared.enable()?;
         }
 
@@ -373,7 +385,13 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group, self.downgrade());
-        if *self.enabled.read_lock() {
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
             subscriber_shared.enable()?;
         }
 

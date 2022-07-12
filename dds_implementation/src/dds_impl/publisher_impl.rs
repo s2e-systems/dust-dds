@@ -201,7 +201,13 @@ where
             data_writer_shared
         };
 
-        if *self.enabled.read_lock() {
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
             data_writer_shared.enable()?;
         }
 
