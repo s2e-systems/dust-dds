@@ -201,6 +201,10 @@ where
             data_writer_shared
         };
 
+        if *self.enabled.read_lock() {
+            data_writer_shared.enable()?;
+        }
+
         // /////// Announce the data writer creation
         if let Ok(domain_participant) = self.parent_participant.upgrade() {
             let sedp_discovered_writer_data = DiscoveredWriterData {
@@ -287,26 +291,50 @@ where
 }
 impl Publisher for DdsShared<PublisherImpl> {
     fn suspend_publications(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn resume_publications(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn begin_coherent_changes(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn end_coherent_changes(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -376,6 +404,10 @@ impl Entity for DdsShared<PublisherImpl> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.rtps_group.guid().into())
     }
 }
@@ -730,6 +762,7 @@ mod tests {
             RtpsGroupImpl::new(guid),
             DdsWeak::new(),
         );
+        publisher.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = publisher.get_instance_handle().unwrap();

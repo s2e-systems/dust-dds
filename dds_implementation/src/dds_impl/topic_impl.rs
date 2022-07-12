@@ -4,12 +4,12 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
-    return_type::DdsResult,
+    return_type::{DdsError, DdsResult},
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rtps_pim::structure::types::Guid;
 
-use crate::utils::shared_object::{DdsShared, DdsWeak, DdsRwLock};
+use crate::utils::shared_object::{DdsRwLock, DdsShared, DdsWeak};
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
@@ -111,6 +111,10 @@ impl Entity for DdsShared<TopicImpl> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.guid.into())
     }
 }
@@ -131,6 +135,7 @@ mod tests {
             },
         );
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
+        topic.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = topic.get_instance_handle().unwrap();

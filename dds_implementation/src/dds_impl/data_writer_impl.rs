@@ -463,6 +463,10 @@ where
     Foo: DdsType + DdsSerialize,
 {
     fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let timestamp = self.get_timestamp();
         self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -472,6 +476,10 @@ where
         instance: &Foo,
         _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         if Foo::has_key() {
             let serialized_key = instance.serialized_key::<LittleEndian>();
             let instance_handle = calculate_instance_handle(&serialized_key);
@@ -494,6 +502,10 @@ where
     }
 
     fn unregister_instance(&self, instance: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let timestamp = self.get_timestamp();
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -504,6 +516,10 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         if Foo::has_key() {
             let serialized_key = instance.serialized_key::<LittleEndian>();
 
@@ -545,6 +561,10 @@ where
     }
 
     fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -560,6 +580,10 @@ where
     }
 
     fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let timestamp = self.get_timestamp();
         self.write_w_timestamp(data, handle, timestamp)
     }
@@ -570,6 +594,10 @@ where
         _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
@@ -585,6 +613,10 @@ where
     }
 
     fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let timestamp = self.get_timestamp();
         self.dispose_w_timestamp(data, handle, timestamp)
     }
@@ -595,6 +627,10 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         if Foo::has_key() {
             let serialized_key = data.serialized_key::<LittleEndian>();
 
@@ -638,6 +674,10 @@ where
 
 impl DataWriter for DdsShared<DataWriterImpl> {
     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -674,6 +714,10 @@ impl DataWriter for DdsShared<DataWriterImpl> {
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -681,10 +725,18 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         &self,
         _subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let mut rpts_writer_lock = self.rtps_writer.write_lock();
         let matched_subscriptions = match &mut *rpts_writer_lock {
             RtpsWriter::Stateless(_) => vec![],
@@ -753,6 +805,10 @@ impl Entity for DdsShared<DataWriterImpl> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.rtps_writer.read_lock().guid().into())
     }
 }
@@ -988,13 +1044,15 @@ mod test {
             None,
         );
 
-        DataWriterImpl::new(
+        let data_writer = DataWriterImpl::new(
             DataWriterQos::default(),
             RtpsWriter::Stateful(rtps_writer),
             None,
             dummy_topic,
             DdsWeak::new(),
-        )
+        );
+        data_writer.enable().unwrap();
+        data_writer
     }
 
     #[test]
@@ -1028,6 +1086,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_writer.get_instance_handle().unwrap();
@@ -1119,6 +1178,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         data_writer
             .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1] }, TIME_INVALID)
@@ -1299,6 +1359,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -1351,6 +1412,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -1395,6 +1457,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         let instance = MockKeyedFoo { key: vec![1] };
 
@@ -1483,6 +1546,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
+        data_writer.enable().unwrap();
 
         let instance = MockKeyedFoo { key: vec![1] };
 

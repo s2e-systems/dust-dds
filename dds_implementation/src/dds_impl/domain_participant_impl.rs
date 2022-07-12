@@ -195,6 +195,9 @@ where
             topic_name,
             self.downgrade(),
         );
+        if *self.enabled.read_lock() {
+            topic_shared.enable()?;
+        }
 
         self.topic_list.write_lock().push(topic_shared.clone());
 
@@ -322,6 +325,10 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group, self.downgrade());
+        if *self.enabled.read_lock() {
+            publisher_impl_shared.enable()?;
+        }
+
         self.user_defined_publisher_list
             .write_lock()
             .push(publisher_impl_shared.clone());
@@ -366,6 +373,10 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group, self.downgrade());
+        if *self.enabled.read_lock() {
+            subscriber_shared.enable()?;
+        }
+
         self.user_defined_subscriber_list
             .write_lock()
             .push(subscriber_shared.clone());
@@ -393,6 +404,10 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
     }
 
     fn get_builtin_subscriber(&self) -> DdsResult<Self::SubscriberType> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self
             .builtin_subscriber
             .read_lock()
@@ -402,30 +417,58 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn ignore_publication(&self, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn ignore_subscription(&self, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_domain_id(&self) -> DdsResult<DomainId> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn assert_liveliness(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -454,6 +497,10 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
     }
 
     fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -462,10 +509,18 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         _participant_data: ParticipantBuiltinTopicData,
         _participant_handle: InstanceHandle,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -474,14 +529,26 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_current_time(&self) -> DdsResult<dds_api::dcps_psm::Time> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let now_system_time = SystemTime::now();
         match now_system_time.duration_since(UNIX_EPOCH) {
             Ok(unix_time) => Ok(Time {
@@ -531,6 +598,10 @@ impl Entity for DdsShared<DomainParticipantImpl> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.rtps_participant.guid().into())
     }
 }
@@ -769,6 +840,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             )),
             self.downgrade(),
         );
+        builtin_subscriber.enable()?;
 
         *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
 
@@ -780,6 +852,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             )),
             self.downgrade(),
         );
+        builtin_publisher.enable()?;
 
         *self.builtin_publisher.write_lock() = Some(builtin_publisher);
 
@@ -801,6 +874,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 None,
                 0,
             )?;
+            spdp_topic_participant.enable()?;
 
             let spdp_builtin_participant_rtps_reader =
                 SpdpBuiltinParticipantReader::create(guid_prefix, &[], &[]);
@@ -816,6 +890,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            spdp_builtin_participant_data_reader.enable()?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -847,6 +922,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            spdp_builtin_participant_data_writer.enable()?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -862,6 +938,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 None,
                 0,
             )?;
+            sedp_topic_publication.enable()?;
 
             let sedp_builtin_publications_rtps_reader =
                 SedpBuiltinPublicationsReader::create(guid_prefix, &[], &[]);
@@ -876,6 +953,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_publications_data_reader.enable()?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -895,6 +973,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_publications_data_writer.enable()?;
 
             self.builtin_publisher
                 .write_lock()
@@ -911,6 +990,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 None,
                 0,
             )?;
+            sedp_topic_subscription.enable()?;
 
             let sedp_builtin_subscriptions_rtps_reader =
                 SedpBuiltinSubscriptionsReader::create(guid_prefix, &[], &[]);
@@ -925,6 +1005,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_subscriptions_data_reader.enable()?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -944,6 +1025,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_subscriptions_data_writer.enable()?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -959,6 +1041,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 None,
                 0,
             )?;
+            sedp_topic_topic.enable()?;
 
             let sedp_builtin_topics_rtps_reader =
                 SedpBuiltinTopicsReader::create(guid_prefix, &[], &[]);
@@ -973,6 +1056,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_topics_data_reader.enable()?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -992,6 +1076,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
+            sedp_builtin_topics_data_writer.enable()?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -1456,6 +1541,7 @@ mod tests {
             vec![],
             vec![],
         );
+        domain_participant.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] =
             Guid::new(guid_prefix, ENTITYID_PARTICIPANT).into();

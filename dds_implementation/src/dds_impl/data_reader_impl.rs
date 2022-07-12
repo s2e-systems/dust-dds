@@ -504,6 +504,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let mut rtps_reader = self.rtps_reader.write_lock();
 
         let samples = rtps_reader
@@ -539,6 +543,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let mut rtps_reader = self.rtps_reader.write_lock();
 
         let (samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
@@ -576,6 +584,10 @@ where
         _max_samples: i32,
         _a_condition: ReadCondition,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -586,6 +598,10 @@ where
         _max_samples: i32,
         _a_condition: ReadCondition,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -594,6 +610,10 @@ where
         _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -602,6 +622,10 @@ where
         _data_value: &mut [Foo],
         _sample_info: &mut [SampleInfo],
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -615,6 +639,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -628,6 +656,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -641,6 +673,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -654,6 +690,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -665,6 +705,10 @@ where
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -676,6 +720,10 @@ where
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -684,10 +732,18 @@ where
         _data_values: &mut [Foo],
         _sample_infos: &mut [SampleInfo],
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -706,6 +762,10 @@ where
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<ReadCondition> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -717,10 +777,18 @@ where
         _query_expression: &'static str,
         _query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn delete_readcondition(&self, _a_condition: ReadCondition) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -728,6 +796,10 @@ where
         &self,
         _status: &mut LivelinessChangedStatus,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -761,10 +833,18 @@ where
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn wait_for_historical_data(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -773,10 +853,18 @@ where
         _publication_data: &mut PublicationBuiltinTopicData,
         _publication_handle: InstanceHandle,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
         let matched_publications = match &mut *rtps_reader_lock {
             RtpsReader::Stateless(_) => vec![],
@@ -826,6 +914,10 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.rtps_reader.read_lock().guid().into())
     }
 }
@@ -976,7 +1068,7 @@ mod tests {
             stateful_reader.reader_cache().add_change(change);
         }
 
-        DataReaderImpl::new(
+        let data_reader = DataReaderImpl::new(
             DataReaderQos {
                 history: HistoryQosPolicy {
                     kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -994,7 +1086,9 @@ mod tests {
             ),
             None,
             DdsWeak::new(),
-        )
+        );
+        data_reader.enable().unwrap();
+        data_reader
     }
 
     #[test]
@@ -1344,6 +1438,7 @@ mod tests {
             None,
             DdsWeak::new(),
         );
+        data_reader.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_reader.get_instance_handle().unwrap();

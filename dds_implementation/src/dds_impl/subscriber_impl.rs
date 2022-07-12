@@ -197,6 +197,10 @@ where
             data_reader_shared
         };
 
+        if *self.enabled.read_lock() {
+            data_reader_shared.enable()?;
+        }
+
         // /////// Announce the data reader creation
         if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
             let sedp_discovered_reader_data = DiscoveredReaderData {
@@ -284,10 +288,18 @@ where
 
 impl Subscriber for DdsShared<SubscriberImpl> {
     fn begin_access(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn end_access(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -298,10 +310,18 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
     ) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
     fn notify_datareaders(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -310,6 +330,10 @@ impl Subscriber for DdsShared<SubscriberImpl> {
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         todo!()
     }
 
@@ -379,6 +403,10 @@ impl Entity for DdsShared<SubscriberImpl> {
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
         Ok(self.rtps_group.guid().into())
     }
 }
@@ -741,6 +769,7 @@ mod tests {
             RtpsGroupImpl::new(guid),
             DdsWeak::new(),
         );
+        subscriber.enable().unwrap();
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = subscriber.get_instance_handle().unwrap();

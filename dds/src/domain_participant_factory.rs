@@ -11,7 +11,7 @@ use dds_api::{
         domain_participant_factory::DomainParticipantFactory,
         domain_participant_listener::DomainParticipantListener,
     },
-    infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+    infrastructure::{qos::{DomainParticipantFactoryQos, DomainParticipantQos}, entity::Entity},
     return_type::{DdsError, DdsResult},
 };
 use dds_implementation::{
@@ -286,6 +286,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             vec![],
         );
 
+        domain_participant.enable()?;
         domain_participant.create_builtins()?;
 
         let mut participant_manager = ParticipantManager {
@@ -576,6 +577,7 @@ mod tests {
             communications1.default_unicast_locator_list(),
             vec![],
         );
+        participant1.enable().unwrap();
         participant1.create_builtins().unwrap();
 
         let mut communications2 = Communications::find_available(
@@ -596,6 +598,7 @@ mod tests {
             communications2.default_unicast_locator_list(),
             vec![],
         );
+        participant2.enable().unwrap();
         participant2.create_builtins().unwrap();
 
         // ////////// Send and receive SPDP data
@@ -729,6 +732,7 @@ mod tests {
             communications1.default_unicast_locator_list(),
             vec![],
         );
+        participant1.enable().unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -750,6 +754,7 @@ mod tests {
             communications2.default_unicast_locator_list(),
             vec![],
         );
+        participant2.enable().unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 
@@ -903,6 +908,7 @@ mod tests {
             communications1.default_unicast_locator_list(),
             vec![],
         );
+        participant1.enable().unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -924,6 +930,7 @@ mod tests {
             communications2.default_unicast_locator_list(),
             vec![],
         );
+        participant2.enable().unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 
@@ -1035,6 +1042,7 @@ mod tests {
             communications1.default_unicast_locator_list(),
             vec![],
         );
+        participant1.enable().unwrap();
         let participant1_proxy = DomainParticipantProxy::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
@@ -1056,6 +1064,7 @@ mod tests {
             communications2.default_unicast_locator_list(),
             vec![],
         );
+        participant2.enable().unwrap();
         let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
         participant2.create_builtins().unwrap();
 
