@@ -93,7 +93,7 @@ pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
     domain_id: DomainId,
     domain_tag: String,
-    qos: DomainParticipantQos,
+    qos: DdsRwLock<DomainParticipantQos>,
     builtin_subscriber: DdsRwLock<Option<DdsShared<SubscriberImpl>>>,
     builtin_publisher: DdsRwLock<Option<DdsShared<PublisherImpl>>>,
     user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberImpl>>>,
@@ -138,7 +138,7 @@ impl DomainParticipantImpl {
             rtps_participant,
             domain_id,
             domain_tag,
-            qos: domain_participant_qos,
+            qos: DdsRwLock::new(domain_participant_qos),
             builtin_subscriber: DdsRwLock::new(None),
             builtin_publisher: DdsRwLock::new(None),
             user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
@@ -564,12 +564,14 @@ impl Entity for DdsShared<DomainParticipantImpl> {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        *self.qos.write_lock() = qos.unwrap_or_default();
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        todo!()
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(
@@ -627,7 +629,7 @@ impl AnnounceParticipant for DdsShared<DomainParticipantImpl> {
                 key: BuiltInTopicKey {
                     value: self.rtps_participant.guid().into(),
                 },
-                user_data: self.qos.user_data.clone(),
+                user_data: self.qos.read_lock().user_data.clone(),
             },
             participant_proxy: ParticipantProxy {
                 domain_id: self.domain_id as u32,

@@ -15,7 +15,7 @@ use super::domain_participant_impl::DomainParticipantImpl;
 
 pub struct TopicImpl {
     guid: Guid,
-    _qos: TopicQos,
+    qos: DdsRwLock<TopicQos>,
     type_name: &'static str,
     topic_name: String,
     parent_participant: DdsWeak<DomainParticipantImpl>,
@@ -32,7 +32,7 @@ impl TopicImpl {
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
             guid,
-            _qos: qos,
+            qos: DdsRwLock::new(qos),
             type_name,
             topic_name: topic_name.to_string(),
             parent_participant,
@@ -71,14 +71,21 @@ impl Entity for DdsShared<TopicImpl> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_qos(qos)
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        let qos = qos.unwrap_or_default();
+
+        qos.is_consistent()?;
+        if *self.enabled.read_lock() {
+            self.qos.read_lock().check_immutability(&qos)?;
+        }
+
+        *self.qos.write_lock() = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_qos()
-        todo!()
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(

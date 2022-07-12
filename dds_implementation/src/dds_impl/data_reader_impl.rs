@@ -883,12 +883,21 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn AnyDataReaderListener<Self> + Send + Sync>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        let qos = qos.unwrap_or_default();
+
+        qos.is_consistent()?;
+        if *self.enabled.read_lock() {
+            self.qos.read_lock().check_immutability(&qos)?;
+        }
+
+        *self.qos.write_lock() = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        todo!()
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {

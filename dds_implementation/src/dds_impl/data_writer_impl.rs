@@ -294,7 +294,7 @@ impl RtpsWriterAttributes for RtpsWriter {
 }
 
 pub struct DataWriterImpl {
-    qos: DataWriterQos,
+    qos: DdsRwLock<DataWriterQos>,
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
@@ -343,7 +343,7 @@ impl DataWriterImpl {
         };
 
         DdsShared::new(DataWriterImpl {
-            qos,
+            qos: DdsRwLock::new(qos),
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
             registered_instance_list: DdsRwLock::new(HashMap::new()),
@@ -485,10 +485,11 @@ where
             let instance_handle = calculate_instance_handle(&serialized_key);
 
             let mut registered_instances_lock = self.registered_instance_list.write_lock();
+            let qos_lock = self.qos.read_lock();
             if !registered_instances_lock.contains_key(&instance_handle) {
-                if self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
+                if qos_lock.resource_limits.max_instances == LENGTH_UNLIMITED
                     || (registered_instances_lock.len() as i32)
-                        < self.qos.resource_limits.max_instances
+                        < qos_lock.resource_limits.max_instances
                 {
                     registered_instances_lock.insert(instance_handle, serialized_key);
                 } else {
@@ -774,12 +775,21 @@ impl Entity for DdsShared<DataWriterImpl> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn AnyDataWriterListener<DdsShared<DataWriterImpl>> + Send + Sync>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        let qos = qos.unwrap_or_default();
+
+        qos.is_consistent()?;
+        if *self.enabled.read_lock() {
+            self.qos.read_lock().check_immutability(&qos)?;
+        }
+
+        *self.qos.write_lock() = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        todo!()
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {

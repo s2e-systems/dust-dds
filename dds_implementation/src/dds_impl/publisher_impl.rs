@@ -61,7 +61,7 @@ use super::{
 };
 
 pub struct PublisherImpl {
-    _qos: PublisherQos,
+    qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroupImpl,
     data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
@@ -77,7 +77,7 @@ impl PublisherImpl {
         parent_participant: DdsWeak<DomainParticipantImpl>,
     ) -> DdsShared<Self> {
         DdsShared::new(PublisherImpl {
-            _qos: qos,
+            qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
@@ -370,12 +370,20 @@ impl Entity for DdsShared<PublisherImpl> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        let qos = qos.unwrap_or_default();
+
+        if *self.enabled.read_lock() {
+            self.qos.read_lock().check_immutability(&qos)?;
+        }
+
+        *self.qos.write_lock() = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        todo!()
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(

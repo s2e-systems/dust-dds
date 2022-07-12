@@ -67,7 +67,7 @@ use super::{
 };
 
 pub struct SubscriberImpl {
-    qos: SubscriberQos,
+    qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroupImpl,
     data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderImpl<ThreadTimer>>>>,
     user_defined_data_reader_counter: u8,
@@ -83,7 +83,7 @@ impl SubscriberImpl {
         parent_domain_participant: DdsWeak<DomainParticipantImpl>,
     ) -> DdsShared<Self> {
         DdsShared::new(SubscriberImpl {
-            qos,
+            qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
@@ -369,12 +369,20 @@ impl Entity for DdsShared<SubscriberImpl> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DdsResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+        let qos = qos.unwrap_or_default();
+
+        if *self.enabled.read_lock() {
+            self.qos.read_lock().check_immutability(&qos)?;
+        }
+
+        *self.qos.write_lock() = qos;
+
+        Ok(())
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        Ok(self.qos.clone())
+        Ok(self.qos.read_lock().clone())
     }
 
     fn set_listener(
