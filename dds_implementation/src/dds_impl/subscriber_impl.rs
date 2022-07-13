@@ -413,6 +413,18 @@ impl Entity for DdsShared<SubscriberImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
+
+        if self
+            .qos
+            .read_lock()
+            .entity_factory
+            .autoenable_created_entities
+        {
+            for data_reader in self.data_reader_list.read_lock().iter() {
+                data_reader.enable()?;
+            }
+        }
+
         Ok(())
     }
 

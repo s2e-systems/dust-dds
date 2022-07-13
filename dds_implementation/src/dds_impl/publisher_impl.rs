@@ -414,6 +414,18 @@ impl Entity for DdsShared<PublisherImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
+
+        if self
+            .qos
+            .read_lock()
+            .entity_factory
+            .autoenable_created_entities
+        {
+            for data_writer in self.data_writer_list.read_lock().iter() {
+                data_writer.enable()?;
+            }
+        }
+
         Ok(())
     }
 

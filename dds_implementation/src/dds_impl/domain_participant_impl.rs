@@ -614,6 +614,26 @@ impl Entity for DdsShared<DomainParticipantImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
+
+        if self
+            .qos
+            .read_lock()
+            .entity_factory
+            .autoenable_created_entities
+        {
+            for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                publisher.enable()?;
+            }
+
+            for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                subscriber.enable()?;
+            }
+
+            for topic in self.topic_list.read_lock().iter() {
+                topic.enable()?;
+            }
+        }
+
         Ok(())
     }
 
