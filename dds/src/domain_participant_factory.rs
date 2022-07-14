@@ -289,6 +289,10 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             vec![],
         );
 
+        if qos.entity_factory.autoenable_created_entities {
+            domain_participant.enable()?;
+        }
+
         domain_participant.create_builtins()?;
 
         let mut participant_manager = ParticipantManager {
@@ -298,7 +302,6 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
 
         if qos.entity_factory.autoenable_created_entities {
             self.enable(&mut participant_manager, communications)?;
-            participant_manager.participant.enable()?;
         }
 
         let participant_proxy =

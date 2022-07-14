@@ -92,6 +92,10 @@ impl SubscriberImpl {
             enabled: DdsRwLock::new(false),
         })
     }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
 }
 
 pub trait SubscriberEmpty {
@@ -412,6 +416,10 @@ impl Entity for DdsShared<SubscriberImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
+        if !self.parent_domain_participant.upgrade()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+        }
+
         *self.enabled.write_lock() = true;
 
         if self
@@ -795,7 +803,7 @@ mod tests {
             RtpsGroupImpl::new(guid),
             DdsWeak::new(),
         );
-        subscriber.enable().unwrap();
+        *subscriber.enabled.write_lock() = true;
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = subscriber.get_instance_handle().unwrap();

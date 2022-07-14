@@ -157,6 +157,10 @@ impl DomainParticipantImpl {
             enabled: DdsRwLock::new(false),
         })
     }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
 }
 
 impl<Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantImpl>

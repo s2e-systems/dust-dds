@@ -113,6 +113,10 @@ impl Entity for DdsShared<TopicImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
+        if !self.parent_participant.upgrade()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+        }
+
         *self.enabled.write_lock() = true;
         Ok(())
     }
@@ -142,7 +146,7 @@ mod tests {
             },
         );
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
-        topic.enable().unwrap();
+        *topic.enabled.write_lock() = true;
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = topic.get_instance_handle().unwrap();

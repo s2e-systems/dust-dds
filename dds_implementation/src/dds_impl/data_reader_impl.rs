@@ -918,6 +918,12 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     }
 
     fn enable(&self) -> DdsResult<()> {
+        if !self.parent_subscriber.upgrade()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent subscriber disabled".to_string(),
+            ));
+        }
+
         *self.enabled.write_lock() = true;
         Ok(())
     }
@@ -1096,7 +1102,7 @@ mod tests {
             None,
             DdsWeak::new(),
         );
-        data_reader.enable().unwrap();
+        *data_reader.enabled.write_lock() = true;
         data_reader
     }
 
@@ -1447,7 +1453,7 @@ mod tests {
             None,
             DdsWeak::new(),
         );
-        data_reader.enable().unwrap();
+        *data_reader.enabled.write_lock() = true;
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_reader.get_instance_handle().unwrap();

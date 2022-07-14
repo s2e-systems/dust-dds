@@ -86,6 +86,10 @@ impl PublisherImpl {
             enabled: DdsRwLock::new(false),
         })
     }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
 }
 
 pub trait PublisherEmpty {
@@ -413,6 +417,10 @@ impl Entity for DdsShared<PublisherImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
+        if !self.parent_participant.upgrade()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+        }
+
         *self.enabled.write_lock() = true;
 
         if self
@@ -788,7 +796,7 @@ mod tests {
             RtpsGroupImpl::new(guid),
             DdsWeak::new(),
         );
-        publisher.enable().unwrap();
+        *publisher.enabled.write_lock() = true;
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = publisher.get_instance_handle().unwrap();

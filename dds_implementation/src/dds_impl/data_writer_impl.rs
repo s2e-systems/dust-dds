@@ -810,6 +810,12 @@ impl Entity for DdsShared<DataWriterImpl> {
     }
 
     fn enable(&self) -> DdsResult<()> {
+        if !self.publisher.upgrade()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent publisher disabled".to_string(),
+            ));
+        }
+
         *self.enabled.write_lock() = true;
         Ok(())
     }
@@ -1061,7 +1067,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
         data_writer
     }
 
@@ -1096,7 +1102,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_writer.get_instance_handle().unwrap();
@@ -1188,7 +1194,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         data_writer
             .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1] }, TIME_INVALID)
@@ -1369,7 +1375,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -1422,7 +1428,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         data_writer
             .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
@@ -1467,7 +1473,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         let instance = MockKeyedFoo { key: vec![1] };
 
@@ -1556,7 +1562,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
         );
-        data_writer.enable().unwrap();
+        *data_writer.enabled.write_lock() = true;
 
         let instance = MockKeyedFoo { key: vec![1] };
 
