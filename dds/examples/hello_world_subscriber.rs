@@ -33,7 +33,11 @@ impl DataReaderListener for ExampleListener {
         let sample = the_reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();
-        println!("Data id: {:?} Msg: {:?}", sample[0].0.id, sample[0].0.msg)
+        println!(
+            "Data id: {:?} Msg: {:?}",
+            sample[0].data.as_ref().unwrap().id,
+            sample[0].data.as_ref().unwrap().msg
+        )
     }
 }
 
@@ -71,8 +75,8 @@ fn main() {
         samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
     }
     println!("{:?} [S] Received data", std::time::SystemTime::now());
-
-    let hello_world = &samples.unwrap()[0].0;
+    let hello_world_sample = samples.unwrap();
+    let hello_world = hello_world_sample[0].data.as_ref().unwrap();
     assert_eq!(8, hello_world.id);
     assert_eq!("Hello world!", hello_world.msg);
 }

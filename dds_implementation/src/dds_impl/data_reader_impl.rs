@@ -28,8 +28,9 @@ use dds_api::{
         InstanceHandle, InstanceStateMask, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateMask,
         StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
-        DATA_AVAILABLE_STATUS, HANDLE_NIL_NATIVE, NEW_VIEW_STATE, NOT_READ_SAMPLE_STATE,
-        READ_SAMPLE_STATE, REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
+        DATA_AVAILABLE_STATUS, HANDLE_NIL_NATIVE, NEW_VIEW_STATE,
+        NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
+        REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -42,6 +43,7 @@ use dds_api::{
     subscription::{
         data_reader::{
             DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription, FooDataReader,
+            Sample,
         },
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
@@ -258,10 +260,16 @@ fn read_sample<'a, Tim>(
         }
     };
 
+    let (instance_state, valid_data) = match cache_change.kind() {
+        ChangeKind::Alive => (ALIVE_INSTANCE_STATE, true),
+        ChangeKind::NotAliveDisposed => (NOT_ALIVE_DISPOSED_INSTANCE_STATE, false),
+        _ => unimplemented!(),
+    };
+
     let sample_info = SampleInfo {
         sample_state,
         view_state: NEW_VIEW_STATE,
-        instance_state: ALIVE_INSTANCE_STATE,
+        instance_state,
         disposed_generation_count: 0,
         no_writers_generation_count: 0,
         sample_rank: 0,
@@ -270,7 +278,7 @@ fn read_sample<'a, Tim>(
         source_timestamp: Time { sec: 0, nanosec: 0 },
         instance_handle: HANDLE_NIL_NATIVE,
         publication_handle: HANDLE_NIL_NATIVE,
-        valid_data: true,
+        valid_data,
     };
 
     (data_value, sample_info)
@@ -503,7 +511,7 @@ where
         sample_states: SampleStateMask,
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -517,11 +525,14 @@ where
             .map(|sample| {
                 let (mut data_value, sample_info) = read_sample(self, sample);
                 let foo = DdsDeserialize::deserialize(&mut data_value)?;
-                Ok((foo, sample_info))
+                Ok(Sample {
+                    data: Some(foo),
+                    sample_info,
+                })
             })
             .filter(|result| {
-                if let Ok((_, info)) = result {
-                    info.sample_state & sample_states != 0
+                if let Ok(sample) = result {
+                    sample.sample_info.sample_state & sample_states != 0
                 } else {
                     true
                 }
@@ -542,7 +553,7 @@ where
         sample_states: SampleStateMask,
         _view_states: ViewStateMask,
         _instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -553,20 +564,30 @@ where
             .reader_cache()
             .changes()
             .iter()
-            .map(|sample| match sample.kind() {
+            .map(|cache_change| match cache_change.kind() {
                 ChangeKind::Alive => {
-                    let (mut data_value, sample_info) = read_sample(self, sample);
+                    let (mut data_value, sample_info) = read_sample(self, cache_change);
                     let foo = DdsDeserialize::deserialize(&mut data_value)?;
-
-                    Ok(((foo, sample_info), sample.sequence_number()))
+                    let sample = Sample {
+                        data: Some(foo),
+                        sample_info,
+                    };
+                    Ok((sample, cache_change.sequence_number()))
                 }
                 ChangeKind::AliveFiltered => todo!(),
-                ChangeKind::NotAliveDisposed => todo!(),
+                ChangeKind::NotAliveDisposed => {
+                    let (_, sample_info) = read_sample(self, cache_change);
+                    let sample = Sample {
+                        data: None,
+                        sample_info,
+                    };
+                    Ok((sample, cache_change.sequence_number()))
+                }
                 ChangeKind::NotAliveUnregistered => todo!(),
             })
             .filter(|result| {
-                if let Ok(((_, info), _)) = result {
-                    info.sample_state & sample_states != 0
+                if let Ok((sample, _)) = result {
+                    sample.sample_info.sample_state & sample_states != 0
                 } else {
                     true
                 }
@@ -978,12 +999,15 @@ impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
 mod tests {
     use super::*;
     use crate::{
+        data_representation_inline_qos::parameter_id_values::PID_STATUS_INFO,
         dds_impl::{data_reader_impl::RtpsReader, topic_impl::TopicImpl},
         dds_type::{DdsSerialize, DdsType, Endianness},
         utils::shared_object::DdsShared,
     };
     use dds_api::{
-        dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        dcps_psm::{
+            ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE,
+        },
         infrastructure::{
             qos::TopicQos,
             qos_policy::{DeadlineQosPolicy, HistoryQosPolicy},
@@ -992,11 +1016,24 @@ mod tests {
     };
     use mockall::mock;
     use rtps_pim::{
-        behavior::{reader::stateful_reader::RtpsStatefulReaderConstructor, types::DURATION_ZERO},
+        behavior::{
+            reader::{
+                stateful_reader::RtpsStatefulReaderConstructor,
+                stateless_reader::RtpsStatelessReaderConstructor,
+            },
+            types::DURATION_ZERO,
+        },
+        messages::{
+            submessage_elements::{
+                EntityIdSubmessageElement, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::ParameterId,
+        },
         structure::{
             cache_change::RtpsCacheChangeConstructor,
             history_cache::RtpsHistoryCacheConstructor,
-            types::{EntityId, Guid, GUID_UNKNOWN},
+            types::{EntityId, Guid, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN},
         },
     };
     use std::{io::Write, time::Duration};
@@ -1120,7 +1157,7 @@ mod tests {
             cache_change(5, 4),
         ]));
 
-        let all_samples: Vec<(UserData, _)> = reader
+        let all_samples: Vec<Sample<UserData>> = reader
             .read(
                 i32::MAX,
                 ANY_SAMPLE_STATE,
@@ -1129,9 +1166,13 @@ mod tests {
             )
             .unwrap();
         assert_eq!(4, all_samples.len());
+
         assert_eq!(
             vec![1, 0, 2, 5],
-            all_samples.into_iter().map(|s| s.0 .0).collect::<Vec<_>>()
+            all_samples
+                .into_iter()
+                .map(|s| s.data.unwrap().0)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -1465,59 +1506,64 @@ mod tests {
         assert_eq!(expected_instance_handle, instance_handle);
     }
 
-    // #[test]
-    // fn receive_disposed_data_submessage() {
-    //     let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+    #[test]
+    fn receive_disposed_data_submessage() {
+        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
-    //     let stateless_reader = RtpsStatelessReaderImpl::new(
-    //         GUID_UNKNOWN,
-    //         rtps_pim::structure::types::TopicKind::NoKey,
-    //         rtps_pim::structure::types::ReliabilityKind::BestEffort,
-    //         &[],
-    //         &[],
-    //         DURATION_ZERO,
-    //         DURATION_ZERO,
-    //         false,
-    //     );
+        let stateless_reader = RtpsStatelessReaderImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::NoKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+        );
 
-    //     let data_reader: DdsShared<DataReaderImpl<ManualTimer>> = DataReaderImpl::new(
-    //         DataReaderQos::default(),
-    //         RtpsReader::Stateless(stateless_reader),
-    //         dummy_topic,
-    //         None,
-    //         DdsWeak::new(),
-    //     );
+        let data_reader: DdsShared<DataReaderImpl<ManualTimer>> = DataReaderImpl::new(
+            DataReaderQos::default(),
+            RtpsReader::Stateless(stateless_reader),
+            dummy_topic,
+            None,
+            DdsWeak::new(),
+        );
 
-    //     let data_submessage = DataSubmessage {
-    //         endianness_flag: true,
-    //         inline_qos_flag: true,
-    //         data_flag: false,
-    //         key_flag: true,
-    //         non_standard_payload_flag: false,
-    //         reader_id: EntityIdSubmessageElement {
-    //             value: ENTITYID_UNKNOWN,
-    //         },
-    //         writer_id: EntityIdSubmessageElement {
-    //             value: ENTITYID_UNKNOWN,
-    //         },
-    //         writer_sn: SequenceNumberSubmessageElement { value: 1 },
-    //         inline_qos: ParameterListSubmessageElement {
-    //             parameter: vec![Parameter {
-    //                 parameter_id: ParameterId(PID_STATUS_INFO),
-    //                 length: 4,
-    //                 value: &[1, 0, 0, 0],
-    //             }],
-    //         },
-    //         serialized_payload: SerializedDataSubmessageElement { value: &[1][..] },
-    //     };
-    //     data_reader.on_data_submessage_received(&data_submessage, GUIDPREFIX_UNKNOWN);
-    //     let data: Vec<(UserData, _)> = data_reader.take(1, 0, 0, 0).unwrap();
-    //     let sample_info = &data[0].1;
+        let data_submessage = DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag: false,
+            key_flag: true,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN,
+            },
+            writer_sn: SequenceNumberSubmessageElement { value: 1 },
+            inline_qos: ParameterListSubmessageElement {
+                parameter: vec![Parameter {
+                    parameter_id: ParameterId(PID_STATUS_INFO),
+                    length: 4,
+                    value: &[1, 0, 0, 0],
+                }],
+            },
+            serialized_payload: SerializedDataSubmessageElement { value: &[1][..] },
+        };
+        *data_reader.enabled.write_lock() = true;
 
-    //     assert_eq!(sample_info.valid_data, false);
-    //     assert_eq!(
-    //         sample_info.instance_state,
-    //         NOT_ALIVE_DISPOSED_INSTANCE_STATE
-    //     );
-    // }
+        data_reader.on_data_submessage_received(&data_submessage, GUIDPREFIX_UNKNOWN);
+        let data: Vec<Sample<UserData>> = data_reader
+            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
+
+        assert_eq!(data.len(), 1);
+        assert!(data[0].data.is_none());
+        assert_eq!(&data[0].sample_info.valid_data, &false);
+        assert_eq!(
+            &data[0].sample_info.instance_state,
+            &NOT_ALIVE_DISPOSED_INSTANCE_STATE
+        );
+    }
 }

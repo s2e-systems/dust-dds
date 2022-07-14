@@ -615,7 +615,7 @@ mod tests {
         }
 
         // ////////// Participant 2 receives discovered participant data
-        let (spdp_discovered_participant_data, _) = {
+        let spdp_discovered_participant_data_sample = {
             let participant2_proxy = DomainParticipantProxy::new(participant2.downgrade());
 
             let subscriber = SubscriberProxy::new(
@@ -644,38 +644,60 @@ mod tests {
                 BuiltInTopicKey {
                     value: Guid::new(communications1.guid_prefix, ENTITYID_PARTICIPANT).into()
                 },
-                spdp_discovered_participant_data.dds_participant_data.key,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .dds_participant_data
+                    .key,
             );
 
             assert_eq!(
                 domain_id,
-                spdp_discovered_participant_data.participant_proxy.domain_id as i32
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .domain_id as i32
             );
 
             assert_eq!(
                 communications1.guid_prefix,
-                spdp_discovered_participant_data
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
                     .participant_proxy
                     .guid_prefix
             );
 
             assert_eq!(
                 communications1.metatraffic_unicast_locator_list(),
-                spdp_discovered_participant_data
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
                     .participant_proxy
                     .metatraffic_unicast_locator_list
             );
 
             assert_eq!(
                 communications1.metatraffic_multicast_locator_list(),
-                spdp_discovered_participant_data
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
                     .participant_proxy
                     .metatraffic_multicast_locator_list
             );
 
             assert_eq!(
                 participant1.default_unicast_locator_list(),
-                spdp_discovered_participant_data
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
                     .participant_proxy
                     .default_unicast_locator_list
             );
@@ -832,16 +854,26 @@ mod tests {
             .lookup_datareader(&sedp_topic_topic)
             .unwrap();
 
-        let (discovered_topic_data, _) = &participant2_topic_datareader
+        let discovered_topic_data_sample = &participant2_topic_datareader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap()[0];
         assert_eq!(
             UserData::type_name(),
-            discovered_topic_data.topic_builtin_topic_data.type_name,
+            discovered_topic_data_sample
+                .data
+                .as_ref()
+                .unwrap()
+                .topic_builtin_topic_data
+                .type_name,
         );
         assert_eq!(
             user_topic.get_name().unwrap(),
-            discovered_topic_data.topic_builtin_topic_data.name,
+            discovered_topic_data_sample
+                .data
+                .as_ref()
+                .unwrap()
+                .topic_builtin_topic_data
+                .name,
         );
     }
 

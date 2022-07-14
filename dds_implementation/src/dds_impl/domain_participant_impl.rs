@@ -1194,8 +1194,10 @@ impl SpdpParticipantDiscovery for DdsShared<DomainParticipantImpl> {
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
         ) {
-            for (discovered_participant_data, _) in samples.iter() {
-                self.add_discovered_participant(discovered_participant_data)
+            for discovered_participant_data_sample in samples.iter() {
+                self.add_discovered_participant(
+                    &discovered_participant_data_sample.data.as_ref().unwrap(),
+                )
             }
         }
 
@@ -1232,9 +1234,10 @@ impl SedpWriterDiscovery for DdsShared<DomainParticipantImpl> {
             ANY_INSTANCE_STATE,
         );
 
-        for (sample, _) in samples.unwrap_or(vec![]).iter() {
+        for discovered_writer_data_sample in samples.unwrap_or(vec![]).iter() {
             for subscriber in user_defined_subscribers.iter() {
-                subscriber.add_matched_writer(&sample);
+                subscriber
+                    .add_matched_writer(&discovered_writer_data_sample.data.as_ref().unwrap());
             }
         }
 
@@ -1271,9 +1274,9 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
             ANY_INSTANCE_STATE,
         );
 
-        for (sample, _) in samples.unwrap_or(vec![]).iter() {
+        for discovered_reader_data_sample in samples.unwrap_or(vec![]).iter() {
             for publisher in user_defined_publishers.iter() {
-                publisher.add_matched_reader(sample)
+                publisher.add_matched_reader(discovered_reader_data_sample.data.as_ref().unwrap())
             }
         }
 

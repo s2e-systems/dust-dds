@@ -85,5 +85,5 @@ fn user_defined_write_read_auto_enable() {
         samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
     }
 
-    assert_eq!(samples.unwrap()[0].0, UserData(8));
+    assert_eq!(samples.unwrap()[0].data.as_ref().unwrap(), &UserData(8));
 }

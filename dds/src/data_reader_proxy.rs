@@ -15,6 +15,7 @@ use dds_api::{
     subscription::{
         data_reader::{
             DataReader, DataReaderGetSubscriber, DataReaderGetTopicDescription, FooDataReader,
+            Sample,
         },
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
@@ -97,7 +98,7 @@ where
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
         instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         self.data_reader_attributes.upgrade()?.read(
             max_samples,
             sample_states,
@@ -112,7 +113,7 @@ where
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
         instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         self.data_reader_attributes.upgrade()?.take(
             max_samples,
             sample_states,

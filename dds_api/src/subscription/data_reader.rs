@@ -23,6 +23,11 @@ pub trait DataReaderGetTopicDescription {
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription>;
 }
 
+pub struct Sample<Foo> {
+    pub data: Option<Foo>,
+    pub sample_info: SampleInfo,
+}
+
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -117,7 +122,7 @@ pub trait FooDataReader<Foo> {
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
         instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
+    ) -> DdsResult<Vec<Sample<Foo>>>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
@@ -138,7 +143,7 @@ pub trait FooDataReader<Foo> {
         sample_states: SampleStateMask,
         view_states: ViewStateMask,
         instance_states: InstanceStateMask,
-    ) -> DdsResult<Vec<(Foo, SampleInfo)>>;
+    ) -> DdsResult<Vec<Sample<Foo>>>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.
