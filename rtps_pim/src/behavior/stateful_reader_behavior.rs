@@ -19,8 +19,13 @@ use super::reader::{
     writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
 };
 
-pub trait FromDataSubmessageAndGuidPrefix<P, D> {
-    fn from(source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self;
+pub trait TryFromDataSubmessageAndGuidPrefix<P, D>: Sized {
+    type Error;
+
+    fn from(
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<P, D>,
+    ) -> Result<Self, Self::Error>;
 }
 
 pub trait RtpsStatefulReaderSendSubmessages<S> {
@@ -58,21 +63,23 @@ where
     T::HistoryCacheType: RtpsHistoryCacheOperations,
     T::WriterProxyType: RtpsWriterProxyOperations,
     <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
-        FromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
+        TryFromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        let a_change = FromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data);
-        if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-            if RtpsCacheChangeAttributes::sequence_number(&a_change) >= expected_seq_num {
-                writer_proxy
-                    .received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
-                if RtpsCacheChangeAttributes::sequence_number(&a_change) > expected_seq_num {
+        if let Ok(a_change) = TryFromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data) {
+            if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+                let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                if RtpsCacheChangeAttributes::sequence_number(&a_change) >= expected_seq_num {
                     writer_proxy
-                        .lost_changes_update(RtpsCacheChangeAttributes::sequence_number(&a_change));
+                        .received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
+                    if RtpsCacheChangeAttributes::sequence_number(&a_change) > expected_seq_num {
+                        writer_proxy.lost_changes_update(
+                            RtpsCacheChangeAttributes::sequence_number(&a_change),
+                        );
+                    }
+                    self.reader_cache().add_change(a_change);
                 }
-                self.reader_cache().add_change(a_change);
             }
         }
     }
@@ -107,14 +114,16 @@ where
     T::HistoryCacheType: RtpsHistoryCacheOperations<CacheChangeType = C>,
     T::WriterProxyType: RtpsWriterProxyOperations,
     <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
-        FromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
+        TryFromDataSubmessageAndGuidPrefix<P, D> + RtpsCacheChangeAttributes,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        let a_change = FromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data);
-        if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            writer_proxy.received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
-            self.reader_cache().add_change(a_change);
+        if let Ok(a_change) = TryFromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data) {
+            if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+                writer_proxy
+                    .received_change_set(RtpsCacheChangeAttributes::sequence_number(&a_change));
+                self.reader_cache().add_change(a_change);
+            }
         }
     }
 }
@@ -222,12 +231,16 @@ mod tests {
         sequence_number: SequenceNumber,
     }
 
-    impl<P, D> FromDataSubmessageAndGuidPrefix<P, D> for MockCacheChange {
-        fn from(_source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) -> Self {
-            MockCacheChange {
+    impl<P, D> TryFromDataSubmessageAndGuidPrefix<P, D> for MockCacheChange {
+        type Error = ();
+        fn from(
+            _source_guid_prefix: GuidPrefix,
+            data: &DataSubmessage<P, D>,
+        ) -> Result<Self, Self::Error> {
+            Ok(MockCacheChange {
                 kind: ChangeKind::Alive,
                 sequence_number: data.writer_sn.value,
-            }
+            })
         }
     }
 

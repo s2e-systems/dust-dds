@@ -74,7 +74,7 @@ use rtps_pim::{
         cache_change::RtpsCacheChangeAttributes,
         entity::RtpsEntityAttributes,
         history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
 };
 
@@ -553,11 +553,16 @@ where
             .reader_cache()
             .changes()
             .iter()
-            .map(|sample| {
-                let (mut data_value, sample_info) = read_sample(self, sample);
-                let foo = DdsDeserialize::deserialize(&mut data_value)?;
+            .map(|sample| match sample.kind() {
+                ChangeKind::Alive => {
+                    let (mut data_value, sample_info) = read_sample(self, sample);
+                    let foo = DdsDeserialize::deserialize(&mut data_value)?;
 
-                Ok(((foo, sample_info), sample.sequence_number()))
+                    Ok(((foo, sample_info), sample.sequence_number()))
+                }
+                ChangeKind::AliveFiltered => todo!(),
+                ChangeKind::NotAliveDisposed => todo!(),
+                ChangeKind::NotAliveUnregistered => todo!(),
             })
             .filter(|result| {
                 if let Ok(((_, info), _)) = result {
@@ -1459,4 +1464,60 @@ mod tests {
         let instance_handle = data_reader.get_instance_handle().unwrap();
         assert_eq!(expected_instance_handle, instance_handle);
     }
+
+    // #[test]
+    // fn receive_disposed_data_submessage() {
+    //     let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+
+    //     let stateless_reader = RtpsStatelessReaderImpl::new(
+    //         GUID_UNKNOWN,
+    //         rtps_pim::structure::types::TopicKind::NoKey,
+    //         rtps_pim::structure::types::ReliabilityKind::BestEffort,
+    //         &[],
+    //         &[],
+    //         DURATION_ZERO,
+    //         DURATION_ZERO,
+    //         false,
+    //     );
+
+    //     let data_reader: DdsShared<DataReaderImpl<ManualTimer>> = DataReaderImpl::new(
+    //         DataReaderQos::default(),
+    //         RtpsReader::Stateless(stateless_reader),
+    //         dummy_topic,
+    //         None,
+    //         DdsWeak::new(),
+    //     );
+
+    //     let data_submessage = DataSubmessage {
+    //         endianness_flag: true,
+    //         inline_qos_flag: true,
+    //         data_flag: false,
+    //         key_flag: true,
+    //         non_standard_payload_flag: false,
+    //         reader_id: EntityIdSubmessageElement {
+    //             value: ENTITYID_UNKNOWN,
+    //         },
+    //         writer_id: EntityIdSubmessageElement {
+    //             value: ENTITYID_UNKNOWN,
+    //         },
+    //         writer_sn: SequenceNumberSubmessageElement { value: 1 },
+    //         inline_qos: ParameterListSubmessageElement {
+    //             parameter: vec![Parameter {
+    //                 parameter_id: ParameterId(PID_STATUS_INFO),
+    //                 length: 4,
+    //                 value: &[1, 0, 0, 0],
+    //             }],
+    //         },
+    //         serialized_payload: SerializedDataSubmessageElement { value: &[1][..] },
+    //     };
+    //     data_reader.on_data_submessage_received(&data_submessage, GUIDPREFIX_UNKNOWN);
+    //     let data: Vec<(UserData, _)> = data_reader.take(1, 0, 0, 0).unwrap();
+    //     let sample_info = &data[0].1;
+
+    //     assert_eq!(sample_info.valid_data, false);
+    //     assert_eq!(
+    //         sample_info.instance_state,
+    //         NOT_ALIVE_DISPOSED_INSTANCE_STATE
+    //     );
+    // }
 }

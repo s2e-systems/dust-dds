@@ -1,5 +1,6 @@
+use dds_api::return_type::DdsError;
 use rtps_pim::{
-    behavior::stateful_reader_behavior::FromDataSubmessageAndGuidPrefix,
+    behavior::stateful_reader_behavior::TryFromDataSubmessageAndGuidPrefix,
     messages::{
         submessage_elements::{
             EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
@@ -15,6 +16,11 @@ use rtps_pim::{
         },
         types::{ChangeKind, Guid, GuidPrefix, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
     },
+};
+
+use crate::data_representation_inline_qos::{
+    parameter_id_values::PID_STATUS_INFO,
+    types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
 };
 
 #[derive(Debug, PartialEq)]
@@ -48,6 +54,7 @@ pub struct RtpsCacheChangeImpl {
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
 }
+
 impl PartialEq for RtpsCacheChangeImpl {
     fn eq(&self, other: &Self) -> bool {
         self.kind == other.kind
@@ -57,22 +64,20 @@ impl PartialEq for RtpsCacheChangeImpl {
     }
 }
 
-impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheChangeImpl {
+impl TryFromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheChangeImpl {
+    type Error = DdsError;
+
     fn from(
         source_guid_prefix: GuidPrefix,
         data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
-    ) -> Self {
+    ) -> Result<Self, Self::Error> {
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => ChangeKind::Alive,
-            (false, true) => ChangeKind::NotAliveDisposed,
-            _ => todo!(),
-        };
+
         let instance_handle = [0; 16];
         let sequence_number = data.writer_sn.value;
         let data_value = data.serialized_payload.value.to_vec();
 
-        let inline_qos = data
+        let inline_qos: Vec<RtpsParameter> = data
             .inline_qos
             .parameter
             .iter()
@@ -81,14 +86,43 @@ impl FromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheCha
                 value: p.value.to_vec(),
             })
             .collect();
-        RtpsCacheChangeImpl {
+
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => Ok(ChangeKind::Alive),
+            (false, true) => {
+                if let Some(p) = inline_qos
+                    .iter()
+                    .find(|&x| x.parameter_id == ParameterId(PID_STATUS_INFO))
+                {
+                    let mut deserializer =
+                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+                    let status_info = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    match status_info {
+                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
+                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                        _ => Err(DdsError::PreconditionNotMet(
+                            "Unknown status info value".to_string(),
+                        )),
+                    }
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Missing mandatory StatusInfo parameter".to_string(),
+                    ))
+                }
+            }
+            _ => Err(DdsError::PreconditionNotMet(
+                "Invalid data submessage data and key flag combination".to_string(),
+            )),
+        }?;
+
+        Ok(RtpsCacheChangeImpl {
             kind,
             writer_guid,
             instance_handle,
             sequence_number,
             data: data_value,
             inline_qos,
-        }
+        })
     }
 }
 
