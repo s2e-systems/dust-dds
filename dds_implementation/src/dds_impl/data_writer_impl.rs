@@ -561,12 +561,18 @@ where
         }
     }
 
-    fn get_key_value(&self, _key_holder: &mut Foo, _handle: InstanceHandle) -> DdsResult<()> {
+    fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        let registered_instance_list_lock = self.registered_instance_list.read_lock();
+
+        let serialized_key = registered_instance_list_lock
+            .get(&handle)
+            .ok_or(DdsError::BadParameter)?;
+
+        key_holder.set_key_fields_from_serialized_key(serialized_key.as_ref())
     }
 
     fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
@@ -1023,6 +1029,11 @@ mod test {
 
         fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
             self.key.clone()
+        }
+
+        fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> DdsResult<()> {
+            self.key = key.to_vec();
+            Ok(())
         }
     }
 
@@ -1609,5 +1620,43 @@ mod test {
             .once()
             .return_const(());
         data_writer.send_message(&mut mock_transport);
+    }
+
+    #[test]
+    fn get_key_value_known_instance() {
+        let data_writer = create_data_writer_test_fixture();
+
+        let instance_handle = data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![1, 2] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap()
+            .unwrap();
+
+        let mut keyed_foo = MockKeyedFoo { key: vec![] };
+        data_writer
+            .get_key_value(&mut keyed_foo, instance_handle)
+            .unwrap();
+        assert_eq!(keyed_foo.key, vec![1, 2]);
+    }
+
+    #[test]
+    fn get_key_value_unknown_instance() {
+        let data_writer = create_data_writer_test_fixture();
+
+        data_writer
+            .register_instance_w_timestamp(
+                &MockKeyedFoo { key: vec![1, 2] },
+                Time { sec: 0, nanosec: 0 },
+            )
+            .unwrap()
+            .unwrap();
+
+        let mut keyed_foo = MockKeyedFoo { key: vec![] };
+        assert_eq!(
+            data_writer.get_key_value(&mut keyed_foo, [1; 16]),
+            Err(DdsError::BadParameter)
+        );
     }
 }
