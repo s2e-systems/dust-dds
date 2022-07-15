@@ -30,14 +30,23 @@ impl Endianness for BigEndian {
 pub trait DdsType {
     fn type_name() -> &'static str;
 
-    fn has_key() -> bool;
+    fn has_key() -> bool {
+        false
+    }
 
-    fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
+    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
         if Self::has_key() {
-            unimplemented!("DdsType with key must provide an implementation for the key getter")
+            unimplemented!("DdsType with key must provide an implementation for get_serialized_key")
         } else {
             vec![]
         }
+    }
+
+    fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> DdsResult<()> {
+        if Self::has_key() {
+            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
+        }
+        Ok(())
     }
 }
 

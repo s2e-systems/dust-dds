@@ -481,7 +481,7 @@ where
         }
 
         if Foo::has_key() {
-            let serialized_key = instance.serialized_key::<LittleEndian>();
+            let serialized_key = instance.get_serialized_key::<LittleEndian>();
             let instance_handle = calculate_instance_handle(&serialized_key);
 
             let mut registered_instances_lock = self.registered_instance_list.write_lock();
@@ -522,7 +522,7 @@ where
         }
 
         if Foo::has_key() {
-            let serialized_key = instance.serialized_key::<LittleEndian>();
+            let serialized_key = instance.get_serialized_key::<LittleEndian>();
 
             let mut rtps_writer_lock = self.rtps_writer.write_lock();
             let mut sample_info_lock = self.sample_info.write_lock();
@@ -570,7 +570,7 @@ where
     }
 
     fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        let serialized_key = instance.serialized_key::<LittleEndian>();
+        let serialized_key = instance.get_serialized_key::<LittleEndian>();
         let instance_handle = calculate_instance_handle(&serialized_key);
         let registered_instance_list_lock = self.registered_instance_list.read_lock();
         if registered_instance_list_lock.contains_key(&instance_handle) {
@@ -633,7 +633,7 @@ where
         }
 
         if Foo::has_key() {
-            let serialized_key = data.serialized_key::<LittleEndian>();
+            let serialized_key = data.get_serialized_key::<LittleEndian>();
 
             let mut rtps_writer_lock = self.rtps_writer.write_lock();
             let mut sample_info_lock = self.sample_info.write_lock();
@@ -1006,18 +1006,6 @@ mod test {
         fn type_name() -> &'static str {
             todo!()
         }
-
-        fn has_key() -> bool {
-            false
-        }
-
-        fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
-            if Self::has_key() {
-                unimplemented!("DdsType with key must provide an implementation for the key getter")
-            } else {
-                vec![]
-            }
-        }
     }
 
     struct MockKeyedFoo {
@@ -1033,7 +1021,7 @@ mod test {
             true
         }
 
-        fn serialized_key<E: Endianness>(&self) -> Vec<u8> {
+        fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
             self.key.clone()
         }
     }

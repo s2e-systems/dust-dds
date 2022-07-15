@@ -15,5 +15,6 @@ syn = "1.0"
 
 [dev-dependencies]
 cdr = "0.2"
+dds-api = { path = "../dds_api" }
 dds-implementation = { path = "../dds_implementation" }
 serde = { version = "1.0", features = ["derive"] }
