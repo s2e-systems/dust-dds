@@ -1,6 +1,7 @@
+use std::convert::TryFrom;
+
 use dds_api::return_type::DdsError;
 use rtps_pim::{
-    behavior::stateful_reader_behavior::TryFromDataSubmessageAndGuidPrefix,
     messages::{
         submessage_elements::{
             EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
@@ -64,13 +65,13 @@ impl PartialEq for RtpsCacheChangeImpl {
     }
 }
 
-impl TryFromDataSubmessageAndGuidPrefix<Vec<Parameter<'_>>, &[u8]> for RtpsCacheChangeImpl {
+impl TryFrom<(GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>)> for RtpsCacheChangeImpl {
     type Error = DdsError;
 
-    fn from(
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+    fn try_from(
+        value: (GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>),
     ) -> Result<Self, Self::Error> {
+        let (source_guid_prefix, data) = value;
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
 
         let instance_handle = [0; 16];

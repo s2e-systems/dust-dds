@@ -1,12 +1,11 @@
+use core::convert::TryFrom;
+
 use crate::{
     messages::submessages::DataSubmessage,
     structure::{history_cache::RtpsHistoryCacheOperations, types::GuidPrefix},
 };
 
-use super::{
-    reader::reader::RtpsReaderAttributes,
-    stateful_reader_behavior::TryFromDataSubmessageAndGuidPrefix,
-};
+use super::reader::reader::RtpsReaderAttributes;
 
 pub trait RtpsStatelessReaderReceiveDataSubmessage<P, D> {
     fn on_data_submessage_received(
@@ -25,10 +24,10 @@ where
     T: RtpsReaderAttributes,
     T::HistoryCacheType: RtpsHistoryCacheOperations,
     <T::HistoryCacheType as RtpsHistoryCacheOperations>::CacheChangeType:
-        TryFromDataSubmessageAndGuidPrefix<P, D>,
+        for<'a> TryFrom<(GuidPrefix, &'a DataSubmessage<P, D>)>,
 {
     fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<P, D>) {
-        if let Ok(a_change) = TryFromDataSubmessageAndGuidPrefix::from(source_guid_prefix, data) {
+        if let Ok(a_change) = TryFrom::try_from((source_guid_prefix, data)) {
             self.reader_cache().add_change(a_change);
         }
     }
@@ -54,12 +53,9 @@ mod tests {
     #[derive(Debug, PartialEq)]
     struct MockCacheChange;
 
-    impl<P, D> TryFromDataSubmessageAndGuidPrefix<P, D> for MockCacheChange {
+    impl<P, D> TryFrom<(GuidPrefix, &DataSubmessage<P, D>)> for MockCacheChange {
         type Error = ();
-        fn from(
-            _source_guid_prefix: GuidPrefix,
-            _data: &DataSubmessage<P, D>,
-        ) -> Result<Self, Self::Error> {
+        fn try_from(_value: (GuidPrefix, &DataSubmessage<P, D>)) -> Result<Self, Self::Error> {
             Ok(MockCacheChange)
         }
     }
