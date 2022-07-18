@@ -404,7 +404,7 @@ impl Default for PresentationQosPolicy {
 /// requested deadline period” evaluates to ‘TRUE.’
 /// The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
 /// to be consistent the settings must be such that “deadline period>= minimum_separation.”
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct DeadlineQosPolicy {
     pub period: Duration,
 }
@@ -587,7 +587,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Changes in LIVELINESS must be detected by the Service with a time-granularity greater or equal to the lease_duration. This
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each lease_duration and the related
 /// Listeners and WaitSets are notified within a lease_duration from the time the LIVELINESS changed.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct LivelinessQosPolicy {
     pub kind: LivelinessQosPolicyKind,
     pub lease_duration: Duration,
@@ -730,6 +730,12 @@ pub struct ReliabilityQosPolicy {
 impl QosPolicy for ReliabilityQosPolicy {
     fn name(&self) -> &str {
         RELIABILITY_QOS_POLICY_NAME
+    }
+}
+
+impl PartialOrd for ReliabilityQosPolicy {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.kind.partial_cmp(&other.kind)
     }
 }
 

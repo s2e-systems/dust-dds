@@ -61,7 +61,7 @@ pub struct PublicationBuiltinTopicData {
     pub group_data: GroupDataQosPolicy,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SubscriptionBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,

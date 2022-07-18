@@ -404,7 +404,7 @@ where
 
                     if let Some(l) = self.listener.write_lock().as_mut() {
                         *self.status_change.write_lock() &= !SUBSCRIPTION_MATCHED_STATUS;
-                        l.trigger_on_subscription_matched(self.clone(), *status)
+                        l.trigger_on_subscription_matched(self.clone(), status.clone())
                     };
 
                     status.total_count_change = 0;
@@ -855,7 +855,7 @@ where
     }
 
     fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        Ok(*self.subscription_matched_status.read_lock())
+        Ok(self.subscription_matched_status.read_lock().clone())
     }
 
     fn delete_contained_entities(&self) -> DdsResult<()> {

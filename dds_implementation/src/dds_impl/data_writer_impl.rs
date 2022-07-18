@@ -7,8 +7,8 @@ use crate::{
     },
     rtps_impl::{
         rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_writer_impl::RtpsStatelessWriterImpl,
+        rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
+        rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
         utils::clock::StdTimer,
     },
 };
@@ -16,13 +16,18 @@ use dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusMask, Time,
         HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
     },
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
+        qos_policy::{
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIPSTRENGTH_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+        },
     },
     publication::{
         data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic, FooDataWriter},
@@ -42,9 +47,10 @@ use rtps_pim::{
             RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
         },
         writer::{
-            reader_locator::RtpsReaderLocatorAttributes,
+            reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor},
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
             stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
+            stateless_writer::RtpsStatelessWriterOperations,
             writer::{RtpsWriterAttributes, RtpsWriterOperations},
         },
     },
@@ -305,6 +311,7 @@ pub struct DataWriterImpl {
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
+    matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -350,10 +357,11 @@ impl DataWriterImpl {
             listener: DdsRwLock::new(listener),
             topic,
             publisher,
-            liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
+            publication_matched_status: DdsRwLock::new(publication_matched_status),
             offered_deadline_missed_status: DdsRwLock::new(offered_deadline_missed_status),
             offered_incompatible_qos_status: DdsRwLock::new(offered_incompatible_qos_status),
-            publication_matched_status: DdsRwLock::new(publication_matched_status),
+            liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
+            matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
         })
     }
@@ -415,45 +423,141 @@ impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
 
 impl AddMatchedReader for DdsShared<DataWriterImpl> {
     fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
-        let topic_name = &discovered_reader_data
-            .subscription_builtin_topic_data
-            .topic_name;
-        let type_name = &discovered_reader_data
-            .subscription_builtin_topic_data
-            .type_name;
-        let writer_topic_name = &self.topic.get_name().unwrap();
+        let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
+        let writer_topic_name = self.topic.get_name().unwrap();
         let writer_type_name = self.topic.get_type_name().unwrap();
-        if topic_name == writer_topic_name && type_name == writer_type_name {
-            let reader_proxy =
-                <RtpsStatefulWriterImpl<StdTimer> as RtpsStatefulWriterOperations>::ReaderProxyType::new(
-                    discovered_reader_data.reader_proxy.remote_reader_guid,
-                    discovered_reader_data.reader_proxy.remote_group_entity_id,
-                    discovered_reader_data
-                        .reader_proxy
-                        .unicast_locator_list
-                        .as_ref(),
-                    discovered_reader_data
-                        .reader_proxy
-                        .multicast_locator_list
-                        .as_ref(),
-                    discovered_reader_data.reader_proxy.expects_inline_qos,
-                    true, // ???
-                );
-            match &mut *self.rtps_writer.write_lock() {
-                RtpsWriter::Stateless(_) => (),
-                RtpsWriter::Stateful(rtps_stateful_writer) => {
-                    rtps_stateful_writer.matched_reader_add(reader_proxy);
 
-                    let mut status = self.publication_matched_status.write_lock();
-                    status.current_count_change += 1;
-                    status.total_count += 1;
+        if reader_info.topic_name == writer_topic_name && &reader_info.type_name == writer_type_name
+        {
+            let writer_qos_lock = self.qos.read_lock();
+            let parent_publisher_qos = self.get_publisher().unwrap().get_qos().unwrap();
 
-                    self.listener
-                        .write_lock()
-                        .as_mut()
-                        .map(|l| l.trigger_on_publication_matched(self.clone(), *status));
+            let mut incompatible_qos_policy_list = Vec::new();
+            if !(writer_qos_lock.durability >= reader_info.durability) {
+                incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+            }
+            if !(parent_publisher_qos.presentation.access_scope
+                >= reader_info.presentation.access_scope
+                && parent_publisher_qos.presentation.coherent_access
+                    == reader_info.presentation.coherent_access
+                && parent_publisher_qos.presentation.ordered_access
+                    == reader_info.presentation.ordered_access)
+            {
+                incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.deadline >= reader_info.deadline) {
+                incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.latency_budget >= reader_info.latency_budget) {
+                incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.ownership == reader_info.ownership) {
+                incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.liveliness >= reader_info.liveliness) {
+                incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.reliability.kind >= reader_info.reliability.kind) {
+                incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+            }
+            if !(writer_qos_lock.destination_order >= reader_info.destination_order) {
+                incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+            }
+
+            if incompatible_qos_policy_list.is_empty() {
+                match &mut *self.rtps_writer.write_lock() {
+                    RtpsWriter::Stateless(w) => {
+                        for locator in discovered_reader_data
+                            .reader_proxy
+                            .unicast_locator_list
+                            .iter()
+                            .chain(
+                                discovered_reader_data
+                                    .reader_proxy
+                                    .multicast_locator_list
+                                    .iter(),
+                            )
+                        {
+                            let a_locator = RtpsReaderLocatorAttributesImpl::new(
+                                locator.clone(),
+                                discovered_reader_data.reader_proxy.expects_inline_qos,
+                            );
+                            w.reader_locator_add(a_locator);
+                        }
+                    }
+                    RtpsWriter::Stateful(w) => {
+                        let reader_proxy = RtpsReaderProxyImpl::new(
+                            discovered_reader_data.reader_proxy.remote_reader_guid,
+                            discovered_reader_data.reader_proxy.remote_group_entity_id,
+                            discovered_reader_data
+                                .reader_proxy
+                                .unicast_locator_list
+                                .as_ref(),
+                            discovered_reader_data
+                                .reader_proxy
+                                .multicast_locator_list
+                                .as_ref(),
+                            discovered_reader_data.reader_proxy.expects_inline_qos,
+                            true,
+                        );
+                        w.matched_reader_add(reader_proxy);
+                    }
                 }
-            };
+                self.matched_subscription_list
+                    .write_lock()
+                    .insert(reader_info.key.value.into(), reader_info.clone());
+
+                // Drop the publication_matched_status_lock such that the listener can be triggered
+                // if needed
+                {
+                    let mut publication_matched_status_lock =
+                        self.publication_matched_status.write_lock();
+                    publication_matched_status_lock.total_count += 1;
+                    publication_matched_status_lock.total_count_change += 1;
+                    publication_matched_status_lock.current_count_change += 1;
+                }
+
+                let mut listener_lock = self.listener.write_lock();
+                if let Some(l) = listener_lock.as_mut() {
+                    let publication_matched_status = self.get_publication_matched_status().unwrap();
+                    l.trigger_on_publication_matched(self.clone(), publication_matched_status)
+                }
+            } else {
+                {
+                    let mut offered_incompatible_qos_status_lock =
+                        self.offered_incompatible_qos_status.write_lock();
+                    offered_incompatible_qos_status_lock.total_count += 1;
+                    offered_incompatible_qos_status_lock.total_count_change += 1;
+                    offered_incompatible_qos_status_lock.last_policy_id =
+                        incompatible_qos_policy_list[0];
+                    for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+                        if let Some(policy_count) = offered_incompatible_qos_status_lock
+                            .policies
+                            .iter_mut()
+                            .find(|x| x.policy_id == incompatible_qos_policy)
+                        {
+                            policy_count.count += 1;
+                        } else {
+                            offered_incompatible_qos_status_lock
+                                .policies
+                                .push(QosPolicyCount {
+                                    policy_id: incompatible_qos_policy,
+                                    count: 1,
+                                })
+                        }
+                    }
+                }
+
+                let mut listener_lock = self.listener.write_lock();
+                if let Some(l) = listener_lock.as_mut() {
+                    let offered_incompatible_qos_status =
+                        self.get_offered_incompatible_qos_status().unwrap();
+                    l.trigger_on_offered_incompatible_qos(
+                        self.clone(),
+                        offered_incompatible_qos_status,
+                    )
+                }
+            }
         }
     }
 }
@@ -713,8 +817,12 @@ impl DataWriter for DdsShared<DataWriterImpl> {
     }
 
     fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        let publication_matched_status = self.publication_matched_status.read_lock().clone();
         let mut publication_matched_status_lock = self.publication_matched_status.write_lock();
+
+        let mut publication_matched_status = publication_matched_status_lock.clone();
+        publication_matched_status.current_count =
+            self.matched_subscription_list.read_lock().len() as i32;
+
         publication_matched_status_lock.current_count_change = 0;
         publication_matched_status_lock.total_count_change = 0;
         Ok(publication_matched_status)
@@ -730,13 +838,17 @@ impl DataWriter for DdsShared<DataWriterImpl> {
 
     fn get_matched_subscription_data(
         &self,
-        _subscription_handle: InstanceHandle,
+        subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        self.matched_subscription_list
+            .read_lock()
+            .get(&subscription_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
     }
 
     fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
@@ -744,17 +856,12 @@ impl DataWriter for DdsShared<DataWriterImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut rpts_writer_lock = self.rtps_writer.write_lock();
-        let matched_subscriptions = match &mut *rpts_writer_lock {
-            RtpsWriter::Stateless(_) => vec![],
-            RtpsWriter::Stateful(w) => w
-                .matched_readers()
-                .into_iter()
-                .map(|x| x.remote_reader_guid().into())
-                .collect(),
-        };
-
-        Ok(matched_subscriptions)
+        Ok(self
+            .matched_subscription_list
+            .read_lock()
+            .iter()
+            .map(|(key, _)| key.clone())
+            .collect())
     }
 }
 
@@ -955,8 +1062,17 @@ mod test {
     use std::io::Write;
 
     use dds_api::{
-        dcps_psm::TIME_INVALID,
-        infrastructure::{qos::TopicQos, qos_policy::ResourceLimitsQosPolicy},
+        dcps_psm::{BuiltInTopicKey, QosPolicyCount, TIME_INVALID},
+        infrastructure::{
+            qos::{PublisherQos, TopicQos},
+            qos_policy::{
+                DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+                GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+                TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+            },
+        },
     };
     use mockall::mock;
     use rtps_pim::{
@@ -976,16 +1092,20 @@ mod test {
             },
             submessages::DataSubmessage,
         },
-        structure::types::{
-            EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-            PROTOCOLVERSION_2_4,
+        structure::{
+            group::RtpsGroupConstructor,
+            types::{
+                EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+                PROTOCOLVERSION_2_4,
+            },
         },
     };
 
     use crate::{
+        data_representation_builtin_endpoints::discovered_reader_data::RtpsReaderProxy,
         dds_type::Endianness,
         rtps_impl::{
-            rtps_stateful_writer_impl::RtpsReaderProxyImpl,
+            rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsReaderProxyImpl,
             rtps_stateless_writer_impl::RtpsReaderLocatorAttributesImpl,
         },
     };
@@ -1658,5 +1778,197 @@ mod test {
             data_writer.get_key_value(&mut keyed_foo, [1; 16]),
             Err(DdsError::BadParameter)
         );
+    }
+
+    #[test]
+    fn add_compatible_matched_reader() {
+        let type_name = "test_type";
+        let topic_name = "test_topic".to_string();
+        let parent_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
+        let test_topic = TopicImpl::new(
+            GUID_UNKNOWN,
+            TopicQos::default(),
+            type_name,
+            &topic_name,
+            DdsWeak::new(),
+        );
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+
+        let data_writer = DataWriterImpl::new(
+            DataWriterQos::default(),
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            test_topic,
+            parent_publisher.downgrade(),
+        );
+        *data_writer.enabled.write_lock() = true;
+        let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+            key: BuiltInTopicKey { value: [2; 16] },
+            participant_key: BuiltInTopicKey { value: [1; 16] },
+            topic_name: topic_name.clone(),
+            type_name: type_name.to_string(),
+            durability: DurabilityQosPolicy::default(),
+            deadline: DeadlineQosPolicy::default(),
+            latency_budget: LatencyBudgetQosPolicy::default(),
+            liveliness: LivelinessQosPolicy::default(),
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                max_blocking_time: Duration::new(0, 0),
+            },
+            ownership: OwnershipQosPolicy::default(),
+            destination_order: DestinationOrderQosPolicy::default(),
+            user_data: UserDataQosPolicy::default(),
+            time_based_filter: TimeBasedFilterQosPolicy::default(),
+            presentation: PresentationQosPolicy::default(),
+            partition: PartitionQosPolicy::default(),
+            topic_data: TopicDataQosPolicy::default(),
+            group_data: GroupDataQosPolicy::default(),
+        };
+        let discovered_reader_data = DiscoveredReaderData {
+            reader_proxy: RtpsReaderProxy {
+                remote_reader_guid: Guid {
+                    prefix: GuidPrefix([2; 12]),
+                    entity_id: EntityId {
+                        entity_key: [2; 3],
+                        entity_kind: 2,
+                    },
+                },
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+            subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
+        };
+        data_writer.add_matched_reader(&discovered_reader_data);
+
+        let publication_matched_status = data_writer.get_publication_matched_status().unwrap();
+        assert_eq!(publication_matched_status.current_count, 1);
+        assert_eq!(publication_matched_status.current_count_change, 1);
+        assert_eq!(publication_matched_status.total_count, 1);
+        assert_eq!(publication_matched_status.total_count_change, 1);
+
+        let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
+        assert_eq!(matched_subscriptions.len(), 1);
+        assert_eq!(matched_subscriptions[0], [2; 16]);
+        let matched_subscription_data = data_writer
+            .get_matched_subscription_data(matched_subscriptions[0])
+            .unwrap();
+        assert_eq!(matched_subscription_data, subscription_builtin_topic_data);
+    }
+
+    #[test]
+    fn add_incompatible_matched_reader() {
+        let type_name = "test_type";
+        let topic_name = "test_topic".to_string();
+        let parent_publisher = PublisherImpl::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
+        );
+        let test_topic = TopicImpl::new(
+            GUID_UNKNOWN,
+            TopicQos::default(),
+            type_name,
+            &topic_name,
+            DdsWeak::new(),
+        );
+
+        let rtps_writer = RtpsStatefulWriterImpl::new(
+            GUID_UNKNOWN,
+            rtps_pim::structure::types::TopicKind::WithKey,
+            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            &[],
+            &[],
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+        );
+        let mut data_writer_qos = DataWriterQos::default();
+        data_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        let data_writer = DataWriterImpl::new(
+            data_writer_qos,
+            RtpsWriter::Stateful(rtps_writer),
+            None,
+            test_topic,
+            parent_publisher.downgrade(),
+        );
+        *data_writer.enabled.write_lock() = true;
+        let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
+            key: BuiltInTopicKey { value: [2; 16] },
+            participant_key: BuiltInTopicKey { value: [1; 16] },
+            topic_name: topic_name.clone(),
+            type_name: type_name.to_string(),
+            durability: DurabilityQosPolicy::default(),
+            deadline: DeadlineQosPolicy::default(),
+            latency_budget: LatencyBudgetQosPolicy::default(),
+            liveliness: LivelinessQosPolicy::default(),
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                max_blocking_time: Duration::new(0, 0),
+            },
+            ownership: OwnershipQosPolicy::default(),
+            destination_order: DestinationOrderQosPolicy::default(),
+            user_data: UserDataQosPolicy::default(),
+            time_based_filter: TimeBasedFilterQosPolicy::default(),
+            presentation: PresentationQosPolicy::default(),
+            partition: PartitionQosPolicy::default(),
+            topic_data: TopicDataQosPolicy::default(),
+            group_data: GroupDataQosPolicy::default(),
+        };
+        let discovered_reader_data = DiscoveredReaderData {
+            reader_proxy: RtpsReaderProxy {
+                remote_reader_guid: Guid {
+                    prefix: GuidPrefix([2; 12]),
+                    entity_id: EntityId {
+                        entity_key: [2; 3],
+                        entity_kind: 2,
+                    },
+                },
+                remote_group_entity_id: ENTITYID_UNKNOWN,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+            subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
+        };
+        data_writer.add_matched_reader(&discovered_reader_data);
+
+        let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
+        assert_eq!(matched_subscriptions.len(), 0);
+
+        let offered_incompatible_qos_status =
+            data_writer.get_offered_incompatible_qos_status().unwrap();
+        assert_eq!(offered_incompatible_qos_status.total_count, 1);
+        assert_eq!(offered_incompatible_qos_status.total_count_change, 1);
+        assert_eq!(
+            offered_incompatible_qos_status.last_policy_id,
+            RELIABILITY_QOS_POLICY_ID
+        );
+        assert_eq!(
+            offered_incompatible_qos_status.policies,
+            vec![QosPolicyCount {
+                policy_id: RELIABILITY_QOS_POLICY_ID,
+                count: 1,
+            }]
+        )
     }
 }
