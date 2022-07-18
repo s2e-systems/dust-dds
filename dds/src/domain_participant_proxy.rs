@@ -241,12 +241,11 @@ where
 
     fn get_discovered_participant_data(
         &self,
-        participant_data: ParticipantBuiltinTopicData,
         participant_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<ParticipantBuiltinTopicData> {
         self.domain_participant_attributes
             .upgrade()?
-            .get_discovered_participant_data(participant_data, participant_handle)
+            .get_discovered_participant_data(participant_handle)
     }
 
     fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {

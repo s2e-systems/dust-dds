@@ -302,9 +302,8 @@ pub trait DomainParticipant {
     /// case the operation will return UNSUPPORTED.
     fn get_discovered_participant_data(
         &self,
-        participant_data: ParticipantBuiltinTopicData,
         participant_handle: InstanceHandle,
-    ) -> DdsResult<()>;
+    ) -> DdsResult<ParticipantBuiltinTopicData>;
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the DomainParticipant ignore_topic operation.
@@ -318,8 +317,6 @@ pub trait DomainParticipant {
     /// Use the operation get_discovered_topics to find the topics that are currently discovered.
     /// The operation may also fail if the infrastructure does not hold the information necessary to fill in the topic_data. In this case
     /// the operation will return UNSUPPORTED.
-    /// The operation may fail if the infrastructure does not locally maintain the connectivity information. In this case the operation
-    /// will return UNSUPPORTED.
     fn get_discovered_topic_data(
         &self,
         topic_data: TopicBuiltinTopicData,

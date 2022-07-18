@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -109,6 +110,7 @@ pub struct DomainParticipantImpl {
     lease_duration: rtps_pim::behavior::types::Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
+    discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -154,6 +156,7 @@ impl DomainParticipantImpl {
             lease_duration: lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
+            discovered_participant_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
         })
     }
@@ -523,19 +526,27 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        Ok(self
+            .discovered_participant_list
+            .read_lock()
+            .iter()
+            .map(|(key, _)| key.clone())
+            .collect())
     }
 
     fn get_discovered_participant_data(
         &self,
-        _participant_data: ParticipantBuiltinTopicData,
-        _participant_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+        participant_handle: InstanceHandle,
+    ) -> DdsResult<ParticipantBuiltinTopicData> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        self.discovered_participant_list
+            .read_lock()
+            .get(&participant_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
     }
 
     fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
@@ -760,6 +771,11 @@ impl AddDiscoveredParticipant for DdsShared<DomainParticipantImpl> {
                 .lookup_datareader::<DiscoveredTopicData>(&dcps_topic_topic)
                 .unwrap();
             sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
+
+            self.discovered_participant_list.write_lock().insert(
+                discovered_participant_data.dds_participant_data.key.value,
+                discovered_participant_data.dds_participant_data.clone(),
+            );
         }
     }
 }
@@ -1287,7 +1303,10 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
 #[cfg(test)]
 mod tests {
 
-    use dds_api::return_type::{DdsError, DdsResult};
+    use dds_api::{
+        infrastructure::qos_policy::UserDataQosPolicy,
+        return_type::{DdsError, DdsResult},
+    };
 
     use super::*;
     use crate::dds_type::{DdsSerialize, DdsType, Endianness};
@@ -1595,5 +1614,61 @@ mod tests {
         let instance_handle = domain_participant.get_instance_handle().unwrap();
 
         assert_eq!(expected_instance_handle, instance_handle);
+    }
+
+    #[test]
+    fn add_correctly_matched_participant() {
+        let guid_prefix = GuidPrefix([1; 12]);
+        let domain_id = DomainId::default();
+        let domain_tag = "".to_string();
+        let domain_participant = DomainParticipantImpl::new(
+            guid_prefix,
+            domain_id,
+            domain_tag.clone(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        domain_participant.enable().unwrap();
+        domain_participant.create_builtins().unwrap();
+
+        let dds_participant_data = ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey { value: [2; 16] },
+            user_data: UserDataQosPolicy { value: vec![] },
+        };
+        let discovered_participant_data = SpdpDiscoveredParticipantData {
+            dds_participant_data: dds_participant_data.clone(),
+            participant_proxy: ParticipantProxy {
+                domain_id: domain_id as u32,
+                domain_tag: domain_tag,
+                protocol_version: PROTOCOLVERSION,
+                guid_prefix,
+                vendor_id: VENDOR_ID_S2E,
+                expects_inline_qos: false,
+                metatraffic_unicast_locator_list: vec![],
+                metatraffic_multicast_locator_list: vec![],
+                default_unicast_locator_list: vec![],
+                default_multicast_locator_list: vec![],
+                available_builtin_endpoints: BuiltinEndpointSet::default(),
+                manual_liveliness_count: Count(0),
+                builtin_endpoint_qos: BuiltinEndpointQos::default(),
+            },
+            lease_duration: rtps_pim::behavior::types::Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+        };
+        domain_participant.add_discovered_participant(&discovered_participant_data);
+
+        let discovered_participants = domain_participant.get_discovered_participants().unwrap();
+        assert_eq!(discovered_participants.len(), 1);
+        assert_eq!(discovered_participants[0], [2; 16]);
+
+        let discovered_participant_data = domain_participant
+            .get_discovered_participant_data(discovered_participants[0])
+            .unwrap();
+        assert_eq!(discovered_participant_data, dds_participant_data);
     }
 }
