@@ -359,10 +359,10 @@ where
             .delete_readcondition(a_condition)
     }
 
-    fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DdsResult<()> {
+    fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
         self.data_reader_attributes
             .upgrade()?
-            .get_liveliness_changed_status(status)
+            .get_liveliness_changed_status()
     }
 
     fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
@@ -371,25 +371,22 @@ where
             .get_requested_deadline_missed_status()
     }
 
-    fn get_requested_incompatible_qos_status(
-        &self,
-        status: &mut RequestedIncompatibleQosStatus,
-    ) -> DdsResult<()> {
+    fn get_requested_incompatible_qos_status(&self) -> DdsResult<RequestedIncompatibleQosStatus> {
         self.data_reader_attributes
             .upgrade()?
-            .get_requested_incompatible_qos_status(status)
+            .get_requested_incompatible_qos_status()
     }
 
-    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DdsResult<()> {
+    fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         self.data_reader_attributes
             .upgrade()?
-            .get_sample_lost_status(status)
+            .get_sample_lost_status()
     }
 
-    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DdsResult<()> {
+    fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
         self.data_reader_attributes
             .upgrade()?
-            .get_sample_rejected_status(status)
+            .get_sample_rejected_status()
     }
 
     fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
@@ -412,12 +409,11 @@ where
 
     fn get_matched_publication_data(
         &self,
-        publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<PublicationBuiltinTopicData> {
         self.data_reader_attributes
             .upgrade()?
-            .get_matched_publication_data(publication_data, publication_handle)
+            .get_matched_publication_data(publication_handle)
     }
 
     fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {

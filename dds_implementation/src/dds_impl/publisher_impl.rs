@@ -241,7 +241,7 @@ where
                     latency_budget: LatencyBudgetQosPolicy::default(),
                     liveliness: LivelinessQosPolicy::default(),
                     reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
                         max_blocking_time: Duration::new(3, 0),
                     },
                     lifespan: LifespanQosPolicy::default(),
@@ -418,7 +418,9 @@ impl Entity for DdsShared<PublisherImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         if !self.parent_participant.upgrade()?.is_enabled() {
-            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+            return Err(DdsError::PreconditionNotMet(
+                "Parent participant is disabled".to_string(),
+            ));
         }
 
         *self.enabled.write_lock() = true;

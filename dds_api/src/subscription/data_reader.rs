@@ -435,7 +435,7 @@ pub trait DataReader {
 
     /// This operation allows access to the LIVELINESS_CHANGED communication status. Communication statuses are described
     /// in 2.2.4.1.
-    fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DdsResult<()>;
+    fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus>;
 
     /// This operation allows access to the REQUESTED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1.
@@ -443,17 +443,14 @@ pub trait DataReader {
 
     /// This operation allows access to the REQUESTED_INCOMPATIBLE_QOS communication status. Communication statuses
     /// are described in 2.2.4.1.
-    fn get_requested_incompatible_qos_status(
-        &self,
-        status: &mut RequestedIncompatibleQosStatus,
-    ) -> DdsResult<()>;
+    fn get_requested_incompatible_qos_status(&self) -> DdsResult<RequestedIncompatibleQosStatus>;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1.
-    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DdsResult<()>;
+    fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus>;
 
     /// This operation allows access to the SAMPLE_REJECTED communication status. Communication statuses are described in
     /// 2.2.4.1.
-    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DdsResult<()>;
+    fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus>;
 
     /// This operation allows access to the SUBSCRIPTION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1.
@@ -504,9 +501,8 @@ pub trait DataReader {
     /// case the operation will return UNSUPPORTED
     fn get_matched_publication_data(
         &self,
-        publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
-    ) -> DdsResult<()>;
+    ) -> DdsResult<PublicationBuiltinTopicData>;
 
     /// This operation retrieves the list of publications currently “associated” with the DataReader; that is, publications that have a
     /// matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the

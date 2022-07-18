@@ -36,7 +36,7 @@ pub struct TopicBuiltinTopicData {
     pub topic_data: TopicDataQosPolicy,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PublicationBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
