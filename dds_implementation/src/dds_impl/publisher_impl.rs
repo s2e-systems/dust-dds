@@ -7,18 +7,11 @@ use crate::{
     transport::TransportWrite,
 };
 use dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, Duration, InstanceHandle, StatusMask},
+    dcps_psm::{Duration, InstanceHandle, StatusMask},
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
-        },
+        qos_policy::ReliabilityQosPolicyKind,
     },
     publication::{
         data_writer::DataWriterGetTopic,
@@ -215,49 +208,6 @@ where
             data_writer_shared.enable()?;
         }
 
-        // /////// Announce the data writer creation
-        if let Ok(domain_participant) = self.parent_participant.upgrade() {
-            let sedp_discovered_writer_data = DiscoveredWriterData {
-                writer_proxy: RtpsWriterProxy {
-                    remote_writer_guid: guid,
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    data_max_size_serialized: None,
-                    remote_group_entity_id: EntityId::new([0; 3], 0),
-                },
-
-                publication_builtin_topic_data: PublicationBuiltinTopicData {
-                    key: BuiltInTopicKey { value: guid.into() },
-                    participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: topic_shared.get_name().unwrap(),
-                    type_name: Foo::type_name().to_string(),
-                    durability: DurabilityQosPolicy::default(),
-                    durability_service: DurabilityServiceQosPolicy::default(),
-                    deadline: DeadlineQosPolicy::default(),
-                    latency_budget: LatencyBudgetQosPolicy::default(),
-                    liveliness: LivelinessQosPolicy::default(),
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                        max_blocking_time: Duration::new(3, 0),
-                    },
-                    lifespan: LifespanQosPolicy::default(),
-                    user_data: UserDataQosPolicy::default(),
-                    ownership: OwnershipQosPolicy::default(),
-                    ownership_strength: OwnershipStrengthQosPolicy::default(),
-                    destination_order: DestinationOrderQosPolicy::default(),
-                    presentation: PresentationQosPolicy::default(),
-                    partition: PartitionQosPolicy::default(),
-                    topic_data: TopicDataQosPolicy::default(),
-                    group_data: GroupDataQosPolicy::default(),
-                },
-            };
-            domain_participant.add_created_data_writer(&sedp_discovered_writer_data);
-        }
-
         Ok(data_writer_shared)
     }
 
@@ -299,6 +249,30 @@ where
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
+
+pub trait AnnounceDataWriter {
+    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData);
+}
+
+impl AnnounceDataWriter for DdsShared<PublisherImpl> {
+    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
+        if let Ok(domain_participant) = self.parent_participant.upgrade() {
+            domain_participant.add_created_data_writer(&DiscoveredWriterData {
+                writer_proxy: RtpsWriterProxy {
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    ..sedp_discovered_writer_data.writer_proxy
+                },
+                ..sedp_discovered_writer_data
+            });
+        }
+    }
+}
+
 impl Publisher for DdsShared<PublisherImpl> {
     fn suspend_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {

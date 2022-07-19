@@ -214,45 +214,6 @@ where
 
         self.topic_list.write_lock().push(topic_shared.clone());
 
-        // /////// Announce the topic creation
-        {
-            let builtin_publisher_option = self.builtin_publisher.read_lock().clone();
-            if let Some(builtin_publisher) = builtin_publisher_option {
-                if let Ok(topic_creation_topic) =
-                    self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
-                {
-                    if let Ok(sedp_builtin_topic_announcer) = builtin_publisher
-                        .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
-                    {
-                        let sedp_discovered_topic_data = DiscoveredTopicData {
-                            topic_builtin_topic_data: TopicBuiltinTopicData {
-                                key: BuiltInTopicKey { value: [1; 16] },
-                                name: topic_name.to_string(),
-                                type_name: Foo::type_name().to_string(),
-                                durability: qos.durability.clone(),
-                                durability_service: qos.durability_service.clone(),
-                                deadline: qos.deadline.clone(),
-                                latency_budget: qos.latency_budget.clone(),
-                                liveliness: qos.liveliness.clone(),
-                                reliability: qos.reliability.clone(),
-                                transport_priority: qos.transport_priority.clone(),
-                                lifespan: qos.lifespan.clone(),
-                                destination_order: qos.destination_order.clone(),
-                                history: qos.history.clone(),
-                                resource_limits: qos.resource_limits.clone(),
-                                ownership: qos.ownership.clone(),
-                                topic_data: qos.topic_data.clone(),
-                            },
-                        };
-
-                        sedp_builtin_topic_announcer
-                            .write(&sedp_discovered_topic_data, None)
-                            .unwrap();
-                    }
-                }
-            }
-        }
-
         Ok(topic_shared)
     }
 
@@ -314,6 +275,29 @@ where
                 }
             })
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+    }
+}
+
+pub trait AnnounceTopic {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData);
+}
+
+impl AnnounceTopic for DdsShared<DomainParticipantImpl> {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
+        let builtin_publisher_option = self.builtin_publisher.read_lock().clone();
+        if let Some(builtin_publisher) = builtin_publisher_option {
+            if let Ok(topic_creation_topic) =
+                self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
+            {
+                if let Ok(sedp_builtin_topic_announcer) = builtin_publisher
+                    .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
+                {
+                    sedp_builtin_topic_announcer
+                        .write(&sedp_discovered_topic_data, None)
+                        .unwrap();
+                }
+            }
+        }
     }
 }
 

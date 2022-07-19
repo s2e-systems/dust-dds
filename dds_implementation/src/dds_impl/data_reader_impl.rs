@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
+        discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
+        discovered_topic_data::DiscoveredTopicData,
         discovered_writer_data::DiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
@@ -24,12 +25,12 @@ use crate::{
     },
 };
 use dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
+    builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dcps_psm::{
-        InstanceHandle, InstanceStateMask, LivelinessChangedStatus, QosPolicyCount,
-        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-        SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask, StatusMask,
-        SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
+        BuiltInTopicKey, Duration, InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
+        QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask,
+        StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
         DATA_AVAILABLE_STATUS, HANDLE_NIL, HANDLE_NIL_NATIVE, NEW_VIEW_STATE,
         NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
         REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
@@ -38,7 +39,11 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::DataReaderQos,
         qos_policy::{
-            HistoryQosPolicyKind, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            HistoryQosPolicyKind, LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+            UserDataQosPolicy, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
             DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
             OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -86,7 +91,10 @@ use rtps_pim::{
     },
 };
 
-use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
+use super::{
+    subscriber_impl::{AnnounceDataReader, SubscriberImpl},
+    topic_impl::TopicImpl,
+};
 
 pub trait AnyDataReaderListener<DR> {
     fn trigger_on_data_available(&mut self, reader: DR);
@@ -1102,7 +1110,11 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
             ));
         }
 
+        self.parent_subscriber
+            .upgrade()?
+            .announce_datareader(self.into());
         *self.enabled.write_lock() = true;
+
         Ok(())
     }
 
@@ -1112,6 +1124,44 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
         }
 
         Ok(self.rtps_reader.read_lock().guid().into())
+    }
+}
+
+impl<Tim> Into<DiscoveredReaderData> for &DdsShared<DataReaderImpl<Tim>> {
+    fn into(self) -> DiscoveredReaderData {
+        let guid = self.rtps_reader.read_lock().guid();
+        DiscoveredReaderData {
+            reader_proxy: RtpsReaderProxy {
+                remote_reader_guid: guid,
+                remote_group_entity_id: guid.entity_id,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                expects_inline_qos: false,
+            },
+
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey { value: [1; 16] },
+                topic_name: self.topic.get_name().unwrap().clone(),
+                type_name: self.topic.get_type_name().unwrap().to_string(),
+                durability: DurabilityQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: Duration::new(3, 0),
+                },
+                ownership: OwnershipQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                time_based_filter: TimeBasedFilterQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        }
     }
 }
 

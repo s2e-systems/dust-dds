@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
+    data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
     data_representation_inline_qos::{
         parameter_id_values::PID_STATUS_INFO,
         types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
@@ -13,17 +14,22 @@ use crate::{
     },
 };
 use dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
+    builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dcps_psm::{
-        Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-        OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusMask, Time,
-        HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
+        BuiltInTopicKey, Duration, InstanceHandle, LivelinessLostStatus,
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        QosPolicyCount, StatusMask, Time, HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
     },
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
         qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIPSTRENGTH_QOS_POLICY_ID,
             PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
@@ -68,7 +74,9 @@ use rtps_pim::{
         cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
         entity::RtpsEntityAttributes,
         history_cache::RtpsHistoryCacheOperations,
-        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{
+            ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
+        },
     },
 };
 use serde::Serialize;
@@ -88,7 +96,10 @@ use crate::{
     },
 };
 
-use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
+use super::{
+    publisher_impl::{AnnounceDataWriter, PublisherImpl},
+    topic_impl::TopicImpl,
+};
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
     if serialized_key.len() <= 16 {
@@ -929,7 +940,9 @@ impl Entity for DdsShared<DataWriterImpl> {
             ));
         }
 
+        self.publisher.upgrade()?.announce_datawriter(self.into());
         *self.enabled.write_lock() = true;
+
         Ok(())
     }
 
@@ -939,6 +952,47 @@ impl Entity for DdsShared<DataWriterImpl> {
         }
 
         Ok(self.rtps_writer.read_lock().guid().into())
+    }
+}
+
+impl Into<DiscoveredWriterData> for &DdsShared<DataWriterImpl> {
+    fn into(self) -> DiscoveredWriterData {
+        let guid = self.rtps_writer.read_lock().guid();
+
+        DiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                remote_writer_guid: guid,
+                unicast_locator_list: vec![],
+                multicast_locator_list: vec![],
+                data_max_size_serialized: None,
+                remote_group_entity_id: EntityId::new([0; 3], 0),
+            },
+
+            publication_builtin_topic_data: PublicationBuiltinTopicData {
+                key: BuiltInTopicKey { value: guid.into() },
+                participant_key: BuiltInTopicKey { value: [1; 16] },
+                topic_name: self.topic.get_name().unwrap(),
+                type_name: self.topic.get_type_name().unwrap().to_string(),
+                durability: DurabilityQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(),
+                liveliness: LivelinessQosPolicy::default(),
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                    max_blocking_time: Duration::new(3, 0),
+                },
+                lifespan: LifespanQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                presentation: PresentationQosPolicy::default(),
+                partition: PartitionQosPolicy::default(),
+                topic_data: TopicDataQosPolicy::default(),
+                group_data: GroupDataQosPolicy::default(),
+            },
+        }
     }
 }
 

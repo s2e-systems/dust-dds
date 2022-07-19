@@ -5,20 +5,14 @@ use crate::{
     transport::TransportWrite,
 };
 use dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
-        BuiltInTopicKey, Duration, InstanceHandle, InstanceStateMask, SampleLostStatus,
-        SampleStateMask, StatusMask, ViewStateMask,
+        InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
+        ViewStateMask,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-            TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        },
+        qos_policy::ReliabilityQosPolicyKind,
     },
     return_type::{DdsError, DdsResult},
     subscription::{
@@ -211,47 +205,6 @@ where
             data_reader_shared.enable()?;
         }
 
-        // /////// Announce the data reader creation
-        if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
-            let sedp_discovered_reader_data = DiscoveredReaderData {
-                reader_proxy: RtpsReaderProxy {
-                    remote_reader_guid: guid,
-                    remote_group_entity_id: entity_id,
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    expects_inline_qos: false,
-                },
-
-                subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                    key: BuiltInTopicKey { value: guid.into() },
-                    participant_key: BuiltInTopicKey { value: [1; 16] },
-                    topic_name: a_topic.get_name().unwrap().clone(),
-                    type_name: Foo::type_name().to_string(),
-                    durability: DurabilityQosPolicy::default(),
-                    deadline: DeadlineQosPolicy::default(),
-                    latency_budget: LatencyBudgetQosPolicy::default(),
-                    liveliness: LivelinessQosPolicy::default(),
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                        max_blocking_time: Duration::new(3, 0),
-                    },
-                    ownership: OwnershipQosPolicy::default(),
-                    destination_order: DestinationOrderQosPolicy::default(),
-                    user_data: UserDataQosPolicy::default(),
-                    time_based_filter: TimeBasedFilterQosPolicy::default(),
-                    presentation: PresentationQosPolicy::default(),
-                    partition: PartitionQosPolicy::default(),
-                    topic_data: TopicDataQosPolicy::default(),
-                    group_data: GroupDataQosPolicy::default(),
-                },
-            };
-            domain_participant.add_created_data_reader(&sedp_discovered_reader_data);
-        }
-
         Ok(data_reader_shared)
     }
 
@@ -293,6 +246,29 @@ where
                 }
             })
             .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+    }
+}
+
+pub trait AnnounceDataReader {
+    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData);
+}
+
+impl AnnounceDataReader for DdsShared<SubscriberImpl> {
+    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
+        if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
+            domain_participant.add_created_data_reader(&DiscoveredReaderData {
+                reader_proxy: RtpsReaderProxy {
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    ..sedp_discovered_reader_data.reader_proxy
+                },
+                ..sedp_discovered_reader_data
+            });
+        }
     }
 }
 
@@ -417,7 +393,9 @@ impl Entity for DdsShared<SubscriberImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         if !self.parent_domain_participant.upgrade()?.is_enabled() {
-            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+            return Err(DdsError::PreconditionNotMet(
+                "Parent participant is disabled".to_string(),
+            ));
         }
 
         *self.enabled.write_lock() = true;

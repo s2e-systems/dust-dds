@@ -1,5 +1,6 @@
 use dds_api::{
-    dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
+    builtin_topics::TopicBuiltinTopicData,
+    dcps_psm::{BuiltInTopicKey, InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
@@ -9,9 +10,12 @@ use dds_api::{
 };
 use rtps_pim::structure::types::Guid;
 
-use crate::utils::shared_object::{DdsRwLock, DdsShared, DdsWeak};
+use crate::{
+    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
+};
 
-use super::domain_participant_impl::DomainParticipantImpl;
+use super::domain_participant_impl::{AnnounceTopic, DomainParticipantImpl};
 
 pub struct TopicImpl {
     guid: Guid,
@@ -114,8 +118,14 @@ impl Entity for DdsShared<TopicImpl> {
 
     fn enable(&self) -> DdsResult<()> {
         if !self.parent_participant.upgrade()?.is_enabled() {
-            return Err(DdsError::PreconditionNotMet("Parent participant is disabled".to_string()));
+            return Err(DdsError::PreconditionNotMet(
+                "Parent participant is disabled".to_string(),
+            ));
         }
+
+        self.parent_participant
+            .upgrade()?
+            .announce_topic(self.into());
 
         *self.enabled.write_lock() = true;
         Ok(())
@@ -127,6 +137,32 @@ impl Entity for DdsShared<TopicImpl> {
         }
 
         Ok(self.guid.into())
+    }
+}
+
+impl Into<DiscoveredTopicData> for &DdsShared<TopicImpl> {
+    fn into(self) -> DiscoveredTopicData {
+        let qos = self.qos.read_lock();
+        DiscoveredTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData {
+                key: BuiltInTopicKey { value: [1; 16] },
+                name: self.topic_name.to_string(),
+                type_name: self.type_name.to_string(),
+                durability: qos.durability.clone(),
+                durability_service: qos.durability_service.clone(),
+                deadline: qos.deadline.clone(),
+                latency_budget: qos.latency_budget.clone(),
+                liveliness: qos.liveliness.clone(),
+                reliability: qos.reliability.clone(),
+                transport_priority: qos.transport_priority.clone(),
+                lifespan: qos.lifespan.clone(),
+                destination_order: qos.destination_order.clone(),
+                history: qos.history.clone(),
+                resource_limits: qos.resource_limits.clone(),
+                ownership: qos.ownership.clone(),
+                topic_data: qos.topic_data.clone(),
+            },
+        }
     }
 }
 
