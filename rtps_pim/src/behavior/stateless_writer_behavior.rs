@@ -30,16 +30,6 @@ pub trait RtpsStatelessWriterReceiveAckNackSubmessage<S> {
     fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage<S>);
 }
 
-trait IsEmpty {
-    fn is_empty(self) -> bool;
-}
-
-impl<T: IntoIterator> IsEmpty for T {
-    fn is_empty(self) -> bool {
-        self.into_iter().next().is_none()
-    }
-}
-
 pub trait ChangeInHistoryCache {
     fn is_in_cache(&self) -> bool;
 }
@@ -61,7 +51,7 @@ where
 {
     /// 8.4.8.1.4 Transition T4
     fn send_unsent_changes(&mut self) -> Option<BestEffortStatelessWriterSendSubmessage<P, D, S>> {
-        if !self.unsent_changes().is_empty() {
+        if self.unsent_changes().into_iter().next().is_some() {
             let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
@@ -99,7 +89,7 @@ where
 {
     /// 8.4.8.2.4 Transition T4
     fn send_unsent_changes(&mut self) -> Option<DataSubmessage<P, D>> {
-        if !self.unsent_changes().is_empty() {
+        if self.unsent_changes().into_iter().next().is_some() {
             let change = self.next_unsent_change();
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
@@ -135,7 +125,8 @@ where
             value: self.get_seq_num_max().unwrap_or(0),
         };
         let count = CountSubmessageElement { value: Count(0) };
-        let heartbeat_submessage = HeartbeatSubmessage {
+
+        HeartbeatSubmessage {
             endianness_flag,
             final_flag,
             liveliness_flag,
@@ -144,8 +135,7 @@ where
             first_sn,
             last_sn,
             count,
-        };
-        heartbeat_submessage
+        }
     }
 }
 

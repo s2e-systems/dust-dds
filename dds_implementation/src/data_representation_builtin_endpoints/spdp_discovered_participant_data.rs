@@ -38,7 +38,7 @@ use super::parameter_id_values::{
     PID_USER_DATA, PID_VENDORID,
 };
 
-pub const DCPS_PARTICIPANT: &'static str = "DCPSParticipant";
+pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq)]
 pub struct ParticipantProxy {
@@ -149,7 +149,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             .serialize_parameter::<&u32, _>(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
         parameter_list_serializer.serialize_parameter_if_not_default::<DomainTagSerialize, _>(
             PID_DOMAIN_TAG,
-            &DomainTag(&self.participant_proxy.domain_tag.as_str()),
+            &DomainTag(self.participant_proxy.domain_tag.as_str()),
         )?;
         parameter_list_serializer.serialize_parameter::<ProtocolVersionSerialize, _>(
             PID_PROTOCOL_VERSION,

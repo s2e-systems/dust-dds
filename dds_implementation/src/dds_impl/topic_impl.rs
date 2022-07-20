@@ -6,7 +6,7 @@ use dds_api::{
         qos::TopicQos,
     },
     return_type::{DdsError, DdsResult},
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener, Topic},
 };
 use rtps_pim::structure::types::Guid;
 
@@ -140,14 +140,14 @@ impl Entity for DdsShared<TopicImpl> {
     }
 }
 
-impl Into<DiscoveredTopicData> for &DdsShared<TopicImpl> {
-    fn into(self) -> DiscoveredTopicData {
-        let qos = self.qos.read_lock();
+impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
+    fn from(val: &DdsShared<TopicImpl>) -> Self {
+        let qos = val.qos.read_lock();
         DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey { value: [1; 16] },
-                name: self.topic_name.to_string(),
-                type_name: self.type_name.to_string(),
+                name: val.topic_name.to_string(),
+                type_name: val.type_name.to_string(),
                 durability: qos.durability.clone(),
                 durability_service: qos.durability_service.clone(),
                 deadline: qos.deadline.clone(),

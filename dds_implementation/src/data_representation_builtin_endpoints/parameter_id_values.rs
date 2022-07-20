@@ -59,7 +59,7 @@ pub const PID_GROUP_ENTITYID: u16 = 0x0053;
 // Constant value from Table 9.14 - ParameterId mapping and default values
 // that are not N/A and not See DDS specification
 // PID_DOMAIN_ID is omitted since the default is dynamic
-pub const DEFAULT_DOMAIN_TAG: &'static str = "";
+pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
 pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
     seconds: 100,

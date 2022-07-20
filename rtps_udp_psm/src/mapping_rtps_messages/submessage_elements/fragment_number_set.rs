@@ -32,8 +32,8 @@ where
 
         self.base.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         num_bits.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        for i in 0..number_of_bitmap_elements {
-            bitmap[i].mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+            bitmap_element.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
     }

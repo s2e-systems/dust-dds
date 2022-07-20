@@ -21,7 +21,7 @@ impl TaskManager {
     pub fn spawn_enabled_periodic_task(
         &mut self,
         name: &'static str,
-        mut task: impl FnMut() -> () + Send + Sync + 'static,
+        mut task: impl FnMut() + Send + Sync + 'static,
         period: std::time::Duration,
     ) {
         let task_enabled = self.enabled.clone();

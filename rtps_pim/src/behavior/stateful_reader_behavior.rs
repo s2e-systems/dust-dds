@@ -16,9 +16,9 @@ use crate::{
 };
 
 use super::reader::{
-    reader::RtpsReaderAttributes,
     stateful_reader::RtpsStatefulReaderOperations,
     writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
+    RtpsReaderAttributes,
 };
 
 pub trait RtpsStatefulReaderSendSubmessages<S> {

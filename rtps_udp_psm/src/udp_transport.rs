@@ -14,7 +14,7 @@ pub struct UdpUnicastTransport {
 impl UdpUnicastTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
-            socket: socket,
+            socket,
             receive_buffer: [0; BUFFER_SIZE],
         }
     }
@@ -55,7 +55,7 @@ pub struct UdpMulticastTransport {
 impl UdpMulticastTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
-            socket: socket,
+            socket,
             receive_buffer: [0; BUFFER_SIZE],
         }
     }
@@ -110,8 +110,8 @@ impl ToSocketAddrs for UdpLocator {
 
     fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
         #[allow(non_upper_case_globals)]
-        match self.0.kind() {
-            &LOCATOR_KIND_UDPv4 => {
+        match *self.0.kind() {
+            LOCATOR_KIND_UDPv4 => {
                 let locator_address = self.0.address();
                 let address = SocketAddrV4::new(
                     Ipv4Addr::new(
@@ -124,7 +124,7 @@ impl ToSocketAddrs for UdpLocator {
                 );
                 Ok(Some(SocketAddr::V4(address)).into_iter())
             }
-            &LOCATOR_KIND_UDPv6 => todo!(),
+            LOCATOR_KIND_UDPv6 => todo!(),
             _ => Err(std::io::ErrorKind::InvalidInput.into()),
         }
     }

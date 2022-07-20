@@ -57,7 +57,7 @@ use rtps_pim::{
             reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
             stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
             stateless_writer::RtpsStatelessWriterOperations,
-            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+            RtpsWriterAttributes, RtpsWriterOperations,
         },
     },
     discovery::{
@@ -119,7 +119,7 @@ fn retrieve_instance_handle(
     match handle {
         Some(h) => {
             if let Some(stored_key) = registered_instance_list.get(&h) {
-                if stored_key == &serialized_key {
+                if stored_key == serialized_key {
                     Ok(h)
                 } else {
                     Err(DdsError::PreconditionNotMet(
@@ -131,7 +131,7 @@ fn retrieve_instance_handle(
             }
         }
         None => {
-            let instance_handle = calculate_instance_handle(&serialized_key);
+            let instance_handle = calculate_instance_handle(serialized_key);
             if registered_instance_list.contains_key(&instance_handle) {
                 Ok(instance_handle)
             } else {
@@ -424,10 +424,10 @@ impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
     ) {
         match &mut *self.rtps_writer.write_lock() {
             RtpsWriter::Stateless(stateless_rtps_writer) => {
-                stateless_rtps_writer.on_acknack_submessage_received(&acknack_submessage)
+                stateless_rtps_writer.on_acknack_submessage_received(acknack_submessage)
             }
             RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
-                .on_acknack_submessage_received(&acknack_submessage, source_guid_prefix),
+                .on_acknack_submessage_received(acknack_submessage, source_guid_prefix),
         }
     }
 }
@@ -438,7 +438,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
         let writer_topic_name = self.topic.get_name().unwrap();
         let writer_type_name = self.topic.get_type_name().unwrap();
 
-        if reader_info.topic_name == writer_topic_name && &reader_info.type_name == writer_type_name
+        if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
             let writer_qos_lock = self.qos.read_lock();
             let parent_publisher_qos = self.get_publisher().unwrap().get_qos().unwrap();
@@ -478,7 +478,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
             if incompatible_qos_policy_list.is_empty() {
                 match &mut *self.rtps_writer.write_lock() {
                     RtpsWriter::Stateless(w) => {
-                        for locator in discovered_reader_data
+                        for &locator in discovered_reader_data
                             .reader_proxy
                             .unicast_locator_list
                             .iter()
@@ -490,7 +490,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                             )
                         {
                             let a_locator = RtpsReaderLocatorAttributesImpl::new(
-                                locator.clone(),
+                                locator,
                                 discovered_reader_data.reader_proxy.expects_inline_qos,
                             );
                             w.reader_locator_add(a_locator);
@@ -516,7 +516,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                 }
                 self.matched_subscription_list
                     .write_lock()
-                    .insert(reader_info.key.value.into(), reader_info.clone());
+                    .insert(reader_info.key.value, reader_info.clone());
 
                 // Drop the publication_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -871,7 +871,7 @@ impl DataWriter for DdsShared<DataWriterImpl> {
             .matched_subscription_list
             .read_lock()
             .iter()
-            .map(|(key, _)| key.clone())
+            .map(|(&key, _)| key)
             .collect())
     }
 }
@@ -955,9 +955,9 @@ impl Entity for DdsShared<DataWriterImpl> {
     }
 }
 
-impl Into<DiscoveredWriterData> for &DdsShared<DataWriterImpl> {
-    fn into(self) -> DiscoveredWriterData {
-        let guid = self.rtps_writer.read_lock().guid();
+impl From<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
+    fn from(val: &DdsShared<DataWriterImpl>) -> Self {
+        let guid = val.rtps_writer.read_lock().guid();
 
         DiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {
@@ -971,8 +971,8 @@ impl Into<DiscoveredWriterData> for &DdsShared<DataWriterImpl> {
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: self.topic.get_name().unwrap(),
-                type_name: self.topic.get_type_name().unwrap().to_string(),
+                topic_name: val.topic.get_name().unwrap(),
+                type_name: val.topic.get_type_name().unwrap().to_string(),
                 durability: DurabilityQosPolicy::default(),
                 durability_service: DurabilityServiceQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),

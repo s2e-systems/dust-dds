@@ -1,7 +1,7 @@
 use rtps_pim::{
     behavior::{
         types::Duration,
-        writer::writer::{RtpsWriterAttributes, RtpsWriterOperations},
+        writer::{RtpsWriterAttributes, RtpsWriterOperations},
     },
     structure::{
         cache_change::RtpsCacheChangeConstructor,
@@ -72,11 +72,11 @@ impl RtpsEndpointAttributes for RtpsWriterImpl {
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.unicast_locator_list()
+        self.endpoint.unicast_locator_list()
     }
 
     fn multicast_locator_list(&self) -> &[Locator] {
-        &self.endpoint.multicast_locator_list()
+        self.endpoint.multicast_locator_list()
     }
 }
 
@@ -121,7 +121,7 @@ impl RtpsWriterOperations for RtpsWriterImpl {
         inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
         handle: InstanceHandle,
     ) -> Self::CacheChangeType {
-        self.last_change_sequence_number = self.last_change_sequence_number + 1;
+        self.last_change_sequence_number += 1;
         RtpsCacheChangeImpl::new(
             kind,
             self.guid(),

@@ -15,7 +15,7 @@ use rtps_pim::{
                 RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
                 RtpsStatelessWriterOperations,
             },
-            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+            RtpsWriterAttributes, RtpsWriterOperations,
         },
     },
     messages::{
@@ -136,15 +136,15 @@ impl ChangeInHistoryCache for RtpsReaderLocatorCacheChange<'_> {
     }
 }
 
-impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsReaderLocatorCacheChange<'a> {
-    fn into(self) -> GapSubmessage<Vec<SequenceNumber>> {
+impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage<Vec<SequenceNumber>> {
+    fn from(_val: RtpsReaderLocatorCacheChange<'a>) -> Self {
         todo!()
     }
 }
 
-impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsReaderLocatorCacheChange<'a> {
-    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
-        let cache_change = self
+impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+    fn from(val: RtpsReaderLocatorCacheChange<'a>) -> Self {
+        let cache_change = val
             .cache_change
             .expect("Can only convert to data if it exists in the writer cache");
         cache_change.into()
@@ -443,10 +443,10 @@ where
                     while let Some(send_submessage) = reader_locator.send_unsent_changes() {
                         match send_submessage {
                             BestEffortStatelessWriterSendSubmessage::Data(data) => {
-                                send_data(&reader_locator, data)
+                                send_data(reader_locator, data)
                             }
                             BestEffortStatelessWriterSendSubmessage::Gap(gap) => {
-                                send_gap(&reader_locator, gap)
+                                send_gap(reader_locator, gap)
                             }
                         }
                     }
@@ -464,23 +464,21 @@ impl<T> RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
         &mut self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
     ) {
-        if self.reliability_level() == ReliabilityKind::Reliable {
-            if acknack_submessage.reader_id.value == ENTITYID_UNKNOWN
-                || acknack_submessage.reader_id.value == self.guid().entity_id()
-            {
-                for reader_locator in self.reader_locators.iter_mut() {
-                    if reader_locator.last_received_acknack_count != acknack_submessage.count.value
-                    {
-                        ReliableReaderLocatorReceiveAcknackBehavior::receive_acknack(
-                            &mut RtpsReaderLocatorOperationsImpl::new(
-                                reader_locator,
-                                &self.writer.writer_cache,
-                            ),
-                            acknack_submessage,
-                        );
+        let message_is_for_me = acknack_submessage.reader_id.value == ENTITYID_UNKNOWN
+            || acknack_submessage.reader_id.value == self.guid().entity_id();
 
-                        reader_locator.last_received_acknack_count = acknack_submessage.count.value;
-                    }
+        if self.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
+            for reader_locator in self.reader_locators.iter_mut() {
+                if reader_locator.last_received_acknack_count != acknack_submessage.count.value {
+                    ReliableReaderLocatorReceiveAcknackBehavior::receive_acknack(
+                        &mut RtpsReaderLocatorOperationsImpl::new(
+                            reader_locator,
+                            &self.writer.writer_cache,
+                        ),
+                        acknack_submessage,
+                    );
+
+                    reader_locator.last_received_acknack_count = acknack_submessage.count.value;
                 }
             }
         }

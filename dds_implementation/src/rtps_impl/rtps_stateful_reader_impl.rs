@@ -1,12 +1,12 @@
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes,
             stateful_reader::{
                 RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor,
                 RtpsStatefulReaderOperations,
             },
             writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
+            RtpsReaderAttributes,
         },
         stateful_reader_behavior::{
             BestEffortStatefulReaderReceiveDataBehavior, BestEffortWriterProxyReceiveGapBehavior,

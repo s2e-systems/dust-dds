@@ -61,6 +61,7 @@ impl<T> PartialEq for DdsShared<T> {
     }
 }
 
+#[derive(Default)]
 pub struct DdsWeak<T: ?Sized>(Weak<T>);
 
 impl<T> DdsWeak<T> {

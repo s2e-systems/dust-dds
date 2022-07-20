@@ -178,7 +178,7 @@ where
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_borrowed_bytes(&self.reader)
+        visitor.visit_borrowed_bytes(self.reader)
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>

@@ -22,8 +22,10 @@ enum TimerMessage {
     Stop,
 }
 
+type AsyncCallback = Box<dyn FnMut() + Send + Sync>;
+
 pub struct ThreadTimer {
-    on_deadline: DdsShared<DdsRwLock<Option<Box<dyn FnMut() + Send + Sync>>>>,
+    on_deadline: DdsShared<DdsRwLock<Option<AsyncCallback>>>,
     sender: Mutex<Sender<TimerMessage>>,
 }
 
@@ -47,14 +49,12 @@ impl Timer for ThreadTimer {
                         f();
                     }
 
-                    'wait_reset: loop {
-                        let msg = receiver
-                            .recv()
-                            .expect("(;_;) Connection with sender closed unexpectedly");
-                        match msg {
-                            TimerMessage::Reset => break 'wait_reset,
-                            TimerMessage::Stop => break 'timer,
-                        }
+                    let msg = receiver
+                        .recv()
+                        .expect("(;_;) Connection with sender closed unexpectedly");
+                    match msg {
+                        TimerMessage::Reset => (),
+                        TimerMessage::Stop => break 'timer,
                     }
                 }
             }

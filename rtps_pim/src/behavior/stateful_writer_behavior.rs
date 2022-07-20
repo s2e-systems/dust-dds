@@ -37,16 +37,6 @@ pub trait RtpsStatefulWriterSendSubmessages<'a, P, D, S> {
     );
 }
 
-trait IsEmpty {
-    fn is_empty(self) -> bool;
-}
-
-impl<T: IntoIterator> IsEmpty for T {
-    fn is_empty(self) -> bool {
-        self.into_iter().next().is_none()
-    }
-}
-
 pub enum BestEffortStatefulWriterSendSubmessage<P, D, S> {
     Data(DataSubmessage<P, D>),
     Gap(GapSubmessage<S>),
@@ -68,7 +58,7 @@ where
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
         let reader_id = self.remote_reader_guid().entity_id();
 
-        if !self.unsent_changes().is_empty() {
+        if self.unsent_changes().into_iter().next().is_some() {
             let change = self.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -113,7 +103,7 @@ where
         // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
         let reader_id = self.remote_reader_guid().entity_id();
 
-        if !self.unsent_changes().is_empty() {
+        if self.unsent_changes().into_iter().next().is_some() {
             let change = self.next_unsent_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference
@@ -199,7 +189,7 @@ where
     fn send_requested_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<P, D, S>> {
         let reader_id = self.remote_reader_guid().entity_id();
 
-        if !self.requested_changes().is_empty() {
+        if self.requested_changes().into_iter().next().is_some() {
             let change_for_reader = self.next_requested_change();
             // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
             // it's not done here to avoid the change being a mutable reference

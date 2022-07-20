@@ -38,7 +38,7 @@ use super::parameter_id_values::{
     PID_USER_DATA,
 };
 
-pub const DCPS_SUBSCRIPTION: &'static str = "DCPSSubscription";
+pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxy {

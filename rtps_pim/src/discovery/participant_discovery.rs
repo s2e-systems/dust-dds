@@ -27,6 +27,14 @@ pub struct ParticipantDiscovery<'a, P> {
     participant_data: &'a P,
 }
 
+pub struct MismatchedDomain;
+
+impl core::fmt::Display for MismatchedDomain {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "The domain of the discovered participant doesn't match the local one")
+    }
+}
+
 impl<'a, P> ParticipantDiscovery<'a, P>
 where
     P: RtpsSpdpDiscoveredParticipantDataAttributes,
@@ -35,7 +43,7 @@ where
         participant_data: &'a P,
         local_participant_domain_id: DomainId,
         local_participant_domain_tag: &'a str,
-    ) -> core::result::Result<Self, ()> {
+    ) -> core::result::Result<Self, MismatchedDomain> {
         // Check that the domainId of the discovered participant equals the local one.
         // If it is not equal then there the local endpoints are not configured to
         // communicate with the discovered participant.
@@ -48,7 +56,7 @@ where
         {
             Ok(Self { participant_data })
         } else {
-            Err(())
+            Err(MismatchedDomain)
         }
     }
 

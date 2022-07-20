@@ -30,7 +30,7 @@ use super::parameter_id_values::{
     PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 
-pub const DCPS_TOPIC: &'static str = "DCPSTopic";
+pub const DCPS_TOPIC: &str = "DCPSTopic";
 
 #[derive(Debug, PartialEq)]
 pub struct DiscoveredTopicData {

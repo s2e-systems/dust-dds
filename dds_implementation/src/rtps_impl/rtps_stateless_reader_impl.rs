@@ -1,8 +1,8 @@
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes,
             stateless_reader::{RtpsStatelessReaderAttributes, RtpsStatelessReaderConstructor},
+            RtpsReaderAttributes,
         },
         stateless_reader_behavior::{
             BestEffortStatelessReaderReceiveDataBehavior, RtpsStatelessReaderReceiveDataSubmessage,

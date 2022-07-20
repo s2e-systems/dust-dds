@@ -78,7 +78,7 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// authenticate the source. In combination with operations such as ignore_participant, ignore_publication, ignore_subscription,
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct UserDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -89,17 +89,11 @@ impl QosPolicy for UserDataQosPolicy {
     }
 }
 
-impl Default for UserDataQosPolicy {
-    fn default() -> Self {
-        Self { value: vec![] }
-    }
-}
-
 /// The purpose of this QoS is to allow the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way. In
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct TopicDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -110,19 +104,13 @@ impl QosPolicy for TopicDataQosPolicy {
     }
 }
 
-impl Default for TopicDataQosPolicy {
-    fn default() -> Self {
-        Self { value: Vec::new() }
-    }
-}
-
 /// The purpose of this QoS is to allow the application to attach additional information to the created Publisher or Subscriber. The
 /// value of the GROUP_DATA is available to the application on the DataReader and DataWriter entities and is propagated by
 /// means of the built-in topics.
 /// This QoS can be used by an application combination with the DataReaderListener and DataWriterListener to implement
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct GroupDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -130,12 +118,6 @@ pub struct GroupDataQosPolicy {
 impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
-    }
-}
-
-impl Default for GroupDataQosPolicy {
-    fn default() -> Self {
-        Self { value: Vec::new() }
     }
 }
 
@@ -148,7 +130,7 @@ impl Default for GroupDataQosPolicy {
 /// expected that during transport configuration the application would provide a mapping between the values of the
 /// TRANSPORT_PRIORITY set on DataWriter and the values meaningful to each transport. This mapping would then be used
 /// by the infrastructure when propagating the data written by the DataWriter.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct TransportPriorityQosPolicy {
     pub value: i32,
 }
@@ -156,12 +138,6 @@ pub struct TransportPriorityQosPolicy {
 impl QosPolicy for TransportPriorityQosPolicy {
     fn name(&self) -> &str {
         TRANSPORTPRIORITY_QOS_POLICY_NAME
-    }
-}
-
-impl Default for TransportPriorityQosPolicy {
-    fn default() -> Self {
-        Self { value: 0 }
     }
 }
 
@@ -513,7 +489,7 @@ impl Default for OwnershipQosPolicy {
 /// The value of the OWNERSHIP_STRENGTH is used to determine the ownership of a data-instance (identified by the key).
 /// The arbitration is performed by the DataReader. The rules used to perform the arbitration are described in 2.2.3.9.2,
 /// EXCLUSIVE kind.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct OwnershipStrengthQosPolicy {
     pub value: i32,
 }
@@ -521,12 +497,6 @@ pub struct OwnershipStrengthQosPolicy {
 impl QosPolicy for OwnershipStrengthQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIPSTRENGTH_QOS_POLICY_NAME
-    }
-}
-
-impl Default for OwnershipStrengthQosPolicy {
-    fn default() -> Self {
-        Self { value: 0 }
     }
 }
 
@@ -892,17 +862,12 @@ impl Default for ResourceLimitsQosPolicy {
 
 impl ResourceLimitsQosPolicy {
     pub fn is_consistent(&self) -> bool {
-        if self.max_samples == LENGTH_UNLIMITED {
-            true
-        } else {
-            if self.max_samples_per_instance == LENGTH_UNLIMITED
-                || self.max_samples < self.max_samples_per_instance
-            {
-                false
-            } else {
-                true
-            }
-        }
+        let no_sample_limit = self.max_samples == LENGTH_UNLIMITED;
+        let samples_per_instance_within_sample_limit = self.max_samples_per_instance
+            != LENGTH_UNLIMITED
+            && self.max_samples_per_instance <= self.max_samples;
+
+        no_sample_limit || samples_per_instance_within_sample_limit
     }
 }
 

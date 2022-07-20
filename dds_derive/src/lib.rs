@@ -14,14 +14,12 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
         syn::Data::Struct(struct_data) => struct_data
             .fields
             .iter()
-            .find(|field| has_key_attribute(&field.attrs))
-            .is_some(),
+            .any(|field| has_key_attribute(&field.attrs)),
         syn::Data::Enum(enum_data) => {
             if enum_data
                 .variants
                 .iter()
-                .find(|variant| has_key_attribute(&variant.attrs))
-                .is_some()
+                .any(|variant| has_key_attribute(&variant.attrs))
             {
                 return quote_spanned!(input.span() => compile_error!("An enum variant cannot be a key")).into();
             }
@@ -134,7 +132,7 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
             .ident
             .clone()
             .map(|field| field.into_token_stream())
-            .unwrap_or(syn::Index::from(i).into_token_stream());
+            .unwrap_or_else(|| syn::Index::from(i).into_token_stream());
 
         field_list_ts.extend(quote! {self.#field_ident,});
     }
@@ -146,7 +144,6 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
             cdr::serialize::<_, _, cdr::CdrLe>(&(#field_list_ts), cdr::Infinite).unwrap()
         }
     }
-    .into()
 }
 
 fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
@@ -176,7 +173,7 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
             .ident
             .clone()
             .map(|field| field.into_token_stream())
-            .unwrap_or(syn::Index::from(i).into_token_stream());
+            .unwrap_or_else(|| syn::Index::from(i).into_token_stream());
 
         token_stream.extend(quote! {
             self.#field_ident = #ident;
@@ -186,15 +183,12 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
     token_stream
 }
 
-fn has_key_attribute<'a>(attr_list: &'a [Attribute]) -> bool {
-    attr_list
-        .iter()
-        .find(|attr| {
-            attr.parse_meta()
-                .ok()
-                .and_then(|meta| meta.path().get_ident().cloned())
-                .map(|ident| ident.to_string() == "key")
-                .unwrap_or(false)
-        })
-        .is_some()
+fn has_key_attribute(attr_list: &[Attribute]) -> bool {
+    attr_list.iter().any(|attr| {
+        attr.parse_meta()
+            .ok()
+            .and_then(|meta| meta.path().get_ident().cloned())
+            .map(|ident| ident == "key")
+            .unwrap_or(false)
+    })
 }

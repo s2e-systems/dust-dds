@@ -21,7 +21,7 @@ impl MappingWriteSubmessage for DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]> {
         } else {
             0
         };
-        let serialized_payload_len_padded = self.serialized_payload.number_of_bytes() + 3 & !3; //ceil to multiple of 4
+        let serialized_payload_len_padded = (self.serialized_payload.number_of_bytes() + 3) & !3; //ceil to multiple of 4
         let octets_to_next_header = 20 + inline_qos_len + serialized_payload_len_padded;
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::DATA,

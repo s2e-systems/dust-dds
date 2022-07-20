@@ -7,7 +7,7 @@ use crate::{
     },
     publication::data_writer::AnyDataWriter,
     subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
-    topic::topic::Topic,
+    topic::Topic,
 };
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not

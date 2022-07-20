@@ -5,7 +5,7 @@ use crate::{
     structure::{history_cache::RtpsHistoryCacheOperations, types::GuidPrefix},
 };
 
-use super::reader::reader::RtpsReaderAttributes;
+use super::reader::RtpsReaderAttributes;
 
 pub trait RtpsStatelessReaderReceiveDataSubmessage<P, D> {
     fn on_data_submessage_received(

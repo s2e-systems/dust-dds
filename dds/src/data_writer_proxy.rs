@@ -33,7 +33,7 @@ impl<Foo, I> Clone for DataWriterProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             data_writer_attributes: self.data_writer_attributes.clone(),
-            phantom: self.phantom.clone(),
+            phantom: self.phantom,
         }
     }
 }

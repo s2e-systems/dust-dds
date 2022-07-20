@@ -58,7 +58,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
         Ok(Self {
             parameter_id,
             length,
-            value: value,
+            value,
         })
     }
 }

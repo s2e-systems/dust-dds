@@ -56,7 +56,7 @@ pub struct DiscoveredWriterData {
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 
-pub const DCPS_PUBLICATION: &'static str = "DCPSPublication";
+pub const DCPS_PUBLICATION: &str = "DCPSPublication";
 
 impl DdsType for DiscoveredWriterData {
     fn type_name() -> &'static str {

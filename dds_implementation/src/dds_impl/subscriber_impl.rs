@@ -149,7 +149,7 @@ where
 
         // /////// Create data reader
         let data_reader_shared = {
-            let qos = qos.unwrap_or(self.default_data_reader_qos.clone());
+            let qos = qos.unwrap_or_else(|| self.default_data_reader_qos.clone());
             qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
@@ -216,9 +216,11 @@ where
         let data_reader_list_position = data_reader_list
             .iter()
             .position(|x| x == a_datareader)
-            .ok_or(DdsError::PreconditionNotMet(
-                "Data reader can only be deleted from its parent subscriber".to_string(),
-            ))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data reader can only be deleted from its parent subscriber".to_string(),
+                )
+            })?;
         data_reader_list.remove(data_reader_list_position);
 
         Ok(())
@@ -245,7 +247,7 @@ where
                     None
                 }
             })
-            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -426,7 +428,7 @@ impl Entity for DdsShared<SubscriberImpl> {
 impl AddMatchedWriter for DdsShared<SubscriberImpl> {
     fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.add_matched_writer(&discovered_writer_data)
+            data_reader.add_matched_writer(discovered_writer_data)
         }
     }
 }

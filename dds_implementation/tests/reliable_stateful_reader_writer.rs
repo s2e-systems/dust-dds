@@ -10,7 +10,6 @@ use mockall::{mock, Sequence};
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes,
             stateful_reader::{
                 RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor,
                 RtpsStatefulReaderOperations,
@@ -18,6 +17,7 @@ use rtps_pim::{
             writer_proxy::{
                 RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
             },
+            RtpsReaderAttributes,
         },
         stateful_reader_behavior::{
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
@@ -33,7 +33,7 @@ use rtps_pim::{
                 RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
                 RtpsStatefulWriterOperations,
             },
-            writer::RtpsWriterOperations,
+            RtpsWriterOperations,
         },
     },
     messages::{

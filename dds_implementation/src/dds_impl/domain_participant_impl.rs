@@ -153,7 +153,7 @@ impl DomainParticipantImpl {
             user_defined_topic_counter: AtomicU8::new(0),
             default_topic_qos: TopicQos::default(),
             manual_liveliness_count: Count(0),
-            lease_duration: lease_duration,
+            lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             discovered_participant_list: DdsRwLock::new(HashMap::new()),
@@ -192,12 +192,12 @@ where
                 entity_kind: USER_DEFINED_TOPIC,
             },
         );
-        let qos = qos.unwrap_or(self.default_topic_qos.clone());
+        let qos = qos.unwrap_or_else(|| self.default_topic_qos.clone());
 
         // /////// Create topic
         let topic_shared = TopicImpl::new(
             topic_guid,
-            qos.clone(),
+            qos,
             Foo::type_name(),
             topic_name,
             self.downgrade(),
@@ -219,11 +219,14 @@ where
 
     fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DdsResult<()> {
         let mut topic_list = self.topic_list.write_lock();
-        let topic_list_position = topic_list.iter().position(|topic| topic == a_topic).ok_or(
-            DdsError::PreconditionNotMet(
-                "Topic can only be deleted from its parent publisher".to_string(),
-            ),
-        )?;
+        let topic_list_position = topic_list
+            .iter()
+            .position(|topic| topic == a_topic)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Topic can only be deleted from its parent publisher".to_string(),
+                )
+            })?;
 
         // If topic is not attached to any reader or writer there must be no more than 2 strong counts
         // 1 strong stored in the list of the participant and 1 strong used to call this function
@@ -255,7 +258,7 @@ where
                     None
                 }
             })
-            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 
     fn topic_factory_lookup_topicdescription(
@@ -274,7 +277,7 @@ where
                     None
                 }
             })
-            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 
@@ -314,7 +317,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
     where
         Self::PublisherType: Entity,
     {
-        let publisher_qos = qos.unwrap_or(self.default_publisher_qos.clone());
+        let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
         let publisher_counter = self
             .user_defined_publisher_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -368,7 +371,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
     where
         Self::SubscriberType: Entity,
     {
-        let subscriber_qos = qos.unwrap_or(self.default_subscriber_qos.clone());
+        let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
         let subcriber_counter = self
             .user_defined_subscriber_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -514,7 +517,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
             .discovered_participant_list
             .read_lock()
             .iter()
-            .map(|(key, _)| key.clone())
+            .map(|(&key, _)| key)
             .collect())
     }
 
@@ -944,7 +947,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             let spdp_reader_locators: Vec<RtpsReaderLocatorAttributesImpl> = self
                 .metatraffic_multicast_locator_list
                 .iter()
-                .map(|locator| RtpsReaderLocatorAttributesImpl::new(locator.clone(), false))
+                .map(|&locator| RtpsReaderLocatorAttributesImpl::new(locator, false))
                 .collect();
 
             let spdp_builtin_participant_rtps_writer =
@@ -959,7 +962,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DataWriterQos::default(),
                 RtpsWriter::Stateless(spdp_builtin_participant_rtps_writer),
                 None,
-                spdp_topic_participant.clone(),
+                spdp_topic_participant,
                 self.builtin_publisher
                     .read_lock()
                     .clone()
@@ -1010,7 +1013,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DataWriterQos::default(),
                 RtpsWriter::Stateful(sedp_builtin_publications_rtps_writer),
                 None,
-                sedp_topic_publication.clone(),
+                sedp_topic_publication,
                 self.builtin_publisher
                     .read_lock()
                     .clone()
@@ -1062,7 +1065,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DataWriterQos::default(),
                 RtpsWriter::Stateful(sedp_builtin_subscriptions_rtps_writer),
                 None,
-                sedp_topic_subscription.clone(),
+                sedp_topic_subscription,
                 self.builtin_publisher
                     .read_lock()
                     .clone()
@@ -1090,7 +1093,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             let sedp_builtin_topics_rtps_reader =
                 SedpBuiltinTopicsReader::create(guid_prefix, &[], &[]);
             let sedp_builtin_topics_data_reader = DataReaderImpl::new(
-                builtin_reader_qos.clone(),
+                builtin_reader_qos,
                 RtpsReader::Stateful(sedp_builtin_topics_rtps_reader),
                 sedp_topic_topic.clone(),
                 None,
@@ -1113,7 +1116,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DataWriterQos::default(),
                 RtpsWriter::Stateful(sedp_builtin_topics_rtps_writer),
                 None,
-                sedp_topic_topic.clone(),
+                sedp_topic_topic,
                 self.builtin_publisher
                     .read_lock()
                     .clone()
@@ -1196,7 +1199,7 @@ impl SpdpParticipantDiscovery for DdsShared<DomainParticipantImpl> {
         ) {
             for discovered_participant_data_sample in samples.iter() {
                 self.add_discovered_participant(
-                    &discovered_participant_data_sample.data.as_ref().unwrap(),
+                    discovered_participant_data_sample.data.as_ref().unwrap(),
                 )
             }
         }
@@ -1234,10 +1237,9 @@ impl SedpWriterDiscovery for DdsShared<DomainParticipantImpl> {
             ANY_INSTANCE_STATE,
         );
 
-        for discovered_writer_data_sample in samples.unwrap_or(vec![]).iter() {
+        for discovered_writer_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
             for subscriber in user_defined_subscribers.iter() {
-                subscriber
-                    .add_matched_writer(&discovered_writer_data_sample.data.as_ref().unwrap());
+                subscriber.add_matched_writer(discovered_writer_data_sample.data.as_ref().unwrap());
             }
         }
 
@@ -1274,7 +1276,7 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
             ANY_INSTANCE_STATE,
         );
 
-        for discovered_reader_data_sample in samples.unwrap_or(vec![]).iter() {
+        for discovered_reader_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
             for publisher in user_defined_publishers.iter() {
                 publisher.add_matched_reader(discovered_reader_data_sample.data.as_ref().unwrap())
             }

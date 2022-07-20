@@ -59,13 +59,13 @@ impl RepresentationOptions {
             buf.read_u8().map_err(|err| {
                 DdsError::PreconditionNotMet(format!(
                     "read of representation options[0] failed with: {}",
-                    err.to_string()
+                    err
                 ))
             })?,
             buf.read_u8().map_err(|err| {
                 DdsError::PreconditionNotMet(format!(
                     "read of representation options[1] failed with: {}",
-                    err.to_string()
+                    err
                 ))
             })?,
         ]))
@@ -159,7 +159,7 @@ impl<'de> ParameterListDeserializer<'de> {
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
                     DdsError::PreconditionNotMet(format!(
                         "deserialize_parameter big endian failed with: {}",
-                        err.to_string()
+                        err
                     ))
                 })?
             }
@@ -171,7 +171,7 @@ impl<'de> ParameterListDeserializer<'de> {
                 serde::Deserialize::deserialize(&mut deserializer).map_err(|err| {
                     DdsError::PreconditionNotMet(format!(
                         "deserialize_parameter little endian failed with: {}",
-                        err.to_string()
+                        err
                     ))
                 })?
             }

@@ -64,9 +64,9 @@ use dds_api::{
 use rtps_pim::{
     behavior::{
         reader::{
-            reader::RtpsReaderAttributes,
             stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
             writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
+            RtpsReaderAttributes,
         },
         stateful_reader_behavior::{
             RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
@@ -336,7 +336,7 @@ impl<Tim> DataReaderImpl<Tim> {
         if let RtpsReader::Stateful(rtps_reader) = &mut *rtps_reader_lock {
             if !rtps_reader
                 .matched_writers()
-                .into_iter()
+                .iter_mut()
                 .any(|r| r.remote_writer_guid().prefix == participant_discovery.guid_prefix())
             {
                 let type_name = self.topic.get_type_name().unwrap();
@@ -476,7 +476,7 @@ where
                 }
                 self.matched_publication_list
                     .write_lock()
-                    .insert(writer_info.key.value.into(), writer_info.clone());
+                    .insert(writer_info.key.value, writer_info.clone());
 
                 // Drop the subscription_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -551,7 +551,7 @@ where
                     .iter()
                     .map(|c| c.sequence_number())
                     .collect();
-                seq_nums.sort();
+                seq_nums.sort_unstable();
 
                 let to_delete = &seq_nums
                     [0..(cache_len as usize - reader.qos.read_lock().history.depth as usize)];
@@ -573,7 +573,7 @@ where
                 .total_count_change += 1;
 
             *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
-            reader_shared.listener.write_lock().as_mut().map(|l| {
+            if let Some(l) = reader_shared.listener.write_lock().as_mut() {
                 *reader_shared.status_change.write_lock() &= !REQUESTED_DEADLINE_MISSED_STATUS;
                 l.trigger_on_requested_deadline_missed(
                     reader_shared.clone(),
@@ -582,7 +582,7 @@ where
                         .read_lock()
                         .clone(),
                 )
-            });
+            };
         });
 
         *reader.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
@@ -644,9 +644,9 @@ where
             .iter()
             .map(|sample| {
                 let (mut data_value, sample_info) = read_sample(self, sample);
-                let foo = DdsDeserialize::deserialize(&mut data_value)?;
+                let value = DdsDeserialize::deserialize(&mut data_value)?;
                 Ok(Sample {
-                    data: Some(foo),
+                    data: Some(value),
                     sample_info,
                 })
             })
@@ -687,9 +687,9 @@ where
             .map(|cache_change| match cache_change.kind() {
                 ChangeKind::Alive => {
                     let (mut data_value, sample_info) = read_sample(self, cache_change);
-                    let foo = DdsDeserialize::deserialize(&mut data_value)?;
+                    let value = DdsDeserialize::deserialize(&mut data_value)?;
                     let sample = Sample {
-                        data: Some(foo),
+                        data: Some(value),
                         sample_info,
                     };
                     Ok((sample, cache_change.sequence_number()))
@@ -1060,7 +1060,7 @@ where
             .matched_publication_list
             .read_lock()
             .iter()
-            .map(|(key, _)| key.clone())
+            .map(|(&key, _)| key)
             .collect())
     }
 }
@@ -1127,9 +1127,9 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     }
 }
 
-impl<Tim> Into<DiscoveredReaderData> for &DdsShared<DataReaderImpl<Tim>> {
-    fn into(self) -> DiscoveredReaderData {
-        let guid = self.rtps_reader.read_lock().guid();
+impl<Tim> From<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
+    fn from(val: &DdsShared<DataReaderImpl<Tim>>) -> Self {
+        let guid = val.rtps_reader.read_lock().guid();
         DiscoveredReaderData {
             reader_proxy: RtpsReaderProxy {
                 remote_reader_guid: guid,
@@ -1142,8 +1142,8 @@ impl<Tim> Into<DiscoveredReaderData> for &DdsShared<DataReaderImpl<Tim>> {
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: self.topic.get_name().unwrap().clone(),
-                type_name: self.topic.get_type_name().unwrap().to_string(),
+                topic_name: val.topic.get_name().unwrap(),
+                type_name: val.topic.get_type_name().unwrap().to_string(),
                 durability: DurabilityQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),

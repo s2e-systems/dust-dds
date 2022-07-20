@@ -13,7 +13,7 @@ use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, Num
 
 impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     fn number_of_bytes(&self) -> usize {
-        let num_bits = if let Some(&max) = (&self.set).into_iter().max() {
+        let num_bits = if let Some(&max) = (&self.set).iter().max() {
             max - self.base + 1
         } else {
             0
@@ -42,8 +42,8 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<Sequence
 
         self.base.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         num_bits.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        for i in 0..number_of_bitmap_elements {
-            bitmap[i].mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        for bitmap_element in &bitmap[..number_of_bitmap_elements] {
+            bitmap_element.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
     }

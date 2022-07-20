@@ -7,7 +7,7 @@ use dds_api::{
         qos::TopicQos,
     },
     return_type::DdsResult,
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener, Topic},
 };
 use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
 
@@ -23,7 +23,7 @@ impl<Foo, I> Clone for TopicProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             topic_attributes: self.topic_attributes.clone(),
-            phantom: self.phantom.clone(),
+            phantom: self.phantom,
         }
     }
 }

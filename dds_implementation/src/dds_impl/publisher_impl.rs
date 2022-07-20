@@ -150,7 +150,7 @@ where
 
         // /////// Create data writer
         let data_writer_shared = {
-            let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+            let qos = qos.unwrap_or_else(|| self.default_datawriter_qos.clone());
             qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
@@ -219,9 +219,11 @@ where
         let data_writer_list_position = data_writer_list
             .iter()
             .position(|x| x == a_datawriter)
-            .ok_or(DdsError::PreconditionNotMet(
-                "Data writer can only be deleted from its parent publisher".to_string(),
-            ))?;
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data writer can only be deleted from its parent publisher".to_string(),
+                )
+            })?;
         data_writer_list.remove(data_writer_list_position);
 
         Ok(())
@@ -246,7 +248,7 @@ where
                     None
                 }
             })
-            .ok_or(DdsError::PreconditionNotMet("Not found".to_string()))
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 }
 

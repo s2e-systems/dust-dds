@@ -1,5 +1,5 @@
 use rtps_pim::{
-    behavior::{reader::reader::RtpsReaderAttributes, types::Duration},
+    behavior::{reader::RtpsReaderAttributes, types::Duration},
     structure::{
         endpoint::RtpsEndpointAttributes,
         entity::RtpsEntityAttributes,

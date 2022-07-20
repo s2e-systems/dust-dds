@@ -88,7 +88,7 @@ where
     pub fn serialize_parameter_vector<'a, T, U>(
         &mut self,
         parameter_id: u16,
-        value: &'a Vec<U>,
+        value: &'a [U],
     ) -> DdsResult<()>
     where
         T: serde::Serialize + From<&'a U>,

@@ -40,7 +40,7 @@ impl<Foo, I> Clone for DataReaderProxy<Foo, I> {
     fn clone(&self) -> Self {
         Self {
             data_reader_attributes: self.data_reader_attributes.clone(),
-            phantom: self.phantom.clone(),
+            phantom: self.phantom,
         }
     }
 }

@@ -225,6 +225,7 @@ pub trait FooDataReader<Foo> {
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
+    #[allow(clippy::too_many_arguments)]
     fn read_instance(
         &self,
         data_values: &mut [Foo],
@@ -249,6 +250,7 @@ pub trait FooDataReader<Foo> {
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
+    #[allow(clippy::too_many_arguments)]
     fn take_instance(
         &self,
         data_values: &mut [Foo],
@@ -290,6 +292,7 @@ pub trait FooDataReader<Foo> {
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
+    #[allow(clippy::too_many_arguments)]
     fn read_next_instance(
         &self,
         data_values: &mut [Foo],
@@ -312,6 +315,7 @@ pub trait FooDataReader<Foo> {
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
+    #[allow(clippy::too_many_arguments)]
     fn take_next_instance(
         &self,
         data_values: &mut [Foo],

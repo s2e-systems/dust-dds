@@ -20,7 +20,7 @@ use rtps_pim::{
                 RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
                 RtpsStatefulWriterOperations,
             },
-            writer::{RtpsWriterAttributes, RtpsWriterOperations},
+            RtpsWriterAttributes, RtpsWriterOperations,
         },
     },
     messages::{
@@ -240,15 +240,15 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     }
 }
 
-impl<'a> Into<GapSubmessage<Vec<SequenceNumber>>> for RtpsChangeForReaderCacheChange<'a> {
-    fn into(self) -> GapSubmessage<Vec<SequenceNumber>> {
+impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage<Vec<SequenceNumber>> {
+    fn from(_val: RtpsChangeForReaderCacheChange<'a>) -> Self {
         todo!()
     }
 }
 
-impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for RtpsChangeForReaderCacheChange<'a> {
-    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
-        self.cache_change.into()
+impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+    fn from(val: RtpsChangeForReaderCacheChange<'a>) -> Self {
+        val.cache_change.into()
     }
 }
 
@@ -655,10 +655,10 @@ where
                     {
                         match send_submessage {
                             BestEffortStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(&reader_proxy, data)
+                                send_data(reader_proxy, data)
                             }
                             BestEffortStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(&reader_proxy, gap)
+                                send_gap(reader_proxy, gap)
                             }
                         }
                     }
@@ -671,7 +671,7 @@ where
                                 writer_id,
                             );
                         heartbeat.count.value = heartbeat_count;
-                        send_heartbeat(&reader_proxy, heartbeat)
+                        send_heartbeat(reader_proxy, heartbeat)
                     }
 
                     while let Some(send_submessage) =
@@ -679,10 +679,10 @@ where
                     {
                         match send_submessage {
                             ReliableStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(&reader_proxy, data)
+                                send_data(reader_proxy, data)
                             }
                             ReliableStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(&reader_proxy, gap)
+                                send_gap(reader_proxy, gap)
                             }
                         }
                     }
@@ -693,10 +693,10 @@ where
                     {
                         match send_requested_submessage {
                             ReliableStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(&reader_proxy, data)
+                                send_data(reader_proxy, data)
                             }
                             ReliableStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(&reader_proxy, gap)
+                                send_gap(reader_proxy, gap)
                             }
                         }
                     }

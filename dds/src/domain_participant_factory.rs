@@ -109,7 +109,7 @@ pub fn get_unicast_socket(port: u16) -> io::Result<UdpSocket> {
     let socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)))?;
     socket.set_nonblocking(true)?;
 
-    Ok(socket.into())
+    Ok(socket)
 }
 
 fn ipv4_from_locator(address: &[u8; 16]) -> Ipv4Addr {
@@ -162,11 +162,10 @@ impl Communications {
                     ))
                 },
             )
-            .filter(|result| match result {
+            .find(|result| match result {
                 Err(e) => e.kind() != ErrorKind::AddrInUse,
                 _ => true,
             })
-            .next()
             .unwrap()
             .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
 
@@ -267,8 +266,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
             .expect("Could not scan interfaces")
             .into_iter()
             .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .filter(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .next()
+            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
             .expect("Could not find any mac address");
 
         let communications = Communications::find_available(
@@ -318,7 +316,7 @@ impl DomainParticipantFactory for DomainParticipantFactoryImpl {
     fn delete_participant(&self, participant: &Self::DomainParticipant) -> DdsResult<()> {
         let mut participant_list = PARTICIPANT_MANAGER_LIST
             .lock()
-            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e.to_string())))?;
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         let index = participant_list
             .iter()

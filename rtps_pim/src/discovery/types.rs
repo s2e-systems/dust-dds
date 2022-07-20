@@ -63,14 +63,8 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Default, Clone, Copy)]
 pub struct BuiltinEndpointQos(pub u32);
-
-impl Default for BuiltinEndpointQos {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 impl BuiltinEndpointQos {
     pub const BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 29;

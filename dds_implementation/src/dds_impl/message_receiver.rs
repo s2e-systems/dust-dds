@@ -109,13 +109,19 @@ impl MessageReceiver {
     }
 
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
-        if info_timestamp.invalidate_flag == false {
+        if !info_timestamp.invalidate_flag {
             self.have_timestamp = true;
             self.timestamp = info_timestamp.timestamp.value;
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
         }
+    }
+}
+
+impl Default for MessageReceiver {
+    fn default() -> Self {
+        MessageReceiver::new()
     }
 }
 

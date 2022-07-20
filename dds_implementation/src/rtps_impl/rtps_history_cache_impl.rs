@@ -127,11 +127,11 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>)> for RtpsC
     }
 }
 
-impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheChangeImpl {
-    fn into(self) -> DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+    fn from(val: &'a RtpsCacheChangeImpl) -> Self {
         let endianness_flag = true;
         let inline_qos_flag = true;
-        let (data_flag, key_flag) = match self.kind() {
+        let (data_flag, key_flag) = match val.kind() {
             ChangeKind::Alive => (true, false),
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
             _ => todo!(),
@@ -141,13 +141,13 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheCha
             value: ENTITYID_UNKNOWN,
         };
         let writer_id = EntityIdSubmessageElement {
-            value: self.writer_guid().entity_id(),
+            value: val.writer_guid().entity_id(),
         };
         let writer_sn = SequenceNumberSubmessageElement {
-            value: self.sequence_number(),
+            value: val.sequence_number(),
         };
         let inline_qos = ParameterListSubmessageElement {
-            parameter: self
+            parameter: val
                 .inline_qos()
                 .iter()
                 .map(|p| Parameter {
@@ -158,7 +158,7 @@ impl<'a> Into<DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>> for &'a RtpsCacheCha
                 .collect(),
         };
         let serialized_payload = SerializedDataSubmessageElement {
-            value: self.data_value().as_ref(),
+            value: val.data_value(),
         };
         DataSubmessage {
             endianness_flag,
@@ -193,7 +193,7 @@ impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
             sequence_number,
             instance_handle,
             data: data_value,
-            inline_qos: inline_qos.into(),
+            inline_qos,
         }
     }
 }
@@ -295,7 +295,6 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
             .iter()
             .map(|cc| cc.sequence_number)
             .min()
-            .clone()
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
@@ -303,7 +302,6 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
             .iter()
             .map(|cc| cc.sequence_number)
             .max()
-            .clone()
     }
 }
 
