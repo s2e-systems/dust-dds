@@ -27,6 +27,7 @@ pub trait RtpsWriterAttributes {
 }
 
 pub trait RtpsWriterConstructor {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         guid: Guid,
         topic_kind: TopicKind,

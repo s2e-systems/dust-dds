@@ -10,6 +10,7 @@ pub trait RtpsStatelessWriterAttributes<'a> {
 }
 
 pub trait RtpsStatelessWriterConstructor {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         guid: Guid,
         topic_kind: TopicKind,

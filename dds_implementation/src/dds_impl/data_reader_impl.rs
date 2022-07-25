@@ -422,34 +422,34 @@ where
 
             let mut incompatible_qos_policy_list = Vec::new();
 
-            if !(reader_qos_lock.durability >= writer_info.durability) {
+            if reader_qos_lock.durability < writer_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
             }
-            if !(parent_subscriber_qos.presentation.access_scope
-                <= writer_info.presentation.access_scope
-                && parent_subscriber_qos.presentation.coherent_access
-                    == writer_info.presentation.coherent_access
-                && parent_subscriber_qos.presentation.ordered_access
-                    == writer_info.presentation.ordered_access)
+            if parent_subscriber_qos.presentation.access_scope
+                > writer_info.presentation.access_scope
+                || parent_subscriber_qos.presentation.coherent_access
+                    != writer_info.presentation.coherent_access
+                || parent_subscriber_qos.presentation.ordered_access
+                    != writer_info.presentation.ordered_access
             {
                 incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.deadline <= writer_info.deadline) {
+            if reader_qos_lock.deadline > writer_info.deadline {
                 incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.latency_budget <= writer_info.latency_budget) {
+            if reader_qos_lock.latency_budget > writer_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.ownership == writer_info.ownership) {
+            if reader_qos_lock.ownership != writer_info.ownership {
                 incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.liveliness <= writer_info.liveliness) {
+            if reader_qos_lock.liveliness > writer_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.reliability.kind <= writer_info.reliability.kind) {
+            if reader_qos_lock.reliability.kind > writer_info.reliability.kind {
                 incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
             }
-            if !(reader_qos_lock.destination_order <= writer_info.destination_order) {
+            if reader_qos_lock.destination_order > writer_info.destination_order {
                 incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
             }
 

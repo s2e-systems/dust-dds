@@ -444,34 +444,34 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
             let parent_publisher_qos = self.get_publisher().unwrap().get_qos().unwrap();
 
             let mut incompatible_qos_policy_list = Vec::new();
-            if !(writer_qos_lock.durability >= reader_info.durability) {
+            if writer_qos_lock.durability < reader_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
             }
-            if !(parent_publisher_qos.presentation.access_scope
-                >= reader_info.presentation.access_scope
-                && parent_publisher_qos.presentation.coherent_access
-                    == reader_info.presentation.coherent_access
-                && parent_publisher_qos.presentation.ordered_access
-                    == reader_info.presentation.ordered_access)
+            if parent_publisher_qos.presentation.access_scope
+                < reader_info.presentation.access_scope
+                || parent_publisher_qos.presentation.coherent_access
+                    != reader_info.presentation.coherent_access
+                || parent_publisher_qos.presentation.ordered_access
+                    != reader_info.presentation.ordered_access
             {
                 incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.deadline >= reader_info.deadline) {
+            if writer_qos_lock.deadline < reader_info.deadline {
                 incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.latency_budget >= reader_info.latency_budget) {
+            if writer_qos_lock.latency_budget < reader_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.ownership == reader_info.ownership) {
+            if writer_qos_lock.ownership != reader_info.ownership {
                 incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.liveliness >= reader_info.liveliness) {
+            if writer_qos_lock.liveliness < reader_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.reliability.kind >= reader_info.reliability.kind) {
+            if writer_qos_lock.reliability.kind < reader_info.reliability.kind {
                 incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
             }
-            if !(writer_qos_lock.destination_order >= reader_info.destination_order) {
+            if writer_qos_lock.destination_order < reader_info.destination_order {
                 incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
             }
 

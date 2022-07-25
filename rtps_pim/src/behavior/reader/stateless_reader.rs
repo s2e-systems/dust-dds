@@ -6,6 +6,7 @@ use crate::{
 pub trait RtpsStatelessReaderAttributes {}
 
 pub trait RtpsStatelessReaderConstructor {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         guid: Guid,
         topic_kind: TopicKind,

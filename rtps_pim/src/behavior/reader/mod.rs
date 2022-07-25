@@ -17,6 +17,7 @@ pub trait RtpsReaderAttributes {
 }
 
 pub trait RtpsReaderConstructor {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         guid: Guid,
         topic_kind: TopicKind,

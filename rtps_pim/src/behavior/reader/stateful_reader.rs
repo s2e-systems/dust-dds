@@ -10,6 +10,7 @@ pub trait RtpsStatefulReaderAttributes<'a> {
 }
 
 pub trait RtpsStatefulReaderConstructor {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         guid: Guid,
         topic_kind: TopicKind,

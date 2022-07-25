@@ -9,6 +9,9 @@ jobs:
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
       - run:
+          name: Run clippy
+          command: cargo clippy -- -D warnings
+      - run: 
           name: Run Tests
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
