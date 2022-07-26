@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::{TryFrom, TryInto},
+};
 
 use crate::{
     data_representation_builtin_endpoints::{
@@ -27,7 +30,7 @@ use crate::{
 use dds_api::{
     builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     dcps_psm::{
-        BuiltInTopicKey, Duration, InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
+        BuiltInTopicKey, InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
         QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask,
         StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
@@ -39,11 +42,7 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::DataReaderQos,
         qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            HistoryQosPolicyKind, LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            UserDataQosPolicy, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            HistoryQosPolicyKind, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
             DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
             OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -1112,7 +1111,7 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
 
         self.parent_subscriber
             .upgrade()?
-            .announce_datareader(self.into());
+            .announce_datareader(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -1127,10 +1126,16 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
     }
 }
 
-impl<Tim> From<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
-    fn from(val: &DdsShared<DataReaderImpl<Tim>>) -> Self {
+impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
+    type Error = DdsError;
+
+    fn try_from(val: &DdsShared<DataReaderImpl<Tim>>) -> DdsResult<Self> {
         let guid = val.rtps_reader.read_lock().guid();
-        DiscoveredReaderData {
+        let reader_qos = val.qos.read_lock();
+        let topic_qos = val.topic.get_qos()?;
+        let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos()?;
+
+        Ok(DiscoveredReaderData {
             reader_proxy: RtpsReaderProxy {
                 remote_reader_guid: guid,
                 remote_group_entity_id: guid.entity_id,
@@ -1144,24 +1149,21 @@ impl<Tim> From<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
                 participant_key: BuiltInTopicKey { value: [1; 16] },
                 topic_name: val.topic.get_name().unwrap(),
                 type_name: val.topic.get_type_name().unwrap().to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                    max_blocking_time: Duration::new(3, 0),
-                },
-                ownership: OwnershipQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                user_data: UserDataQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
+                durability: reader_qos.durability.clone(),
+                deadline: reader_qos.deadline.clone(),
+                latency_budget: reader_qos.latency_budget.clone(),
+                liveliness: reader_qos.liveliness.clone(),
+                reliability: reader_qos.reliability.clone(),
+                ownership: reader_qos.ownership.clone(),
+                destination_order: reader_qos.destination_order.clone(),
+                user_data: reader_qos.user_data.clone(),
+                time_based_filter: reader_qos.time_based_filter.clone(),
+                presentation: subscriber_qos.presentation.clone(),
+                partition: subscriber_qos.partition.clone(),
+                topic_data: topic_qos.topic_data,
+                group_data: subscriber_qos.group_data,
             },
-        }
+        })
     }
 }
 

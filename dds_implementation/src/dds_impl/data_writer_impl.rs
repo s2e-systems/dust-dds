@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+};
 
 use crate::{
     data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
@@ -25,11 +29,6 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
         qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
             DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
             LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIPSTRENGTH_QOS_POLICY_ID,
             PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
@@ -940,7 +939,9 @@ impl Entity for DdsShared<DataWriterImpl> {
             ));
         }
 
-        self.publisher.upgrade()?.announce_datawriter(self.into());
+        self.publisher
+            .upgrade()?
+            .announce_datawriter(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -955,11 +956,16 @@ impl Entity for DdsShared<DataWriterImpl> {
     }
 }
 
-impl From<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
-    fn from(val: &DdsShared<DataWriterImpl>) -> Self {
-        let guid = val.rtps_writer.read_lock().guid();
+impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
+    type Error = DdsError;
 
-        DiscoveredWriterData {
+    fn try_from(val: &DdsShared<DataWriterImpl>) -> DdsResult<Self> {
+        let guid = val.rtps_writer.read_lock().guid();
+        let writer_qos = val.qos.read_lock();
+        let topic_qos = val.topic.get_qos()?;
+        let publisher_qos = val.publisher.upgrade()?.get_qos()?;
+
+        Ok(DiscoveredWriterData {
             writer_proxy: RtpsWriterProxy {
                 remote_writer_guid: guid,
                 unicast_locator_list: vec![],
@@ -973,26 +979,23 @@ impl From<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
                 participant_key: BuiltInTopicKey { value: [1; 16] },
                 topic_name: val.topic.get_name().unwrap(),
                 type_name: val.topic.get_type_name().unwrap().to_string(),
-                durability: DurabilityQosPolicy::default(),
-                durability_service: DurabilityServiceQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                    max_blocking_time: Duration::new(3, 0),
-                },
-                lifespan: LifespanQosPolicy::default(),
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                ownership_strength: OwnershipStrengthQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
+                durability: writer_qos.durability.clone(),
+                durability_service: writer_qos.durability_service.clone(),
+                deadline: writer_qos.deadline.clone(),
+                latency_budget: writer_qos.latency_budget.clone(),
+                liveliness: writer_qos.liveliness.clone(),
+                reliability: writer_qos.reliability.clone(),
+                lifespan: writer_qos.lifespan.clone(),
+                user_data: writer_qos.user_data.clone(),
+                ownership: writer_qos.ownership.clone(),
+                ownership_strength: writer_qos.ownership_strength.clone(),
+                destination_order: writer_qos.destination_order.clone(),
+                presentation: publisher_qos.presentation.clone(),
+                partition: publisher_qos.partition.clone(),
+                topic_data: topic_qos.topic_data,
+                group_data: publisher_qos.group_data,
             },
-        }
+        })
     }
 }
 
