@@ -5,14 +5,17 @@ use dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer::FooDataWriter,
         publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
         publisher_listener::PublisherListener,
     },
     return_type::DdsResult,
 };
 use dds_implementation::{
-    dds_impl::data_writer_impl::AnyDataWriterListener,
+    dds_impl::{
+        data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
+        publisher_impl::PublisherImpl,
+    },
+    dds_type::{DdsSerialize, DdsType},
     utils::shared_object::{DdsShared, DdsWeak},
 };
 
@@ -22,36 +25,30 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct PublisherProxy<I> {
-    publisher_attributes: DdsWeak<I>,
+pub struct PublisherProxy {
+    publisher_attributes: DdsWeak<PublisherImpl>,
 }
 
-impl<I> PublisherProxy<I> {
-    pub fn new(publisher_attributes: DdsWeak<I>) -> Self {
+impl PublisherProxy {
+    pub fn new(publisher_attributes: DdsWeak<PublisherImpl>) -> Self {
         Self {
             publisher_attributes,
         }
     }
 }
 
-impl<I> AsRef<DdsWeak<I>> for PublisherProxy<I> {
-    fn as_ref(&self) -> &DdsWeak<I> {
+impl AsRef<DdsWeak<PublisherImpl>> for PublisherProxy {
+    fn as_ref(&self) -> &DdsWeak<PublisherImpl> {
         &self.publisher_attributes
     }
 }
 
-impl<Foo, I, T, DW> PublisherDataWriterFactory<Foo> for PublisherProxy<I>
+impl<Foo> PublisherDataWriterFactory<Foo> for PublisherProxy
 where
-    DdsShared<I>:
-        PublisherDataWriterFactory<Foo, TopicType = DdsShared<T>, DataWriterType = DdsShared<DW>>,
-    DdsShared<DW>: Entity<
-            Qos = DataWriterQos,
-            Listener = Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>,
-        > + FooDataWriter<Foo>,
-    Foo: 'static,
+    Foo: DdsType + DdsSerialize + 'static,
 {
-    type TopicType = TopicProxy<Foo, T>;
-    type DataWriterType = DataWriterProxy<Foo, DW>;
+    type TopicType = TopicProxy<Foo>;
+    type DataWriterType = DataWriterProxy<Foo>;
 
     fn datawriter_factory_create_datawriter(
         &self,
@@ -60,13 +57,15 @@ where
         a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DdsResult<Self::DataWriterType> {
+        #[allow(clippy::redundant_closure)]
         PublisherDataWriterFactory::<Foo>::datawriter_factory_create_datawriter(
             &self.publisher_attributes.upgrade()?,
             &a_topic.as_ref().upgrade()?,
             qos,
-            a_listener.map::<Box<dyn AnyDataWriterListener<DdsShared<DW>> + Send + Sync>, _>(|x| {
-                Box::new(x)
-            }),
+            a_listener
+                .map::<Box<dyn AnyDataWriterListener<DdsShared<DataWriterImpl>> + Send + Sync>, _>(
+                    |x| Box::new(x),
+                ),
             mask,
         )
         .map(|x| DataWriterProxy::new(x.downgrade()))
@@ -94,10 +93,7 @@ where
     }
 }
 
-impl<I, DP> Publisher for PublisherProxy<I>
-where
-    DdsShared<I>: Publisher + PublisherGetParticipant<DomainParticipant = DP>,
-{
+impl Publisher for PublisherProxy {
     fn suspend_publications(&self) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.suspend_publications()
     }
@@ -151,11 +147,8 @@ where
     }
 }
 
-impl<I, DP> PublisherGetParticipant for PublisherProxy<I>
-where
-    DdsShared<I>: Publisher + PublisherGetParticipant<DomainParticipant = DdsShared<DP>>,
-{
-    type DomainParticipant = DomainParticipantProxy<DP>;
+impl PublisherGetParticipant for PublisherProxy {
+    type DomainParticipant = DomainParticipantProxy;
 
     fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.publisher_attributes
@@ -165,12 +158,9 @@ where
     }
 }
 
-impl<I> Entity for PublisherProxy<I>
-where
-    DdsShared<I>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>>,
-{
-    type Qos = <DdsShared<I> as Entity>::Qos;
-    type Listener = <DdsShared<I> as Entity>::Listener;
+impl Entity for PublisherProxy {
+    type Qos = PublisherQos;
+    type Listener = Box<dyn PublisherListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.set_qos(qos)

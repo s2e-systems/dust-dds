@@ -9,17 +9,17 @@ use dds_api::{
     return_type::DdsResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener, Topic},
 };
-use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
+use dds_implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsWeak};
 
 use crate::domain_participant_proxy::DomainParticipantProxy;
 
-pub struct TopicProxy<Foo, I> {
-    topic_attributes: DdsWeak<I>,
+pub struct TopicProxy<Foo> {
+    topic_attributes: DdsWeak<TopicImpl>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, I> Clone for TopicProxy<Foo, I> {
+impl<Foo> Clone for TopicProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
             topic_attributes: self.topic_attributes.clone(),
@@ -28,8 +28,8 @@ impl<Foo, I> Clone for TopicProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> TopicProxy<Foo, I> {
-    pub fn new(topic_attributes: DdsWeak<I>) -> Self {
+impl<Foo> TopicProxy<Foo> {
+    pub fn new(topic_attributes: DdsWeak<TopicImpl>) -> Self {
         Self {
             topic_attributes,
             phantom: PhantomData,
@@ -37,16 +37,13 @@ impl<Foo, I> TopicProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> AsRef<DdsWeak<I>> for TopicProxy<Foo, I> {
-    fn as_ref(&self) -> &DdsWeak<I> {
+impl<Foo> AsRef<DdsWeak<TopicImpl>> for TopicProxy<Foo> {
+    fn as_ref(&self) -> &DdsWeak<TopicImpl> {
         &self.topic_attributes
     }
 }
 
-impl<Foo, I> Topic for TopicProxy<Foo, I>
-where
-    I: Topic,
-{
+impl<Foo> Topic for TopicProxy<Foo> {
     fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         self.topic_attributes
             .upgrade()?
@@ -54,11 +51,8 @@ where
     }
 }
 
-impl<Foo, I, DP> TopicDescription for TopicProxy<Foo, I>
-where
-    DdsShared<I>: TopicDescription<DomainParticipant = DdsShared<DP>>,
-{
-    type DomainParticipant = DomainParticipantProxy<DP>;
+impl<Foo> TopicDescription for TopicProxy<Foo> {
+    type DomainParticipant = DomainParticipantProxy;
 
     fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.topic_attributes
@@ -76,12 +70,9 @@ where
     }
 }
 
-impl<Foo, I> Entity for TopicProxy<Foo, I>
-where
-    DdsShared<I>: Entity<Qos = TopicQos, Listener = Box<dyn TopicListener>>,
-{
-    type Qos = <DdsShared<I> as Entity>::Qos;
-    type Listener = <DdsShared<I> as Entity>::Listener;
+impl<Foo> Entity for TopicProxy<Foo> {
+    type Qos = TopicQos;
+    type Listener = Box<dyn TopicListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.set_qos(qos)

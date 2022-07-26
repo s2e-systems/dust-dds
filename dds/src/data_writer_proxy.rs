@@ -17,19 +17,20 @@ use dds_api::{
     return_type::DdsResult,
 };
 use dds_implementation::{
-    dds_impl::data_writer_impl::AnyDataWriterListener,
+    dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
+    dds_type::{DdsSerialize, DdsType},
     utils::shared_object::{DdsShared, DdsWeak},
 };
 
 use crate::{publisher_proxy::PublisherProxy, topic_proxy::TopicProxy};
 
-pub struct DataWriterProxy<Foo, I> {
-    data_writer_attributes: DdsWeak<I>,
+pub struct DataWriterProxy<Foo> {
+    data_writer_attributes: DdsWeak<DataWriterImpl>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, I> Clone for DataWriterProxy<Foo, I> {
+impl<Foo> Clone for DataWriterProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
             data_writer_attributes: self.data_writer_attributes.clone(),
@@ -38,8 +39,8 @@ impl<Foo, I> Clone for DataWriterProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> DataWriterProxy<Foo, I> {
-    pub fn new(data_writer_attributes: DdsWeak<I>) -> Self {
+impl<Foo> DataWriterProxy<Foo> {
+    pub fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
         Self {
             data_writer_attributes,
             phantom: PhantomData,
@@ -47,15 +48,15 @@ impl<Foo, I> DataWriterProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> AsRef<DdsWeak<I>> for DataWriterProxy<Foo, I> {
-    fn as_ref(&self) -> &DdsWeak<I> {
+impl<Foo> AsRef<DdsWeak<DataWriterImpl>> for DataWriterProxy<Foo> {
+    fn as_ref(&self) -> &DdsWeak<DataWriterImpl> {
         &self.data_writer_attributes
     }
 }
 
-impl<Foo, I> FooDataWriter<Foo> for DataWriterProxy<Foo, I>
+impl<Foo> FooDataWriter<Foo> for DataWriterProxy<Foo>
 where
-    DdsShared<I>: FooDataWriter<Foo>,
+    Foo: DdsType + DdsSerialize,
 {
     fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         self.data_writer_attributes
@@ -133,12 +134,7 @@ where
     }
 }
 
-impl<Foo, I, P, T> DataWriter for DataWriterProxy<Foo, I>
-where
-    DdsShared<I>: DataWriter
-        + DataWriterGetPublisher<PublisherType = DdsShared<P>>
-        + DataWriterGetTopic<TopicType = DdsShared<T>>,
-{
+impl<Foo> DataWriter for DataWriterProxy<Foo> {
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         DataWriter::wait_for_acknowledgments(&self.data_writer_attributes.upgrade()?, max_wait)
     }
@@ -178,11 +174,8 @@ where
     }
 }
 
-impl<Foo, I, P> DataWriterGetPublisher for DataWriterProxy<Foo, I>
-where
-    DdsShared<I>: DataWriter + DataWriterGetPublisher<PublisherType = DdsShared<P>>,
-{
-    type PublisherType = PublisherProxy<P>;
+impl<Foo> DataWriterGetPublisher for DataWriterProxy<Foo> {
+    type PublisherType = PublisherProxy;
 
     fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
         DataWriter::get_publisher(&self.data_writer_attributes.upgrade()?)
@@ -190,11 +183,8 @@ where
     }
 }
 
-impl<Foo, I, T> DataWriterGetTopic for DataWriterProxy<Foo, I>
-where
-    DdsShared<I>: DataWriter + DataWriterGetTopic<TopicType = DdsShared<T>>,
-{
-    type TopicType = TopicProxy<Foo, T>;
+impl<Foo> DataWriterGetTopic for DataWriterProxy<Foo> {
+    type TopicType = TopicProxy<Foo>;
 
     fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
         DataWriter::get_topic(&self.data_writer_attributes.upgrade()?)
@@ -202,15 +192,11 @@ where
     }
 }
 
-impl<Foo, I> Entity for DataWriterProxy<Foo, I>
+impl<Foo> Entity for DataWriterProxy<Foo>
 where
-    DdsShared<I>: Entity<
-            Qos = DataWriterQos,
-            Listener = Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>,
-        > + FooDataWriter<Foo>,
-    Foo: 'static,
+    Foo: DdsType + DdsSerialize + 'static,
 {
-    type Qos = <DdsShared<I> as Entity>::Qos;
+    type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
@@ -222,10 +208,12 @@ where
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+        #[allow(clippy::redundant_closure)]
         self.data_writer_attributes.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyDataWriterListener<DdsShared<I>> + Send + Sync>, _>(|l| {
-                Box::new(l)
-            }),
+            a_listener
+                .map::<Box<dyn AnyDataWriterListener<DdsShared<DataWriterImpl>> + Send + Sync>, _>(
+                    |l| Box::new(l),
+                ),
             mask,
         )
     }

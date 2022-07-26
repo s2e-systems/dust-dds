@@ -9,22 +9,22 @@ use dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::publisher_listener::PublisherListener,
     return_type::DdsResult,
-    subscription::subscriber_listener::SubscriberListener,
-    topic::topic_listener::TopicListener,
 };
-use dds_implementation::utils::shared_object::{DdsShared, DdsWeak};
+use dds_implementation::{
+    dds_impl::domain_participant_impl::DomainParticipantImpl, dds_type::DdsType,
+    utils::shared_object::DdsWeak,
+};
 
 use crate::{
     publisher_proxy::PublisherProxy, subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy,
 };
 
-pub struct DomainParticipantProxy<I> {
-    domain_participant_attributes: DdsWeak<I>,
+pub struct DomainParticipantProxy {
+    domain_participant_attributes: DdsWeak<DomainParticipantImpl>,
 }
 
-impl<I> Clone for DomainParticipantProxy<I> {
+impl Clone for DomainParticipantProxy {
     fn clone(&self) -> Self {
         Self {
             domain_participant_attributes: self.domain_participant_attributes.clone(),
@@ -32,27 +32,26 @@ impl<I> Clone for DomainParticipantProxy<I> {
     }
 }
 
-impl<I> DomainParticipantProxy<I> {
-    pub fn new(domain_participant_attributes: DdsWeak<I>) -> Self {
+impl DomainParticipantProxy {
+    pub fn new(domain_participant_attributes: DdsWeak<DomainParticipantImpl>) -> Self {
         Self {
             domain_participant_attributes,
         }
     }
 }
 
-impl<I> PartialEq for DomainParticipantProxy<I> {
+impl PartialEq for DomainParticipantProxy {
     fn eq(&self, other: &Self) -> bool {
         self.domain_participant_attributes
             .ptr_eq(&other.domain_participant_attributes)
     }
 }
 
-impl<Foo, I, T> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy<I>
+impl<Foo> DomainParticipantTopicFactory<Foo> for DomainParticipantProxy
 where
-    DdsShared<I>: DomainParticipantTopicFactory<Foo, TopicType = DdsShared<T>>,
-    DdsShared<T>: Entity<Qos = TopicQos, Listener = Box<dyn TopicListener>>,
+    Foo: DdsType,
 {
-    type TopicType = TopicProxy<Foo, T>;
+    type TopicType = TopicProxy<Foo>;
 
     fn topic_factory_create_topic(
         &self,
@@ -103,14 +102,9 @@ where
     }
 }
 
-impl<I, P, S> DomainParticipant for DomainParticipantProxy<I>
-where
-    DdsShared<I>: DomainParticipant<PublisherType = DdsShared<P>, SubscriberType = DdsShared<S>>,
-    DdsShared<P>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>>,
-    DdsShared<S>: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>,
-{
-    type PublisherType = PublisherProxy<P>;
-    type SubscriberType = SubscriberProxy<S>;
+impl DomainParticipant for DomainParticipantProxy {
+    type PublisherType = PublisherProxy;
+    type SubscriberType = SubscriberProxy;
 
     fn create_publisher(
         &self,
@@ -277,10 +271,7 @@ where
     }
 }
 
-impl<I> Entity for DomainParticipantProxy<I>
-where
-    DdsShared<I>: Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>,
-{
+impl Entity for DomainParticipantProxy {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 

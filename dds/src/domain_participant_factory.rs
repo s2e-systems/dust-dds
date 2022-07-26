@@ -235,7 +235,7 @@ lazy_static! {
 pub struct DomainParticipantFactoryImpl;
 
 impl DomainParticipantFactory for DomainParticipantFactoryImpl {
-    type DomainParticipant = DomainParticipantProxy<DomainParticipantImpl>;
+    type DomainParticipant = DomainParticipantProxy;
 
     fn create_participant(
         &self,
@@ -624,10 +624,9 @@ mod tests {
                     .downgrade(),
             );
 
-            let participant_topic: TopicProxy<SpdpDiscoveredParticipantData, _> =
-                participant2_proxy
-                    .lookup_topicdescription(DCPS_PARTICIPANT)
-                    .unwrap();
+            let participant_topic: TopicProxy<SpdpDiscoveredParticipantData> = participant2_proxy
+                .lookup_topicdescription(DCPS_PARTICIPANT)
+                .unwrap();
             let participant2_builtin_participant_data_reader =
                 subscriber.lookup_datareader(&participant_topic).unwrap();
 
@@ -824,13 +823,13 @@ mod tests {
 
         // ////////// Check that the received data corresponds to the sent data
 
-        let sedp_topic_publication: TopicProxy<DiscoveredWriterData, _> = participant2_proxy
+        let sedp_topic_publication: TopicProxy<DiscoveredWriterData> = participant2_proxy
             .lookup_topicdescription(DCPS_PUBLICATION)
             .unwrap();
-        let sedp_topic_subscription: TopicProxy<DiscoveredReaderData, _> = participant2_proxy
+        let sedp_topic_subscription: TopicProxy<DiscoveredReaderData> = participant2_proxy
             .lookup_topicdescription(DCPS_SUBSCRIPTION)
             .unwrap();
-        let sedp_topic_topic: TopicProxy<DiscoveredTopicData, _> = participant2_proxy
+        let sedp_topic_topic: TopicProxy<DiscoveredTopicData> = participant2_proxy
             .lookup_topicdescription(DCPS_TOPIC)
             .unwrap();
 

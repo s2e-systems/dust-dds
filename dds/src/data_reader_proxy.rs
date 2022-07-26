@@ -22,21 +22,25 @@ use dds_api::{
     },
 };
 use dds_implementation::{
-    dds_impl::data_reader_impl::AnyDataReaderListener,
-    utils::shared_object::{DdsShared, DdsWeak},
+    dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
+    dds_type::{DdsDeserialize, DdsType},
+    utils::{
+        shared_object::{DdsShared, DdsWeak},
+        timer::ThreadTimer,
+    },
 };
 
 use std::marker::PhantomData;
 
 use crate::{subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy};
 
-pub struct DataReaderProxy<Foo, I> {
-    data_reader_attributes: DdsWeak<I>,
+pub struct DataReaderProxy<Foo> {
+    data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo, I> Clone for DataReaderProxy<Foo, I> {
+impl<Foo> Clone for DataReaderProxy<Foo> {
     fn clone(&self) -> Self {
         Self {
             data_reader_attributes: self.data_reader_attributes.clone(),
@@ -45,8 +49,8 @@ impl<Foo, I> Clone for DataReaderProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> DataReaderProxy<Foo, I> {
-    pub fn new(data_reader_attributes: DdsWeak<I>) -> Self {
+impl<Foo> DataReaderProxy<Foo> {
+    pub fn new(data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>) -> Self {
         Self {
             data_reader_attributes,
             phantom: PhantomData,
@@ -54,17 +58,14 @@ impl<Foo, I> DataReaderProxy<Foo, I> {
     }
 }
 
-impl<Foo, I> AsRef<DdsWeak<I>> for DataReaderProxy<Foo, I> {
-    fn as_ref(&self) -> &DdsWeak<I> {
+impl<Foo> AsRef<DdsWeak<DataReaderImpl<ThreadTimer>>> for DataReaderProxy<Foo> {
+    fn as_ref(&self) -> &DdsWeak<DataReaderImpl<ThreadTimer>> {
         &self.data_reader_attributes
     }
 }
 
-impl<Foo, I, S> DataReaderGetSubscriber for DataReaderProxy<Foo, I>
-where
-    DdsShared<I>: DataReaderGetSubscriber<Subscriber = DdsShared<S>>,
-{
-    type Subscriber = SubscriberProxy<S>;
+impl<Foo> DataReaderGetSubscriber for DataReaderProxy<Foo> {
+    type Subscriber = SubscriberProxy;
 
     fn data_reader_get_subscriber(&self) -> DdsResult<Self::Subscriber> {
         self.data_reader_attributes
@@ -74,11 +75,8 @@ where
     }
 }
 
-impl<Foo, I, T> DataReaderGetTopicDescription for DataReaderProxy<Foo, I>
-where
-    DdsShared<I>: DataReaderGetTopicDescription<TopicDescription = DdsShared<T>>,
-{
-    type TopicDescription = TopicProxy<Foo, T>;
+impl<Foo> DataReaderGetTopicDescription for DataReaderProxy<Foo> {
+    type TopicDescription = TopicProxy<Foo>;
 
     fn data_reader_get_topicdescription(&self) -> DdsResult<Self::TopicDescription> {
         self.data_reader_attributes
@@ -88,9 +86,9 @@ where
     }
 }
 
-impl<Foo, I> FooDataReader<Foo> for DataReaderProxy<Foo, I>
+impl<Foo> FooDataReader<Foo> for DataReaderProxy<Foo>
 where
-    DdsShared<I>: FooDataReader<Foo>,
+    Foo: DdsType + for<'de> DdsDeserialize<'de>,
 {
     fn read(
         &self,
@@ -317,10 +315,7 @@ where
     }
 }
 
-impl<Foo, I> DataReader for DataReaderProxy<Foo, I>
-where
-    DdsShared<I>: DataReader,
-{
+impl<Foo> DataReader for DataReaderProxy<Foo> {
     fn create_readcondition(
         &self,
         sample_states: SampleStateMask,
@@ -423,15 +418,11 @@ where
     }
 }
 
-impl<Foo, I> Entity for DataReaderProxy<Foo, I>
+impl<Foo> Entity for DataReaderProxy<Foo>
 where
-    DdsShared<I>: Entity<
-            Qos = DataReaderQos,
-            Listener = Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>,
-        > + FooDataReader<Foo>,
-    Foo: 'static,
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    type Qos = <DdsShared<I> as Entity>::Qos;
+    type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
@@ -443,10 +434,11 @@ where
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+        #[allow(clippy::redundant_closure)]
         self.data_reader_attributes.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyDataReaderListener<DdsShared<I>> + Send + Sync>, _>(|l| {
-                Box::new(l)
-            }),
+            a_listener.map::<Box<
+                dyn AnyDataReaderListener<DdsShared<DataReaderImpl<ThreadTimer>>> + Send + Sync,
+            >, _>(|l| Box::new(l)),
             mask,
         )
     }

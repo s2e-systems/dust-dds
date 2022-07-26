@@ -9,14 +9,21 @@ use dds_api::{
     },
     return_type::DdsResult,
     subscription::{
-        data_reader::{AnyDataReader, FooDataReader},
+        data_reader::AnyDataReader,
         subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
         subscriber_listener::SubscriberListener,
     },
 };
 use dds_implementation::{
-    dds_impl::data_reader_impl::AnyDataReaderListener,
-    utils::shared_object::{DdsShared, DdsWeak},
+    dds_impl::{
+        data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
+        subscriber_impl::SubscriberImpl,
+    },
+    dds_type::{DdsDeserialize, DdsType},
+    utils::{
+        shared_object::{DdsShared, DdsWeak},
+        timer::ThreadTimer,
+    },
 };
 
 use crate::{
@@ -25,36 +32,30 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct SubscriberProxy<I> {
-    subscriber_attributes: DdsWeak<I>,
+pub struct SubscriberProxy {
+    subscriber_attributes: DdsWeak<SubscriberImpl>,
 }
 
-impl<I> SubscriberProxy<I> {
-    pub fn new(subscriber_attributes: DdsWeak<I>) -> Self {
+impl SubscriberProxy {
+    pub fn new(subscriber_attributes: DdsWeak<SubscriberImpl>) -> Self {
         Self {
             subscriber_attributes,
         }
     }
 }
 
-impl<I> AsRef<DdsWeak<I>> for SubscriberProxy<I> {
-    fn as_ref(&self) -> &DdsWeak<I> {
+impl AsRef<DdsWeak<SubscriberImpl>> for SubscriberProxy {
+    fn as_ref(&self) -> &DdsWeak<SubscriberImpl> {
         &self.subscriber_attributes
     }
 }
 
-impl<Foo, I, T, DR> SubscriberDataReaderFactory<Foo> for SubscriberProxy<I>
+impl<Foo> SubscriberDataReaderFactory<Foo> for SubscriberProxy
 where
-    DdsShared<I>:
-        SubscriberDataReaderFactory<Foo, TopicType = DdsShared<T>, DataReaderType = DdsShared<DR>>,
-    DdsShared<DR>: Entity<
-            Qos = DataReaderQos,
-            Listener = Box<dyn AnyDataReaderListener<DdsShared<DR>> + Send + Sync>,
-        > + FooDataReader<Foo>,
-    Foo: 'static,
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    type TopicType = TopicProxy<Foo, T>;
-    type DataReaderType = DataReaderProxy<Foo, DR>;
+    type TopicType = TopicProxy<Foo>;
+    type DataReaderType = DataReaderProxy<Foo>;
 
     fn datareader_factory_create_datareader(
         &self,
@@ -63,13 +64,14 @@ where
         a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
         mask: StatusMask,
     ) -> DdsResult<Self::DataReaderType> {
+        #[allow(clippy::redundant_closure)]
         SubscriberDataReaderFactory::<Foo>::datareader_factory_create_datareader(
             &self.subscriber_attributes.upgrade()?,
             &a_topic.as_ref().upgrade()?,
             qos,
-            a_listener.map::<Box<dyn AnyDataReaderListener<DdsShared<DR>> + Send + Sync>, _>(|x| {
-                Box::new(x)
-            }),
+            a_listener.map::<Box<
+                dyn AnyDataReaderListener<DdsShared<DataReaderImpl<ThreadTimer>>> + Send + Sync,
+            >, _>(|x| Box::new(x)),
             mask,
         )
         .map(|x| DataReaderProxy::new(x.downgrade()))
@@ -97,10 +99,7 @@ where
     }
 }
 
-impl<I, DP> Subscriber for SubscriberProxy<I>
-where
-    DdsShared<I>: Subscriber + SubscriberGetParticipant<DomainParticipant = DP>,
-{
+impl Subscriber for SubscriberProxy {
     fn begin_access(&self) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.begin_access()
     }
@@ -163,11 +162,8 @@ where
     }
 }
 
-impl<I, DP> SubscriberGetParticipant for SubscriberProxy<I>
-where
-    DdsShared<I>: Subscriber + SubscriberGetParticipant<DomainParticipant = DdsShared<DP>>,
-{
-    type DomainParticipant = DomainParticipantProxy<DP>;
+impl SubscriberGetParticipant for SubscriberProxy {
+    type DomainParticipant = DomainParticipantProxy;
 
     fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
         self.subscriber_attributes
@@ -177,12 +173,9 @@ where
     }
 }
 
-impl<I> Entity for SubscriberProxy<I>
-where
-    DdsShared<I>: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>,
-{
-    type Qos = <DdsShared<I> as Entity>::Qos;
-    type Listener = <DdsShared<I> as Entity>::Listener;
+impl Entity for SubscriberProxy {
+    type Qos = SubscriberQos;
+    type Listener = Box<dyn SubscriberListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.set_qos(qos)
