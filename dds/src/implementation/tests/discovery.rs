@@ -1,7 +1,7 @@
-use crate::api::infrastructure::{entity::Entity, qos::DomainParticipantQos};
 use crate::implementation::dds_impl::domain_participant_impl::{
     CreateBuiltIns, DomainParticipantImpl, SendUserDefinedData,
 };
+use crate::infrastructure::{entity::Entity, qos::DomainParticipantQos};
 use dds_transport::{RtpsMessage, TransportWrite};
 use mockall::mock;
 use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};

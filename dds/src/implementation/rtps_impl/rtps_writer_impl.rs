@@ -50,10 +50,6 @@ impl RtpsWriterImpl {
             writer_cache: RtpsHistoryCacheImpl::new(),
         }
     }
-
-    pub fn const_writer_cache(&self) -> &RtpsHistoryCacheImpl {
-        &self.writer_cache
-    }
 }
 
 impl RtpsEntityAttributes for RtpsWriterImpl {

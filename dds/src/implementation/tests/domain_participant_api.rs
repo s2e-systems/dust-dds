@@ -1,10 +1,3 @@
-use crate::api::{
-    builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, DomainId},
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{entity::Entity, qos::DomainParticipantQos, qos_policy::UserDataQosPolicy},
-    return_type::DdsError,
-};
 use crate::implementation::{
     data_representation_builtin_endpoints::spdp_discovered_participant_data::{
         ParticipantProxy, SpdpDiscoveredParticipantData,
@@ -12,7 +5,17 @@ use crate::implementation::{
     dds_impl::domain_participant_impl::{
         AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
     },
+};
+use crate::{
     dds_type::DdsType,
+    return_type::DdsError,
+    {
+        builtin_topics::ParticipantBuiltinTopicData,
+        dcps_psm::{BuiltInTopicKey, DomainId},
+        infrastructure::{
+            entity::Entity, qos::DomainParticipantQos, qos_policy::UserDataQosPolicy,
+        },
+    },
 };
 use rtps_pim::{
     discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},

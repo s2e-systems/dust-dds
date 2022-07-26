@@ -1,26 +1,22 @@
-use crate::implementation::{
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-    },
-
+use crate::implementation::rtps_impl::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
 };
-use crate::api::{
-    dcps_psm::{
-        InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
-        ViewStateMask,
+use crate::return_type::{DdsError, DdsResult};
+use crate::subscription::data_reader::AnyDataReader;
+use crate::subscription::subscriber_listener::SubscriberListener;
+use crate::{
+    dds_type::DdsType,
+    {
+        dcps_psm::{
+            InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
+            ViewStateMask,
+        },
+        infrastructure::{
+            entity::{Entity, StatusCondition},
+            qos::{DataReaderQos, SubscriberQos, TopicQos},
+            qos_policy::ReliabilityQosPolicyKind,
+        },
     },
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
-    },
-    return_type::{DdsError, DdsResult},
-    subscription::{
-        data_reader::{AnyDataReader, DataReaderGetTopicDescription},
-        subscriber::{Subscriber, SubscriberDataReaderFactory, SubscriberGetParticipant},
-        subscriber_listener::SubscriberListener,
-    },
-    topic::topic_description::TopicDescription,
 };
 use rtps_pim::{
     behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
@@ -43,7 +39,6 @@ use crate::implementation::{
         discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
         discovered_writer_data::DiscoveredWriterData,
     },
-    dds_type::DdsType,
     utils::{
         discovery_traits::AddMatchedWriter,
         rtps_communication_traits::{
@@ -113,22 +108,39 @@ impl AddDataReader for DdsShared<SubscriberImpl> {
     }
 }
 
-impl<Foo> SubscriberDataReaderFactory<Foo> for DdsShared<SubscriberImpl>
-where
-    Foo: DdsType,
-{
-    type TopicType = DdsShared<TopicImpl>;
-    type DataReaderType = DdsShared<DataReaderImpl<ThreadTimer>>;
+pub trait AnnounceDataReader {
+    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData);
+}
 
-    fn datareader_factory_create_datareader(
+impl AnnounceDataReader for DdsShared<SubscriberImpl> {
+    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
+        if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
+            domain_participant.add_created_data_reader(&DiscoveredReaderData {
+                reader_proxy: RtpsReaderProxy {
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    ..sedp_discovered_reader_data.reader_proxy
+                },
+                ..sedp_discovered_reader_data
+            });
+        }
+    }
+}
+
+impl DdsShared<SubscriberImpl> {
+    pub fn create_datareader<Foo>(
         &self,
-        a_topic: &Self::TopicType,
+        a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataReaderQos>,
-        a_listener: Option<<Self::DataReaderType as Entity>::Listener>,
+        a_listener: Option<<DdsShared<DataReaderImpl<ThreadTimer>> as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DdsResult<Self::DataReaderType>
+    ) -> DdsResult<DdsShared<DataReaderImpl<ThreadTimer>>>
     where
-        Self::DataReaderType: Entity,
+        Foo: DdsType,
     {
         // /////// Build the GUID
         let entity_id = {
@@ -210,9 +222,9 @@ where
         Ok(data_reader_shared)
     }
 
-    fn datareader_factory_delete_datareader(
+    pub fn delete_datareader(
         &self,
-        a_datareader: &Self::DataReaderType,
+        a_datareader: &DdsShared<DataReaderImpl<ThreadTimer>>,
     ) -> DdsResult<()> {
         let data_reader_list = &mut self.data_reader_list.write_lock();
         let data_reader_list_position = data_reader_list
@@ -228,18 +240,19 @@ where
         Ok(())
     }
 
-    fn datareader_factory_lookup_datareader(
+    pub fn lookup_datareader<Foo>(
         &self,
-        topic: &Self::TopicType,
-    ) -> DdsResult<Self::DataReaderType> {
+        topic: &DdsShared<TopicImpl>,
+    ) -> DdsResult<DdsShared<DataReaderImpl<ThreadTimer>>>
+    where
+        Foo: DdsType,
+    {
         let data_reader_list = &self.data_reader_list.write_lock();
 
         data_reader_list
             .iter()
             .find_map(|data_reader_shared| {
-                let data_reader_topic = data_reader_shared
-                    .data_reader_get_topicdescription()
-                    .unwrap();
+                let data_reader_topic = data_reader_shared.get_topicdescription().unwrap();
 
                 if data_reader_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_reader_topic.get_type_name().ok()? == Foo::type_name()
@@ -251,33 +264,8 @@ where
             })
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
-}
 
-pub trait AnnounceDataReader {
-    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData);
-}
-
-impl AnnounceDataReader for DdsShared<SubscriberImpl> {
-    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
-        if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
-            domain_participant.add_created_data_reader(&DiscoveredReaderData {
-                reader_proxy: RtpsReaderProxy {
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    ..sedp_discovered_reader_data.reader_proxy
-                },
-                ..sedp_discovered_reader_data
-            });
-        }
-    }
-}
-
-impl Subscriber for DdsShared<SubscriberImpl> {
-    fn begin_access(&self) -> DdsResult<()> {
+    pub fn begin_access(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -285,7 +273,7 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    fn end_access(&self) -> DdsResult<()> {
+    pub fn end_access(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -293,7 +281,7 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    fn get_datareaders(
+    pub fn get_datareaders(
         &self,
         _readers: &mut [&mut dyn AnyDataReader],
         _sample_states: SampleStateMask,
@@ -307,7 +295,7 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    fn notify_datareaders(&self) -> DdsResult<()> {
+    pub fn notify_datareaders(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -315,11 +303,18 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
+    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
+        Ok(self
+            .parent_domain_participant
+            .upgrade()
+            .expect("Failed to get parent participant of subscriber"))
+    }
+
+    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DdsResult<()> {
+    pub fn delete_contained_entities(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -327,31 +322,20 @@ impl Subscriber for DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
+    pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         todo!()
     }
 
-    fn copy_from_topic_qos(
+    pub fn copy_from_topic_qos(
         &self,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
-    }
-}
-
-impl SubscriberGetParticipant for DdsShared<SubscriberImpl> {
-    type DomainParticipant = DdsShared<DomainParticipantImpl>;
-
-    fn subscriber_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self
-            .parent_domain_participant
-            .upgrade()
-            .expect("Failed to get parent participant of subscriber"))
     }
 }
 

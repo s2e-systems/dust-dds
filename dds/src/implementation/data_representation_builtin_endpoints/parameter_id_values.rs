@@ -4,7 +4,7 @@ use rtps_pim::{
 };
 
 // Constant value from Table 9.13 - ParameterId Values
-pub const PID_PAD: u16 = 0x0000;
+pub const _PID_PAD: u16 = 0x0000;
 pub const PID_SENTINEL: u16 = 0x0001;
 pub const PID_USER_DATA: u16 = 0x002c;
 pub const PID_TOPIC_NAME: u16 = 0x0005;
@@ -40,14 +40,14 @@ pub const PID_METATRAFFIC_MULTICAST_LOCATOR: u16 = 0x0033;
 pub const PID_EXPECTS_INLINE_QOS: u16 = 0x0043;
 pub const PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT: u16 = 0x0034;
 pub const PID_PARTICIPANT_LEASE_DURATION: u16 = 0x0002;
-pub const PID_CONTENT_FILTER_PROPERTY: u16 = 0x0035;
+pub const _PID_CONTENT_FILTER_PROPERTY: u16 = 0x0035;
 pub const PID_PARTICIPANT_GUID: u16 = 0x0050;
-pub const PID_GROUP_GUID: u16 = 0x0052;
+pub const _PID_GROUP_GUID: u16 = 0x0052;
 pub const PID_BUILTIN_ENDPOINT_SET: u16 = 0x0058;
 pub const PID_BUILTIN_ENDPOINT_QOS: u16 = 0x0077;
-pub const PID_PROPERTY_LIST: u16 = 0x0059;
+pub const _PID_PROPERTY_LIST: u16 = 0x0059;
 pub const PID_TYPE_MAX_SIZE_SERIALIZED: u16 = 0x0060;
-pub const PID_ENTITY_NAME: u16 = 0x0062;
+pub const _PID_ENTITY_NAME: u16 = 0x0062;
 pub const PID_ENDPOINT_GUID: u16 = 0x005a;
 // Following PID is not defined in standard
 // (but its listed in "Table 9.14 - ParameterId mapping and default values")
@@ -65,4 +65,4 @@ pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
     seconds: 100,
     fraction: 0,
 };
-pub const DEFAULT_GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;
+pub const _DEFAULT_GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;

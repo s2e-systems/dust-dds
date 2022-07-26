@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use crate::api::return_type::DdsError;
 use rtps_pim::{
     messages::{
         submessage_elements::{
@@ -19,9 +18,12 @@ use rtps_pim::{
     },
 };
 
-use crate::implementation::data_representation_inline_qos::{
-    parameter_id_values::PID_STATUS_INFO,
-    types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+use crate::{
+    implementation::data_representation_inline_qos::{
+        parameter_id_values::PID_STATUS_INFO,
+        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+    },
+    return_type::DdsError,
 };
 
 #[derive(Debug, PartialEq)]
@@ -291,17 +293,11 @@ impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes
-            .iter()
-            .map(|cc| cc.sequence_number)
-            .min()
+        self.changes.iter().map(|cc| cc.sequence_number).min()
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes
-            .iter()
-            .map(|cc| cc.sequence_number)
-            .max()
+        self.changes.iter().map(|cc| cc.sequence_number).max()
     }
 }
 

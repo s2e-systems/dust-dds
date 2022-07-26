@@ -49,17 +49,17 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dds::implementation::dds_type::Endianness>(&self) -> Vec<u8> {
-                    if E::REPRESENTATION_IDENTIFIER == dds::implementation::dds_type::PL_CDR_BE {
+                fn get_serialized_key<E: dds::dds_type::Endianness>(&self) -> Vec<u8> {
+                    if E::REPRESENTATION_IDENTIFIER == dds::dds_type::PL_CDR_BE {
                         cdr::serialize::<_, _, cdr::CdrBe>(self, cdr::Infinite).unwrap()
                     } else {
                         cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite).unwrap()
                     }
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dds::api::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dds::return_type::DdsResult<()> {
                     let mut buf = key.to_owned();
-                    *self = cdr::deserialize(&mut buf).map_err(|e| dds::api::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
+                    *self = cdr::deserialize(&mut buf).map_err(|e| dds::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
                     Ok(())
                 }
             }
@@ -84,11 +84,11 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dds::implementation::dds_type::Endianness>(&self) -> Vec<u8> {
+                fn get_serialized_key<E: dds::dds_type::Endianness>(&self) -> Vec<u8> {
                     #build_key
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dds::api::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dds::return_type::DdsResult<()> {
                     #set_key
                     Ok(())
                 }
@@ -106,11 +106,11 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     false
                 }
 
-                fn get_serialized_key<E: dds::implementation::dds_type::Endianness>(&self) -> Vec<u8> {
+                fn get_serialized_key<E: dds::dds_type::Endianness>(&self) -> Vec<u8> {
                     vec![]
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> dds::api::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> dds::return_type::DdsResult<()> {
                     Ok(())
                 }
             }
@@ -138,7 +138,7 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
     }
 
     quote! {
-        if E::REPRESENTATION_IDENTIFIER == dds::implementation::dds_type::PL_CDR_BE {
+        if E::REPRESENTATION_IDENTIFIER == dds::dds_type::PL_CDR_BE {
             cdr::serialize::<_, _, cdr::CdrBe>(&(#field_list_ts), cdr::Infinite).unwrap()
         } else {
             cdr::serialize::<_, _, cdr::CdrLe>(&(#field_list_ts), cdr::Infinite).unwrap()
@@ -165,7 +165,7 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
 
     let mut token_stream = quote! {
         let mut __buf = key.to_owned();
-        let (#identifier_list_ts) = cdr::deserialize(&mut __buf).map_err(|e| dds::api::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
+        let (#identifier_list_ts) = cdr::deserialize(&mut __buf).map_err(|e| dds::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
     };
 
     for (&(i, field), ident) in indexed_key_fields.iter().zip(identifiers.iter()) {

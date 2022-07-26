@@ -4,43 +4,46 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use crate::api::{
-    builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-    dcps_psm::{
-        BuiltInTopicKey, Duration, InstanceHandle, LivelinessLostStatus,
-        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-        QosPolicyCount, StatusMask, Time, HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
-    },
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::DataWriterQos,
-        qos_policy::{
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, OWNERSHIPSTRENGTH_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+use crate::{
+    dds_type::{DdsSerialize, DdsType, LittleEndian},
+    publication::data_writer::DataWriterProxy,
+    return_type::{DdsError, DdsResult},
+    {
+        builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+        dcps_psm::{
+            BuiltInTopicKey, Duration, InstanceHandle, LivelinessLostStatus,
+            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+            QosPolicyCount, StatusMask, Time, HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
+        },
+        infrastructure::{
+            entity::{Entity, StatusCondition},
+            qos::DataWriterQos,
+            qos_policy::{
+                DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+                OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+                RELIABILITY_QOS_POLICY_ID,
+            },
         },
     },
-    publication::{
-        data_writer::{DataWriter, DataWriterGetPublisher, DataWriterGetTopic, FooDataWriter},
-        data_writer_listener::DataWriterListener,
-        publisher::Publisher,
-    },
-    return_type::{DdsError, DdsResult},
-    topic::topic_description::TopicDescription,
 };
-use crate::implementation::{
-    data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
-    data_representation_inline_qos::{
-        parameter_id_values::PID_STATUS_INFO,
-        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+        },
+        rtps_impl::{
+            rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+            rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
+            rtps_stateless_writer_impl::{
+                RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl,
+            },
+            utils::clock::StdTimer,
+        },
     },
-    rtps_impl::{
-        rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
-        rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
-        rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
-        utils::clock::StdTimer,
-    },
+    publication::data_writer_listener::DataWriterListener,
 };
 
 use rtps_pim::{
@@ -86,7 +89,6 @@ use crate::implementation::{
         discovered_writer_data::DiscoveredWriterData,
         spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
-    dds_type::{DdsSerialize, DdsType, LittleEndian},
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
@@ -143,51 +145,60 @@ fn retrieve_instance_handle(
     }
 }
 
-pub trait AnyDataWriterListener<DW> {
-    fn trigger_on_liveliness_lost(&mut self, _the_writer: DW, _status: LivelinessLostStatus);
+pub trait AnyDataWriterListener {
+    fn trigger_on_liveliness_lost(
+        &mut self,
+        _the_writer: &DdsShared<DataWriterImpl>,
+        _status: LivelinessLostStatus,
+    );
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        _the_writer: DW,
+        _the_writer: &DdsShared<DataWriterImpl>,
         _status: OfferedDeadlineMissedStatus,
     );
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        _the_writer: DW,
+        _the_writer: &DdsShared<DataWriterImpl>,
         _status: OfferedIncompatibleQosStatus,
     );
     fn trigger_on_publication_matched(
         &mut self,
-        _the_writer: DW,
+        _the_writer: &DdsShared<DataWriterImpl>,
         _status: PublicationMatchedStatus,
     );
 }
 
-impl<Foo, DW> AnyDataWriterListener<DW> for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
-where
-    DW: FooDataWriter<Foo>,
-{
-    fn trigger_on_liveliness_lost(&mut self, the_writer: DW, status: LivelinessLostStatus) {
-        self.on_liveliness_lost(&the_writer, status);
+impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync> {
+    fn trigger_on_liveliness_lost(
+        &mut self,
+        the_writer: &DdsShared<DataWriterImpl>,
+        status: LivelinessLostStatus,
+    ) {
+        self.on_liveliness_lost(&DataWriterProxy::new(the_writer.downgrade()), status);
     }
 
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        the_writer: DW,
+        the_writer: &DdsShared<DataWriterImpl>,
         status: OfferedDeadlineMissedStatus,
     ) {
-        self.on_offered_deadline_missed(&the_writer, status);
+        self.on_offered_deadline_missed(&DataWriterProxy::new(the_writer.downgrade()), status);
     }
 
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: DW,
+        the_writer: &DdsShared<DataWriterImpl>,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.on_offered_incompatible_qos(&the_writer, status);
+        self.on_offered_incompatible_qos(&DataWriterProxy::new(the_writer.downgrade()), status);
     }
 
-    fn trigger_on_publication_matched(&mut self, the_writer: DW, status: PublicationMatchedStatus) {
-        self.on_publication_matched(&the_writer, status)
+    fn trigger_on_publication_matched(
+        &mut self,
+        the_writer: &DdsShared<DataWriterImpl>,
+        status: PublicationMatchedStatus,
+    ) {
+        self.on_publication_matched(&DataWriterProxy::new(the_writer.downgrade()), status)
     }
 }
 
@@ -407,7 +418,7 @@ impl DataWriterImpl {
 
 impl DdsShared<DataWriterImpl> {
     fn get_timestamp(&self) -> Time {
-        self.datawriter_get_publisher()
+        self.get_publisher()
             .expect("Failed to get parent publisher of datawriter.")
             .get_participant()
             .expect("Failed to get parent participant of publisher")
@@ -531,7 +542,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                 let mut listener_lock = self.listener.write_lock();
                 if let Some(l) = listener_lock.as_mut() {
                     let publication_matched_status = self.get_publication_matched_status().unwrap();
-                    l.trigger_on_publication_matched(self.clone(), publication_matched_status)
+                    l.trigger_on_publication_matched(self, publication_matched_status)
                 }
             } else {
                 {
@@ -563,21 +574,18 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                 if let Some(l) = listener_lock.as_mut() {
                     let offered_incompatible_qos_status =
                         self.get_offered_incompatible_qos_status().unwrap();
-                    l.trigger_on_offered_incompatible_qos(
-                        self.clone(),
-                        offered_incompatible_qos_status,
-                    )
+                    l.trigger_on_offered_incompatible_qos(self, offered_incompatible_qos_status)
                 }
             }
         }
     }
 }
 
-impl<Foo> FooDataWriter<Foo> for DdsShared<DataWriterImpl>
-where
-    Foo: DdsType + DdsSerialize,
-{
-    fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+impl DdsShared<DataWriterImpl> {
+    pub fn register_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -586,11 +594,14 @@ where
         self.register_instance_w_timestamp(instance, timestamp)
     }
 
-    fn register_instance_w_timestamp(
+    pub fn register_instance_w_timestamp<Foo>(
         &self,
         instance: &Foo,
         _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
+    ) -> DdsResult<Option<InstanceHandle>>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -617,7 +628,14 @@ where
         }
     }
 
-    fn unregister_instance(&self, instance: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub fn unregister_instance<Foo>(
+        &self,
+        instance: &Foo,
+        handle: Option<InstanceHandle>,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -626,12 +644,15 @@ where
         self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
-    fn unregister_instance_w_timestamp(
+    pub fn unregister_instance_w_timestamp<Foo>(
         &self,
         instance: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -676,7 +697,10 @@ where
         }
     }
 
-    fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -690,7 +714,10 @@ where
         key_holder.set_key_fields_from_serialized_key(serialized_key.as_ref())
     }
 
-    fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
+    where
+        Foo: DdsType,
+    {
         let serialized_key = instance.get_serialized_key::<LittleEndian>();
         let instance_handle = calculate_instance_handle(&serialized_key);
         let registered_instance_list_lock = self.registered_instance_list.read_lock();
@@ -701,7 +728,10 @@ where
         }
     }
 
-    fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub fn write<Foo>(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -710,12 +740,15 @@ where
         self.write_w_timestamp(data, handle, timestamp)
     }
 
-    fn write_w_timestamp(
+    pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -734,7 +767,10 @@ where
         Ok(())
     }
 
-    fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
+    pub fn dispose<Foo>(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -743,12 +779,15 @@ where
         self.dispose_w_timestamp(data, handle, timestamp)
     }
 
-    fn dispose_w_timestamp(
+    pub fn dispose_w_timestamp<Foo>(
         &self,
         data: &Foo,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -792,10 +831,8 @@ where
             Err(DdsError::IllegalOperation)
         }
     }
-}
 
-impl DataWriter for DdsShared<DataWriterImpl> {
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -803,13 +840,13 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         todo!()
     }
 
-    fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
+    pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
         let liveliness_lost_status = self.liveliness_lost_status.read_lock().clone();
         self.liveliness_lost_status.write_lock().total_count_change = 0;
         Ok(liveliness_lost_status)
     }
 
-    fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
+    pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
         let offered_deadline_missed_status =
             self.offered_deadline_missed_status.read_lock().clone();
         self.offered_deadline_missed_status
@@ -818,7 +855,7 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         Ok(offered_deadline_missed_status)
     }
 
-    fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
+    pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         let offered_incompatible_qos_status =
             self.offered_incompatible_qos_status.read_lock().clone();
         self.offered_incompatible_qos_status
@@ -827,7 +864,7 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         Ok(offered_incompatible_qos_status)
     }
 
-    fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
+    pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         let mut publication_matched_status_lock = self.publication_matched_status.write_lock();
 
         let mut publication_matched_status = publication_matched_status_lock.clone();
@@ -839,7 +876,18 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         Ok(publication_matched_status)
     }
 
-    fn assert_liveliness(&self) -> DdsResult<()> {
+    pub fn get_topic(&self) -> DdsResult<DdsShared<TopicImpl>> {
+        Ok(self.topic.clone())
+    }
+
+    pub fn get_publisher(&self) -> DdsResult<DdsShared<PublisherImpl>> {
+        Ok(self
+            .publisher
+            .upgrade()
+            .expect("Failed to get parent publisher of data writer"))
+    }
+
+    pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -847,7 +895,7 @@ impl DataWriter for DdsShared<DataWriterImpl> {
         todo!()
     }
 
-    fn get_matched_subscription_data(
+    pub fn get_matched_subscription_data(
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
@@ -862,7 +910,7 @@ impl DataWriter for DdsShared<DataWriterImpl> {
             .ok_or(DdsError::BadParameter)
     }
 
-    fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
+    pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -876,28 +924,9 @@ impl DataWriter for DdsShared<DataWriterImpl> {
     }
 }
 
-impl DataWriterGetPublisher for DdsShared<DataWriterImpl> {
-    type PublisherType = DdsShared<PublisherImpl>;
-
-    fn datawriter_get_publisher(&self) -> DdsResult<Self::PublisherType> {
-        Ok(self
-            .publisher
-            .upgrade()
-            .expect("Failed to get parent publisher of data writer"))
-    }
-}
-
-impl DataWriterGetTopic for DdsShared<DataWriterImpl> {
-    type TopicType = DdsShared<TopicImpl>;
-
-    fn datawriter_get_topic(&self) -> DdsResult<Self::TopicType> {
-        Ok(self.topic.clone())
-    }
-}
-
 impl Entity for DdsShared<DataWriterImpl> {
     type Qos = DataWriterQos;
-    type Listener = Box<dyn AnyDataWriterListener<DdsShared<DataWriterImpl>> + Send + Sync>;
+    type Listener = Box<dyn AnyDataWriterListener + Send + Sync>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
@@ -1119,16 +1148,19 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
 mod test {
     use std::io::Write;
 
-    use crate::api::{
-        dcps_psm::{BuiltInTopicKey, QosPolicyCount},
-        infrastructure::{
-            qos::{PublisherQos, TopicQos},
-            qos_policy::{
-                DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
-                TopicDataQosPolicy, UserDataQosPolicy,
+    use crate::{
+        dds_type::Endianness,
+        {
+            dcps_psm::{BuiltInTopicKey, QosPolicyCount},
+            infrastructure::{
+                qos::{PublisherQos, TopicQos},
+                qos_policy::{
+                    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+                    GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+                    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                    ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
+                    TopicDataQosPolicy, UserDataQosPolicy,
+                },
             },
         },
     };
@@ -1161,7 +1193,6 @@ mod test {
 
     use crate::implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::RtpsReaderProxy,
-        dds_type::Endianness,
         rtps_impl::{
             rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsReaderProxyImpl,
             rtps_stateless_writer_impl::RtpsReaderLocatorAttributesImpl,

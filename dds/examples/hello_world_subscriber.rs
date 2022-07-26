@@ -1,19 +1,13 @@
+use dds::dds_type::{DdsSerde, DdsType};
+use dds::return_type::DdsError;
+use dds::subscription::data_reader::DataReader;
 use dds::{
-    domain::{
-        domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
-    },
-    domain_participant_factory::DomainParticipantFactoryImpl,
+    dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
-    subscription::{
-        data_reader::{DataReader, FooDataReader},
-        data_reader_listener::DataReaderListener,
-        subscriber::Subscriber,
-    },
-    types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    DdsError,
+    subscription::data_reader_listener::DataReaderListener,
 };
 use dds_derive::DdsType;
-use dds::implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]
@@ -29,7 +23,7 @@ struct ExampleListener;
 impl DataReaderListener for ExampleListener {
     type Foo = HelloWorldType;
 
-    fn on_data_available(&mut self, the_reader: &dyn FooDataReader<Self::Foo>) {
+    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
         let sample = the_reader
             .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
             .unwrap();
@@ -43,7 +37,7 @@ impl DataReaderListener for ExampleListener {
 
 fn main() {
     let domain_id = 0;
-    let participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
         .create_participant(domain_id, None, None, 0)

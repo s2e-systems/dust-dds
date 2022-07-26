@@ -1,17 +1,16 @@
-use crate::api::{
-    dcps_psm::{DomainId, Time, TIME_INVALID},
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::Entity,
-        qos::{DataWriterQos, DomainParticipantQos},
-        qos_policy::ResourceLimitsQosPolicy,
-    },
-    publication::{data_writer::FooDataWriter, publisher::Publisher},
-    return_type::{DdsError, DdsResult},
-};
-use crate::implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl,
+use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use crate::return_type::DdsError;
+use crate::{
     dds_type::{DdsSerialize, DdsType, Endianness},
+    return_type::DdsResult,
+    {
+        dcps_psm::{DomainId, Time, TIME_INVALID},
+        infrastructure::{
+            entity::Entity,
+            qos::{DataWriterQos, DomainParticipantQos},
+            qos_policy::ResourceLimitsQosPolicy,
+        },
+    },
 };
 use rtps_pim::structure::types::GuidPrefix;
 

@@ -31,7 +31,10 @@ pub struct MismatchedDomain;
 
 impl core::fmt::Display for MismatchedDomain {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "The domain of the discovered participant doesn't match the local one")
+        write!(
+            f,
+            "The domain of the discovered participant doesn't match the local one"
+        )
     }
 }
 

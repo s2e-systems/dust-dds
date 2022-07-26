@@ -1,24 +1,20 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use crate::implementation::{
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-    },
+use crate::dds_type::DdsType;
+use crate::implementation::rtps_impl::{
+    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
 };
-use crate::api::{
-    dcps_psm::{Duration, InstanceHandle, StatusMask},
-    infrastructure::{
-        entity::Entity,
-        qos::{DataWriterQos, PublisherQos, TopicQos},
-        qos_policy::ReliabilityQosPolicyKind,
+use crate::return_type::{DdsError, DdsResult};
+use crate::{
+    publication::publisher_listener::PublisherListener,
+    {
+        dcps_psm::{Duration, InstanceHandle, StatusMask},
+        infrastructure::{
+            entity::Entity,
+            qos::{DataWriterQos, PublisherQos, TopicQos},
+            qos_policy::ReliabilityQosPolicyKind,
+        },
     },
-    publication::{
-        data_writer::DataWriterGetTopic,
-        publisher::{Publisher, PublisherDataWriterFactory, PublisherGetParticipant},
-        publisher_listener::PublisherListener,
-    },
-    return_type::{DdsError, DdsResult},
-    topic::topic_description::TopicDescription,
 };
 use rtps_pim::{
     behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
@@ -38,7 +34,6 @@ use crate::implementation::{
         discovered_reader_data::DiscoveredReaderData,
         discovered_writer_data::{DiscoveredWriterData, RtpsWriterProxy},
     },
-    dds_type::DdsType,
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
@@ -106,22 +101,39 @@ impl AddDataWriter for DdsShared<PublisherImpl> {
     }
 }
 
-impl<Foo> PublisherDataWriterFactory<Foo> for DdsShared<PublisherImpl>
-where
-    Foo: DdsType,
-{
-    type TopicType = DdsShared<TopicImpl>;
-    type DataWriterType = DdsShared<DataWriterImpl>;
+pub trait AnnounceDataWriter {
+    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData);
+}
 
-    fn datawriter_factory_create_datawriter(
+impl AnnounceDataWriter for DdsShared<PublisherImpl> {
+    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
+        if let Ok(domain_participant) = self.parent_participant.upgrade() {
+            domain_participant.add_created_data_writer(&DiscoveredWriterData {
+                writer_proxy: RtpsWriterProxy {
+                    unicast_locator_list: domain_participant
+                        .default_unicast_locator_list()
+                        .to_vec(),
+                    multicast_locator_list: domain_participant
+                        .default_multicast_locator_list()
+                        .to_vec(),
+                    ..sedp_discovered_writer_data.writer_proxy
+                },
+                ..sedp_discovered_writer_data
+            });
+        }
+    }
+}
+
+impl DdsShared<PublisherImpl> {
+    pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &Self::TopicType,
+        a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataWriterQos>,
-        a_listener: Option<<Self::DataWriterType as Entity>::Listener>,
+        a_listener: Option<<DdsShared<DataWriterImpl> as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DdsResult<Self::DataWriterType>
+    ) -> DdsResult<DdsShared<DataWriterImpl>>
     where
-        Self::DataWriterType: Entity,
+        Foo: DdsType,
     {
         let topic_shared = a_topic;
 
@@ -212,10 +224,7 @@ where
         Ok(data_writer_shared)
     }
 
-    fn datawriter_factory_delete_datawriter(
-        &self,
-        a_datawriter: &Self::DataWriterType,
-    ) -> DdsResult<()> {
+    pub fn delete_datawriter(&self, a_datawriter: &DdsShared<DataWriterImpl>) -> DdsResult<()> {
         let data_writer_list = &mut self.data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
@@ -230,16 +239,19 @@ where
         Ok(())
     }
 
-    fn datawriter_factory_lookup_datawriter(
+    pub fn lookup_datawriter<Foo>(
         &self,
-        topic: &Self::TopicType,
-    ) -> DdsResult<Self::DataWriterType> {
+        topic: &DdsShared<TopicImpl>,
+    ) -> DdsResult<DdsShared<DataWriterImpl>>
+    where
+        Foo: DdsType,
+    {
         let data_writer_list = &self.data_writer_list.write_lock();
 
         data_writer_list
             .iter()
             .find_map(|data_writer_shared| {
-                let data_writer_topic = data_writer_shared.datawriter_get_topic().ok()?;
+                let data_writer_topic = data_writer_shared.get_topic().ok()?;
 
                 if data_writer_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_writer_topic.get_type_name().ok()? == Foo::type_name()
@@ -251,33 +263,8 @@ where
             })
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
-}
 
-pub trait AnnounceDataWriter {
-    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData);
-}
-
-impl AnnounceDataWriter for DdsShared<PublisherImpl> {
-    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
-        if let Ok(domain_participant) = self.parent_participant.upgrade() {
-            domain_participant.add_created_data_writer(&DiscoveredWriterData {
-                writer_proxy: RtpsWriterProxy {
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    ..sedp_discovered_writer_data.writer_proxy
-                },
-                ..sedp_discovered_writer_data
-            });
-        }
-    }
-}
-
-impl Publisher for DdsShared<PublisherImpl> {
-    fn suspend_publications(&self) -> DdsResult<()> {
+    pub fn suspend_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -285,7 +272,7 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn resume_publications(&self) -> DdsResult<()> {
+    pub fn resume_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -293,7 +280,7 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn begin_coherent_changes(&self) -> DdsResult<()> {
+    pub fn begin_coherent_changes(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -301,7 +288,7 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn end_coherent_changes(&self) -> DdsResult<()> {
+    pub fn end_coherent_changes(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -309,7 +296,7 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -317,7 +304,14 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DdsResult<()> {
+    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
+        Ok(self
+            .parent_participant
+            .upgrade()
+            .expect("Failed to get parent participant of publisher"))
+    }
+
+    pub fn delete_contained_entities(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -325,31 +319,20 @@ impl Publisher for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
+    pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
         todo!()
     }
 
-    fn copy_from_topic_qos(
+    pub fn copy_from_topic_qos(
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
-    }
-}
-
-impl PublisherGetParticipant for DdsShared<PublisherImpl> {
-    type DomainParticipant = DdsShared<DomainParticipantImpl>;
-
-    fn publisher_get_participant(&self) -> DdsResult<Self::DomainParticipant> {
-        Ok(self
-            .parent_participant
-            .upgrade()
-            .expect("Failed to get parent participant of publisher"))
     }
 }
 
@@ -385,7 +368,7 @@ impl Entity for DdsShared<PublisherImpl> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<crate::api::infrastructure::entity::StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
         todo!()
     }
 

@@ -1,6 +1,7 @@
-use crate::implementation::{
+use crate::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-    parameter_list_serde::{
+    implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_dds_api::{
@@ -17,7 +18,6 @@ use crate::implementation::{
         },
     },
 };
-use crate::api::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rtps_pim::{
     behavior::types::Duration,
     discovery::{
@@ -136,7 +136,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> crate::api::return_type::DdsResult<()> {
+    ) -> crate::return_type::DdsResult<()> {
         let guid = Guid {
             prefix: self.participant_proxy.guid_prefix,
             entity_id: ENTITYID_PARTICIPANT,
@@ -207,7 +207,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize(buf: &mut &'de [u8]) -> crate::api::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> crate::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let guid = param_list.get::<GuidDeserialize, Guid>(PID_PARTICIPANT_GUID)?;
@@ -265,8 +265,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::dds_type::LittleEndian;
-    use crate::api::infrastructure::qos_policy::UserDataQosPolicy;
+    use crate::dds_type::LittleEndian;
+    use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use rtps_pim::{
         discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
         messages::types::Count,

@@ -1,11 +1,7 @@
-use crate::api::{
-    dcps_psm::DomainId, domain::domain_participant::DomainParticipant,
-    infrastructure::qos::DomainParticipantQos, publication::publisher::Publisher,
-    return_type::DdsError,
-};
-use crate::implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl, dds_type::DdsType,
-};
+use crate::dds_type::DdsType;
+use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use crate::return_type::DdsError;
+use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
 use rtps_pim::structure::types::GuidPrefix;
 
 struct Foo;
@@ -46,7 +42,7 @@ fn create_and_delete_datawriter_succeeds() {
         .create_datawriter::<Foo>(&topic, None, None, 0)
         .unwrap();
 
-    publisher.delete_datawriter::<Foo>(&data_writer).unwrap();
+    publisher.delete_datawriter(&data_writer).unwrap();
 }
 
 #[test]
@@ -73,7 +69,7 @@ fn delete_datawriter_from_other_publisher_returns_error() {
         .unwrap();
 
     assert!(matches!(
-        publisher2.delete_datawriter::<Foo>(&data_writer),
+        publisher2.delete_datawriter(&data_writer),
         Err(DdsError::PreconditionNotMet(_))
     ));
 }

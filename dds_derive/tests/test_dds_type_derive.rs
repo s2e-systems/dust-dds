@@ -1,6 +1,6 @@
 use cdr::{CdrBe, CdrLe};
+use dds::dds_type::{BigEndian, DdsType, LittleEndian};
 use dds_derive::DdsType;
-use dds::implementation::dds_type::{BigEndian, DdsType, LittleEndian};
 use serde::{Deserialize, Serialize};
 
 #[derive(DdsType)]
@@ -266,7 +266,6 @@ fn test_enum_no_key_get() {
     let enk = EnumNoKey::_Two;
     assert!(enk.get_serialized_key::<LittleEndian>().is_empty());
 }
-
 
 #[test]
 fn test_enum_no_key_set() {

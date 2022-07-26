@@ -1,11 +1,11 @@
 use std::io::Read;
 
 use byteorder::{ByteOrder, ReadBytesExt};
-use crate::api::return_type::{DdsError, DdsResult};
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+use crate::{
     dds_type::{BigEndian, Endianness, LittleEndian},
+    implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
+    return_type::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq)]

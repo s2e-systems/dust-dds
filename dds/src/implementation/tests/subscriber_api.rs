@@ -1,11 +1,7 @@
-use crate::api::{
-    dcps_psm::DomainId, domain::domain_participant::DomainParticipant,
-    infrastructure::qos::DomainParticipantQos, return_type::DdsError,
-    subscription::subscriber::Subscriber,
-};
-use crate::implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl, dds_type::DdsType,
-};
+use crate::dds_type::DdsType;
+use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use crate::return_type::DdsError;
+use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
 use rtps_pim::structure::types::GuidPrefix;
 
 struct Foo;
@@ -46,7 +42,7 @@ fn create_and_delete_datareader_succeeds() {
         .create_datareader::<Foo>(&topic, None, None, 0)
         .unwrap();
 
-    subscriber.delete_datareader::<Foo>(&data_reader).unwrap();
+    subscriber.delete_datareader(&data_reader).unwrap();
 }
 
 #[test]
@@ -73,7 +69,7 @@ fn delete_datareader_from_other_subscriber_returns_error() {
         .unwrap();
 
     assert!(matches!(
-        subscriber2.delete_datareader::<Foo>(&data_reader),
+        subscriber2.delete_datareader(&data_reader),
         Err(DdsError::PreconditionNotMet(_))
     ));
 }

@@ -1,8 +1,10 @@
 use std::io::Write;
 
-use crate::implementation::{
+use crate::return_type::DdsResult;
+use crate::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-    parameter_list_serde::{
+    implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_dds_api::{
@@ -27,9 +29,6 @@ use crate::implementation::{
             EntityIdDeserialize, EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
         },
     },
-};
-use crate::api::{
-    builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey, return_type::DdsResult,
 };
 use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
@@ -275,8 +274,8 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::dds_type::LittleEndian;
-    use crate::api::{
+    use crate::dds_type::LittleEndian;
+    use crate::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,

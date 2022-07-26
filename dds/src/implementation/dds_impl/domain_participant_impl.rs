@@ -4,37 +4,38 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::implementation::{
-    rtps_impl::{
-        rtps_group_impl::RtpsGroupImpl,
-        rtps_participant_impl::RtpsParticipantImpl,
-        rtps_stateless_writer_impl::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
-        utils::clock::StdTimer,
-    },
-    utils::rtps_communication_traits::SendRtpsMessage,
-};
-use crate::api::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps_psm::{
-        BuiltInTopicKey, DomainId, InstanceHandle, StatusMask, Time, ANY_INSTANCE_STATE,
-        ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-    },
-    domain::{
-        domain_participant::{DomainParticipant, DomainParticipantTopicFactory},
-        domain_participant_listener::DomainParticipantListener,
-    },
-    infrastructure::{
-        entity::Entity,
-        qos::{
-            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
-            TopicQos,
+use crate::{
+    dds_type::DdsType,
+    return_type::DdsResult,
+    {
+        builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+        dcps_psm::{
+            BuiltInTopicKey, DomainId, InstanceHandle, StatusMask, Time, ANY_INSTANCE_STATE,
+            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
         },
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+        infrastructure::{
+            entity::Entity,
+            qos::{
+                DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
+                TopicQos,
+            },
+            qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+        },
     },
-    publication::{data_writer::FooDataWriter, publisher::Publisher},
-    return_type::{DdsError, DdsResult},
-    subscription::{data_reader::FooDataReader, subscriber::Subscriber},
-    topic::topic_description::TopicDescription,
+};
+use crate::{
+    implementation::{
+        rtps_impl::{
+            rtps_group_impl::RtpsGroupImpl,
+            rtps_participant_impl::RtpsParticipantImpl,
+            rtps_stateless_writer_impl::{
+                RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl,
+            },
+            utils::clock::StdTimer,
+        },
+        utils::rtps_communication_traits::SendRtpsMessage,
+    },
+    return_type::DdsError,
 };
 use rtps_pim::{
     behavior::writer::reader_locator::RtpsReaderLocatorConstructor,
@@ -70,7 +71,6 @@ use crate::implementation::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
     },
-    dds_type::DdsType,
     utils::{
         discovery_traits::{AddMatchedReader, AddMatchedWriter},
         shared_object::{DdsRwLock, DdsShared},
@@ -86,10 +86,11 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-use dds_transport::{TransportWrite, TransportRead};
+use crate::domain::domain_participant_listener::DomainParticipantListener;
+
+use dds_transport::{TransportRead, TransportWrite};
 
 pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
-pub const BUILT_IN_TOPIC: EntityKind = 0xca;
 
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipantImpl,
@@ -168,21 +169,140 @@ impl DomainParticipantImpl {
     }
 }
 
-impl<Foo> DomainParticipantTopicFactory<Foo> for DdsShared<DomainParticipantImpl>
-where
-    Foo: DdsType,
-{
-    type TopicType = DdsShared<TopicImpl>;
+pub trait AnnounceTopic {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData);
+}
 
-    fn topic_factory_create_topic(
+impl AnnounceTopic for DdsShared<DomainParticipantImpl> {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
+        let builtin_publisher_option = self.builtin_publisher.read_lock().clone();
+        if let Some(builtin_publisher) = builtin_publisher_option {
+            if let Ok(topic_creation_topic) =
+                self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
+            {
+                if let Ok(sedp_builtin_topic_announcer) = builtin_publisher
+                    .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
+                {
+                    sedp_builtin_topic_announcer
+                        .write(&sedp_discovered_topic_data, None)
+                        .unwrap();
+                }
+            }
+        }
+    }
+}
+
+impl DdsShared<DomainParticipantImpl> {
+    pub fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        _a_listener: Option<<DdsShared<PublisherImpl> as Entity>::Listener>,
+        _mask: StatusMask,
+    ) -> DdsResult<DdsShared<PublisherImpl>> {
+        let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
+        let publisher_counter = self
+            .user_defined_publisher_counter
+            .fetch_add(1, Ordering::Relaxed);
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group, self.downgrade());
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            publisher_impl_shared.enable()?;
+        }
+
+        self.user_defined_publisher_list
+            .write_lock()
+            .push(publisher_impl_shared.clone());
+
+        Ok(publisher_impl_shared)
+    }
+
+    pub fn delete_publisher(&self, a_publisher: &DdsShared<PublisherImpl>) -> DdsResult<()> {
+        if !DdsShared::ptr_eq(&a_publisher.get_participant()?, self) {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        if !a_publisher.is_empty() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher still contains data writers".to_string(),
+            ));
+        }
+
+        self.user_defined_publisher_list
+            .write_lock()
+            .retain(|x| x != a_publisher);
+
+        Ok(())
+    }
+
+    pub fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        _a_listener: Option<<DdsShared<SubscriberImpl> as Entity>::Listener>,
+        _mask: StatusMask,
+    ) -> DdsResult<DdsShared<SubscriberImpl>> {
+        let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
+        let subcriber_counter = self
+            .user_defined_subscriber_counter
+            .fetch_add(1, Ordering::Relaxed);
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
+        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
+        let rtps_group = RtpsGroupImpl::new(guid);
+        let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group, self.downgrade());
+        if *self.enabled.read_lock()
+            && self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            subscriber_shared.enable()?;
+        }
+
+        self.user_defined_subscriber_list
+            .write_lock()
+            .push(subscriber_shared.clone());
+
+        Ok(subscriber_shared)
+    }
+
+    pub fn delete_subscriber(&self, a_subscriber: &DdsShared<SubscriberImpl>) -> DdsResult<()> {
+        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?, self) {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
+        if !a_subscriber.is_empty() {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber still contains data readers".to_string(),
+            ));
+        }
+
+        self.user_defined_subscriber_list
+            .write_lock()
+            .retain(|x| x != a_subscriber);
+        Ok(())
+    }
+
+    pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<<Self::TopicType as Entity>::Listener>,
+        _a_listener: Option<<DdsShared<TopicImpl> as Entity>::Listener>,
         _mask: StatusMask,
-    ) -> DdsResult<Self::TopicType>
+    ) -> DdsResult<DdsShared<TopicImpl>>
     where
-        Self::TopicType: Entity,
+        Foo: DdsType,
     {
         let topic_counter = self
             .user_defined_topic_counter
@@ -219,7 +339,7 @@ where
         Ok(topic_shared)
     }
 
-    fn topic_factory_delete_topic(&self, a_topic: &Self::TopicType) -> DdsResult<()> {
+    pub fn delete_topic<Foo>(&self, a_topic: &DdsShared<TopicImpl>) -> DdsResult<()> {
         let mut topic_list = self.topic_list.write_lock();
         let topic_list_position = topic_list
             .iter()
@@ -243,11 +363,14 @@ where
         Ok(())
     }
 
-    fn topic_factory_find_topic(
+    pub fn find_topic<Foo>(
         &self,
         topic_name: &str,
-        _timeout: crate::api::dcps_psm::Duration,
-    ) -> DdsResult<Self::TopicType> {
+        _timeout: crate::dcps_psm::Duration,
+    ) -> DdsResult<DdsShared<TopicImpl>>
+    where
+        Foo: DdsType,
+    {
         self.topic_list
             .read_lock()
             .iter()
@@ -263,10 +386,10 @@ where
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 
-    fn topic_factory_lookup_topicdescription(
-        &self,
-        topic_name: &str,
-    ) -> DdsResult<Self::TopicType> {
+    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<DdsShared<TopicImpl>>
+    where
+        Foo: DdsType,
+    {
         self.topic_list
             .read_lock()
             .iter()
@@ -281,143 +404,8 @@ where
             })
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
-}
 
-pub trait AnnounceTopic {
-    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData);
-}
-
-impl AnnounceTopic for DdsShared<DomainParticipantImpl> {
-    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
-        let builtin_publisher_option = self.builtin_publisher.read_lock().clone();
-        if let Some(builtin_publisher) = builtin_publisher_option {
-            if let Ok(topic_creation_topic) =
-                self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
-            {
-                if let Ok(sedp_builtin_topic_announcer) = builtin_publisher
-                    .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
-                {
-                    sedp_builtin_topic_announcer
-                        .write(&sedp_discovered_topic_data, None)
-                        .unwrap();
-                }
-            }
-        }
-    }
-}
-
-impl DomainParticipant for DdsShared<DomainParticipantImpl> {
-    type PublisherType = DdsShared<PublisherImpl>;
-    type SubscriberType = DdsShared<SubscriberImpl>;
-
-    fn create_publisher(
-        &self,
-        qos: Option<PublisherQos>,
-        _a_listener: Option<<Self::PublisherType as Entity>::Listener>,
-        _mask: StatusMask,
-    ) -> DdsResult<Self::PublisherType>
-    where
-        Self::PublisherType: Entity,
-    {
-        let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
-        let publisher_counter = self
-            .user_defined_publisher_counter
-            .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group, self.downgrade());
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            publisher_impl_shared.enable()?;
-        }
-
-        self.user_defined_publisher_list
-            .write_lock()
-            .push(publisher_impl_shared.clone());
-
-        Ok(publisher_impl_shared)
-    }
-
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_publisher.get_participant()?, self) {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        if !a_publisher.is_empty() {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher still contains data writers".to_string(),
-            ));
-        }
-
-        self.user_defined_publisher_list
-            .write_lock()
-            .retain(|x| x != a_publisher);
-
-        Ok(())
-    }
-
-    fn create_subscriber(
-        &self,
-        qos: Option<SubscriberQos>,
-        _a_listener: Option<<Self::SubscriberType as Entity>::Listener>,
-        _mask: StatusMask,
-    ) -> DdsResult<Self::SubscriberType>
-    where
-        Self::SubscriberType: Entity,
-    {
-        let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
-        let subcriber_counter = self
-            .user_defined_subscriber_counter
-            .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
-        let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group, self.downgrade());
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            subscriber_shared.enable()?;
-        }
-
-        self.user_defined_subscriber_list
-            .write_lock()
-            .push(subscriber_shared.clone());
-
-        Ok(subscriber_shared)
-    }
-
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?, self) {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
-        }
-
-        if !a_subscriber.is_empty() {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber still contains data readers".to_string(),
-            ));
-        }
-
-        self.user_defined_subscriber_list
-            .write_lock()
-            .retain(|x| x != a_subscriber);
-        Ok(())
-    }
-
-    fn get_builtin_subscriber(&self) -> DdsResult<Self::SubscriberType> {
+    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<SubscriberImpl>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -430,7 +418,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
             .clone())
     }
 
-    fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -438,7 +426,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -446,7 +434,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn ignore_publication(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_publication(&self, _handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -454,7 +442,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn ignore_subscription(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_subscription(&self, _handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -462,7 +450,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn get_domain_id(&self) -> DdsResult<DomainId> {
+    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -470,7 +458,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> DdsResult<()> {
+    pub fn delete_contained_entities(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -478,7 +466,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn assert_liveliness(&self) -> DdsResult<()> {
+    pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -486,31 +474,31 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DdsResult<()> {
+    pub fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
+    pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
         todo!()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
+    pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
         todo!()
     }
 
-    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DdsResult<()> {
+    pub fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
+    pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         Ok(self.default_topic_qos.clone())
     }
 
-    fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
+    pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -523,7 +511,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
             .collect())
     }
 
-    fn get_discovered_participant_data(
+    pub fn get_discovered_participant_data(
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
@@ -538,7 +526,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
             .ok_or(DdsError::BadParameter)
     }
 
-    fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
+    pub fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -546,7 +534,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn get_discovered_topic_data(
+    pub fn get_discovered_topic_data(
         &self,
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle,
@@ -558,7 +546,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
+    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -566,7 +554,7 @@ impl DomainParticipant for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn get_current_time(&self) -> DdsResult<crate::api::dcps_psm::Time> {
+    pub fn get_current_time(&self) -> DdsResult<crate::dcps_psm::Time> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -608,7 +596,7 @@ impl Entity for DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<crate::api::infrastructure::entity::StatusCondition> {
+    fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
         todo!()
     }
 

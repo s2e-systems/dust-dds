@@ -1,7 +1,5 @@
 use crate::implementation::{
-    dds_impl::{
-        publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl,
-    },
+    dds_impl::{publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl},
     utils::{
         rtps_communication_traits::{
             ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage,

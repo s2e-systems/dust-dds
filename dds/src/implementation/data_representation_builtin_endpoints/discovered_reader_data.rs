@@ -1,8 +1,9 @@
 use std::io::Write;
 
-use crate::implementation::{
+use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
+use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-    parameter_list_serde::{
+    implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_dds_api::{
@@ -27,7 +28,6 @@ use crate::implementation::{
         },
     },
 };
-use crate::api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use rtps_pim::structure::types::{EntityId, Guid, Locator};
 
 use super::parameter_id_values::{
@@ -66,7 +66,7 @@ impl DdsType for DiscoveredReaderData {
 }
 
 impl DdsSerialize for DiscoveredReaderData {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> crate::api::return_type::DdsResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> crate::return_type::DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
@@ -173,7 +173,7 @@ impl DdsSerialize for DiscoveredReaderData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> crate::api::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> crate::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy
@@ -258,8 +258,8 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::dds_type::LittleEndian;
-    use crate::api::{
+    use crate::dds_type::LittleEndian;
+    use crate::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,

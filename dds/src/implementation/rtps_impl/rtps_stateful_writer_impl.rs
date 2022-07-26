@@ -48,12 +48,6 @@ use super::{
     rtps_writer_impl::RtpsWriterImpl,
 };
 
-pub enum RtpsStatefulSubmessage<'a> {
-    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-    Gap(GapSubmessage<Vec<SequenceNumber>>),
-    Heartbeat(HeartbeatSubmessage),
-}
-
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyImpl {
     remote_reader_guid: Guid,

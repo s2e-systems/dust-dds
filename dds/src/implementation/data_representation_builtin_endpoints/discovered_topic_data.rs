@@ -1,6 +1,7 @@
-use crate::implementation::{
+use crate::builtin_topics::TopicBuiltinTopicData;
+use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
-    parameter_list_serde::{
+    implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_dds_api::{
@@ -22,7 +23,6 @@ use crate::implementation::{
         },
     },
 };
-use crate::api::builtin_topics::TopicBuiltinTopicData;
 
 use super::parameter_id_values::{
     PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
@@ -51,7 +51,7 @@ impl DdsSerialize for DiscoveredTopicData {
     fn serialize<W: std::io::Write, E: Endianness>(
         &self,
         writer: W,
-    ) -> crate::api::return_type::DdsResult<()> {
+    ) -> crate::return_type::DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -137,7 +137,7 @@ impl DdsSerialize for DiscoveredTopicData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredTopicData {
-    fn deserialize(buf: &mut &'_ [u8]) -> crate::api::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> crate::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
@@ -196,7 +196,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{
+    use crate::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
@@ -207,7 +207,7 @@ mod tests {
         },
     };
 
-    use crate::implementation::dds_type::LittleEndian;
+    use crate::dds_type::LittleEndian;
 
     use super::*;
 

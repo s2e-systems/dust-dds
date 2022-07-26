@@ -1,4 +1,4 @@
-use crate::api::{
+use crate::{
     dcps_psm::{BuiltInTopicKey, Duration},
     infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DestinationOrderQosPolicyKind,
@@ -207,8 +207,8 @@ pub struct LivelinessQosPolicyDeserialize(
 
 #[derive(Debug, PartialEq)]
 pub enum ReliabilityQosPolicyKindDef {
-    BestEffortReliabilityQos,
-    ReliableReliabilityQos,
+    _BestEffortReliabilityQos,
+    _ReliableReliabilityQos,
 }
 
 const BEST_EFFORT: i32 = 1;

@@ -1,12 +1,15 @@
-use crate::api::{
-    builtin_topics::TopicBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, InconsistentTopicStatus, InstanceHandle, StatusMask},
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::TopicQos,
+use crate::return_type::DdsError;
+use crate::topic_definition::topic_listener::TopicListener;
+use crate::{
+    return_type::DdsResult,
+    {
+        builtin_topics::TopicBuiltinTopicData,
+        dcps_psm::{BuiltInTopicKey, InconsistentTopicStatus, InstanceHandle, StatusMask},
+        infrastructure::{
+            entity::{Entity, StatusCondition},
+            qos::TopicQos,
+        },
     },
-    return_type::{DdsError, DdsResult},
-    topic::{topic_description::TopicDescription, topic_listener::TopicListener, Topic},
 };
 use rtps_pim::structure::types::Guid;
 
@@ -16,6 +19,24 @@ use crate::implementation::{
 };
 
 use super::domain_participant_impl::{AnnounceTopic, DomainParticipantImpl};
+
+pub trait AnyTopicListener {
+    fn trigger_on_inconsistent_topic(
+        &mut self,
+        _the_topic: &DdsShared<TopicImpl>,
+        _status: InconsistentTopicStatus,
+    );
+}
+
+impl<Foo> AnyTopicListener for Box<dyn TopicListener<Foo = Foo>> {
+    fn trigger_on_inconsistent_topic(
+        &mut self,
+        _the_topic: &DdsShared<TopicImpl>,
+        _status: InconsistentTopicStatus,
+    ) {
+        todo!()
+    }
+}
 
 pub struct TopicImpl {
     guid: Guid,
@@ -45,35 +66,31 @@ impl TopicImpl {
     }
 }
 
-impl Topic for DdsShared<TopicImpl> {
-    fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
+impl DdsShared<TopicImpl> {
+    pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
         todo!()
     }
-}
 
-impl TopicDescription for DdsShared<TopicImpl> {
-    type DomainParticipant = DdsShared<DomainParticipantImpl>;
-
-    fn get_participant(&self) -> DdsResult<Self::DomainParticipant> {
+    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
         Ok(self
             .parent_participant
             .upgrade()
             .expect("Failed to get parent participant of topic"))
     }
 
-    fn get_type_name(&self) -> DdsResult<&'static str> {
+    pub fn get_type_name(&self) -> DdsResult<&'static str> {
         Ok(self.type_name)
     }
 
-    fn get_name(&self) -> DdsResult<String> {
+    pub fn get_name(&self) -> DdsResult<String> {
         Ok(self.topic_name.clone())
     }
 }
 
 impl Entity for DdsShared<TopicImpl> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener>;
+    type Listener = Box<dyn AnyTopicListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();

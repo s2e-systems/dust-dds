@@ -1,11 +1,10 @@
 use std::io::Write;
 
+use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use dds::return_type::{DdsError, DdsResult};
 use dds::{
-    domain::{domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory},
-    domain_participant_factory::DomainParticipantFactoryImpl, infrastructure::entity::Entity,
-    publication::publisher::Publisher, subscription::subscriber::Subscriber, DdsError,
+    domain::domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
 };
-use dds::implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 struct TestType;
 
@@ -20,20 +19,20 @@ impl DdsType for TestType {
 }
 
 impl DdsSerialize for TestType {
-    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> dds::DdsResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
         todo!()
     }
 }
 
 impl<'de> DdsDeserialize<'de> for TestType {
-    fn deserialize(_buf: &mut &'de [u8]) -> dds::DdsResult<Self> {
+    fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
         todo!()
     }
 }
 
 #[test]
 fn create_delete_publisher() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -50,7 +49,7 @@ fn create_delete_publisher() {
 
 #[test]
 fn create_delete_subscriber() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -67,7 +66,7 @@ fn create_delete_subscriber() {
 
 #[test]
 fn create_delete_topic() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -86,7 +85,7 @@ fn create_delete_topic() {
 
 #[test]
 fn not_allowed_to_delete_publisher_from_different_participant() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -105,7 +104,7 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
 
 #[test]
 fn not_allowed_to_delete_subscriber_from_different_participant() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -124,7 +123,7 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
 
 #[test]
 fn not_allowed_to_delete_topic_from_different_participant() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -145,7 +144,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
 
 #[test]
 fn not_allowed_to_delete_publisher_with_writer() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -168,7 +167,7 @@ fn not_allowed_to_delete_publisher_with_writer() {
 
 #[test]
 fn not_allowed_to_delete_subscriber_with_reader() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -191,7 +190,7 @@ fn not_allowed_to_delete_subscriber_with_reader() {
 
 #[test]
 fn not_allowed_to_delete_topic_attached_to_reader() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -214,7 +213,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
 
 #[test]
 fn not_allowed_to_delete_topic_attached_to_writer() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -237,7 +236,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
 
 #[test]
 fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -257,7 +256,7 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
 
 #[test]
 fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -277,7 +276,7 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
 
 #[test]
 fn allowed_to_delete_topic_with_created_and_deleted_writer() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
@@ -297,7 +296,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
 
 #[test]
 fn allowed_to_delete_topic_with_created_and_deleted_reader() {
-    let domain_participant_factory = DomainParticipantFactoryImpl::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(0, None, None, 0)
         .unwrap();
