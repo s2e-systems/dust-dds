@@ -1,4 +1,4 @@
-use dds_api::{
+use crate::api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
@@ -11,7 +11,7 @@ use dds_api::{
     },
     return_type::DdsResult,
 };
-use dds_implementation::{
+use crate::implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl, dds_type::DdsType,
     utils::shared_object::DdsWeak,
 };

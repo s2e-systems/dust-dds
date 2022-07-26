@@ -5,7 +5,7 @@ use std::{
     sync::Mutex,
 };
 
-use dds_api::{
+use crate::api::{
     dcps_psm::{DomainId, StatusMask},
     domain::{
         domain_participant_factory::DomainParticipantFactory,
@@ -17,7 +17,7 @@ use dds_api::{
     },
     return_type::{DdsError, DdsResult},
 };
-use dds_implementation::{
+use crate::implementation::{
     dds_impl::domain_participant_impl::{
         AnnounceParticipant, CreateBuiltIns, DomainParticipantImpl, ReceiveBuiltInData,
         ReceiveUserDefinedData, SedpReaderDiscovery, SedpWriterDiscovery, SendBuiltInData,
@@ -477,7 +477,7 @@ mod tests {
     use crate::{subscriber_proxy::SubscriberProxy, topic_proxy::TopicProxy};
 
     use super::*;
-    use dds_api::{
+    use crate::api::{
         dcps_psm::{
             BuiltInTopicKey, PublicationMatchedStatus, SubscriptionMatchedStatus,
             ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
@@ -494,7 +494,7 @@ mod tests {
         subscription::{data_reader::FooDataReader, data_reader_listener::DataReaderListener},
         topic::topic_description::TopicDescription,
     };
-    use dds_implementation::{
+    use crate::implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
@@ -714,16 +714,16 @@ mod tests {
     }
 
     impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> dds_api::return_type::DdsResult<Self> {
+        fn deserialize(buf: &mut &'de [u8]) -> crate::api::return_type::DdsResult<Self> {
             Ok(UserData(buf[0]))
         }
     }
 
     impl DdsSerialize for UserData {
-        fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
+        fn serialize<W: std::io::Write, E: crate::implementation::dds_type::Endianness>(
             &self,
             mut writer: W,
-        ) -> dds_api::return_type::DdsResult<()> {
+        ) -> crate::api::return_type::DdsResult<()> {
             writer
                 .write(&[self.0])
                 .map(|_| ())
@@ -901,19 +901,19 @@ mod tests {
             fn on_liveliness_lost(
                 &mut self,
                 _the_writer: &dyn FooDataWriter<UserData>,
-                _status: dds_api::dcps_psm::LivelinessLostStatus,
+                _status: crate::api::dcps_psm::LivelinessLostStatus,
             );
 
             fn on_offered_deadline_missed(
                 &mut self,
                 _the_writer: &dyn FooDataWriter<UserData>,
-                _status: dds_api::dcps_psm::OfferedDeadlineMissedStatus,
+                _status: crate::api::dcps_psm::OfferedDeadlineMissedStatus,
             );
 
             fn on_offered_incompatible_qos(
                 &mut self,
                 _the_writer: &dyn FooDataWriter<UserData>,
-                _status: dds_api::dcps_psm::OfferedIncompatibleQosStatus,
+                _status: crate::api::dcps_psm::OfferedIncompatibleQosStatus,
             );
         }
     }

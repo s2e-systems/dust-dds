@@ -1,3 +1,4 @@
+use dds::implementation::dds_type::{DdsSerde, DdsType};
 use dds::{
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
@@ -9,7 +10,6 @@ use dds::{
     },
 };
 use dds_derive::DdsType;
-use dds_implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]

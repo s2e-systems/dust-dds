@@ -1,3 +1,4 @@
+use dds::implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use dds::{
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
@@ -11,7 +12,6 @@ use dds::{
     types::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     DdsError,
 };
-use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -27,7 +27,7 @@ impl DdsType for UserData {
 }
 
 impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: dds_implementation::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: dds::implementation::dds_type::Endianness>(
         &self,
         mut writer: W,
     ) -> dds::DdsResult<()> {

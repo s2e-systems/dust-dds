@@ -5,7 +5,7 @@ use dds::{
     domain_participant_factory::DomainParticipantFactoryImpl, infrastructure::entity::Entity,
     publication::publisher::Publisher, subscription::subscriber::Subscriber, DdsError,
 };
-use dds_implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use dds::implementation::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 
 struct TestType;
 

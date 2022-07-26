@@ -1,4 +1,4 @@
-use dds_api::{
+use crate::api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -10,7 +10,7 @@ use dds_api::{
     },
     return_type::DdsResult,
 };
-use dds_implementation::{
+use crate::implementation::{
     dds_impl::{
         data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
         publisher_impl::PublisherImpl,

@@ -1,6 +1,6 @@
 use cdr::{CdrBe, CdrLe};
 use dds_derive::DdsType;
-use dds_implementation::dds_type::{BigEndian, DdsType, LittleEndian};
+use dds::implementation::dds_type::{BigEndian, DdsType, LittleEndian};
 use serde::{Deserialize, Serialize};
 
 #[derive(DdsType)]
@@ -18,7 +18,7 @@ fn test_struct_no_key_info() {
 #[test]
 fn test_struct_no_key_get() {
     let snk = StructNoKey { a: 1, b: 2 };
-    assert_eq!(snk.get_serialized_key::<BigEndian>(), vec![]);
+    assert!(snk.get_serialized_key::<BigEndian>().is_empty());
 }
 
 #[test]
@@ -208,7 +208,7 @@ fn test_tuple_no_key_info() {
 #[test]
 fn test_tuple_no_key_get() {
     let twk = TupleNoKey(10, 25);
-    assert_eq!(twk.get_serialized_key::<LittleEndian>(), vec![]);
+    assert!(twk.get_serialized_key::<LittleEndian>().is_empty());
 }
 
 #[test]
@@ -264,8 +264,9 @@ fn test_enum_no_key_info() {
 #[test]
 fn test_enum_no_key_get() {
     let enk = EnumNoKey::_Two;
-    assert_eq!(enk.get_serialized_key::<LittleEndian>(), vec![]);
+    assert!(enk.get_serialized_key::<LittleEndian>().is_empty());
 }
+
 
 #[test]
 fn test_enum_no_key_set() {

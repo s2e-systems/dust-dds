@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket};
 use crate::mapping_traits::{from_bytes, to_bytes};
 use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
 
-use dds_implementation::transport::{RtpsMessage, TransportRead, TransportWrite};
+use dds_transport::{RtpsMessage, TransportRead, TransportWrite};
 
 const BUFFER_SIZE: usize = 32000;
 pub struct UdpUnicastTransport {

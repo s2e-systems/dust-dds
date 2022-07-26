@@ -1,4 +1,4 @@
-use dds_api::{
+use crate::api::{
     dcps_psm::{
         InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
         ViewStateMask,
@@ -14,7 +14,7 @@ use dds_api::{
         subscriber_listener::SubscriberListener,
     },
 };
-use dds_implementation::{
+use crate::implementation::{
     dds_impl::{
         data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         subscriber_impl::SubscriberImpl,

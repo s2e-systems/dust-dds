@@ -13,7 +13,7 @@ use dds::{
     DdsError,
 };
 use dds_derive::DdsType;
-use dds_implementation::dds_type::{DdsSerde, DdsType};
+use dds::implementation::dds_type::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]

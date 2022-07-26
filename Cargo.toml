@@ -2,9 +2,8 @@
 
 members = [
     "dds",
-    "dds_api",
-    "dds_implementation",
     "dds_derive",
+    "dds_transport",
     "rtps_pim",
     "rtps_udp_psm",
     "serde_cdr"

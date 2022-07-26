@@ -2,7 +2,7 @@ use std::io::{BufRead, Error, Write};
 
 use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
 
-use dds_implementation::transport::{RtpsMessage, RtpsSubmessageType};
+use dds_transport::{RtpsMessage, RtpsSubmessageType};
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

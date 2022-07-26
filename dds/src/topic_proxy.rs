@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use dds_api::{
+use crate::api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -9,7 +9,7 @@ use dds_api::{
     return_type::DdsResult,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener, Topic},
 };
-use dds_implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsWeak};
+use crate::implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsWeak};
 
 use crate::domain_participant_proxy::DomainParticipantProxy;
 

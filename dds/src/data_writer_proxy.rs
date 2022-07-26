@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use dds_api::{
+use crate::api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
@@ -16,7 +16,7 @@ use dds_api::{
     },
     return_type::DdsResult,
 };
-use dds_implementation::{
+use crate::implementation::{
     dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
     dds_type::{DdsSerialize, DdsType},
     utils::shared_object::{DdsShared, DdsWeak},
