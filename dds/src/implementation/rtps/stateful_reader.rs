@@ -11,10 +11,10 @@ use rtps_pim::{
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-    rtps_reader_impl::RtpsReaderImpl,
-    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    endpoint::RtpsEndpointImpl,
+    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    reader::RtpsReaderImpl,
+    writer_proxy::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsStatefulReaderImpl {

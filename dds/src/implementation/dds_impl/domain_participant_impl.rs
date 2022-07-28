@@ -6,11 +6,11 @@ use std::{
 
 use crate::{
     dds_type::DdsType,
-    implementation::rtps_impl::{
+    implementation::rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-        rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-        rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
-        rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
+        stateful_reader::RtpsStatefulReaderImpl,
+        stateful_writer::RtpsStatefulWriterImpl,
+        stateless_reader::RtpsStatelessReaderImpl,
     },
     return_type::DdsResult,
     {
@@ -31,12 +31,10 @@ use crate::{
 };
 use crate::{
     implementation::{
-        rtps_impl::{
-            rtps_group_impl::RtpsGroupImpl,
-            rtps_participant_impl::RtpsParticipantImpl,
-            rtps_stateless_writer_impl::{
-                RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl,
-            },
+        rtps::{
+            group::RtpsGroupImpl,
+            participant::RtpsParticipantImpl,
+            stateless_writer::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
         },
         utils::rtps_communication_traits::SendRtpsMessage,
     },

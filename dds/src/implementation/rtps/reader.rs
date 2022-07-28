@@ -3,7 +3,7 @@ use rtps_pim::{
     structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
-use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl};
+use super::{endpoint::RtpsEndpointImpl, history_cache::RtpsHistoryCacheImpl};
 
 pub struct RtpsReaderImpl {
     endpoint: RtpsEndpointImpl,

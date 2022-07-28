@@ -1,5 +1,5 @@
 use crate::dcps_psm::DomainId;
-use crate::implementation::rtps_impl::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
+use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
 use crate::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},

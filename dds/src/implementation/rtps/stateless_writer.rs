@@ -11,12 +11,12 @@ use rtps_pim::{
     },
 };
 
-use crate::implementation::rtps_impl::utils::clock::{Timer, TimerConstructor};
+use crate::implementation::rtps::utils::clock::{Timer, TimerConstructor};
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
-    rtps_writer_impl::RtpsWriterImpl,
+    endpoint::RtpsEndpointImpl,
+    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    writer::RtpsWriterImpl,
 };
 
 pub enum BestEffortStatelessWriterSendSubmessage<P, D, S> {
@@ -477,7 +477,7 @@ impl<T> RtpsStatelessWriterImpl<T> {
 mod tests {
     use rtps_pim::structure::types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID};
 
-    use crate::implementation::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
+    use crate::implementation::rtps::history_cache::RtpsCacheChangeImpl;
 
     use super::*;
 

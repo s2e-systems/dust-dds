@@ -1,8 +1,8 @@
 use std::sync::atomic::{self, AtomicU8};
 
 use crate::dds_type::DdsType;
-use crate::implementation::rtps_impl::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsStatefulWriterImpl,
+use crate::implementation::rtps::{
+    group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl,
 };
 use crate::return_type::{DdsError, DdsResult};
 use crate::{

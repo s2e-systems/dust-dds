@@ -34,12 +34,10 @@ use crate::{
             parameter_id_values::PID_STATUS_INFO,
             types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
-        rtps_impl::{
-            rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
-            rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
-            rtps_stateless_writer_impl::{
-                RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl,
-            },
+        rtps::{
+            history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+            stateful_writer::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
+            stateless_writer::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
             utils::clock::StdTimer,
         },
     },
@@ -1150,9 +1148,9 @@ mod test {
 
     use crate::implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::RtpsReaderProxy,
-        rtps_impl::{
-            rtps_group_impl::RtpsGroupImpl, rtps_stateful_writer_impl::RtpsReaderProxyImpl,
-            rtps_stateless_writer_impl::RtpsReaderLocatorAttributesImpl,
+        rtps::{
+            group::RtpsGroupImpl, stateful_writer::RtpsReaderProxyImpl,
+            stateless_writer::RtpsReaderLocatorAttributesImpl,
         },
     };
 

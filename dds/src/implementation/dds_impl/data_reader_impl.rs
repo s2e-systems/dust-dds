@@ -11,11 +11,11 @@ use crate::{
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
         },
-        rtps_impl::{
-            rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-            rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-            rtps_stateless_reader_impl::RtpsStatelessReaderImpl,
-            rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+        rtps::{
+            history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+            stateful_reader::RtpsStatefulReaderImpl,
+            stateless_reader::RtpsStatelessReaderImpl,
+            writer_proxy::RtpsWriterProxyImpl,
         },
         utils::{
             discovery_traits::AddMatchedWriter,
@@ -1221,7 +1221,7 @@ mod tests {
             data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
             data_representation_inline_qos::parameter_id_values::PID_STATUS_INFO,
             dds_impl::{data_reader_impl::RtpsReader, topic_impl::TopicImpl},
-            rtps_impl::rtps_group_impl::RtpsGroupImpl,
+            rtps::group::RtpsGroupImpl,
             utils::shared_object::DdsShared,
         },
     };

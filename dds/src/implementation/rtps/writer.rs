@@ -6,8 +6,8 @@ use rtps_pim::{
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    endpoint::RtpsEndpointImpl,
+    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
 };
 
 pub struct RtpsWriterImpl {

@@ -6,9 +6,9 @@ use rtps_pim::{
     structure::types::{Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN},
 };
 
-use crate::implementation::rtps_impl::rtps_history_cache_impl::RtpsHistoryCacheImpl;
+use crate::implementation::rtps::history_cache::RtpsHistoryCacheImpl;
 
-use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_reader_impl::RtpsReaderImpl};
+use super::{endpoint::RtpsEndpointImpl, reader::RtpsReaderImpl};
 
 pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
 

@@ -1,5 +1,5 @@
-use crate::implementation::rtps_impl::{
-    rtps_group_impl::RtpsGroupImpl, rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
+use crate::implementation::rtps::{
+    group::RtpsGroupImpl, stateful_reader::RtpsStatefulReaderImpl,
 };
 use crate::return_type::{DdsError, DdsResult};
 use crate::subscription::data_reader::AnyDataReader;

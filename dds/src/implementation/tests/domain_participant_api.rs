@@ -5,7 +5,7 @@ use crate::implementation::{
     dds_impl::domain_participant_impl::{
         AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
     },
-    rtps_impl::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 use crate::{
     dds_type::DdsType,

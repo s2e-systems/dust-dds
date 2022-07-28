@@ -8,11 +8,11 @@ use crate::{
     dcps_psm::DomainId,
     implementation::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
-        rtps_impl::{
+        rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            rtps_stateful_reader_impl::RtpsStatefulReaderImpl,
-            rtps_stateful_writer_impl::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
-            rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+            stateful_reader::RtpsStatefulReaderImpl,
+            stateful_writer::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
+            writer_proxy::RtpsWriterProxyImpl,
             utils::clock::StdTimer,
         },
     },

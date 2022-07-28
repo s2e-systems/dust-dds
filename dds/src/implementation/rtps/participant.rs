@@ -1,6 +1,6 @@
 use rtps_pim::structure::types::{Guid, Locator, ProtocolVersion, VendorId};
 
-use super::rtps_entity_impl::RtpsEntityImpl;
+use super::entity::RtpsEntityImpl;
 
 pub struct RtpsParticipantImpl {
     entity: RtpsEntityImpl,

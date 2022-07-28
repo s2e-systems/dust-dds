@@ -1,6 +1,6 @@
 use rtps_pim::structure::types::{Guid, Locator, ReliabilityKind, TopicKind};
 
-use super::rtps_entity_impl::RtpsEntityImpl;
+use super::entity::RtpsEntityImpl;
 
 pub struct RtpsEndpointImpl {
     entity: RtpsEntityImpl,
