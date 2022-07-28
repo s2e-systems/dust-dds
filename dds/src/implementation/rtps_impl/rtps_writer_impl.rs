@@ -1,22 +1,13 @@
 use rtps_pim::{
-    behavior::{
-        types::Duration,
-        writer::{RtpsWriterAttributes, RtpsWriterOperations},
-    },
-    structure::{
-        cache_change::RtpsCacheChangeConstructor,
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheConstructor,
-        types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-        },
+    behavior::types::Duration,
+    structure::types::{
+        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
     },
 };
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
 };
 
 pub struct RtpsWriterImpl {
@@ -52,71 +43,68 @@ impl RtpsWriterImpl {
     }
 }
 
-impl RtpsEntityAttributes for RtpsWriterImpl {
-    fn guid(&self) -> Guid {
+impl RtpsWriterImpl {
+    pub fn guid(&self) -> Guid {
         self.endpoint.guid()
     }
 }
 
-impl RtpsEndpointAttributes for RtpsWriterImpl {
-    fn topic_kind(&self) -> TopicKind {
+impl RtpsWriterImpl {
+    pub fn topic_kind(&self) -> TopicKind {
         self.endpoint.topic_kind()
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.endpoint.reliability_level()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.endpoint.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.endpoint.multicast_locator_list()
     }
 }
 
-impl RtpsWriterAttributes for RtpsWriterImpl {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn push_mode(&self) -> bool {
+impl RtpsWriterImpl {
+    pub fn push_mode(&self) -> bool {
         self.push_mode
     }
 
-    fn heartbeat_period(&self) -> Duration {
+    pub fn heartbeat_period(&self) -> Duration {
         self.heartbeat_period
     }
 
-    fn nack_response_delay(&self) -> Duration {
+    pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
     }
 
-    fn nack_suppression_duration(&self) -> Duration {
+    pub fn nack_suppression_duration(&self) -> Duration {
         self.nack_suppression_duration
     }
 
-    fn last_change_sequence_number(&self) -> SequenceNumber {
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
         self.last_change_sequence_number
     }
 
-    fn data_max_size_serialized(&self) -> Option<i32> {
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
         self.data_max_size_serialized
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         &mut self.writer_cache
     }
 }
 
-impl RtpsWriterOperations for RtpsWriterImpl {
-    type CacheChangeType = RtpsCacheChangeImpl;
-    fn new_change(
+impl RtpsWriterImpl {
+    pub fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> Self::CacheChangeType {
+    ) -> RtpsCacheChangeImpl {
         self.last_change_sequence_number += 1;
         RtpsCacheChangeImpl::new(
             kind,

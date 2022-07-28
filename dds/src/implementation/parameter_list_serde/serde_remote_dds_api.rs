@@ -13,7 +13,6 @@ use crate::{
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     },
 };
-use rtps_pim::discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet};
 
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(remote = "UserDataQosPolicy")]
@@ -29,33 +28,6 @@ pub struct UserDataQosPolicySerialize<'a>(
 #[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
 pub struct UserDataQosPolicyDeserialize(
     #[serde(with = "UserDataQosPolicyDef")] pub UserDataQosPolicy,
-);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "BuiltinEndpointSet")]
-pub struct BuiltinEndpointSetDef(pub u32);
-
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
-pub struct BuiltinEndpointSetSerialize<'a>(
-    #[serde(with = "BuiltinEndpointSetDef")] pub &'a BuiltinEndpointSet,
-);
-#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct BuiltinEndpointSetDeserialize(
-    #[serde(with = "BuiltinEndpointSetDef")] pub BuiltinEndpointSet,
-);
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "BuiltinEndpointQos")]
-pub struct BuiltinEndpointQosDef(pub u32);
-
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
-pub struct BuiltinEndpointQosSerialize<'a>(
-    #[serde(with = "BuiltinEndpointQosDef")] pub &'a BuiltinEndpointQos,
-);
-
-#[derive(Debug, PartialEq, Default, serde::Deserialize, derive_more::Into)]
-pub struct BuiltinEndpointQosDeserialize(
-    #[serde(with = "BuiltinEndpointQosDef")] pub BuiltinEndpointQos,
 );
 
 type BuiltInTopicKeyTypeNative = u8;

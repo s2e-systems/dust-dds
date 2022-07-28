@@ -1,42 +1,19 @@
 use rtps_pim::{
-    behavior::{
-        stateful_writer_behavior::{
-            BestEffortReaderProxyUnsentChangesBehavior, BestEffortStatefulWriterSendSubmessage,
-            ReliableReaderProxyReceiveAcknackBehavior, ReliableReaderProxyRequestedChangesBehavior,
-            ReliableReaderProxySendHeartbeatBehavior, ReliableReaderProxyUnsentChangesBehavior,
-            ReliableStatefulWriterSendSubmessage, RtpsStatefulWriterReceiveAckNackSubmessage,
-            RtpsStatefulWriterSendSubmessages,
-        },
-        types::{
-            ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
-            Duration,
-        },
-        writer::{
-            change_for_reader::RtpsChangeForReaderAttributes,
-            reader_proxy::{
-                RtpsReaderProxyAttributes, RtpsReaderProxyConstructor, RtpsReaderProxyOperations,
-            },
-            stateful_writer::{
-                RtpsStatefulWriterAttributes, RtpsStatefulWriterConstructor,
-                RtpsStatefulWriterOperations,
-            },
-            RtpsWriterAttributes, RtpsWriterOperations,
-        },
+    behavior::types::{
+        ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
+        Duration,
     },
     messages::{
-        submessage_elements::Parameter,
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
+            SequenceNumberSubmessageElement,
+        },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
-    structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{
-            ChangeKind, EntityId, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
-            SequenceNumber, TopicKind,
-        },
+    structure::types::{
+        ChangeKind, EntityId, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
+        SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
     },
 };
 
@@ -44,9 +21,19 @@ use crate::implementation::rtps_impl::utils::clock::{Timer, TimerConstructor};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
     rtps_writer_impl::RtpsWriterImpl,
 };
+
+pub enum BestEffortStatefulWriterSendSubmessage<'a> {
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+}
+
+pub enum ReliableStatefulWriterSendSubmessage<'a> {
+    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
+    Gap(GapSubmessage<Vec<SequenceNumber>>),
+}
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsReaderProxyImpl {
@@ -66,8 +53,8 @@ impl RtpsReaderProxyImpl {
     }
 }
 
-impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
-    fn new(
+impl RtpsReaderProxyImpl {
+    pub fn new(
         remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
         unicast_locator_list: &[Locator],
@@ -88,34 +75,32 @@ impl RtpsReaderProxyConstructor for RtpsReaderProxyImpl {
     }
 }
 
-impl RtpsReaderProxyAttributes for RtpsReaderProxyImpl {
-    type ChangeForReaderType = RtpsChangeForReaderImpl;
-
-    fn remote_reader_guid(&self) -> Guid {
+impl RtpsReaderProxyImpl {
+    pub fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
     }
 
-    fn remote_group_entity_id(&self) -> EntityId {
+    pub fn remote_group_entity_id(&self) -> EntityId {
         self.remote_group_entity_id
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_slice()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.multicast_locator_list.as_slice()
     }
 
-    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType] {
+    pub fn changes_for_reader(&self) -> &[RtpsChangeForReaderImpl] {
         self.changes_for_reader.as_slice()
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.expects_inline_qos
     }
 
-    fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.is_active
     }
 }
@@ -135,27 +120,142 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             writer_cache,
         }
     }
+
+    pub fn best_effort_send_unsent_changes(
+        &mut self,
+    ) -> Option<BestEffortStatefulWriterSendSubmessage<'a>> {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
+        let reader_id = self.remote_reader_guid().entity_id();
+
+        if self.unsent_changes().into_iter().next().is_some() {
+            let change = self.next_unsent_change();
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
+            if change.is_relevant() {
+                let mut data_submessage: DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> =
+                    change.into();
+                data_submessage.reader_id.value = reader_id;
+                Some(BestEffortStatefulWriterSendSubmessage::Data(
+                    data_submessage,
+                ))
+            } else {
+                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> = change.into();
+                gap_submessage.reader_id.value = reader_id;
+                Some(BestEffortStatefulWriterSendSubmessage::Gap(gap_submessage))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn reliable_send_unsent_changes(
+        &mut self,
+    ) -> Option<ReliableStatefulWriterSendSubmessage<'a>> {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+        let reader_id = self.remote_reader_guid().entity_id();
+
+        if self.unsent_changes().into_iter().next().is_some() {
+            let change = self.next_unsent_change();
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
+            if change.is_relevant() {
+                let mut data_submessage: DataSubmessage<Vec<Parameter<'_>>, &[u8]> = change.into();
+                data_submessage.reader_id.value = reader_id;
+                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
+            } else {
+                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> = change.into();
+                gap_submessage.reader_id.value = reader_id;
+                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn send_heartbeat(&self, writer_id: EntityId) -> HeartbeatSubmessage {
+        let endianness_flag = true;
+        let final_flag = false;
+        let liveliness_flag = false;
+        let reader_id = EntityIdSubmessageElement {
+            value: ENTITYID_UNKNOWN,
+        };
+        let writer_id = EntityIdSubmessageElement { value: writer_id };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: self.get_seq_num_min().unwrap_or(1),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: self.get_seq_num_max().unwrap_or(0),
+        };
+        let count = CountSubmessageElement { value: Count(0) };
+        HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        }
+    }
+
+    pub fn reliable_receive_acknack(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+        self.acked_changes_set(acknack.reader_sn_state.base - 1);
+        self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
+    }
+
+    pub fn send_requested_changes(&mut self) -> Option<ReliableStatefulWriterSendSubmessage<'a>> {
+        let reader_id = self.remote_reader_guid().entity_id();
+
+        if self.requested_changes().into_iter().next().is_some() {
+            let change_for_reader = self.next_requested_change();
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
+            // should be full-filled by next_requested_change()
+            if change_for_reader.is_relevant() {
+                let mut data_submessage: DataSubmessage<Vec<Parameter<'_>>, &[u8]> =
+                    change_for_reader.into();
+                data_submessage.reader_id.value = reader_id;
+                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
+            } else {
+                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> =
+                    change_for_reader.into();
+                gap_submessage.reader_id.value = reader_id;
+                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
+            }
+        } else {
+            None
+        }
+    }
 }
 
-impl<'a> RtpsHistoryCacheOperations for RtpsReaderProxyOperationsImpl<'a> {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn add_change(&mut self, _change: Self::CacheChangeType) {
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn add_change(&mut self, _change: RtpsCacheChangeImpl) {
         unimplemented!()
     }
 
-    fn remove_change<F>(&mut self, _f: F)
+    pub fn remove_change<F>(&mut self, _f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool,
+        F: FnMut(&RtpsCacheChangeImpl) -> bool,
     {
         unimplemented!()
     }
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.writer_cache.get_seq_num_min()
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.writer_cache.get_seq_num_max()
     }
 }
@@ -178,41 +278,38 @@ pub struct RtpsChangeForReaderCacheChange<'a> {
     cache_change: &'a RtpsCacheChangeImpl,
 }
 
-impl<'a> RtpsChangeForReaderAttributes for RtpsChangeForReaderCacheChange<'a> {
-    fn status(&self) -> ChangeForReaderStatusKind {
+impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn status(&self) -> ChangeForReaderStatusKind {
         self.change_for_reader.status
     }
 
-    fn is_relevant(&self) -> bool {
+    pub fn is_relevant(&self) -> bool {
         self.change_for_reader.is_relevant
     }
 }
 
-impl<'a> RtpsCacheChangeAttributes for RtpsChangeForReaderCacheChange<'a> {
-    type DataType = <RtpsCacheChangeImpl as RtpsCacheChangeAttributes>::DataType;
-    type ParameterListType = <RtpsCacheChangeImpl as RtpsCacheChangeAttributes>::ParameterListType;
-
-    fn kind(&self) -> rtps_pim::structure::types::ChangeKind {
+impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn kind(&self) -> rtps_pim::structure::types::ChangeKind {
         self.cache_change.kind()
     }
 
-    fn writer_guid(&self) -> Guid {
+    pub fn writer_guid(&self) -> Guid {
         self.cache_change.writer_guid()
     }
 
-    fn instance_handle(&self) -> rtps_pim::structure::types::InstanceHandle {
+    pub fn instance_handle(&self) -> rtps_pim::structure::types::InstanceHandle {
         self.cache_change.instance_handle()
     }
 
-    fn sequence_number(&self) -> SequenceNumber {
+    pub fn sequence_number(&self) -> SequenceNumber {
         self.cache_change.sequence_number()
     }
 
-    fn data_value(&self) -> &Self::DataType {
+    pub fn data_value(&self) -> &[u8] {
         self.cache_change.data_value()
     }
 
-    fn inline_qos(&self) -> &Self::ParameterListType {
+    pub fn inline_qos(&self) -> &[RtpsParameter] {
         self.cache_change.inline_qos()
     }
 }
@@ -246,44 +343,38 @@ impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for DataSubmessage<Vec<Paramet
     }
 }
 
-impl<'a> RtpsReaderProxyAttributes for RtpsReaderProxyOperationsImpl<'a> {
-    type ChangeForReaderType =
-        <RtpsReaderProxyImpl as RtpsReaderProxyAttributes>::ChangeForReaderType;
-
-    fn remote_reader_guid(&self) -> Guid {
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn remote_reader_guid(&self) -> Guid {
         self.reader_proxy.remote_reader_guid()
     }
 
-    fn remote_group_entity_id(&self) -> EntityId {
+    pub fn remote_group_entity_id(&self) -> EntityId {
         self.reader_proxy.remote_group_entity_id()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.reader_proxy.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.reader_proxy.multicast_locator_list()
     }
 
-    fn changes_for_reader(&self) -> &[Self::ChangeForReaderType] {
+    pub fn changes_for_reader(&self) -> &[RtpsChangeForReaderImpl] {
         self.reader_proxy.changes_for_reader()
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.reader_proxy.expects_inline_qos()
     }
 
-    fn is_active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.reader_proxy.is_active()
     }
 }
 
-impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
-    type ChangeForReaderType = RtpsChangeForReaderCacheChange<'a>;
-    type ChangeForReaderListType = Vec<SequenceNumber>;
-
-    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+impl<'a> RtpsReaderProxyOperationsImpl<'a> {
+    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         // "FOR_EACH change in this.changes_for_reader
         // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
         // change.status := ACKNOWLEDGED;"
@@ -294,7 +385,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         }
     }
 
-    fn next_requested_change(&mut self) -> Self::ChangeForReaderType {
+    pub fn next_requested_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
         //  return change IN this.requested_changes()
@@ -318,7 +409,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         RtpsChangeForReaderCacheChange::new(change.clone(), self.writer_cache)
     }
 
-    fn next_unsent_change(&mut self) -> Self::ChangeForReaderType {
+    pub fn next_unsent_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
@@ -342,7 +433,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         RtpsChangeForReaderCacheChange::new(change.clone(), self.writer_cache)
     }
 
-    fn unsent_changes(&self) -> Self::ChangeForReaderListType {
+    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
         // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
         self.reader_proxy
             .changes_for_reader
@@ -357,7 +448,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
             .collect()
     }
 
-    fn requested_changes(&self) -> Self::ChangeForReaderListType {
+    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
         // "return change IN this.changes_for_reader
         //      SUCH-THAT (change.status == REQUESTED);"
         let requested_changes_for_reader: Vec<_> = self
@@ -374,7 +465,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
             .collect()
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
         // "FOR_EACH seq_num IN req_seq_num_set DO
         //     FIND change_for_reader IN this.changes_for_reader
         //          SUCH-THAT (change_for_reader.sequenceNumber==seq_num)
@@ -392,7 +483,7 @@ impl<'a> RtpsReaderProxyOperations for RtpsReaderProxyOperationsImpl<'a> {
         }
     }
 
-    fn unacked_changes(&self) -> Self::ChangeForReaderListType {
+    pub fn unacked_changes(&self) -> Vec<SequenceNumber> {
         //"return change IN this.changes_for_reader
         //    SUCH-THAT (change.status == UNACKNOWLEDGED);"
         self.reader_proxy
@@ -416,66 +507,62 @@ pub struct RtpsStatefulWriterImpl<T> {
     heartbeat_count: Count,
 }
 
-impl<T> RtpsEntityAttributes for RtpsStatefulWriterImpl<T> {
-    fn guid(&self) -> Guid {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn guid(&self) -> Guid {
         self.writer.guid()
     }
 }
 
-impl<T> RtpsEndpointAttributes for RtpsStatefulWriterImpl<T> {
-    fn topic_kind(&self) -> TopicKind {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn topic_kind(&self) -> TopicKind {
         self.writer.topic_kind()
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.writer.reliability_level()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.writer.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.writer.multicast_locator_list()
     }
 }
 
-impl<T> RtpsWriterAttributes for RtpsStatefulWriterImpl<T> {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn push_mode(&self) -> bool {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn push_mode(&self) -> bool {
         self.writer.push_mode()
     }
 
-    fn heartbeat_period(&self) -> Duration {
+    pub fn heartbeat_period(&self) -> Duration {
         self.writer.heartbeat_period()
     }
 
-    fn nack_response_delay(&self) -> Duration {
+    pub fn nack_response_delay(&self) -> Duration {
         self.writer.nack_response_delay()
     }
 
-    fn nack_suppression_duration(&self) -> Duration {
+    pub fn nack_suppression_duration(&self) -> Duration {
         self.writer.nack_suppression_duration()
     }
 
-    fn last_change_sequence_number(&self) -> SequenceNumber {
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
         self.writer.last_change_sequence_number()
     }
 
-    fn data_max_size_serialized(&self) -> Option<i32> {
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
         self.writer.data_max_size_serialized()
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         self.writer.writer_cache()
     }
 }
 
-impl<'a, T> RtpsStatefulWriterAttributes<'a> for RtpsStatefulWriterImpl<T> {
-    type ReaderProxyListType = Vec<RtpsReaderProxyOperationsImpl<'a>>;
-
-    fn matched_readers(&'a mut self) -> Self::ReaderProxyListType {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn matched_readers(&mut self) -> Vec<RtpsReaderProxyOperationsImpl<'_>> {
         let writer_cache = &self.writer.writer_cache;
         self.matched_readers
             .iter_mut()
@@ -487,8 +574,9 @@ impl<'a, T> RtpsStatefulWriterAttributes<'a> for RtpsStatefulWriterImpl<T> {
     }
 }
 
-impl<T: TimerConstructor> RtpsStatefulWriterConstructor for RtpsStatefulWriterImpl<T> {
-    fn new(
+impl<T: TimerConstructor> RtpsStatefulWriterImpl<T> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
         guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
@@ -522,10 +610,8 @@ impl<T: TimerConstructor> RtpsStatefulWriterConstructor for RtpsStatefulWriterIm
     }
 }
 
-impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
-    type ReaderProxyType = RtpsReaderProxyImpl;
-
-    fn matched_reader_add(&mut self, mut a_reader_proxy: Self::ReaderProxyType) {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxyImpl) {
         let status = if self.push_mode() {
             ChangeForReaderStatusKind::Unsent
         } else {
@@ -544,41 +630,38 @@ impl<T> RtpsStatefulWriterOperations for RtpsStatefulWriterImpl<T> {
         self.matched_readers.push(a_reader_proxy)
     }
 
-    fn matched_reader_remove<F>(&mut self, mut f: F)
+    pub fn matched_reader_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Self::ReaderProxyType) -> bool,
+        F: FnMut(&RtpsReaderProxyImpl) -> bool,
     {
         self.matched_readers.retain(|x| !f(x));
     }
 
-    fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&Self::ReaderProxyType> {
+    pub fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&RtpsReaderProxyImpl> {
         self.matched_readers
             .iter()
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
     }
 
-    fn is_acked_by_all(&self) -> bool {
+    pub fn is_acked_by_all(&self) -> bool {
         todo!()
     }
 }
 
-impl<T> RtpsWriterOperations for RtpsStatefulWriterImpl<T> {
-    type CacheChangeType = RtpsCacheChangeImpl;
-    fn new_change(
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> Self::CacheChangeType {
+    ) -> RtpsCacheChangeImpl {
         self.writer.new_change(kind, data, inline_qos, handle)
     }
 }
 
-impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn add_change(&mut self, change: Self::CacheChangeType) {
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
         let sequence_number = change.sequence_number();
         self.writer.writer_cache().add_change(change);
 
@@ -598,34 +681,34 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatefulWriterImpl<T> {
         }
     }
 
-    fn remove_change<F>(&mut self, f: F)
+    pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool,
+        F: FnMut(&RtpsCacheChangeImpl) -> bool,
     {
         self.writer.writer_cache().remove_change(f)
     }
 
-    fn get_seq_num_min(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
         self.writer.writer_cache.get_seq_num_min()
     }
 
-    fn get_seq_num_max(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
         self.writer.writer_cache.get_seq_num_max()
     }
 }
 
-impl<'a, T> RtpsStatefulWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
-    for RtpsStatefulWriterImpl<T>
+impl<'a, T> RtpsStatefulWriterImpl<T>
 where
     T: Timer,
 {
-    type ReaderProxyType = RtpsReaderProxyOperationsImpl<'a>;
-
-    fn send_submessages(
+    pub fn send_submessages(
         &'a mut self,
-        mut send_data: impl FnMut(&Self::ReaderProxyType, DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-        mut send_gap: impl FnMut(&Self::ReaderProxyType, GapSubmessage<Vec<SequenceNumber>>),
-        mut send_heartbeat: impl FnMut(&Self::ReaderProxyType, HeartbeatSubmessage),
+        mut send_data: impl FnMut(
+            &RtpsReaderProxyOperationsImpl<'a>,
+            DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>,
+        ),
+        mut send_gap: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, GapSubmessage<Vec<SequenceNumber>>),
+        mut send_heartbeat: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.writer.heartbeat_period().seconds as u64)
@@ -642,10 +725,7 @@ where
         for reader_proxy in &mut self.matched_readers() {
             match reliability_level {
                 ReliabilityKind::BestEffort => {
-                    while let Some(send_submessage) =
-                        BestEffortReaderProxyUnsentChangesBehavior::send_unsent_changes(
-                            reader_proxy,
-                        )
+                    while let Some(send_submessage) = reader_proxy.best_effort_send_unsent_changes()
                     {
                         match send_submessage {
                             BestEffortStatefulWriterSendSubmessage::Data(data) => {
@@ -659,18 +739,12 @@ where
                 }
                 ReliabilityKind::Reliable => {
                     if time_for_heartbeat {
-                        let mut heartbeat =
-                            ReliableReaderProxySendHeartbeatBehavior::send_heartbeat(
-                                reader_proxy,
-                                writer_id,
-                            );
+                        let mut heartbeat = reader_proxy.send_heartbeat(writer_id);
                         heartbeat.count.value = heartbeat_count;
                         send_heartbeat(reader_proxy, heartbeat)
                     }
 
-                    while let Some(send_submessage) =
-                        ReliableReaderProxyUnsentChangesBehavior::send_unsent_changes(reader_proxy)
-                    {
+                    while let Some(send_submessage) = reader_proxy.reliable_send_unsent_changes() {
                         match send_submessage {
                             ReliableStatefulWriterSendSubmessage::Data(data) => {
                                 send_data(reader_proxy, data)
@@ -681,9 +755,7 @@ where
                         }
                     }
                     while let Some(send_requested_submessage) =
-                        ReliableReaderProxyRequestedChangesBehavior::send_requested_changes(
-                            reader_proxy,
-                        )
+                        reader_proxy.send_requested_changes()
                     {
                         match send_requested_submessage {
                             ReliableStatefulWriterSendSubmessage::Data(data) => {
@@ -700,10 +772,8 @@ where
     }
 }
 
-impl<T> RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
-    for RtpsStatefulWriterImpl<T>
-{
-    fn on_acknack_submessage_received(
+impl<T> RtpsStatefulWriterImpl<T> {
+    pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
         source_guid_prefix: GuidPrefix,
@@ -717,13 +787,8 @@ impl<T> RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
                 if reader_proxy.last_received_acknack_count != acknack_submessage.count.value {
-                    ReliableReaderProxyReceiveAcknackBehavior::receive_acknack(
-                        &mut RtpsReaderProxyOperationsImpl::new(
-                            reader_proxy,
-                            &self.writer.writer_cache,
-                        ),
-                        acknack_submessage,
-                    );
+                    RtpsReaderProxyOperationsImpl::new(reader_proxy, &self.writer.writer_cache)
+                        .reliable_receive_acknack(acknack_submessage);
 
                     reader_proxy.last_received_acknack_count = acknack_submessage.count.value;
                 }
@@ -734,11 +799,7 @@ impl<T> RtpsStatefulWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::{
-        cache_change::RtpsCacheChangeConstructor,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
-        types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
-    };
+    use rtps_pim::structure::types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN};
 
     use crate::implementation::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
 

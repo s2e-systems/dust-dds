@@ -544,7 +544,6 @@ mod tests {
         },
     };
     use mockall::mock;
-    use rtps_pim::structure::participant::RtpsParticipantAttributes;
     use rtps_pim::structure::types::{Guid, ENTITYID_PARTICIPANT};
 
     #[test]

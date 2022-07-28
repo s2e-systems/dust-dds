@@ -1,8 +1,4 @@
-use rtps_pim::structure::{
-    entity::{RtpsEntityAttributes, RtpsEntityConstructor},
-    participant::{RtpsParticipantAttributes, RtpsParticipantConstructor},
-    types::{Guid, Locator, ProtocolVersion, VendorId},
-};
+use rtps_pim::structure::types::{Guid, Locator, ProtocolVersion, VendorId};
 
 use super::rtps_entity_impl::RtpsEntityImpl;
 
@@ -14,32 +10,32 @@ pub struct RtpsParticipantImpl {
     default_multicast_locator_list: Vec<Locator>,
 }
 
-impl RtpsEntityAttributes for RtpsParticipantImpl {
-    fn guid(&self) -> Guid {
+impl RtpsParticipantImpl {
+    pub fn guid(&self) -> Guid {
         self.entity.guid()
     }
 }
 
-impl RtpsParticipantAttributes for RtpsParticipantImpl {
-    fn protocol_version(&self) -> ProtocolVersion {
+impl RtpsParticipantImpl {
+    pub fn protocol_version(&self) -> ProtocolVersion {
         self.protocol_version
     }
 
-    fn vendor_id(&self) -> VendorId {
+    pub fn vendor_id(&self) -> VendorId {
         self.vendor_id
     }
 
-    fn default_unicast_locator_list(&self) -> &[Locator] {
+    pub fn default_unicast_locator_list(&self) -> &[Locator] {
         self.default_unicast_locator_list.as_slice()
     }
 
-    fn default_multicast_locator_list(&self) -> &[Locator] {
+    pub fn default_multicast_locator_list(&self) -> &[Locator] {
         self.default_multicast_locator_list.as_slice()
     }
 }
 
-impl RtpsParticipantConstructor for RtpsParticipantImpl {
-    fn new(
+impl RtpsParticipantImpl {
+    pub fn new(
         guid: Guid,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],

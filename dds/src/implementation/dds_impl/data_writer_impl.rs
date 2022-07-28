@@ -47,38 +47,14 @@ use crate::{
 };
 
 use rtps_pim::{
-    behavior::{
-        stateful_writer_behavior::{
-            RtpsStatefulWriterReceiveAckNackSubmessage, RtpsStatefulWriterSendSubmessages,
-        },
-        stateless_writer_behavior::{
-            RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
-        },
-        writer::{
-            reader_locator::{RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor},
-            reader_proxy::{RtpsReaderProxyAttributes, RtpsReaderProxyConstructor},
-            stateful_writer::{RtpsStatefulWriterAttributes, RtpsStatefulWriterOperations},
-            stateless_writer::RtpsStatelessWriterOperations,
-            RtpsWriterAttributes, RtpsWriterOperations,
-        },
-    },
-    discovery::{
-        participant_discovery::ParticipantDiscovery,
-        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
-    },
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::TimestampSubmessageElement,
         submessages::{AckNackSubmessage, InfoTimestampSubmessage},
         types::{ParameterId, TIME_INVALID},
     },
-    structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheOperations,
-        types::{
-            ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
-        },
+    structure::types::{
+        ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 use serde::Serialize;
@@ -87,7 +63,6 @@ use crate::implementation::{
     data_representation_builtin_endpoints::{
         discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
         discovered_writer_data::DiscoveredWriterData,
-        spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
     },
     utils::{
         discovery_traits::AddMatchedReader,
@@ -99,6 +74,7 @@ use crate::implementation::{
 use dds_transport::{RtpsMessage, RtpsSubmessageType, TransportWrite};
 
 use super::{
+    participant_discovery::ParticipantDiscovery,
     publisher_impl::{AnnounceDataWriter, PublisherImpl},
     topic_impl::TopicImpl,
 };
@@ -207,7 +183,7 @@ pub enum RtpsWriter {
     Stateful(RtpsStatefulWriterImpl<StdTimer>),
 }
 
-impl RtpsEntityAttributes for RtpsWriter {
+impl RtpsWriter {
     fn guid(&self) -> Guid {
         match self {
             RtpsWriter::Stateless(w) => w.guid(),
@@ -216,16 +192,14 @@ impl RtpsEntityAttributes for RtpsWriter {
     }
 }
 
-impl RtpsWriterOperations for RtpsWriter {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn new_change(
+impl RtpsWriter {
+    pub fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
         handle: rtps_pim::structure::types::InstanceHandle,
-    ) -> Self::CacheChangeType {
+    ) -> RtpsCacheChangeImpl {
         match self {
             RtpsWriter::Stateless(w) => w.new_change(kind, data, inline_qos, handle),
             RtpsWriter::Stateful(w) => w.new_change(kind, data, inline_qos, handle),
@@ -233,19 +207,17 @@ impl RtpsWriterOperations for RtpsWriter {
     }
 }
 
-impl RtpsHistoryCacheOperations for RtpsWriter {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn add_change(&mut self, change: Self::CacheChangeType) {
+impl RtpsWriter {
+    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
         match self {
             RtpsWriter::Stateless(w) => w.add_change(change),
             RtpsWriter::Stateful(w) => w.add_change(change),
         }
     }
 
-    fn remove_change<F>(&mut self, f: F)
+    pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool,
+        F: FnMut(&RtpsCacheChangeImpl) -> bool,
     {
         match self {
             RtpsWriter::Stateless(w) => w.remove_change(f),
@@ -253,14 +225,14 @@ impl RtpsHistoryCacheOperations for RtpsWriter {
         }
     }
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         match self {
             RtpsWriter::Stateless(w) => w.get_seq_num_min(),
             RtpsWriter::Stateful(w) => w.get_seq_num_min(),
         }
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         match self {
             RtpsWriter::Stateless(w) => w.get_seq_num_max(),
             RtpsWriter::Stateful(w) => w.get_seq_num_max(),
@@ -268,52 +240,50 @@ impl RtpsHistoryCacheOperations for RtpsWriter {
     }
 }
 
-impl RtpsWriterAttributes for RtpsWriter {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn push_mode(&self) -> bool {
+impl RtpsWriter {
+    pub fn push_mode(&self) -> bool {
         match self {
             RtpsWriter::Stateless(w) => w.push_mode(),
             RtpsWriter::Stateful(w) => w.push_mode(),
         }
     }
 
-    fn heartbeat_period(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn heartbeat_period(&self) -> rtps_pim::behavior::types::Duration {
         match self {
             RtpsWriter::Stateless(w) => w.heartbeat_period(),
             RtpsWriter::Stateful(w) => w.heartbeat_period(),
         }
     }
 
-    fn nack_response_delay(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn nack_response_delay(&self) -> rtps_pim::behavior::types::Duration {
         match self {
             RtpsWriter::Stateless(w) => w.nack_response_delay(),
             RtpsWriter::Stateful(w) => w.nack_response_delay(),
         }
     }
 
-    fn nack_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn nack_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
         match self {
             RtpsWriter::Stateless(w) => w.nack_suppression_duration(),
             RtpsWriter::Stateful(w) => w.nack_suppression_duration(),
         }
     }
 
-    fn last_change_sequence_number(&self) -> SequenceNumber {
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
         match self {
             RtpsWriter::Stateless(w) => w.last_change_sequence_number(),
             RtpsWriter::Stateful(w) => w.last_change_sequence_number(),
         }
     }
 
-    fn data_max_size_serialized(&self) -> Option<i32> {
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
         match self {
             RtpsWriter::Stateless(w) => w.data_max_size_serialized(),
             RtpsWriter::Stateful(w) => w.data_max_size_serialized(),
         }
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         match self {
             RtpsWriter::Stateless(w) => w.writer_cache(),
             RtpsWriter::Stateful(w) => w.writer_cache(),
@@ -390,10 +360,7 @@ impl DataWriterImpl {
 
     /// NOTE: This function is only useful for the SEDP writers so we probably need a separate
     /// type for those.
-    pub fn add_matched_participant(
-        &self,
-        participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
-    ) {
+    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         if let RtpsWriter::Stateful(rtps_writer) = &mut *rtps_writer_lock {
             if !rtps_writer
@@ -1166,14 +1133,7 @@ mod test {
     };
     use mockall::mock;
     use rtps_pim::{
-        behavior::{
-            types::DURATION_ZERO,
-            writer::{
-                reader_locator::RtpsReaderLocatorConstructor,
-                stateful_writer::RtpsStatefulWriterConstructor,
-                stateless_writer::{RtpsStatelessWriterConstructor, RtpsStatelessWriterOperations},
-            },
-        },
+        behavior::types::DURATION_ZERO,
         messages::{
             submessage_elements::Parameter,
             submessage_elements::{
@@ -1182,12 +1142,9 @@ mod test {
             },
             submessages::DataSubmessage,
         },
-        structure::{
-            group::RtpsGroupConstructor,
-            types::{
-                EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-                PROTOCOLVERSION_2_4,
-            },
+        structure::types::{
+            EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+            PROTOCOLVERSION_2_4,
         },
     };
 

@@ -19,18 +19,13 @@ use crate::{
     },
 };
 use rtps_pim::{
-    behavior::reader::stateful_reader::RtpsStatefulReaderConstructor,
     messages::{
         submessage_elements::Parameter,
         submessages::{DataSubmessage, HeartbeatSubmessage},
     },
-    structure::{
-        entity::RtpsEntityAttributes,
-        participant::RtpsParticipantAttributes,
-        types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-            USER_DEFINED_WRITER_WITH_KEY,
-        },
+    structure::types::{
+        EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+        USER_DEFINED_WRITER_WITH_KEY,
     },
 };
 

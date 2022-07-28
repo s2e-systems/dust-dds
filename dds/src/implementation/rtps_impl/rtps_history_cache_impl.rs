@@ -9,12 +9,8 @@ use rtps_pim::{
         submessages::DataSubmessage,
         types::ParameterId,
     },
-    structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        history_cache::{
-            RtpsHistoryCacheAttributes, RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations,
-        },
-        types::{ChangeKind, Guid, GuidPrefix, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN},
+    structure::types::{
+        ChangeKind, Guid, GuidPrefix, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN,
     },
 };
 
@@ -177,17 +173,14 @@ impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<Vec<Parameter<'a>>, &'
     }
 }
 
-impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
-    type DataType = Vec<u8>;
-    type ParameterListType = Vec<RtpsParameter>;
-
-    fn new(
+impl RtpsCacheChangeImpl {
+    pub fn new(
         kind: ChangeKind,
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: Self::DataType,
-        inline_qos: Self::ParameterListType,
+        data_value: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
     ) -> Self {
         Self {
             kind,
@@ -200,103 +193,68 @@ impl RtpsCacheChangeConstructor for RtpsCacheChangeImpl {
     }
 }
 
-impl RtpsCacheChangeAttributes for &RtpsCacheChangeImpl {
-    type DataType = [u8];
-    type ParameterListType = Vec<RtpsParameter>;
-
-    fn kind(&self) -> ChangeKind {
+impl RtpsCacheChangeImpl {
+    pub fn kind(&self) -> ChangeKind {
         self.kind
     }
 
-    fn writer_guid(&self) -> Guid {
-        todo!()
-    }
-
-    fn instance_handle(&self) -> InstanceHandle {
-        todo!()
-    }
-
-    fn sequence_number(&self) -> SequenceNumber {
-        self.sequence_number
-    }
-
-    fn data_value(&self) -> &Self::DataType {
-        todo!()
-    }
-
-    fn inline_qos(&self) -> &Self::ParameterListType {
-        todo!()
-    }
-}
-
-impl RtpsCacheChangeAttributes for RtpsCacheChangeImpl {
-    type DataType = [u8];
-    type ParameterListType = [RtpsParameter];
-
-    fn kind(&self) -> ChangeKind {
-        self.kind
-    }
-
-    fn writer_guid(&self) -> Guid {
+    pub fn writer_guid(&self) -> Guid {
         self.writer_guid
     }
 
-    fn instance_handle(&self) -> InstanceHandle {
+    pub fn instance_handle(&self) -> InstanceHandle {
         self.instance_handle
     }
 
-    fn sequence_number(&self) -> SequenceNumber {
+    pub fn sequence_number(&self) -> SequenceNumber {
         self.sequence_number
     }
 
-    fn data_value(&self) -> &Self::DataType {
+    pub fn data_value(&self) -> &[u8] {
         self.data.as_ref()
     }
 
-    fn inline_qos(&self) -> &Self::ParameterListType {
+    pub fn inline_qos(&self) -> &[RtpsParameter] {
         &self.inline_qos
     }
 }
 
+#[derive(Default)]
 pub struct RtpsHistoryCacheImpl {
     changes: Vec<RtpsCacheChangeImpl>,
 }
 
-impl RtpsHistoryCacheConstructor for RtpsHistoryCacheImpl {
-    fn new() -> Self {
+impl RtpsHistoryCacheImpl {
+    pub fn new() -> Self {
         Self {
             changes: Vec::new(),
         }
     }
 }
 
-impl RtpsHistoryCacheAttributes for RtpsHistoryCacheImpl {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn changes(&self) -> &[Self::CacheChangeType] {
+impl RtpsHistoryCacheImpl {
+    pub fn changes(&self) -> &[RtpsCacheChangeImpl] {
         &self.changes
     }
 }
 
-impl RtpsHistoryCacheOperations for RtpsHistoryCacheImpl {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn add_change(&mut self, change: Self::CacheChangeType) {
+impl RtpsHistoryCacheImpl {
+    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
         self.changes.push(change);
     }
 
-    fn remove_change<F>(&mut self, mut f: F)
+    pub fn remove_change<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool,
+        F: FnMut(&RtpsCacheChangeImpl) -> bool,
     {
         self.changes.retain(|cc| !f(cc));
     }
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.changes.iter().map(|cc| cc.sequence_number).min()
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.changes.iter().map(|cc| cc.sequence_number).max()
     }
 }

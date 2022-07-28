@@ -10,7 +10,6 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         rtps_impl::{
             rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
@@ -63,36 +62,18 @@ use crate::{
     },
 };
 use rtps_pim::{
-    behavior::{
-        reader::{
-            stateful_reader::{RtpsStatefulReaderAttributes, RtpsStatefulReaderOperations},
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyConstructor},
-            RtpsReaderAttributes,
-        },
-        stateful_reader_behavior::{
-            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
-            RtpsStatefulReaderSendSubmessages,
-        },
-        stateless_reader_behavior::RtpsStatelessReaderReceiveDataSubmessage,
-    },
-    discovery::{
-        participant_discovery::ParticipantDiscovery,
-        spdp::spdp_discovered_participant_data::RtpsSpdpDiscoveredParticipantDataAttributes,
-    },
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::Parameter,
         submessages::{DataSubmessage, HeartbeatSubmessage},
     },
-    structure::{
-        cache_change::RtpsCacheChangeAttributes,
-        entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+    structure::types::{
+        ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
     },
 };
 
 use super::{
+    participant_discovery::ParticipantDiscovery,
     subscriber_impl::{AnnounceDataReader, SubscriberImpl},
     topic_impl::TopicImpl,
 };
@@ -192,31 +173,29 @@ pub enum RtpsReader {
     Stateful(RtpsStatefulReaderImpl),
 }
 
-impl RtpsReaderAttributes for RtpsReader {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn heartbeat_response_delay(&self) -> rtps_pim::behavior::types::Duration {
+impl RtpsReader {
+    pub fn heartbeat_response_delay(&self) -> rtps_pim::behavior::types::Duration {
         match self {
             RtpsReader::Stateless(reader) => reader.heartbeat_response_delay(),
             RtpsReader::Stateful(reader) => reader.heartbeat_response_delay(),
         }
     }
 
-    fn heartbeat_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn heartbeat_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
         match self {
             RtpsReader::Stateless(reader) => reader.heartbeat_suppression_duration(),
             RtpsReader::Stateful(reader) => reader.heartbeat_suppression_duration(),
         }
     }
 
-    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn reader_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         match self {
             RtpsReader::Stateless(reader) => reader.reader_cache(),
             RtpsReader::Stateful(reader) => reader.reader_cache(),
         }
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         match self {
             RtpsReader::Stateless(reader) => reader.expects_inline_qos(),
             RtpsReader::Stateful(reader) => reader.expects_inline_qos(),
@@ -224,7 +203,7 @@ impl RtpsReaderAttributes for RtpsReader {
     }
 }
 
-impl RtpsEntityAttributes for RtpsReader {
+impl RtpsReader {
     fn guid(&self) -> Guid {
         match self {
             RtpsReader::Stateless(r) => r.guid(),
@@ -360,10 +339,7 @@ fn read_sample<'a, Tim>(
 }
 
 impl<Tim> DataReaderImpl<Tim> {
-    pub fn add_matched_participant(
-        &self,
-        participant_discovery: &ParticipantDiscovery<SpdpDiscoveredParticipantData>,
-    ) {
+    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
         if let RtpsReader::Stateful(rtps_reader) = &mut *rtps_reader_lock {
             if !rtps_reader
@@ -1251,13 +1227,7 @@ mod tests {
     };
     use mockall::mock;
     use rtps_pim::{
-        behavior::{
-            reader::{
-                stateful_reader::RtpsStatefulReaderConstructor,
-                stateless_reader::RtpsStatelessReaderConstructor,
-            },
-            types::DURATION_ZERO,
-        },
+        behavior::types::DURATION_ZERO,
         messages::{
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -1265,12 +1235,7 @@ mod tests {
             },
             types::ParameterId,
         },
-        structure::{
-            cache_change::RtpsCacheChangeConstructor,
-            group::RtpsGroupConstructor,
-            history_cache::RtpsHistoryCacheConstructor,
-            types::{EntityId, Guid, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN},
-        },
+        structure::types::{EntityId, Guid, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN},
     };
     use std::io::Write;
 

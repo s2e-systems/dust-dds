@@ -17,15 +17,10 @@ use crate::{
     },
 };
 use rtps_pim::{
-    behavior::writer::stateful_writer::RtpsStatefulWriterConstructor,
     messages::submessages::AckNackSubmessage,
-    structure::{
-        entity::RtpsEntityAttributes,
-        participant::RtpsParticipantAttributes,
-        types::{
-            EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, TopicKind,
-            USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-        },
+    structure::types::{
+        EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, TopicKind,
+        USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
     },
 };
 

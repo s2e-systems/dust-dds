@@ -1,8 +1,11 @@
 use rtps_pim::{
-    behavior::reader::writer_proxy::{
-        RtpsWriterProxyAttributes, RtpsWriterProxyConstructor, RtpsWriterProxyOperations,
+    messages::{
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+        },
+        submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
+        types::Count,
     },
-    messages::types::Count,
     structure::types::{EntityId, Guid, Locator, SequenceNumber},
 };
 
@@ -22,8 +25,65 @@ pub struct RtpsWriterProxyImpl {
     pub acknack_count: Count,
 }
 
-impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
-    fn new(
+impl RtpsWriterProxyImpl {
+    pub fn best_effort_receive_gap(&mut self, gap: &GapSubmessage<Vec<SequenceNumber>>) {
+        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
+            self.irrelevant_change_set(seq_num);
+        }
+        for seq_num in gap.gap_list.set.iter() {
+            self.irrelevant_change_set(*seq_num);
+        }
+    }
+    pub fn reliable_receive_gap(&mut self, gap: &GapSubmessage<Vec<SequenceNumber>>) {
+        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
+            self.irrelevant_change_set(seq_num);
+        }
+        for seq_num in gap.gap_list.set.iter() {
+            self.irrelevant_change_set(*seq_num);
+        }
+    }
+
+    pub fn reliable_send_ack_nack(
+        &mut self,
+        reader_id: EntityId,
+        acknack_count: Count,
+        mut send_acknack: impl FnMut(&Self, AckNackSubmessage<Vec<SequenceNumber>>),
+    ) {
+        let endianness_flag = true;
+        let final_flag = true;
+        let reader_id = EntityIdSubmessageElement { value: reader_id };
+        let writer_id = EntityIdSubmessageElement {
+            value: self.remote_writer_guid().entity_id,
+        };
+
+        let reader_sn_state = SequenceNumberSetSubmessageElement {
+            base: self.available_changes_max() + 1,
+            set: self.missing_changes(),
+        };
+        let count = CountSubmessageElement {
+            value: acknack_count,
+        };
+
+        let acknack_submessage = AckNackSubmessage {
+            endianness_flag,
+            final_flag,
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
+        };
+
+        send_acknack(self, acknack_submessage);
+    }
+
+    pub fn reliable_receive_heartbeat(&mut self, heartbeat: &HeartbeatSubmessage) {
+        self.missing_changes_update(heartbeat.last_sn.value);
+        self.lost_changes_update(heartbeat.first_sn.value);
+    }
+}
+
+impl RtpsWriterProxyImpl {
+    pub fn new(
         remote_writer_guid: Guid,
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
@@ -47,54 +107,30 @@ impl RtpsWriterProxyConstructor for RtpsWriterProxyImpl {
     }
 }
 
-impl RtpsWriterProxyAttributes for RtpsWriterProxyImpl {
-    fn remote_writer_guid(&self) -> Guid {
+impl RtpsWriterProxyImpl {
+    pub fn remote_writer_guid(&self) -> Guid {
         self.remote_writer_guid
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.multicast_locator_list.as_ref()
     }
 
-    fn data_max_size_serialized(&self) -> Option<i32> {
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
         self.data_max_size_serialized
     }
 
-    fn remote_group_entity_id(&self) -> EntityId {
+    pub fn remote_group_entity_id(&self) -> EntityId {
         self.remote_group_entity_id
     }
 }
 
-impl<'a> RtpsWriterProxyAttributes for &'a mut RtpsWriterProxyImpl {
-    fn remote_writer_guid(&self) -> Guid {
-        self.remote_writer_guid
-    }
-
-    fn unicast_locator_list(&self) -> &[Locator] {
-        self.unicast_locator_list.as_ref()
-    }
-
-    fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
-    }
-
-    fn data_max_size_serialized(&self) -> Option<i32> {
-        self.data_max_size_serialized
-    }
-
-    fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
-}
-
-impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
-    type SequenceNumberListType = Vec<SequenceNumber>;
-
-    fn available_changes_max(&self) -> SequenceNumber {
+impl RtpsWriterProxyImpl {
+    pub fn available_changes_max(&self) -> SequenceNumber {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
 
@@ -117,7 +153,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         }
     }
 
-    fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
         // This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
         // SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader. Logical action in the virtual machine:
         // FIND change FROM this.changes_from_writer SUCH-THAT
@@ -126,7 +162,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         self.irrelevant_changes.push(a_seq_num);
     }
 
-    fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
+    pub fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
         // FOREACH change IN this.changes_from_writer
         // SUCH-THAT ( change.status == UNKNOWN OR change.status == MISSING
         // AND seq_num < first_available_seq_num ) DO {
@@ -135,7 +171,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         self.first_available_seq_num = first_available_seq_num;
     }
 
-    fn missing_changes(&self) -> Self::SequenceNumberListType {
+    pub fn missing_changes(&self) -> Vec<SequenceNumber> {
         // The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
         let mut missing_changes = Vec::new();
@@ -159,7 +195,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         missing_changes
     }
 
-    fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
+    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
         // FOREACH change IN this.changes_from_writer
         // SUCH-THAT ( change.status == UNKNOWN
         // AND seq_num <= last_available_seq_num ) DO {
@@ -168,7 +204,7 @@ impl RtpsWriterProxyOperations for RtpsWriterProxyImpl {
         self.last_available_seq_num = last_available_seq_num;
     }
 
-    fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
         // FIND change FROM this.changes_from_writer
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED

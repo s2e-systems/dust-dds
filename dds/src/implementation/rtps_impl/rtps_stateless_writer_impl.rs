@@ -1,37 +1,13 @@
 use rtps_pim::{
-    behavior::{
-        stateless_writer_behavior::{
-            BestEffortReaderLocatorUnsentChangesBehavior, BestEffortStatelessWriterSendSubmessage,
-            ChangeInHistoryCache, ReliableReaderLocatorReceiveAcknackBehavior,
-            RtpsStatelessWriterReceiveAckNackSubmessage, RtpsStatelessWriterSendSubmessages,
-        },
-        types::Duration,
-        writer::{
-            reader_locator::{
-                RtpsReaderLocatorAttributes, RtpsReaderLocatorConstructor,
-                RtpsReaderLocatorOperations,
-            },
-            stateless_writer::{
-                RtpsStatelessWriterAttributes, RtpsStatelessWriterConstructor,
-                RtpsStatelessWriterOperations,
-            },
-            RtpsWriterAttributes, RtpsWriterOperations,
-        },
-    },
+    behavior::types::Duration,
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
         types::Count,
     },
-    structure::{
-        cache_change::{RtpsCacheChangeAttributes, RtpsCacheChangeConstructor},
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
-        history_cache::{RtpsHistoryCacheAttributes, RtpsHistoryCacheOperations},
-        types::{
-            ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-            ENTITYID_UNKNOWN,
-        },
+    structure::types::{
+        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
+        ENTITYID_UNKNOWN,
     },
 };
 
@@ -39,9 +15,14 @@ use crate::implementation::rtps_impl::utils::clock::{Timer, TimerConstructor};
 
 use super::{
     rtps_endpoint_impl::RtpsEndpointImpl,
-    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
     rtps_writer_impl::RtpsWriterImpl,
 };
+
+pub enum BestEffortStatelessWriterSendSubmessage<P, D, S> {
+    Data(DataSubmessage<P, D>),
+    Gap(GapSubmessage<S>),
+}
 
 pub struct RtpsReaderLocatorAttributesImpl {
     requested_changes: Vec<SequenceNumber>,
@@ -57,9 +38,8 @@ impl RtpsReaderLocatorAttributesImpl {
     }
 }
 
-impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
-    type CacheChangeType = SequenceNumber;
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+impl RtpsReaderLocatorAttributesImpl {
+    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
             expects_inline_qos,
@@ -70,21 +50,20 @@ impl RtpsReaderLocatorConstructor for RtpsReaderLocatorAttributesImpl {
     }
 }
 
-impl RtpsReaderLocatorAttributes for RtpsReaderLocatorAttributesImpl {
-    type CacheChangeListType = Vec<SequenceNumber>;
-
-    fn unsent_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+impl RtpsReaderLocatorAttributesImpl {
+    pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         &mut self.unsent_changes
     }
-    fn requested_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+
+    pub fn requested_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         &mut self.requested_changes
     }
 
-    fn locator(&self) -> Locator {
+    pub fn locator(&self) -> Locator {
         self.locator
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.expects_inline_qos
     }
 }
@@ -104,24 +83,54 @@ impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
             writer_cache,
         }
     }
+
+    /// 8.4.8.1.4 Transition T4
+    pub fn send_unsent_changes(
+        &mut self,
+    ) -> Option<
+        BestEffortStatelessWriterSendSubmessage<Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>,
+    > {
+        if self.unsent_changes().into_iter().next().is_some() {
+            let change = self.next_unsent_change();
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
+            if change.is_in_cache() {
+                let data_submessage = change.into();
+                Some(BestEffortStatelessWriterSendSubmessage::Data(
+                    data_submessage,
+                ))
+            } else {
+                let gap_submessage = change.into();
+                Some(BestEffortStatelessWriterSendSubmessage::Gap(gap_submessage))
+            }
+        } else {
+            None
+        }
+    }
+
+    /// 8.4.8.2.5 Transition T6
+    /// Implementation does not include the part corresponding to searching the reader locator
+    /// on the stateless writer
+    pub fn receive_acknack(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+        self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
+    }
 }
 
-impl RtpsReaderLocatorAttributes for RtpsReaderLocatorOperationsImpl<'_> {
-    type CacheChangeListType = Vec<SequenceNumber>;
-
-    fn unsent_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+impl RtpsReaderLocatorOperationsImpl<'_> {
+    pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         self.reader_locator_attributes.unsent_changes_mut()
     }
 
-    fn requested_changes_mut(&mut self) -> &mut Self::CacheChangeListType {
+    pub fn requested_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         self.reader_locator_attributes.requested_changes_mut()
     }
 
-    fn locator(&self) -> Locator {
+    pub fn locator(&self) -> Locator {
         self.reader_locator_attributes.locator()
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.reader_locator_attributes.expects_inline_qos()
     }
 }
@@ -130,7 +139,7 @@ pub struct RtpsReaderLocatorCacheChange<'a> {
     cache_change: Option<&'a RtpsCacheChangeImpl>,
 }
 
-impl ChangeInHistoryCache for RtpsReaderLocatorCacheChange<'_> {
+impl RtpsReaderLocatorCacheChange<'_> {
     fn is_in_cache(&self) -> bool {
         self.cache_change.is_some()
     }
@@ -151,11 +160,8 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<Vec<Parameter
     }
 }
 
-impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
-    type CacheChangeType = RtpsReaderLocatorCacheChange<'a>;
-    type CacheChangeListType = Vec<SequenceNumber>;
-
-    fn next_requested_change(&mut self) -> Self::CacheChangeType {
+impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
+    pub fn next_requested_change(&mut self) -> RtpsReaderLocatorCacheChange<'a> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()};
         // return change IN this.requested_changes()
@@ -185,7 +191,7 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
         RtpsReaderLocatorCacheChange { cache_change }
     }
 
-    fn next_unsent_change(&mut self) -> Self::CacheChangeType {
+    pub fn next_unsent_change(&mut self) -> RtpsReaderLocatorCacheChange<'a> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
         // return change IN this.unsent_changes()
@@ -215,14 +221,15 @@ impl<'a> RtpsReaderLocatorOperations for RtpsReaderLocatorOperationsImpl<'a> {
         RtpsReaderLocatorCacheChange { cache_change }
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
         self.reader_locator_attributes.requested_changes = req_seq_num_set.to_vec();
     }
 
-    fn requested_changes(&self) -> Self::CacheChangeListType {
+    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
         self.reader_locator_attributes.requested_changes.clone()
     }
-    fn unsent_changes(&self) -> Self::CacheChangeListType {
+
+    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
         self.reader_locator_attributes.unsent_changes.clone()
     }
 }
@@ -234,66 +241,62 @@ pub struct RtpsStatelessWriterImpl<T> {
     _heartbeat_count: Count,
 }
 
-impl<T> RtpsEntityAttributes for RtpsStatelessWriterImpl<T> {
-    fn guid(&self) -> Guid {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn guid(&self) -> Guid {
         self.writer.guid()
     }
 }
 
-impl<T> RtpsEndpointAttributes for RtpsStatelessWriterImpl<T> {
-    fn topic_kind(&self) -> TopicKind {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn topic_kind(&self) -> TopicKind {
         self.writer.topic_kind()
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.writer.reliability_level()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.writer.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.writer.multicast_locator_list()
     }
 }
 
-impl<T> RtpsWriterAttributes for RtpsStatelessWriterImpl<T> {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn push_mode(&self) -> bool {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn push_mode(&self) -> bool {
         self.writer.push_mode()
     }
 
-    fn heartbeat_period(&self) -> Duration {
+    pub fn heartbeat_period(&self) -> Duration {
         self.writer.heartbeat_period()
     }
 
-    fn nack_response_delay(&self) -> Duration {
+    pub fn nack_response_delay(&self) -> Duration {
         self.writer.nack_response_delay()
     }
 
-    fn nack_suppression_duration(&self) -> Duration {
+    pub fn nack_suppression_duration(&self) -> Duration {
         self.writer.nack_suppression_duration()
     }
 
-    fn last_change_sequence_number(&self) -> SequenceNumber {
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
         self.writer.last_change_sequence_number()
     }
 
-    fn data_max_size_serialized(&self) -> Option<i32> {
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
         self.writer.data_max_size_serialized()
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         self.writer.writer_cache()
     }
 }
 
-impl<'a, T> RtpsStatelessWriterAttributes<'a> for RtpsStatelessWriterImpl<T> {
-    type ReaderLocatorListType = Vec<RtpsReaderLocatorOperationsImpl<'a>>;
-
-    fn reader_locators(&'a mut self) -> Self::ReaderLocatorListType {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn reader_locators(&'_ mut self) -> Vec<RtpsReaderLocatorOperationsImpl<'_>> {
         let writer_cache = &self.writer.writer_cache;
         self.reader_locators
             .iter_mut()
@@ -304,8 +307,9 @@ impl<'a, T> RtpsStatelessWriterAttributes<'a> for RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriterImpl<T> {
-    fn new(
+impl<T: TimerConstructor> RtpsStatelessWriterImpl<T> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
         guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
@@ -339,10 +343,8 @@ impl<T: TimerConstructor> RtpsStatelessWriterConstructor for RtpsStatelessWriter
     }
 }
 
-impl<T> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<T> {
-    type ReaderLocatorType = RtpsReaderLocatorAttributesImpl;
-
-    fn reader_locator_add(&mut self, mut a_locator: Self::ReaderLocatorType) {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocatorAttributesImpl) {
         *a_locator.unsent_changes_mut() = self
             .writer_cache()
             .changes()
@@ -352,37 +354,34 @@ impl<T> RtpsStatelessWriterOperations for RtpsStatelessWriterImpl<T> {
         self.reader_locators.push(a_locator);
     }
 
-    fn reader_locator_remove<F>(&mut self, mut f: F)
+    pub fn reader_locator_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Self::ReaderLocatorType) -> bool,
+        F: FnMut(&RtpsReaderLocatorAttributesImpl) -> bool,
     {
         self.reader_locators.retain(|x| !f(x))
     }
 
-    fn unsent_changes_reset(&mut self) {
+    pub fn unsent_changes_reset(&mut self) {
         for reader_locator in &mut self.reader_locators {
             reader_locator.unsent_changes_reset()
         }
     }
 }
 
-impl<T> RtpsWriterOperations for RtpsStatelessWriterImpl<T> {
-    type CacheChangeType = RtpsCacheChangeImpl;
-    fn new_change(
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <Self::CacheChangeType as RtpsCacheChangeConstructor>::DataType,
-        inline_qos: <Self::CacheChangeType as RtpsCacheChangeConstructor>::ParameterListType,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> Self::CacheChangeType {
+    ) -> RtpsCacheChangeImpl {
         self.writer.new_change(kind, data, inline_qos, handle)
     }
 }
 
-impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
-    type CacheChangeType = RtpsCacheChangeImpl;
-
-    fn add_change(&mut self, change: Self::CacheChangeType) {
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
         for reader_locator in &mut self.reader_locators {
             reader_locator
                 .unsent_changes_mut()
@@ -391,42 +390,38 @@ impl<T> RtpsHistoryCacheOperations for RtpsStatelessWriterImpl<T> {
         self.writer.writer_cache().add_change(change);
     }
 
-    fn remove_change<F>(&mut self, f: F)
+    pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&Self::CacheChangeType) -> bool,
+        F: FnMut(&RtpsCacheChangeImpl) -> bool,
     {
         self.writer.writer_cache().remove_change(f)
     }
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.writer.writer_cache.get_seq_num_min()
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.writer.writer_cache.get_seq_num_max()
     }
 }
 
-impl<'a, T>
-    RtpsStatelessWriterSendSubmessages<'a, Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>
-    for RtpsStatelessWriterImpl<T>
+impl<'a, T> RtpsStatelessWriterImpl<T>
 where
     T: Timer,
 {
-    type ReaderLocatorType = RtpsReaderLocatorOperationsImpl<'a>;
-
-    fn send_submessages(
+    pub fn send_submessages(
         &'a mut self,
         mut send_data: impl FnMut(
-            &Self::ReaderLocatorType,
+            &RtpsReaderLocatorOperationsImpl<'a>,
             rtps_pim::messages::submessages::DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>,
         ),
         mut send_gap: impl FnMut(
-            &Self::ReaderLocatorType,
+            &RtpsReaderLocatorOperationsImpl<'a>,
             rtps_pim::messages::submessages::GapSubmessage<Vec<SequenceNumber>>,
         ),
         _send_heartbeat: impl FnMut(
-            &Self::ReaderLocatorType,
+            &RtpsReaderLocatorOperationsImpl<'a>,
             rtps_pim::messages::submessages::HeartbeatSubmessage,
         ),
     ) {
@@ -457,10 +452,8 @@ where
     }
 }
 
-impl<T> RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
-    for RtpsStatelessWriterImpl<T>
-{
-    fn on_acknack_submessage_received(
+impl<T> RtpsStatelessWriterImpl<T> {
+    pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
     ) {
@@ -470,13 +463,8 @@ impl<T> RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
         if self.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
             for reader_locator in self.reader_locators.iter_mut() {
                 if reader_locator.last_received_acknack_count != acknack_submessage.count.value {
-                    ReliableReaderLocatorReceiveAcknackBehavior::receive_acknack(
-                        &mut RtpsReaderLocatorOperationsImpl::new(
-                            reader_locator,
-                            &self.writer.writer_cache,
-                        ),
-                        acknack_submessage,
-                    );
+                    RtpsReaderLocatorOperationsImpl::new(reader_locator, &self.writer.writer_cache)
+                        .receive_acknack(acknack_submessage);
 
                     reader_locator.last_received_acknack_count = acknack_submessage.count.value;
                 }
@@ -487,11 +475,7 @@ impl<T> RtpsStatelessWriterReceiveAckNackSubmessage<Vec<SequenceNumber>>
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::{
-        cache_change::RtpsCacheChangeConstructor,
-        history_cache::{RtpsHistoryCacheConstructor, RtpsHistoryCacheOperations},
-        types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
-    };
+    use rtps_pim::structure::types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID};
 
     use crate::implementation::rtps_impl::rtps_history_cache_impl::RtpsCacheChangeImpl;
 

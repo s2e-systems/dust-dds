@@ -1,37 +1,20 @@
+use std::convert::TryFrom;
+
 use rtps_pim::{
-    behavior::{
-        reader::{
-            stateful_reader::{
-                RtpsStatefulReaderAttributes, RtpsStatefulReaderConstructor,
-                RtpsStatefulReaderOperations,
-            },
-            writer_proxy::{RtpsWriterProxyAttributes, RtpsWriterProxyOperations},
-            RtpsReaderAttributes,
-        },
-        stateful_reader_behavior::{
-            BestEffortStatefulReaderReceiveDataBehavior, BestEffortWriterProxyReceiveGapBehavior,
-            ReliableStatefulReaderReceiveDataBehavior, ReliableWriterProxyReceiveGapBehavior,
-            ReliableWriterProxyReceiveHeartbeat, ReliableWriterProxySendAckNack,
-            RtpsStatefulReaderReceiveDataSubmessage, RtpsStatefulReaderReceiveHeartbeatSubmessage,
-            RtpsStatefulReaderSendSubmessages,
-        },
-        types::Duration,
-    },
+    behavior::types::Duration,
     messages::{
         submessage_elements::Parameter,
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
         types::Count,
     },
-    structure::{
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
-        types::{Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind},
-    },
+    structure::types::{Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind},
 };
 
 use super::{
-    rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl,
-    rtps_reader_impl::RtpsReaderImpl, rtps_writer_proxy_impl::RtpsWriterProxyImpl,
+    rtps_endpoint_impl::RtpsEndpointImpl,
+    rtps_history_cache_impl::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    rtps_reader_impl::RtpsReaderImpl,
+    rtps_writer_proxy_impl::RtpsWriterProxyImpl,
 };
 
 pub struct RtpsStatefulReaderImpl {
@@ -40,6 +23,44 @@ pub struct RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
+    fn best_effort_receive_data(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let a_change: Result<RtpsCacheChangeImpl, _> =
+            TryFrom::try_from((source_guid_prefix, data));
+        if let Ok(a_change) = a_change {
+            if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+                let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                if a_change.sequence_number() >= expected_seq_num {
+                    writer_proxy.received_change_set(a_change.sequence_number());
+                    if a_change.sequence_number() > expected_seq_num {
+                        writer_proxy.lost_changes_update(a_change.sequence_number());
+                    }
+                    self.reader_cache().add_change(a_change);
+                }
+            }
+        }
+    }
+
+    fn reliable_receive_data(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let a_change: Result<RtpsCacheChangeImpl, _> =
+            TryFrom::try_from((source_guid_prefix, data));
+        if let Ok(a_change) = a_change {
+            if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+                writer_proxy.received_change_set(a_change.sequence_number());
+                self.reader_cache().add_change(a_change);
+            }
+        }
+    }
+
     pub fn process_gap_submessage(
         &mut self,
         gap_submessage: &GapSubmessage<Vec<SequenceNumber>>,
@@ -53,74 +74,64 @@ impl RtpsStatefulReaderImpl {
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             match reliability_level {
-                ReliabilityKind::BestEffort => {
-                    BestEffortWriterProxyReceiveGapBehavior::receive_gap(
-                        writer_proxy,
-                        gap_submessage,
-                    )
-                }
-                ReliabilityKind::Reliable => {
-                    ReliableWriterProxyReceiveGapBehavior::receive_gap(writer_proxy, gap_submessage)
-                }
+                ReliabilityKind::BestEffort => writer_proxy.best_effort_receive_gap(gap_submessage),
+                ReliabilityKind::Reliable => writer_proxy.reliable_receive_gap(gap_submessage),
             }
         }
     }
 }
 
-impl RtpsEntityAttributes for RtpsStatefulReaderImpl {
-    fn guid(&self) -> Guid {
+impl RtpsStatefulReaderImpl {
+    pub fn guid(&self) -> Guid {
         self.reader.guid()
     }
 }
 
-impl RtpsEndpointAttributes for RtpsStatefulReaderImpl {
-    fn topic_kind(&self) -> TopicKind {
+impl RtpsStatefulReaderImpl {
+    pub fn topic_kind(&self) -> TopicKind {
         self.reader.topic_kind()
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.reader.reliability_level()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.reader.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.reader.multicast_locator_list()
     }
 }
 
-impl RtpsReaderAttributes for RtpsStatefulReaderImpl {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn heartbeat_response_delay(&self) -> Duration {
+impl RtpsStatefulReaderImpl {
+    pub fn heartbeat_response_delay(&self) -> Duration {
         self.reader.heartbeat_response_delay()
     }
 
-    fn heartbeat_suppression_duration(&self) -> Duration {
+    pub fn heartbeat_suppression_duration(&self) -> Duration {
         self.reader.heartbeat_suppression_duration()
     }
 
-    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn reader_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         self.reader.reader_cache()
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.reader.expects_inline_qos()
     }
 }
 
-impl<'a> RtpsStatefulReaderAttributes<'a> for RtpsStatefulReaderImpl {
-    type WriterProxyListType = &'a mut [RtpsWriterProxyImpl];
-
-    fn matched_writers(&'a mut self) -> Self::WriterProxyListType {
+impl RtpsStatefulReaderImpl {
+    pub fn matched_writers(&mut self) -> &mut [RtpsWriterProxyImpl] {
         self.matched_writers.as_mut_slice()
     }
 }
 
-impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
-    fn new(
+impl RtpsStatefulReaderImpl {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
         guid: Guid,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
@@ -148,31 +159,30 @@ impl RtpsStatefulReaderConstructor for RtpsStatefulReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderOperations for RtpsStatefulReaderImpl {
-    type WriterProxyType = RtpsWriterProxyImpl;
-
-    fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType) {
+impl RtpsStatefulReaderImpl {
+    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl) {
         self.matched_writers.push(a_writer_proxy);
     }
 
-    fn matched_writer_remove<F>(&mut self, mut f: F)
+    pub fn matched_writer_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Self::WriterProxyType) -> bool,
+        F: FnMut(&RtpsWriterProxyImpl) -> bool,
     {
         self.matched_writers.retain(|x| !f(x))
     }
 
-    fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut Self::WriterProxyType> {
+    pub fn matched_writer_lookup(
+        &mut self,
+        a_writer_guid: Guid,
+    ) -> Option<&mut RtpsWriterProxyImpl> {
         self.matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
     }
 }
 
-impl RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>
-    for RtpsStatefulReaderImpl
-{
-    fn on_data_submessage_received(
+impl RtpsStatefulReaderImpl {
+    pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
         source_guid_prefix: GuidPrefix,
@@ -192,18 +202,10 @@ impl RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>
             {
                 match self.reliability_level() {
                     ReliabilityKind::BestEffort => {
-                        BestEffortStatefulReaderReceiveDataBehavior::receive_data(
-                            self,
-                            source_guid_prefix,
-                            data_submessage,
-                        )
+                        self.best_effort_receive_data(source_guid_prefix, data_submessage)
                     }
                     ReliabilityKind::Reliable => {
-                        ReliableStatefulReaderReceiveDataBehavior::receive_data(
-                            self,
-                            source_guid_prefix,
-                            data_submessage,
-                        )
+                        self.reliable_receive_data(source_guid_prefix, data_submessage)
                     }
                 }
             }
@@ -211,8 +213,8 @@ impl RtpsStatefulReaderReceiveDataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>
     }
 }
 
-impl RtpsStatefulReaderReceiveHeartbeatSubmessage for RtpsStatefulReaderImpl {
-    fn on_heartbeat_submessage_received(
+impl RtpsStatefulReaderImpl {
+    pub fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -232,22 +234,17 @@ impl RtpsStatefulReaderReceiveHeartbeatSubmessage for RtpsStatefulReaderImpl {
                         || (!heartbeat_submessage.liveliness_flag
                             && !writer_proxy.missing_changes().is_empty());
 
-                    ReliableWriterProxyReceiveHeartbeat::receive_heartbeat(
-                        writer_proxy,
-                        heartbeat_submessage,
-                    );
+                    writer_proxy.reliable_receive_heartbeat(heartbeat_submessage);
                 }
             }
         }
     }
 }
 
-impl RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>> for RtpsStatefulReaderImpl {
-    type WriterProxyType = RtpsWriterProxyImpl;
-
-    fn send_submessages(
+impl RtpsStatefulReaderImpl {
+    pub fn send_submessages(
         &mut self,
-        mut send_acknack: impl FnMut(&Self::WriterProxyType, AckNackSubmessage<Vec<SequenceNumber>>),
+        mut send_acknack: impl FnMut(&RtpsWriterProxyImpl, AckNackSubmessage<Vec<SequenceNumber>>),
     ) {
         let entity_id = self.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
@@ -256,8 +253,7 @@ impl RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>> for RtpsStatefulRead
                     writer_proxy.acknack_count =
                         Count(writer_proxy.acknack_count.0.wrapping_add(1));
 
-                    ReliableWriterProxySendAckNack::send_ack_nack(
-                        writer_proxy,
+                    writer_proxy.reliable_send_ack_nack(
                         entity_id,
                         writer_proxy.acknack_count,
                         |wp, acknack| send_acknack(wp, acknack),
@@ -272,7 +268,6 @@ impl RtpsStatefulReaderSendSubmessages<Vec<SequenceNumber>> for RtpsStatefulRead
 #[cfg(test)]
 mod tests {
     use rtps_pim::{
-        behavior::reader::writer_proxy::{RtpsWriterProxyConstructor, RtpsWriterProxyOperations},
         messages::{
             submessage_elements::{
                 CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
@@ -280,11 +275,7 @@ mod tests {
             },
             types::Count,
         },
-        structure::{
-            cache_change::RtpsCacheChangeAttributes,
-            history_cache::RtpsHistoryCacheAttributes,
-            types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY},
-        },
+        structure::types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY},
     };
 
     use super::*;

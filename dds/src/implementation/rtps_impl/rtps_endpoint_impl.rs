@@ -1,8 +1,4 @@
-use rtps_pim::structure::{
-    endpoint::RtpsEndpointAttributes,
-    entity::{RtpsEntityAttributes, RtpsEntityConstructor},
-    types::{Guid, Locator, ReliabilityKind, TopicKind},
-};
+use rtps_pim::structure::types::{Guid, Locator, ReliabilityKind, TopicKind};
 
 use super::rtps_entity_impl::RtpsEntityImpl;
 
@@ -32,26 +28,26 @@ impl RtpsEndpointImpl {
     }
 }
 
-impl RtpsEntityAttributes for RtpsEndpointImpl {
-    fn guid(&self) -> Guid {
+impl RtpsEndpointImpl {
+    pub fn guid(&self) -> Guid {
         self.entity.guid()
     }
 }
 
-impl RtpsEndpointAttributes for RtpsEndpointImpl {
-    fn topic_kind(&self) -> TopicKind {
+impl RtpsEndpointImpl {
+    pub fn topic_kind(&self) -> TopicKind {
         self.topic_kind
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.reliability_level
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         &self.multicast_locator_list
     }
 }

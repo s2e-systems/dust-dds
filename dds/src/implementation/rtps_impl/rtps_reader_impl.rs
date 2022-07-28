@@ -1,11 +1,6 @@
 use rtps_pim::{
-    behavior::{reader::RtpsReaderAttributes, types::Duration},
-    structure::{
-        endpoint::RtpsEndpointAttributes,
-        entity::RtpsEntityAttributes,
-        history_cache::RtpsHistoryCacheConstructor,
-        types::{Guid, Locator, ReliabilityKind, TopicKind},
-    },
+    behavior::types::Duration,
+    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
 };
 
 use super::{rtps_endpoint_impl::RtpsEndpointImpl, rtps_history_cache_impl::RtpsHistoryCacheImpl};
@@ -35,46 +30,44 @@ impl RtpsReaderImpl {
     }
 }
 
-impl RtpsEntityAttributes for RtpsReaderImpl {
-    fn guid(&self) -> Guid {
+impl RtpsReaderImpl {
+    pub fn guid(&self) -> Guid {
         self.endpoint.guid()
     }
 }
 
-impl RtpsEndpointAttributes for RtpsReaderImpl {
-    fn topic_kind(&self) -> TopicKind {
+impl RtpsReaderImpl {
+    pub fn topic_kind(&self) -> TopicKind {
         self.endpoint.topic_kind()
     }
 
-    fn reliability_level(&self) -> ReliabilityKind {
+    pub fn reliability_level(&self) -> ReliabilityKind {
         self.endpoint.reliability_level()
     }
 
-    fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn unicast_locator_list(&self) -> &[Locator] {
         self.endpoint.unicast_locator_list()
     }
 
-    fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn multicast_locator_list(&self) -> &[Locator] {
         self.endpoint.multicast_locator_list()
     }
 }
 
-impl RtpsReaderAttributes for RtpsReaderImpl {
-    type HistoryCacheType = RtpsHistoryCacheImpl;
-
-    fn heartbeat_response_delay(&self) -> Duration {
+impl RtpsReaderImpl {
+    pub fn heartbeat_response_delay(&self) -> Duration {
         self.heartbeat_response_delay
     }
 
-    fn heartbeat_suppression_duration(&self) -> Duration {
+    pub fn heartbeat_suppression_duration(&self) -> Duration {
         self.heartbeat_suppression_duration
     }
 
-    fn reader_cache(&mut self) -> &mut Self::HistoryCacheType {
+    pub fn reader_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
         &mut self.reader_cache
     }
 
-    fn expects_inline_qos(&self) -> bool {
+    pub fn expects_inline_qos(&self) -> bool {
         self.expects_inline_qos
     }
 }

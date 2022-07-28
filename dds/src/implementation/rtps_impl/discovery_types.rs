@@ -1,9 +1,7 @@
 // This file implements the types that appear in the built-in topic messages
 // using the mapping described in 9.3.2 Mapping of the Types that Appear Within Submessages or Built-in Topic Data
 
-pub type DomainId = u32;
-
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct BuiltinEndpointSet(pub u32);
 
 impl Default for BuiltinEndpointSet {
@@ -63,7 +61,7 @@ impl BuiltinEndpointSet {
     }
 }
 
-#[derive(PartialEq, Debug, Default, Clone, Copy)]
+#[derive(PartialEq, Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {

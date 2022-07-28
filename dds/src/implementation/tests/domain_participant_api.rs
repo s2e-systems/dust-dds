@@ -5,6 +5,7 @@ use crate::implementation::{
     dds_impl::domain_participant_impl::{
         AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
     },
+    rtps_impl::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 use crate::{
     dds_type::DdsType,
@@ -18,7 +19,6 @@ use crate::{
     },
 };
 use rtps_pim::{
-    discovery::types::{BuiltinEndpointQos, BuiltinEndpointSet},
     messages::types::Count,
     structure::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
@@ -297,7 +297,7 @@ fn domain_participant_get_discovered_participant_data() {
     let discovered_participant_data = SpdpDiscoveredParticipantData {
         dds_participant_data: dds_participant_data.clone(),
         participant_proxy: ParticipantProxy {
-            domain_id: domain_id as u32,
+            domain_id: domain_id,
             domain_tag: domain_tag,
             protocol_version: PROTOCOLVERSION,
             guid_prefix,

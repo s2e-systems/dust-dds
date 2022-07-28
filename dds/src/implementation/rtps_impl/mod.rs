@@ -1,3 +1,4 @@
+pub mod discovery_types;
 pub mod rtps_endpoint_impl;
 pub mod rtps_entity_impl;
 pub mod rtps_group_impl;
