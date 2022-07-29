@@ -47,7 +47,7 @@ use crate::{
     },
     return_type::DdsError,
 };
-use rtps_pim::structure::types::Locator;
+use dds_transport::types::Locator;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{

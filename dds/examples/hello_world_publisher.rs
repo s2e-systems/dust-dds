@@ -13,7 +13,7 @@ struct HelloWorldType {
 
 impl DdsSerde for HelloWorldType {}
 
-fn main()    {
+fn main() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 

@@ -1,10 +1,10 @@
 use std::convert::TryFrom;
 
-use rtps_pim::{
+use dds_transport::{
     messages::submessages::{
         AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
     },
-    structure::types::Locator,
+    types::Locator,
 };
 
 use crate::dcps_psm::Duration;
@@ -279,7 +279,7 @@ impl RtpsStatefulReaderImpl {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };

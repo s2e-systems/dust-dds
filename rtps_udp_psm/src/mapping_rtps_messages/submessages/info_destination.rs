@@ -1,4 +1,4 @@
-use rtps_pim::messages::submessages::InfoDestinationSubmessage;
+use dds_transport::messages::submessages::InfoDestinationSubmessage;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

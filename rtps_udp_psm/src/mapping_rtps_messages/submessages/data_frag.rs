@@ -1,4 +1,4 @@
-use rtps_pim::messages::submessages::DataFragSubmessage;
+use dds_transport::messages::submessages::DataFragSubmessage;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

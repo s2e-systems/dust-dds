@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
-use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
+use dds_transport::messages::overall_structure::RtpsSubmessageHeader;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use rtps_pim::{messages::submessages::DataSubmessage, structure::types::Locator};
+use dds_transport::{messages::submessages::DataSubmessage, types::Locator};
 
 use crate::{dcps_psm::Duration, implementation::rtps::history_cache::RtpsHistoryCacheImpl};
 
@@ -106,7 +106,7 @@ impl RtpsStatelessReaderImpl {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         EntityIdSubmessageElement, ParameterListSubmessageElement, SequenceNumberSubmessageElement,
         SerializedDataSubmessageElement,
     };

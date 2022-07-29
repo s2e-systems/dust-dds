@@ -1,11 +1,11 @@
-use rtps_pim::{
+use dds_transport::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
         submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
-    structure::types::Locator,
+    types::Locator,
 };
 
 use super::types::{Count, EntityId, Guid, SequenceNumber};

@@ -12,7 +12,6 @@ edition = "2018"
 [dependencies]
 dds_derive = { path = "../dds_derive" }
 dds-transport = { path = "../dds_transport"}
-rtps-pim = { path = "../rtps_pim" }
 rtps-udp-psm = { path = "../rtps_udp_psm" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }

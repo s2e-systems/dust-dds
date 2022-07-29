@@ -1,4 +1,4 @@
-use rtps_pim::structure::types::Locator;
+use dds_transport::types::Locator;
 
 use crate::{
     dcps_psm::DomainId,

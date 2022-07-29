@@ -1,4 +1,6 @@
-use rtps_pim::messages::submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage};
+use dds_transport::messages::submessages::{
+    AckNackSubmessage, DataSubmessage, HeartbeatSubmessage,
+};
 
 use dds_transport::TransportWrite;
 

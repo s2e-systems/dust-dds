@@ -3,9 +3,10 @@ use crate::implementation::dds_impl::domain_participant_impl::{
 };
 use crate::implementation::rtps::types::GuidPrefix;
 use crate::infrastructure::{entity::Entity, qos::DomainParticipantQos};
-use dds_transport::{RtpsMessage, TransportWrite};
+use dds_transport::messages::RtpsMessage;
+use dds_transport::types::{LOCATOR_KIND_UDPv4, Locator};
+use dds_transport::TransportWrite;
 use mockall::mock;
-use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator};
 
 mock! {
     Transport{}

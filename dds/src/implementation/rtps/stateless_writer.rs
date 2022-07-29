@@ -1,8 +1,8 @@
-use rtps_pim::{
+use dds_transport::{
     messages::submessages::{
         AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
     },
-    structure::types::Locator,
+    types::Locator,
 };
 
 use crate::{
@@ -461,7 +461,8 @@ impl<T> RtpsStatelessWriterImpl<T> {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::LOCATOR_INVALID;
+
+    use dds_transport::types::LOCATOR_INVALID;
 
     use crate::implementation::rtps::{history_cache::RtpsCacheChangeImpl, types::GUID_UNKNOWN};
 

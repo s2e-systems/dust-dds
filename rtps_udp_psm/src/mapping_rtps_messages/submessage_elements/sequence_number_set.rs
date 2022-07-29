@@ -4,7 +4,7 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElement;
+use dds_transport::messages::submessage_elements::SequenceNumberSetSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 

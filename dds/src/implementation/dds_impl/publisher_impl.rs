@@ -19,7 +19,7 @@ use crate::{
         },
     },
 };
-use rtps_pim::messages::submessages::AckNackSubmessage;
+use dds_transport::messages::submessages::AckNackSubmessage;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{

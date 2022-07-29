@@ -1,4 +1,4 @@
-use rtps_pim::messages::submessages::NackFragSubmessage;
+use dds_transport::messages::submessages::NackFragSubmessage;
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 

@@ -1,4 +1,4 @@
-use rtps_pim::structure::types::Locator;
+use dds_transport::types::Locator;
 
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::{
     DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS,

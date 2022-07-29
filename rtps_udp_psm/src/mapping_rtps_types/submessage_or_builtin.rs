@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::structure::types::Locator;
+use dds_transport::types::Locator;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 

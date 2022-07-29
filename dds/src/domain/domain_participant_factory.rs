@@ -341,9 +341,13 @@ mod tests {
             dds_impl::domain_participant_impl::CreateBuiltIns,
         },
     };
-    use dds_transport::{TransportRead, TransportWrite};
+    use dds_transport::{
+        messages::RtpsMessage,
+        types::{LOCATOR_KIND_UDPv4, Locator},
+        TransportRead, TransportWrite,
+    };
     use mockall::mock;
-    use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator};
+
     use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
 
     struct Mailbox {
@@ -361,23 +365,14 @@ mod tests {
     }
 
     impl TransportWrite for Mailbox {
-        fn write(
-            &mut self,
-            message: &dds_transport::RtpsMessage<'_>,
-            destination_locator: rtps_pim::structure::types::Locator,
-        ) {
+        fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
             self.received_messages
                 .push((destination_locator, to_bytes(message).unwrap()));
         }
     }
 
     impl<'a> TransportRead<'a> for Mailbox {
-        fn read(
-            &'a mut self,
-        ) -> Option<(
-            rtps_pim::structure::types::Locator,
-            dds_transport::RtpsMessage<'a>,
-        )> {
+        fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
             if self.read < self.received_messages.len() {
                 let (locator, message_bytes) = &self.received_messages[self.read];
                 self.read += 1;

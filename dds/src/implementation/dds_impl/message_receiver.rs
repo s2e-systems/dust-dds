@@ -15,12 +15,10 @@ use crate::{
         },
     },
 };
-use rtps_pim::{
-    messages::submessages::InfoTimestampSubmessage,
-    structure::types::{Locator, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID},
+use dds_transport::{
+    messages::{submessages::InfoTimestampSubmessage, RtpsMessage, RtpsSubmessageType},
+    types::{Locator, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID},
 };
-
-use dds_transport::{RtpsMessage, RtpsSubmessageType};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -129,7 +127,7 @@ impl Default for MessageReceiver {
 #[cfg(test)]
 mod tests {
 
-    use rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
+    use dds_transport::messages::submessage_elements::TimestampSubmessageElement;
 
     use super::*;
 

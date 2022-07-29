@@ -1,4 +1,4 @@
-use rtps_pim::messages::{
+use dds_transport::messages::{
     overall_structure::RtpsSubmessageHeader, submessages::AckNackSubmessage, types::SubmessageKind,
 };
 
@@ -9,7 +9,7 @@ use std::io::{Error, Write};
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for AckNackSubmessage {
-    fn submessage_header(&self) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         let octets_to_next_header = self.reader_id.number_of_bytes()
             + self.writer_id.number_of_bytes()
             + self.reader_sn_state.number_of_bytes()
@@ -71,12 +71,10 @@ impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::{
-        submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-        },
-        submessages::AckNackSubmessage,
+    use dds_transport::messages::submessage_elements::{
+        CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
     };
+    use dds_transport::messages::submessages::AckNackSubmessage;
 
     use crate::mapping_traits::{from_bytes, to_bytes};
 

@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use dds_transport::types::Locator;
+
 use crate::implementation::rtps::types::{EntityId, Guid};
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
@@ -18,7 +20,6 @@ use crate::{
         serde_remote_rtps_pim::{LocatorDeserialize, LocatorSerialize},
     },
 };
-use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,

@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rtps_pim::messages::submessage_elements::{Parameter, ParameterListSubmessageElement};
+use dds_transport::messages::submessage_elements::{Parameter, ParameterListSubmessageElement};
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
@@ -91,7 +91,7 @@ impl NumberOfBytes for ParameterListSubmessageElement<'_> {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::submessage_elements::Parameter;
+    use dds_transport::messages::submessage_elements::Parameter;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};

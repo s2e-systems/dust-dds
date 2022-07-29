@@ -1,11 +1,11 @@
-use rtps_pim::{
+use dds_transport::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
-    structure::types::Locator,
+    types::Locator,
 };
 
 use crate::{

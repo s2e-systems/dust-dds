@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::submessage_elements::GroupDigestSubmessageElement;
+use dds_transport::messages::submessage_elements::GroupDigestSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 

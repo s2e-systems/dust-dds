@@ -1,3 +1,5 @@
+use dds_transport::types::Locator;
+
 use crate::dcps_psm::{DomainId, Duration};
 use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
 use crate::implementation::rtps::types::{
@@ -16,7 +18,6 @@ use crate::{
         },
     },
 };
-use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
     DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,

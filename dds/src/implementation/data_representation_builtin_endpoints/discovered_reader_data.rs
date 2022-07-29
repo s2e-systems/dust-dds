@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use dds_transport::types::Locator;
+
 use crate::implementation::rtps::types::{EntityId, Guid};
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -19,7 +21,6 @@ use crate::{
         },
     },
 };
-use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
     PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS,

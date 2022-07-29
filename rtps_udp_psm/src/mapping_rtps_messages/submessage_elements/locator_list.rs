@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::submessage_elements::LocatorListSubmessageElement;
+use dds_transport::messages::submessage_elements::LocatorListSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
@@ -34,7 +34,7 @@ impl<'de> MappingReadByteOrdered<'de> for LocatorListSubmessageElement {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::Locator;
+    use dds_transport::types::Locator;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};

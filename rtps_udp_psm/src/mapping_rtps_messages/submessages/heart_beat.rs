@@ -1,4 +1,4 @@
-use rtps_pim::messages::{
+use dds_transport::messages::{
     overall_structure::RtpsSubmessageHeader, submessages::HeartbeatSubmessage,
     types::SubmessageKind,
 };
@@ -10,7 +10,7 @@ use std::io::{Error, Write};
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for HeartbeatSubmessage {
-    fn submessage_header(&self) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
         RtpsSubmessageHeader {
             submessage_id: SubmessageKind::HEARTBEAT,
             flags: [
@@ -46,7 +46,7 @@ impl MappingWriteSubmessage for HeartbeatSubmessage {
 impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessage {
     fn mapping_read_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
-        header: rtps_pim::messages::overall_structure::RtpsSubmessageHeader,
+        header: RtpsSubmessageHeader,
     ) -> Result<Self, Error> {
         let endianness_flag = header.flags[0];
         let final_flag = header.flags[1];
@@ -74,7 +74,7 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
     };
 

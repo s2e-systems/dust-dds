@@ -1,7 +1,7 @@
 use std::io::{Error, Read, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
+use dds_transport::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId};
 
 use crate::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite};
 
@@ -71,7 +71,7 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
     };
 

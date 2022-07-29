@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::structure::types::Locator;
+use crate::types::Locator;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3

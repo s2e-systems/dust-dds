@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
-use rtps_pim::messages::{
+use dds_transport::messages::{
     overall_structure::RtpsSubmessageHeader,
     types::{SubmessageFlag, SubmessageKind},
 };
@@ -202,7 +202,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsSubmessageHeader {
 }
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::types::SubmessageKind;
+    use dds_transport::messages::types::SubmessageKind;
 
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};

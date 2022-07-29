@@ -1,37 +1,11 @@
-use rtps_pim::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
-            HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-            InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
-            PadSubmessage,
-        },
-    },
-    structure::types::Locator,
-};
+#![no_std]
 
-#[derive(Debug, PartialEq)]
-pub struct RtpsMessage<'a> {
-    pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageType<'a>>,
-}
+use messages::RtpsMessage;
+use types::Locator;
+extern crate alloc;
 
-#[derive(Debug, PartialEq)]
-pub enum RtpsSubmessageType<'a> {
-    AckNack(AckNackSubmessage),
-    Data(DataSubmessage<'a>),
-    DataFrag(DataFragSubmessage<'a>),
-    Gap(GapSubmessage),
-    Heartbeat(HeartbeatSubmessage),
-    HeartbeatFrag(HeartbeatFragSubmessage),
-    InfoDestination(InfoDestinationSubmessage),
-    InfoReply(InfoReplySubmessage),
-    InfoSource(InfoSourceSubmessage),
-    InfoTimestamp(InfoTimestampSubmessage),
-    NackFrag(NackFragSubmessage),
-    Pad(PadSubmessage),
-}
+pub mod messages;
+pub mod types;
 
 pub trait TransportWrite {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator);

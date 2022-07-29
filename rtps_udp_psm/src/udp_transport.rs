@@ -6,10 +6,14 @@ use std::{
 
 use crate::mapping_traits::{from_bytes, to_bytes};
 use mac_address::MacAddress;
-use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator};
+
 use socket2::Socket;
 
-use dds_transport::{RtpsMessage, TransportRead, TransportWrite};
+use dds_transport::{
+    messages::RtpsMessage,
+    types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+    TransportRead, TransportWrite,
+};
 
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: [u8; 16] =
@@ -371,9 +375,9 @@ impl From<SocketAddr> for UdpLocator {
 mod tests {
     use std::str::FromStr;
 
-    use super::*;
+    use dds_transport::types::LOCATOR_INVALID;
 
-    use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator, LOCATOR_INVALID};
+    use super::*;
 
     #[test]
     fn udpv4_locator_conversion_address1() {

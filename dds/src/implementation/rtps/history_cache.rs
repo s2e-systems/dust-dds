@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use rtps_pim::messages::{
+use dds_transport::messages::{
     submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,

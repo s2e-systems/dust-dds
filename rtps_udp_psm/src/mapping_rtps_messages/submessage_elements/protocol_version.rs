@@ -1,6 +1,6 @@
 use std::io::{Error, Write};
 
-use rtps_pim::messages::submessage_elements::ProtocolVersionSubmessageElement;
+use dds_transport::messages::submessage_elements::ProtocolVersionSubmessageElement;
 
 use crate::mapping_traits::{MappingRead, MappingWrite, NumberOfBytes};
 

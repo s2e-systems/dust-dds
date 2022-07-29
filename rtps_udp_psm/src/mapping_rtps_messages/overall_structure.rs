@@ -1,8 +1,8 @@
 use std::io::{BufRead, Error, Write};
 
-use rtps_pim::messages::overall_structure::RtpsSubmessageHeader;
-
-use dds_transport::{RtpsMessage, RtpsSubmessageType};
+use dds_transport::messages::{
+    overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageType,
+};
 
 use crate::mapping_traits::{MappingRead, MappingWrite};
 
@@ -87,16 +87,15 @@ mod tests {
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
-    use rtps_pim::messages::overall_structure::RtpsMessageHeader;
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::overall_structure::RtpsMessageHeader;
+    use dds_transport::messages::submessage_elements::{
         EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
         ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
         VendorIdSubmessageElement,
     };
-
-    use rtps_pim::messages::submessages::DataSubmessage;
-    use rtps_pim::messages::types::ProtocolId;
+    use dds_transport::messages::submessages::DataSubmessage;
+    use dds_transport::messages::types::ProtocolId;
 
     #[test]
     fn serialize_rtps_message_no_submessage() {

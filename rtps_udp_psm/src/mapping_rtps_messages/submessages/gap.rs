@@ -1,7 +1,7 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::{
+use dds_transport::messages::{
     overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind,
 };
 
@@ -68,7 +68,7 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         SequenceNumberSubmessageElement,
     };

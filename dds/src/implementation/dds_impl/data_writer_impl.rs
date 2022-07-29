@@ -48,14 +48,18 @@ use crate::{
     publication::data_writer_listener::DataWriterListener,
 };
 
-use rtps_pim::messages::{
-    overall_structure::RtpsMessageHeader,
-    submessage_elements::{
-        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, TimestampSubmessageElement,
-        VendorIdSubmessageElement,
+use dds_transport::{
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::{
+            GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+            TimestampSubmessageElement, VendorIdSubmessageElement,
+        },
+        submessages::{AckNackSubmessage, InfoTimestampSubmessage},
+        types::{ParameterId, ProtocolId},
+        RtpsMessage, RtpsSubmessageType,
     },
-    submessages::{AckNackSubmessage, InfoTimestampSubmessage},
-    types::ParameterId,
+    TransportWrite,
 };
 use serde::Serialize;
 
@@ -70,8 +74,6 @@ use crate::implementation::{
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
-
-use dds_transport::{RtpsMessage, RtpsSubmessageType, TransportWrite};
 
 use super::{
     participant_discovery::ParticipantDiscovery,
@@ -1086,7 +1088,7 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
 
         for (locator_list, submessages) in writer_destined_submessages {
             let header = RtpsMessageHeader {
-                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
                     value: PROTOCOLVERSION.into(),
                 },
@@ -1134,8 +1136,7 @@ mod test {
             },
         },
     };
-    use mockall::mock;
-    use rtps_pim::{
+    use dds_transport::{
         messages::{
             submessage_elements::Parameter,
             submessage_elements::{
@@ -1145,8 +1146,9 @@ mod test {
             },
             submessages::DataSubmessage,
         },
-        structure::types::Locator,
+        types::Locator,
     };
+    use mockall::mock;
 
     use crate::implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::RtpsReaderProxy,
@@ -1376,7 +1378,7 @@ mod test {
         let mut mock_transport = MockTransport::new();
         let expected_message = RtpsMessage {
             header: RtpsMessageHeader {
-                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
                     value: PROTOCOLVERSION_2_4.into(),
                 },
@@ -1471,7 +1473,7 @@ mod test {
         let mut mock_transport = MockTransport::new();
         let expected_message = RtpsMessage {
             header: RtpsMessageHeader {
-                protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
                     value: PROTOCOLVERSION_2_4.into(),
                 },

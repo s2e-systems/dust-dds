@@ -21,7 +21,7 @@ use crate::{
         },
     },
 };
-use rtps_pim::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
+use dds_transport::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{

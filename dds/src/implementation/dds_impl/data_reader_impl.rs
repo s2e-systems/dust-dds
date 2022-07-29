@@ -63,12 +63,18 @@ use crate::{
         },
     },
 };
-use rtps_pim::messages::{
-    overall_structure::RtpsMessageHeader,
-    submessage_elements::{
-        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
+use dds_transport::{
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::{
+            GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+            VendorIdSubmessageElement,
+        },
+        submessages::{DataSubmessage, HeartbeatSubmessage},
+        types::ProtocolId,
+        RtpsMessage, RtpsSubmessageType,
     },
-    submessages::{DataSubmessage, HeartbeatSubmessage},
+    TransportWrite,
 };
 
 use super::{
@@ -76,8 +82,6 @@ use super::{
     subscriber_impl::{AnnounceDataReader, SubscriberImpl},
     topic_impl::TopicImpl,
 };
-
-use dds_transport::{RtpsMessage, RtpsSubmessageType, TransportWrite};
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(&mut self, reader: &DdsShared<DataReaderImpl<ThreadTimer>>);
@@ -1172,7 +1176,7 @@ impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
 
             for (locator_list, acknacks) in acknacks {
                 let header = RtpsMessageHeader {
-                    protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
+                    protocol: ProtocolId::PROTOCOL_RTPS,
                     version: ProtocolVersionSubmessageElement {
                         value: PROTOCOLVERSION.into(),
                     },
@@ -1235,11 +1239,11 @@ mod tests {
             utils::shared_object::DdsShared,
         },
     };
-    use mockall::mock;
-    use rtps_pim::messages::submessage_elements::{
+    use dds_transport::messages::submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
+    use mockall::mock;
     use std::io::Write;
 
     struct UserData(u8);

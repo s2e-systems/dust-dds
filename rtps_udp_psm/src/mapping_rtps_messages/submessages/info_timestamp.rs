@@ -1,4 +1,4 @@
-use rtps_pim::messages::{
+use dds_transport::messages::{
     overall_structure::RtpsSubmessageHeader, submessage_elements::TimestampSubmessageElement,
     submessages::InfoTimestampSubmessage, types::SubmessageKind,
 };
@@ -64,7 +64,7 @@ impl<'de> MappingReadSubmessage<'de> for InfoTimestampSubmessage {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
+    use dds_transport::messages::submessage_elements::TimestampSubmessageElement;
 
     use crate::mapping_traits::{from_bytes, to_bytes};
 
