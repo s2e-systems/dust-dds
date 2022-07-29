@@ -1,26 +1,16 @@
 use crate::builtin_topics::TopicBuiltinTopicData;
+use crate::dcps_psm::BuiltInTopicKey;
+use crate::infrastructure::qos_policy::{
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
+    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+    OwnershipQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+    TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
-        serde_remote_dds_api::{
-            BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
-            DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
-            DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
-            DurabilityQosPolicySerialize, DurabilityServiceQosPolicyDeserialize,
-            DurabilityServiceQosPolicySerialize, HistoryQosPolicyDeserialize,
-            HistoryQosPolicySerialize, LatencyBudgetQosPolicyDeserialize,
-            LatencyBudgetQosPolicySerialize, LifespanQosPolicyDeserialize,
-            LifespanQosPolicySerialize, LivelinessQosPolicyDeserialize,
-            LivelinessQosPolicySerialize, OwnershipQosPolicyDeserialize,
-            OwnershipQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
-            ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
-            ReliabilityQosPolicyDataReaderAndTopicsSerialize, ResourceLimitsQosPolicyDeserialize,
-            ResourceLimitsQosPolicySerialize, TopicDataQosPolicyDeserialize,
-            TopicDataQosPolicySerialize, TransportPriorityQosPolicyDeserialize,
-            TransportPriorityQosPolicySerialize,
-        },
     },
 };
 
@@ -29,6 +19,26 @@ use super::parameter_id_values::{
     PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_RELIABILITY,
     PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
+
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From, derive_more::Into)]
+pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
+impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
+    fn default() -> Self {
+        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
+    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
+impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
@@ -55,7 +65,7 @@ impl DdsSerialize for DiscoveredTopicData {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
-        parameter_list_serializer.serialize_parameter::<BuiltInTopicKeySerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
             PID_ENDPOINT_GUID,
             &self.topic_builtin_topic_data.key,
         )?;
@@ -67,71 +77,64 @@ impl DdsSerialize for DiscoveredTopicData {
             PID_TYPE_NAME,
             &self.topic_builtin_topic_data.type_name,
         )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&DurabilityQosPolicy, _>(
+            PID_DURABILITY,
+            &self.topic_builtin_topic_data.durability,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<DurabilityQosPolicySerialize, _>(
-                PID_DURABILITY,
-                &self.topic_builtin_topic_data.durability,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<DurabilityServiceQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&DurabilityServiceQosPolicy, _>(
                 PID_DURABILITY_SERVICE,
                 &self.topic_builtin_topic_data.durability_service,
             )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
+            PID_DEADLINE,
+            &self.topic_builtin_topic_data.deadline,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<DeadlineQosPolicySerialize, _>(
-                PID_DEADLINE,
-                &self.topic_builtin_topic_data.deadline,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<LatencyBudgetQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&LatencyBudgetQosPolicy, _>(
                 PID_LATENCY_BUDGET,
                 &self.topic_builtin_topic_data.latency_budget,
             )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<LivelinessQosPolicySerialize, _>(
-                PID_LIVELINESS,
-                &self.topic_builtin_topic_data.liveliness,
-            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&LivelinessQosPolicy, _>(
+            PID_LIVELINESS,
+            &self.topic_builtin_topic_data.liveliness,
+        )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<ReliabilityQosPolicyDataReaderAndTopicsSerialize, _>(
                 PID_RELIABILITY,
                 &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability),
             )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<TransportPriorityQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&TransportPriorityQosPolicy, _>(
                 PID_TRANSPORT_PRIORITY,
                 &self.topic_builtin_topic_data.transport_priority,
             )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&LifespanQosPolicy, _>(
+            PID_LIFESPAN,
+            &self.topic_builtin_topic_data.lifespan,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<LifespanQosPolicySerialize, _>(
-                PID_LIFESPAN,
-                &self.topic_builtin_topic_data.lifespan,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<DestinationOrderQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&DestinationOrderQosPolicy, _>(
                 PID_DESTINATION_ORDER,
                 &self.topic_builtin_topic_data.destination_order,
             )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&HistoryQosPolicy, _>(
+            PID_HISTORY,
+            &self.topic_builtin_topic_data.history,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<HistoryQosPolicySerialize, _>(
-                PID_HISTORY,
-                &self.topic_builtin_topic_data.history,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<ResourceLimitsQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&ResourceLimitsQosPolicy, _>(
                 PID_RESOURCE_LIMITS,
                 &self.topic_builtin_topic_data.resource_limits,
             )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<OwnershipQosPolicySerialize, _>(
-                PID_OWNERSHIP,
-                &self.topic_builtin_topic_data.ownership,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<TopicDataQosPolicySerialize, _>(
-                PID_TOPIC_DATA,
-                &self.topic_builtin_topic_data.topic_data,
-            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&OwnershipQosPolicy, _>(
+            PID_OWNERSHIP,
+            &self.topic_builtin_topic_data.ownership,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&TopicDataQosPolicy, _>(
+            PID_TOPIC_DATA,
+            &self.topic_builtin_topic_data.topic_data,
+        )?;
         parameter_list_serializer.serialize_sentinel()
     }
 }
@@ -140,36 +143,30 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> crate::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
-        let key = param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_ENDPOINT_GUID)?;
+        let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
         let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
-        let durability =
-            param_list.get_or_default::<DurabilityQosPolicyDeserialize, _>(PID_DURABILITY)?;
-        let durability_service = param_list
-            .get_or_default::<DurabilityServiceQosPolicyDeserialize, _>(PID_DURABILITY_SERVICE)?;
-        let deadline =
-            param_list.get_or_default::<DeadlineQosPolicyDeserialize, _>(PID_DEADLINE)?;
-        let latency_budget = param_list
-            .get_or_default::<LatencyBudgetQosPolicyDeserialize, _>(PID_LATENCY_BUDGET)?;
-        let liveliness =
-            param_list.get_or_default::<LivelinessQosPolicyDeserialize, _>(PID_LIVELINESS)?;
+        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
+        let durability_service =
+            param_list.get_or_default::<DurabilityServiceQosPolicy, _>(PID_DURABILITY_SERVICE)?;
+        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
+        let latency_budget =
+            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
         let reliability = param_list
             .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
                 PID_RELIABILITY,
             )?;
-        let transport_priority = param_list
-            .get_or_default::<TransportPriorityQosPolicyDeserialize, _>(PID_TRANSPORT_PRIORITY)?;
-        let lifespan =
-            param_list.get_or_default::<LifespanQosPolicyDeserialize, _>(PID_LIFESPAN)?;
-        let ownership =
-            param_list.get_or_default::<OwnershipQosPolicyDeserialize, _>(PID_OWNERSHIP)?;
-        let destination_order = param_list
-            .get_or_default::<DestinationOrderQosPolicyDeserialize, _>(PID_DESTINATION_ORDER)?;
-        let history = param_list.get_or_default::<HistoryQosPolicyDeserialize, _>(PID_HISTORY)?;
-        let resource_limits = param_list
-            .get_or_default::<ResourceLimitsQosPolicyDeserialize, _>(PID_RESOURCE_LIMITS)?;
-        let topic_data =
-            param_list.get_or_default::<TopicDataQosPolicyDeserialize, _>(PID_TOPIC_DATA)?;
+        let transport_priority =
+            param_list.get_or_default::<TransportPriorityQosPolicy, _>(PID_TRANSPORT_PRIORITY)?;
+        let lifespan = param_list.get_or_default::<LifespanQosPolicy, _>(PID_LIFESPAN)?;
+        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
+        let destination_order =
+            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
+        let history = param_list.get_or_default::<HistoryQosPolicy, _>(PID_HISTORY)?;
+        let resource_limits =
+            param_list.get_or_default::<ResourceLimitsQosPolicy, _>(PID_RESOURCE_LIMITS)?;
+        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
 
         Ok(Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {

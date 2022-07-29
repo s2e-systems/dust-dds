@@ -6,7 +6,7 @@ pub type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
 pub type DomainId = DomainIdTypeNative;
 pub type InstanceHandle = HandleTypeNative;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BuiltInTopicKey {
     pub value: [BuiltInTopicKeyTypeNative; 16], // Originally in the DDS idl [i32;3]
 }

@@ -1,28 +1,18 @@
 use std::io::Write;
 
 use crate::implementation::rtps::types::{EntityId, Guid};
+use crate::infrastructure::qos_policy::{
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+    LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+};
 use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
-        serde_remote_dds_api::{
-            BuiltInTopicKeyDeserialize, BuiltInTopicKeySerialize, DeadlineQosPolicyDeserialize,
-            DeadlineQosPolicySerialize, DestinationOrderQosPolicyDeserialize,
-            DestinationOrderQosPolicySerialize, DurabilityQosPolicyDeserialize,
-            DurabilityQosPolicySerialize, GroupDataQosPolicyDeserialize,
-            GroupDataQosPolicySerialize, LatencyBudgetQosPolicyDeserialize,
-            LatencyBudgetQosPolicySerialize, LivelinessQosPolicyDeserialize,
-            LivelinessQosPolicySerialize, OwnershipQosPolicyDeserialize,
-            OwnershipQosPolicySerialize, PartitionQosPolicyDeserialize,
-            PartitionQosPolicySerialize, PresentationQosPolicyDeserialize,
-            PresentationQosPolicySerialize, ReliabilityQosPolicyDataReaderAndTopics,
-            ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
-            ReliabilityQosPolicyDataReaderAndTopicsSerialize, TimeBasedFilterQosPolicyDeserialize,
-            TimeBasedFilterQosPolicySerialize, TopicDataQosPolicyDeserialize,
-            TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
-        },
         serde_remote_rtps_pim::{
             ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize, LocatorDeserialize,
             LocatorSerialize,
@@ -38,6 +28,26 @@ use super::parameter_id_values::{
     PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
     PID_USER_DATA,
 };
+
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From, derive_more::Into)]
+pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
+impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
+    fn default() -> Self {
+        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
+#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
+    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
+);
+
+#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
+impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
@@ -89,11 +99,11 @@ impl DdsSerialize for DiscoveredReaderData {
                 PID_EXPECTS_INLINE_QOS,
                 &self.reader_proxy.expects_inline_qos,
             )?;
-        parameter_list_serializer.serialize_parameter::<BuiltInTopicKeySerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
             PID_ENDPOINT_GUID,
             &self.subscription_builtin_topic_data.key,
         )?;
-        parameter_list_serializer.serialize_parameter::<BuiltInTopicKeySerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
             PID_PARTICIPANT_GUID,
             &self.subscription_builtin_topic_data.participant_key,
         )?;
@@ -105,70 +115,61 @@ impl DdsSerialize for DiscoveredReaderData {
             PID_TYPE_NAME,
             &self.subscription_builtin_topic_data.type_name,
         )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&DurabilityQosPolicy, _>(
+            PID_DURABILITY,
+            &self.subscription_builtin_topic_data.durability,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
+            PID_DEADLINE,
+            &self.subscription_builtin_topic_data.deadline,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<DurabilityQosPolicySerialize, _>(
-                PID_DURABILITY,
-                &self.subscription_builtin_topic_data.durability,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<DeadlineQosPolicySerialize, _>(
-                PID_DEADLINE,
-                &self.subscription_builtin_topic_data.deadline,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<LatencyBudgetQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&LatencyBudgetQosPolicy, _>(
                 PID_LATENCY_BUDGET,
                 &self.subscription_builtin_topic_data.latency_budget,
             )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<LivelinessQosPolicySerialize, _>(
-                PID_DURABILITY,
-                &self.subscription_builtin_topic_data.liveliness,
-            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&LivelinessQosPolicy, _>(
+            PID_DURABILITY,
+            &self.subscription_builtin_topic_data.liveliness,
+        )?;
         parameter_list_serializer.serialize_parameter_if_not_default::<ReliabilityQosPolicyDataReaderAndTopicsSerialize,_>(
                 PID_RELIABILITY,
                 &ReliabilityQosPolicyDataReaderAndTopics(&self.subscription_builtin_topic_data.reliability),
             )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&OwnershipQosPolicy, _>(
+            PID_OWNERSHIP,
+            &self.subscription_builtin_topic_data.ownership,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<OwnershipQosPolicySerialize, _>(
-                PID_OWNERSHIP,
-                &self.subscription_builtin_topic_data.ownership,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<DestinationOrderQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&DestinationOrderQosPolicy, _>(
                 PID_DESTINATION_ORDER,
                 &self.subscription_builtin_topic_data.destination_order,
             )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&UserDataQosPolicy, _>(
+            PID_USER_DATA,
+            &self.subscription_builtin_topic_data.user_data,
+        )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<UserDataQosPolicySerialize, _>(
-                PID_USER_DATA,
-                &self.subscription_builtin_topic_data.user_data,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<TimeBasedFilterQosPolicySerialize, _>(
+            .serialize_parameter_if_not_default::<&TimeBasedFilterQosPolicy, _>(
                 PID_TIME_BASED_FILTER,
                 &self.subscription_builtin_topic_data.time_based_filter,
             )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<PresentationQosPolicySerialize, _>(
-                PID_PRESENTATION,
-                &self.subscription_builtin_topic_data.presentation,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<PartitionQosPolicySerialize, _>(
-                PID_PARTITION,
-                &self.subscription_builtin_topic_data.partition,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<TopicDataQosPolicySerialize, _>(
-                PID_TOPIC_DATA,
-                &self.subscription_builtin_topic_data.topic_data,
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<GroupDataQosPolicySerialize, _>(
-                PID_GROUP_DATA,
-                &self.subscription_builtin_topic_data.group_data,
-            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&PresentationQosPolicy, _>(
+            PID_PRESENTATION,
+            &self.subscription_builtin_topic_data.presentation,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&PartitionQosPolicy, _>(
+            PID_PARTITION,
+            &self.subscription_builtin_topic_data.partition,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&TopicDataQosPolicy, _>(
+            PID_TOPIC_DATA,
+            &self.subscription_builtin_topic_data.topic_data,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default::<&GroupDataQosPolicy, _>(
+            PID_GROUP_DATA,
+            &self.subscription_builtin_topic_data.group_data,
+        )?;
         parameter_list_serializer.serialize_sentinel()
     }
 }
@@ -187,40 +188,30 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
 
         // subscription_builtin_topic_data
-        let key =
-            param_list.get::<BuiltInTopicKeyDeserialize, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        let participant_key =
-            param_list.get::<BuiltInTopicKeyDeserialize, _>(PID_PARTICIPANT_GUID)?;
+        let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        let participant_key = param_list.get::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
-        let durability =
-            param_list.get_or_default::<DurabilityQosPolicyDeserialize, _>(PID_DURABILITY)?;
-        let deadline =
-            param_list.get_or_default::<DeadlineQosPolicyDeserialize, _>(PID_DEADLINE)?;
-        let latency_budget = param_list
-            .get_or_default::<LatencyBudgetQosPolicyDeserialize, _>(PID_LATENCY_BUDGET)?;
-        let liveliness =
-            param_list.get_or_default::<LivelinessQosPolicyDeserialize, _>(PID_LIVELINESS)?;
+        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
+        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
+        let latency_budget =
+            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
         let reliability = param_list
             .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
                 PID_RELIABILITY,
             )?;
-        let user_data =
-            param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
-        let ownership =
-            param_list.get_or_default::<OwnershipQosPolicyDeserialize, _>(PID_OWNERSHIP)?;
-        let destination_order = param_list
-            .get_or_default::<DestinationOrderQosPolicyDeserialize, _>(PID_DESTINATION_ORDER)?;
-        let time_based_filter = param_list
-            .get_or_default::<TimeBasedFilterQosPolicyDeserialize, _>(PID_TIME_BASED_FILTER)?;
+        let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
+        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
+        let destination_order =
+            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
+        let time_based_filter =
+            param_list.get_or_default::<TimeBasedFilterQosPolicy, _>(PID_TIME_BASED_FILTER)?;
         let presentation =
-            param_list.get_or_default::<PresentationQosPolicyDeserialize, _>(PID_PRESENTATION)?;
-        let partition =
-            param_list.get_or_default::<PartitionQosPolicyDeserialize, _>(PID_PARTITION)?;
-        let topic_data =
-            param_list.get_or_default::<TopicDataQosPolicyDeserialize, _>(PID_TOPIC_DATA)?;
-        let group_data =
-            param_list.get_or_default::<GroupDataQosPolicyDeserialize, _>(PID_GROUP_DATA)?;
+            param_list.get_or_default::<PresentationQosPolicy, _>(PID_PRESENTATION)?;
+        let partition = param_list.get_or_default::<PartitionQosPolicy, _>(PID_PARTITION)?;
+        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
+        let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
         let remote_reader_guid = key.value.into();
 
