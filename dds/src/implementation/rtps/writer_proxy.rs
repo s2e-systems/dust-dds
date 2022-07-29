@@ -4,10 +4,11 @@ use rtps_pim::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
         submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
-        types::Count,
     },
-    structure::types::{EntityId, Guid, Locator, SequenceNumber},
+    structure::types::Locator,
 };
+
+use super::types::{Count, EntityId, Guid, SequenceNumber};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsWriterProxyImpl {
@@ -26,7 +27,7 @@ pub struct RtpsWriterProxyImpl {
 }
 
 impl RtpsWriterProxyImpl {
-    pub fn best_effort_receive_gap(&mut self, gap: &GapSubmessage<Vec<SequenceNumber>>) {
+    pub fn best_effort_receive_gap(&mut self, gap: &GapSubmessage) {
         for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             self.irrelevant_change_set(seq_num);
         }
@@ -34,7 +35,7 @@ impl RtpsWriterProxyImpl {
             self.irrelevant_change_set(*seq_num);
         }
     }
-    pub fn reliable_receive_gap(&mut self, gap: &GapSubmessage<Vec<SequenceNumber>>) {
+    pub fn reliable_receive_gap(&mut self, gap: &GapSubmessage) {
         for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             self.irrelevant_change_set(seq_num);
         }
@@ -47,13 +48,15 @@ impl RtpsWriterProxyImpl {
         &mut self,
         reader_id: EntityId,
         acknack_count: Count,
-        mut send_acknack: impl FnMut(&Self, AckNackSubmessage<Vec<SequenceNumber>>),
+        mut send_acknack: impl FnMut(&Self, AckNackSubmessage),
     ) {
         let endianness_flag = true;
         let final_flag = true;
-        let reader_id = EntityIdSubmessageElement { value: reader_id };
+        let reader_id = EntityIdSubmessageElement {
+            value: reader_id.into(),
+        };
         let writer_id = EntityIdSubmessageElement {
-            value: self.remote_writer_guid().entity_id,
+            value: self.remote_writer_guid().entity_id.into(),
         };
 
         let reader_sn_state = SequenceNumberSetSubmessageElement {
@@ -61,7 +64,7 @@ impl RtpsWriterProxyImpl {
             set: self.missing_changes(),
         };
         let count = CountSubmessageElement {
-            value: acknack_count,
+            value: acknack_count.into(),
         };
 
         let acknack_submessage = AckNackSubmessage {
@@ -214,7 +217,8 @@ impl RtpsWriterProxyImpl {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
+
+    use crate::implementation::rtps::types::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
 
     use super::*;
 

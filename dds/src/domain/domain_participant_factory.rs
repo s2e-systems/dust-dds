@@ -7,6 +7,7 @@ use std::{
 
 use crate::{
     dcps_psm::{DomainId, StatusMask},
+    implementation::rtps::types::GuidPrefix,
     infrastructure::{
         entity::Entity,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
@@ -28,7 +29,7 @@ use mac_address::MacAddress;
 
 use lazy_static::lazy_static;
 
-use rtps_pim::structure::types::{GuidPrefix, LOCATOR_KIND_UDPv4, Locator};
+use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator};
 use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
 use socket2::Socket;
 
@@ -510,6 +511,7 @@ impl DomainParticipantFactory {
 #[cfg(test)]
 mod tests {
     use crate::{
+        implementation::rtps::types::{Guid, ENTITYID_PARTICIPANT},
         publication::data_writer::DataWriterProxy,
         publication::data_writer_listener::DataWriterListener,
         subscription::{
@@ -544,7 +546,6 @@ mod tests {
         },
     };
     use mockall::mock;
-    use rtps_pim::structure::types::{Guid, ENTITYID_PARTICIPANT};
 
     #[test]
     fn communicaitons_make_different_guids() {

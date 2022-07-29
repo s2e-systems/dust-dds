@@ -1,14 +1,14 @@
 use std::convert::TryFrom;
 
-use rtps_pim::{
-    behavior::types::Duration,
-    messages::{submessage_elements::Parameter, submessages::DataSubmessage},
-    structure::types::{Guid, GuidPrefix, Locator, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN},
+use rtps_pim::{messages::submessages::DataSubmessage, structure::types::Locator};
+
+use crate::{dcps_psm::Duration, implementation::rtps::history_cache::RtpsHistoryCacheImpl};
+
+use super::{
+    endpoint::RtpsEndpointImpl,
+    reader::RtpsReaderImpl,
+    types::{EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN},
 };
-
-use crate::implementation::rtps::history_cache::RtpsHistoryCacheImpl;
-
-use super::{endpoint::RtpsEndpointImpl, reader::RtpsReaderImpl};
 
 pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
 
@@ -17,11 +17,7 @@ impl RtpsStatelessReaderImpl {
         self.0.guid()
     }
 
-    pub fn receive_data(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]>,
-    ) {
+    pub fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_>) {
         if let Ok(a_change) = TryFrom::try_from((source_guid_prefix, data)) {
             self.reader_cache().add_change(a_change);
         }
@@ -98,12 +94,11 @@ impl RtpsStatelessReaderImpl {
 impl RtpsStatelessReaderImpl {
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
-        if data_submessage.reader_id.value == ENTITYID_UNKNOWN
-            || data_submessage.reader_id.value == self.guid().entity_id()
-        {
+        let data_reader_id: EntityId = data_submessage.reader_id.value.into();
+        if data_reader_id == ENTITYID_UNKNOWN || data_reader_id == self.guid().entity_id() {
             self.receive_data(source_guid_prefix, data_submessage)
         }
     }
@@ -111,12 +106,13 @@ impl RtpsStatelessReaderImpl {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::{
-        messages::submessage_elements::{
-            EntityIdSubmessageElement, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
-        structure::types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY},
+    use rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElement, ParameterListSubmessageElement, SequenceNumberSubmessageElement,
+        SerializedDataSubmessageElement,
+    };
+
+    use crate::implementation::rtps::types::{
+        USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY,
     };
 
     use super::*;
@@ -137,17 +133,17 @@ mod tests {
             false,
         );
 
-        let data: DataSubmessage<Vec<Parameter>, &[u8]> = DataSubmessage {
+        let data: DataSubmessage<'_> = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: true,
             data_flag: true,
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader.0.guid().entity_id,
+                value: reader.0.guid().entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY),
+                value: EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY).into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -215,10 +211,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id,
+                value: reader_guid.entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: source_guid.entity_id,
+                value: source_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: seq_num },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },

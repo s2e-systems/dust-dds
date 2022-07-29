@@ -1,9 +1,12 @@
 use std::sync::atomic::{self, AtomicU8};
 
+use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
-use crate::implementation::rtps::{
-    group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl,
+use crate::implementation::rtps::types::{
+    EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+    USER_DEFINED_WRITER_WITH_KEY,
 };
+use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl};
 use crate::return_type::{DdsError, DdsResult};
 use crate::{
     publication::publisher_listener::PublisherListener,
@@ -16,13 +19,7 @@ use crate::{
         },
     },
 };
-use rtps_pim::{
-    messages::submessages::AckNackSubmessage,
-    structure::types::{
-        EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, TopicKind,
-        USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-    },
-};
+use rtps_pim::messages::submessages::AckNackSubmessage;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -185,9 +182,9 @@ impl DdsShared<PublisherImpl> {
                     .map(|dp| dp.default_multicast_locator_list())
                     .unwrap_or(&[]),
                 true,
-                rtps_pim::behavior::types::Duration::new(0, 200_000_000),
-                rtps_pim::behavior::types::DURATION_ZERO,
-                rtps_pim::behavior::types::DURATION_ZERO,
+                Duration::new(0, 200_000_000),
+                DURATION_ZERO,
+                DURATION_ZERO,
                 None,
             ));
 
@@ -414,7 +411,7 @@ impl AddMatchedReader for DdsShared<PublisherImpl> {
 impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherImpl> {
     fn on_acknack_submessage_received(
         &self,
-        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
+        acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {

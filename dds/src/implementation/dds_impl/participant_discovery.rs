@@ -1,19 +1,18 @@
-use rtps_pim::{
-    behavior::types::Duration,
-    messages::types::Count,
-    structure::types::{Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_UNKNOWN},
-};
+use rtps_pim::structure::types::Locator;
 
 use crate::{
     dcps_psm::DomainId,
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+            ParticipantLeaseDuration, SpdpDiscoveredParticipantData,
+        },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             stateful_reader::RtpsStatefulReaderImpl,
             stateful_writer::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
-            writer_proxy::RtpsWriterProxyImpl,
+            types::{Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_UNKNOWN},
             utils::clock::StdTimer,
+            writer_proxy::RtpsWriterProxyImpl,
         },
     },
 };
@@ -267,7 +266,7 @@ impl<'a> ParticipantDiscovery<'a> {
         self.participant_data.available_builtin_endpoints()
     }
 
-    pub fn lease_duration(&self) -> Duration {
+    pub fn lease_duration(&self) -> ParticipantLeaseDuration {
         self.participant_data.lease_duration()
     }
 

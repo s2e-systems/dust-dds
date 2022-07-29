@@ -1,13 +1,16 @@
-use crate::structure::types::{GuidPrefix, ProtocolVersion, VendorId};
-
-use super::types::{ProtocolId, SubmessageFlag, SubmessageKind};
+use super::{
+    submessage_elements::{
+        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
+    },
+    types::{ProtocolId, SubmessageFlag, SubmessageKind},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RtpsMessageHeader {
     pub protocol: ProtocolId,
-    pub version: ProtocolVersion,
-    pub vendor_id: VendorId,
-    pub guid_prefix: GuidPrefix,
+    pub version: ProtocolVersionSubmessageElement,
+    pub vendor_id: VendorIdSubmessageElement,
+    pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
 #[derive(Debug, PartialEq)]

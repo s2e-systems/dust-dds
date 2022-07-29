@@ -1,21 +1,33 @@
 use std::convert::TryFrom;
 
 use rtps_pim::{
-    behavior::types::Duration,
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
-        types::Count,
+    messages::submessages::{
+        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
     },
-    structure::types::{Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber, TopicKind},
+    structure::types::Locator,
 };
+
+use crate::dcps_psm::Duration;
 
 use super::{
     endpoint::RtpsEndpointImpl,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     reader::RtpsReaderImpl,
+    types::{Count, Guid, GuidPrefix, ReliabilityKind, TopicKind},
     writer_proxy::RtpsWriterProxyImpl,
 };
+
+/// ChangeFromWriterStatusKind
+/// Enumeration used to indicate the status of a ChangeFromWriter. It can take the values:
+/// LOST, MISSING, RECEIVED, UNKNOWN
+#[allow(dead_code)]
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum ChangeFromWriterStatusKind {
+    Lost,
+    Missing,
+    Received,
+    Unknown,
+}
 
 pub struct RtpsStatefulReaderImpl {
     reader: RtpsReaderImpl,
@@ -26,9 +38,9 @@ impl RtpsStatefulReaderImpl {
     fn best_effort_receive_data(
         &mut self,
         source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
+        data: &DataSubmessage<'_>,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value.into());
         let a_change: Result<RtpsCacheChangeImpl, _> =
             TryFrom::try_from((source_guid_prefix, data));
         if let Ok(a_change) = a_change {
@@ -45,12 +57,8 @@ impl RtpsStatefulReaderImpl {
         }
     }
 
-    fn reliable_receive_data(
-        &mut self,
-        source_guid_prefix: GuidPrefix,
-        data: &DataSubmessage<Vec<Parameter<'_>>, &[u8]>,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+    fn reliable_receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_>) {
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value.into());
         let a_change: Result<RtpsCacheChangeImpl, _> =
             TryFrom::try_from((source_guid_prefix, data));
         if let Ok(a_change) = a_change {
@@ -63,10 +71,10 @@ impl RtpsStatefulReaderImpl {
 
     pub fn process_gap_submessage(
         &mut self,
-        gap_submessage: &GapSubmessage<Vec<SequenceNumber>>,
+        gap_submessage: &GapSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value.into());
         let reliability_level = self.reliability_level();
         if let Some(writer_proxy) = self
             .matched_writers
@@ -184,10 +192,10 @@ impl RtpsStatefulReaderImpl {
 impl RtpsStatefulReaderImpl {
     pub fn on_data_submessage_received(
         &mut self,
-        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value.into());
 
         if let Some(writer_proxy) = self
             .matched_writers
@@ -220,15 +228,19 @@ impl RtpsStatefulReaderImpl {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reliability_level() == ReliabilityKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
+            let writer_guid = Guid::new(
+                source_guid_prefix,
+                heartbeat_submessage.writer_id.value.into(),
+            );
 
             if let Some(writer_proxy) = self
                 .matched_writers
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
-                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
+                if writer_proxy.last_received_heartbeat_count.0 != heartbeat_submessage.count.value
+                {
+                    writer_proxy.last_received_heartbeat_count.0 = heartbeat_submessage.count.value;
 
                     writer_proxy.must_send_acknacks = !heartbeat_submessage.final_flag
                         || (!heartbeat_submessage.liveliness_flag
@@ -244,7 +256,7 @@ impl RtpsStatefulReaderImpl {
 impl RtpsStatefulReaderImpl {
     pub fn send_submessages(
         &mut self,
-        mut send_acknack: impl FnMut(&RtpsWriterProxyImpl, AckNackSubmessage<Vec<SequenceNumber>>),
+        mut send_acknack: impl FnMut(&RtpsWriterProxyImpl, AckNackSubmessage),
     ) {
         let entity_id = self.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
@@ -267,15 +279,13 @@ impl RtpsStatefulReaderImpl {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::{
-        messages::{
-            submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-            },
-            types::Count,
-        },
-        structure::types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY},
+    use rtps_pim::messages::submessage_elements::{
+        CountSubmessageElement, EntityIdSubmessageElement, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+    };
+
+    use crate::implementation::rtps::types::{
+        EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY,
     };
 
     use super::*;
@@ -308,17 +318,17 @@ mod tests {
 
         let writer_sn = 1;
         let serialized_payload_value = [1, 0, 2, 5];
-        let data: DataSubmessage<Vec<Parameter>, &[u8]> = DataSubmessage {
+        let data: DataSubmessage<'_> = DataSubmessage {
             endianness_flag: true,
             inline_qos_flag: true,
             data_flag: true,
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader.guid().entity_id,
+                value: reader.guid().entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: source_guid.entity_id,
+                value: source_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: writer_sn },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -374,10 +384,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id,
+                value: reader_guid.entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: writer_guid.entity_id,
+                value: writer_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: seq_num },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -430,10 +440,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id,
+                value: reader_guid.entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: writer_guid.entity_id,
+                value: writer_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: seq_num },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -486,10 +496,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id,
+                value: reader_guid.entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: writer_guid.entity_id,
+                value: writer_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: seq_num },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -502,10 +512,10 @@ mod tests {
                 final_flag: false,
                 liveliness_flag: false,
                 reader_id: EntityIdSubmessageElement {
-                    value: reader_guid.entity_id,
+                    value: reader_guid.entity_id.into(),
                 },
                 writer_id: EntityIdSubmessageElement {
-                    value: writer_guid.entity_id,
+                    value: writer_guid.entity_id.into(),
                 },
                 first_sn: SequenceNumberSubmessageElement { value: first_sn },
                 last_sn: SequenceNumberSubmessageElement { value: last_sn },
@@ -515,28 +525,23 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, 1), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, 2), writer_guid.prefix);
         assert_eq!(vec![1], reader.matched_writers[0].missing_changes());
 
         reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 2, Count(3)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 2, 3), writer_guid.prefix);
         assert_eq!(vec![2], reader.matched_writers[0].missing_changes());
 
         reader.on_data_submessage_received(&make_data(4, &[]), writer_guid.prefix);
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 5, Count(4)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 5, 4), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(2, 5, Count(5)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(2, 5, 5), writer_guid.prefix);
         assert_eq!(vec![2, 3, 5], reader.matched_writers[0].missing_changes());
     }
 
@@ -578,10 +583,10 @@ mod tests {
             key_flag: false,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id,
+                value: reader_guid.entity_id.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: writer_guid.entity_id,
+                value: writer_guid.entity_id.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: seq_num },
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
@@ -594,10 +599,10 @@ mod tests {
                 final_flag: false,
                 liveliness_flag: false,
                 reader_id: EntityIdSubmessageElement {
-                    value: reader_guid.entity_id,
+                    value: reader_guid.entity_id.into(),
                 },
                 writer_id: EntityIdSubmessageElement {
-                    value: writer_guid.entity_id,
+                    value: writer_guid.entity_id.into(),
                 },
                 first_sn: SequenceNumberSubmessageElement { value: first_sn },
                 last_sn: SequenceNumberSubmessageElement { value: last_sn },
@@ -607,12 +612,10 @@ mod tests {
 
         assert!(reader.matched_writers[0].missing_changes().is_empty());
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 0, Count(1)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 0, 1), writer_guid.prefix);
         reader.send_submessages(|_, _| assert!(false));
 
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(2)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, 2), writer_guid.prefix);
         let mut submessages = Vec::new();
         reader.send_submessages(|_, acknack| submessages.push(acknack));
         assert_eq!(1, submessages.len());
@@ -621,15 +624,13 @@ mod tests {
         reader.send_submessages(|_, _| assert!(false));
 
         // resend when new heartbeat
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(3)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, 3), writer_guid.prefix);
         let mut submessages = Vec::new();
         reader.send_submessages(|_, a| submessages.push(a));
         assert_eq!(1, submessages.len());
 
         // doesn't send if message received in the meantime
-        reader
-            .on_heartbeat_submessage_received(&make_heartbeat(1, 1, Count(4)), writer_guid.prefix);
+        reader.on_heartbeat_submessage_received(&make_heartbeat(1, 1, 4), writer_guid.prefix);
         reader.on_data_submessage_received(&make_data(1, &[]), writer_guid.prefix);
         reader.send_submessages(|_, _| assert!(false));
     }

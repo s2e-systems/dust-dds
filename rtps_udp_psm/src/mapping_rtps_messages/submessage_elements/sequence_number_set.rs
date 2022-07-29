@@ -4,14 +4,11 @@ use std::{
 };
 
 use byteorder::ByteOrder;
-use rtps_pim::{
-    messages::submessage_elements::SequenceNumberSetSubmessageElement,
-    structure::types::SequenceNumber,
-};
+use rtps_pim::messages::submessage_elements::SequenceNumberSetSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
-impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+impl NumberOfBytes for SequenceNumberSetSubmessageElement {
     fn number_of_bytes(&self) -> usize {
         let num_bits = if let Some(&max) = (&self.set).iter().max() {
             max - self.base + 1
@@ -23,7 +20,7 @@ impl NumberOfBytes for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
     }
 }
 
-impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -40,7 +37,10 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<Sequence
         }
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
 
-        self.base.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        let high = (self.base >> 32) as i32;
+        let low = self.base as i32;
+        high.mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        low.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         num_bits.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         for bitmap_element in &bitmap[..number_of_bitmap_elements] {
             bitmap_element.mapping_write_byte_ordered::<_, B>(&mut writer)?;
@@ -49,9 +49,12 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement<Vec<Sequence
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement<Vec<SequenceNumber>> {
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let base: SequenceNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let base = ((high as i64) << 32) + low as i64;
+
         let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
         let mut bitmap = [0; 8];
@@ -62,7 +65,7 @@ impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement<Vec
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(base + delta_n as SequenceNumber);
+                set.push(base + delta_n as i64);
             }
         }
         Ok(Self {

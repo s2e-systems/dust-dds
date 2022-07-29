@@ -1,37 +1,25 @@
-use std::{
-    io::{Error, Write},
-    iter::FromIterator,
-};
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::{
-    messages::submessage_elements::LocatorListSubmessageElement, structure::types::Locator,
-};
+use rtps_pim::messages::submessage_elements::LocatorListSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl<T> MappingWriteByteOrdered for LocatorListSubmessageElement<T>
-where
-    for<'a> &'a T: IntoIterator<Item = &'a Locator>,
-{
+impl MappingWriteByteOrdered for LocatorListSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        let locator_list: Vec<&Locator> = self.value.into_iter().collect();
-        let num_locators = locator_list.len() as u32;
+        let num_locators = self.value.len() as u32;
         num_locators.mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        for locator in locator_list {
+        for locator in self.value.iter() {
             locator.mapping_write_byte_ordered::<_, B>(&mut writer)?;
         }
         Ok(())
     }
 }
 
-impl<'de, T> MappingReadByteOrdered<'de> for LocatorListSubmessageElement<T>
-where
-    T: FromIterator<Locator>,
-{
+impl<'de> MappingReadByteOrdered<'de> for LocatorListSubmessageElement {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let num_locators: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let mut locator_list = Vec::new();
@@ -39,13 +27,15 @@ where
             locator_list.push(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?);
         }
         Ok(Self {
-            value: T::from_iter(locator_list.into_iter()),
+            value: locator_list,
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use rtps_pim::structure::types::Locator;
+
     use super::*;
     use crate::mapping_traits::{from_bytes_le, to_bytes_le};
 

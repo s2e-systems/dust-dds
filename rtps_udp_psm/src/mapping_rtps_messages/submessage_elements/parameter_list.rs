@@ -1,21 +1,18 @@
 use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
-use rtps_pim::messages::{
-    submessage_elements::{Parameter, ParameterListSubmessageElement},
-    types::ParameterId,
-};
+use rtps_pim::messages::submessage_elements::{Parameter, ParameterListSubmessageElement};
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
-const PID_SENTINEL: ParameterId = ParameterId(1);
+const PID_SENTINEL: u16 = 1;
 const SENTINEL: Parameter = Parameter {
     parameter_id: PID_SENTINEL,
     length: 0,
     value: &[],
 };
 
-impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+impl MappingWriteByteOrdered for ParameterListSubmessageElement<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -27,9 +24,7 @@ impl<'a> MappingWriteByteOrdered for ParameterListSubmessageElement<Vec<Paramete
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de>
-    for ParameterListSubmessageElement<Vec<Parameter<'a>>>
-{
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<'a> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
@@ -51,7 +46,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de>
 
 impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let parameter_id = ParameterId(buf.read_u16::<B>()?);
+        let parameter_id = buf.read_u16::<B>()?;
         let length = buf.read_i16::<B>()?;
         let (value, following) = buf.split_at(length as usize);
         *buf = following;
@@ -68,7 +63,7 @@ impl<'a> MappingWriteByteOrdered for Parameter<'a> {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        writer.write_u16::<B>(self.parameter_id.0)?;
+        writer.write_u16::<B>(self.parameter_id)?;
         writer.write_i16::<B>(self.length)?;
         writer.write_all(self.value.as_ref())?;
         let padding: &[u8] = match self.value.len() % 4 {
@@ -88,7 +83,7 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl<'a> NumberOfBytes for ParameterListSubmessageElement<Vec<Parameter<'a>>> {
+impl NumberOfBytes for ParameterListSubmessageElement<'_> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
@@ -104,7 +99,7 @@ mod tests {
     #[test]
     fn serialize_parameter() {
         let parameter = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 4,
             value: &[5, 6, 7, 8],
         };
@@ -119,7 +114,7 @@ mod tests {
     #[test]
     fn serialize_parameter_non_multiple_4() {
         let parameter = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 4,
             value: &[5, 6, 7, 0],
         };
@@ -134,7 +129,7 @@ mod tests {
     #[test]
     fn serialize_parameter_zero_size() {
         let parameter = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 0,
             value: &[][..],
         };
@@ -150,7 +145,7 @@ mod tests {
     #[test]
     fn deserialize_parameter_non_multiple_of_4() {
         let expected = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 8,
             value: &[5, 6, 7, 8, 9, 10, 11, 0],
         };
@@ -166,7 +161,7 @@ mod tests {
     #[test]
     fn deserialize_parameter() {
         let expected = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 8,
             value: &[5, 6, 7, 8, 9, 10, 11, 12],
         };
@@ -182,12 +177,12 @@ mod tests {
     #[test]
     fn serialize_parameter_list() {
         let parameter_1 = Parameter {
-            parameter_id: ParameterId(2),
+            parameter_id: 2,
             length: 4,
             value: &[51, 61, 71, 81],
         };
         let parameter_2 = Parameter {
-            parameter_id: ParameterId(3),
+            parameter_id: 3,
             length: 4,
             value: &[52, 62, 0, 0],
         };
@@ -220,12 +215,12 @@ mod tests {
         let expected = ParameterListSubmessageElement {
             parameter: vec![
                 Parameter {
-                    parameter_id: ParameterId(0x02),
+                    parameter_id: 0x02,
                     length: 4,
                     value: &[15, 16, 17, 18],
                 },
                 Parameter {
-                    parameter_id: ParameterId(0x03),
+                    parameter_id: 0x03,
                     length: 4,
                     value: &[25, 26, 27, 28],
                 },
@@ -256,7 +251,7 @@ mod tests {
 
         let expected = ParameterListSubmessageElement {
             parameter: vec![Parameter {
-                parameter_id: ParameterId(0x32),
+                parameter_id: 0x32,
                 length: 24,
                 value: parameter_value_expected,
             }],
@@ -299,12 +294,12 @@ mod tests {
         let expected = ParameterListSubmessageElement {
             parameter: vec![
                 Parameter {
-                    parameter_id: ParameterId(0x32),
+                    parameter_id: 0x32,
                     length: 24,
                     value: parameter_value_expected1,
                 },
                 Parameter {
-                    parameter_id: ParameterId(0x32),
+                    parameter_id: 0x32,
                     length: 24,
                     value: parameter_value_expected2,
                 },

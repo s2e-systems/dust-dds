@@ -1,27 +1,28 @@
 use rtps_pim::{
-    behavior::types::Duration,
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
-        types::Count,
+    messages::submessages::{
+        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
     },
-    structure::types::{
-        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-        ENTITYID_UNKNOWN,
-    },
+    structure::types::Locator,
 };
 
-use crate::implementation::rtps::utils::clock::{Timer, TimerConstructor};
+use crate::{
+    dcps_psm::{Duration, InstanceHandle},
+    implementation::rtps::utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     endpoint::RtpsEndpointImpl,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    types::{
+        ChangeKind, Count, EntityId, Guid, ReliabilityKind, SequenceNumber, TopicKind,
+        ENTITYID_UNKNOWN,
+    },
     writer::RtpsWriterImpl,
 };
 
-pub enum BestEffortStatelessWriterSendSubmessage<P, D, S> {
-    Data(DataSubmessage<P, D>),
-    Gap(GapSubmessage<S>),
+pub enum BestEffortStatelessWriterSendSubmessage<'a> {
+    Data(DataSubmessage<'a>),
+    Gap(GapSubmessage),
 }
 
 pub struct RtpsReaderLocatorAttributesImpl {
@@ -85,11 +86,7 @@ impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
     }
 
     /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes(
-        &mut self,
-    ) -> Option<
-        BestEffortStatelessWriterSendSubmessage<Vec<Parameter<'a>>, &'a [u8], Vec<SequenceNumber>>,
-    > {
+    pub fn send_unsent_changes(&mut self) -> Option<BestEffortStatelessWriterSendSubmessage<'a>> {
         if self.unsent_changes().into_iter().next().is_some() {
             let change = self.next_unsent_change();
             // The post-condition:
@@ -112,7 +109,7 @@ impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
     /// 8.4.8.2.5 Transition T6
     /// Implementation does not include the part corresponding to searching the reader locator
     /// on the stateless writer
-    pub fn receive_acknack(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+    pub fn receive_acknack(&mut self, acknack: &AckNackSubmessage) {
         self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
 }
@@ -145,13 +142,13 @@ impl RtpsReaderLocatorCacheChange<'_> {
     }
 }
 
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage<Vec<SequenceNumber>> {
+impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage {
     fn from(_val: RtpsReaderLocatorCacheChange<'a>) -> Self {
         todo!()
     }
 }
 
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<'a> {
     fn from(val: RtpsReaderLocatorCacheChange<'a>) -> Self {
         let cache_change = val
             .cache_change
@@ -412,22 +409,13 @@ where
 {
     pub fn send_submessages(
         &'a mut self,
-        mut send_data: impl FnMut(
-            &RtpsReaderLocatorOperationsImpl<'a>,
-            rtps_pim::messages::submessages::DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>,
-        ),
-        mut send_gap: impl FnMut(
-            &RtpsReaderLocatorOperationsImpl<'a>,
-            rtps_pim::messages::submessages::GapSubmessage<Vec<SequenceNumber>>,
-        ),
-        _send_heartbeat: impl FnMut(
-            &RtpsReaderLocatorOperationsImpl<'a>,
-            rtps_pim::messages::submessages::HeartbeatSubmessage,
-        ),
+        mut send_data: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, DataSubmessage<'a>),
+        mut send_gap: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, GapSubmessage),
+        _send_heartbeat: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.heartbeat_period().seconds as u64)
-                + std::time::Duration::from_nanos(self.heartbeat_period().fraction as u64);
+            >= std::time::Duration::from_secs(self.heartbeat_period().sec() as u64)
+                + std::time::Duration::from_nanos(self.heartbeat_period().nanosec() as u64);
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
         }
@@ -453,20 +441,18 @@ where
 }
 
 impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn on_acknack_submessage_received(
-        &mut self,
-        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
-    ) {
-        let message_is_for_me = acknack_submessage.reader_id.value == ENTITYID_UNKNOWN
-            || acknack_submessage.reader_id.value == self.guid().entity_id();
+    pub fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage) {
+        let acknack_reader_id: EntityId = acknack_submessage.reader_id.value.into();
+        let message_is_for_me =
+            acknack_reader_id == ENTITYID_UNKNOWN || acknack_reader_id == self.guid().entity_id();
 
         if self.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
             for reader_locator in self.reader_locators.iter_mut() {
-                if reader_locator.last_received_acknack_count != acknack_submessage.count.value {
+                if reader_locator.last_received_acknack_count.0 != acknack_submessage.count.value {
                     RtpsReaderLocatorOperationsImpl::new(reader_locator, &self.writer.writer_cache)
                         .receive_acknack(acknack_submessage);
 
-                    reader_locator.last_received_acknack_count = acknack_submessage.count.value;
+                    reader_locator.last_received_acknack_count.0 = acknack_submessage.count.value;
                 }
             }
         }
@@ -475,9 +461,9 @@ impl<T> RtpsStatelessWriterImpl<T> {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID};
+    use rtps_pim::structure::types::LOCATOR_INVALID;
 
-    use crate::implementation::rtps::history_cache::RtpsCacheChangeImpl;
+    use crate::implementation::rtps::{history_cache::RtpsCacheChangeImpl, types::GUID_UNKNOWN};
 
     use super::*;
 

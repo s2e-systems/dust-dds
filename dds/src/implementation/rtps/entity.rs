@@ -1,4 +1,4 @@
-use rtps_pim::structure::types::Guid;
+use super::types::Guid;
 
 pub struct RtpsEntityImpl {
     guid: Guid,

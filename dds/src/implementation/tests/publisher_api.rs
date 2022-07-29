@@ -1,8 +1,8 @@
 use crate::dds_type::DdsType;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use crate::implementation::rtps::types::GuidPrefix;
 use crate::return_type::DdsError;
 use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
-use rtps_pim::structure::types::GuidPrefix;
 
 struct Foo;
 

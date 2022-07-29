@@ -74,14 +74,8 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rtps_pim::{
-        messages::{
-            submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-            },
-            types::Count,
-        },
-        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    use rtps_pim::messages::submessage_elements::{
+        CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
     };
 
     #[test]
@@ -90,14 +84,14 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement { value: Count(2) };
+        let count = CountSubmessageElement { value: 2 };
         let submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -128,14 +122,14 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement { value: Count(2) };
+        let count = CountSubmessageElement { value: 2 };
         let expected = HeartbeatSubmessage {
             endianness_flag,
             final_flag,

@@ -1,18 +1,15 @@
 use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::{
-    messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind,
-    },
-    structure::types::SequenceNumber,
+use rtps_pim::messages::{
+    overall_structure::RtpsSubmessageHeader, submessages::GapSubmessage, types::SubmessageKind,
 };
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for GapSubmessage<Vec<SequenceNumber>> {
+impl MappingWriteSubmessage for GapSubmessage {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let submessage_length = 16 + self.gap_list.number_of_bytes();
         RtpsSubmessageHeader {
@@ -46,7 +43,7 @@ impl MappingWriteSubmessage for GapSubmessage<Vec<SequenceNumber>> {
     }
 }
 
-impl<'de> MappingReadSubmessage<'de> for GapSubmessage<Vec<SequenceNumber>> {
+impl<'de> MappingReadSubmessage<'de> for GapSubmessage {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -71,22 +68,19 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rtps_pim::{
-        messages::submessage_elements::{
-            EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement,
-        },
-        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    use rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+        SequenceNumberSubmessageElement,
     };
 
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElement {
@@ -118,10 +112,10 @@ mod tests {
     fn deserialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElement {

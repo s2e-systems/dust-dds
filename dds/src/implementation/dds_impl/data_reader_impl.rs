@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    dcps_psm::Duration,
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -15,6 +16,7 @@ use crate::{
             history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
             stateful_reader::RtpsStatefulReaderImpl,
             stateless_reader::RtpsStatelessReaderImpl,
+            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
             writer_proxy::RtpsWriterProxyImpl,
         },
         utils::{
@@ -61,15 +63,12 @@ use crate::{
         },
     },
 };
-use rtps_pim::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, HeartbeatSubmessage},
+use rtps_pim::messages::{
+    overall_structure::RtpsMessageHeader,
+    submessage_elements::{
+        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
     },
-    structure::types::{
-        ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    submessages::{DataSubmessage, HeartbeatSubmessage},
 };
 
 use super::{
@@ -174,14 +173,14 @@ pub enum RtpsReader {
 }
 
 impl RtpsReader {
-    pub fn heartbeat_response_delay(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn heartbeat_response_delay(&self) -> Duration {
         match self {
             RtpsReader::Stateless(reader) => reader.heartbeat_response_delay(),
             RtpsReader::Stateful(reader) => reader.heartbeat_response_delay(),
         }
     }
 
-    pub fn heartbeat_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn heartbeat_suppression_duration(&self) -> Duration {
         match self {
             RtpsReader::Stateless(reader) => reader.heartbeat_suppression_duration(),
             RtpsReader::Stateful(reader) => reader.heartbeat_suppression_duration(),
@@ -242,8 +241,8 @@ where
         listener: Option<<DdsShared<Self> as Entity>::Listener>,
         parent_subscriber: DdsWeak<SubscriberImpl>,
     ) -> DdsShared<Self> {
-        let deadline_duration = std::time::Duration::from_secs(*qos.deadline.period.sec() as u64)
-            + std::time::Duration::from_nanos(*qos.deadline.period.nanosec() as u64);
+        let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
+            + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
 
         DdsShared::new(DataReaderImpl {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -365,7 +364,7 @@ impl<Tim> DataReaderImpl<Tim> {
 impl ReceiveRtpsDataSubmessage for DdsShared<DataReaderImpl<ThreadTimer>> {
     fn on_data_submessage_received(
         &self,
-        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
         let before_data_cache_len;
@@ -1174,9 +1173,15 @@ impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
             for (locator_list, acknacks) in acknacks {
                 let header = RtpsMessageHeader {
                     protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: stateful_rtps_reader.guid().prefix(),
+                    version: ProtocolVersionSubmessageElement {
+                        value: PROTOCOLVERSION.into(),
+                    },
+                    vendor_id: VendorIdSubmessageElement {
+                        value: VENDOR_ID_S2E,
+                    },
+                    guid_prefix: GuidPrefixSubmessageElement {
+                        value: stateful_rtps_reader.guid().prefix().into(),
+                    },
                 };
 
                 let message = RtpsMessage {
@@ -1196,7 +1201,12 @@ impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
 mod tests {
     use super::*;
     use crate::{
+        dcps_psm::DURATION_ZERO,
         dds_type::DdsSerialize,
+        implementation::rtps::types::{
+            EntityId, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
+            GUID_UNKNOWN,
+        },
         {
             dcps_psm::{
                 BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
@@ -1226,16 +1236,9 @@ mod tests {
         },
     };
     use mockall::mock;
-    use rtps_pim::{
-        behavior::types::DURATION_ZERO,
-        messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-            },
-            types::ParameterId,
-        },
-        structure::types::{EntityId, Guid, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN},
+    use rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
     use std::io::Write;
 
@@ -1268,7 +1271,7 @@ mod tests {
 
     fn cache_change(value: u8, sn: SequenceNumber) -> RtpsCacheChangeImpl {
         let cache_change = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
+            ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],
             sn,
@@ -1284,8 +1287,8 @@ mod tests {
     ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
         let mut stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1376,8 +1379,8 @@ mod tests {
     fn on_missed_deadline_increases_total_count() {
         let stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1553,8 +1556,8 @@ mod tests {
     fn deadline_missed_triggers_status_change() {
         let stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1640,8 +1643,8 @@ mod tests {
 
         let stateful_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1702,8 +1705,8 @@ mod tests {
 
         let stateful_reader = RtpsStatefulReaderImpl::new(
             guid,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1731,8 +1734,8 @@ mod tests {
 
         let stateless_reader = RtpsStatelessReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1755,15 +1758,15 @@ mod tests {
             key_flag: true,
             non_standard_payload_flag: false,
             reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN,
+                value: ENTITYID_UNKNOWN.into(),
             },
             writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN,
+                value: ENTITYID_UNKNOWN.into(),
             },
             writer_sn: SequenceNumberSubmessageElement { value: 1 },
             inline_qos: ParameterListSubmessageElement {
                 parameter: vec![Parameter {
-                    parameter_id: ParameterId(PID_STATUS_INFO),
+                    parameter_id: PID_STATUS_INFO,
                     length: 4,
                     value: &[1, 0, 0, 0],
                 }],
@@ -1805,8 +1808,8 @@ mod tests {
 
         let rtps_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,
@@ -1898,8 +1901,8 @@ mod tests {
 
         let rtps_reader = RtpsStatefulReaderImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             DURATION_ZERO,

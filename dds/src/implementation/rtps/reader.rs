@@ -1,9 +1,12 @@
-use rtps_pim::{
-    behavior::types::Duration,
-    structure::types::{Guid, Locator, ReliabilityKind, TopicKind},
-};
+use rtps_pim::structure::types::Locator;
 
-use super::{endpoint::RtpsEndpointImpl, history_cache::RtpsHistoryCacheImpl};
+use crate::dcps_psm::Duration;
+
+use super::{
+    endpoint::RtpsEndpointImpl,
+    history_cache::RtpsHistoryCacheImpl,
+    types::{Guid, ReliabilityKind, TopicKind},
+};
 
 pub struct RtpsReaderImpl {
     endpoint: RtpsEndpointImpl,

@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use crate::implementation::rtps::types::{EntityId, Guid};
 use crate::return_type::DdsResult;
 use crate::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
@@ -25,12 +26,10 @@ use crate::{
             TopicDataQosPolicyDeserialize, TopicDataQosPolicySerialize,
             UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
         },
-        serde_remote_rtps_pim::{
-            EntityIdDeserialize, EntityIdSerialize, LocatorDeserialize, LocatorSerialize,
-        },
+        serde_remote_rtps_pim::{LocatorDeserialize, LocatorSerialize},
     },
 };
-use rtps_pim::structure::types::{EntityId, Guid, Locator};
+use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
@@ -88,7 +87,7 @@ impl DdsSerialize for DiscoveredWriterData {
                 data_max_size_serialized,
             )?;
         }
-        parameter_list_serializer.serialize_parameter::<EntityIdSerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&EntityId, _>(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
         )?;
@@ -197,8 +196,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let multicast_locator_list =
             param_list.get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
-        let remote_group_entity_id =
-            param_list.get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key =
@@ -275,6 +273,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use crate::dds_type::LittleEndian;
+    use crate::implementation::rtps::types::GuidPrefix;
     use crate::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
@@ -285,7 +284,6 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     };
-    use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     use super::*;
 

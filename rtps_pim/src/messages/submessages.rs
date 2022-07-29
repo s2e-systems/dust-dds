@@ -12,17 +12,17 @@ use super::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct AckNackSubmessage<S> {
+pub struct AckNackSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub reader_sn_state: SequenceNumberSetSubmessageElement<S>,
+    pub reader_sn_state: SequenceNumberSetSubmessageElement,
     pub count: CountSubmessageElement,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataSubmessage<P, D> {
+pub struct DataSubmessage<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub data_flag: SubmessageFlag,
@@ -31,12 +31,12 @@ pub struct DataSubmessage<P, D> {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
-    pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataSubmessageElement<D>,
+    pub inline_qos: ParameterListSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct DataFragSubmessage<P, D> {
+pub struct DataFragSubmessage<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
@@ -48,17 +48,17 @@ pub struct DataFragSubmessage<P, D> {
     pub fragments_in_submessage: UShortSubmessageElement,
     pub data_size: ULongSubmessageElement,
     pub fragment_size: UShortSubmessageElement,
-    pub inline_qos: ParameterListSubmessageElement<P>,
-    pub serialized_payload: SerializedDataFragmentSubmessageElement<D>,
+    pub inline_qos: ParameterListSubmessageElement<'a>,
+    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct GapSubmessage<S> {
+pub struct GapSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub gap_start: SequenceNumberSubmessageElement,
-    pub gap_list: SequenceNumberSetSubmessageElement<S>,
+    pub gap_list: SequenceNumberSetSubmessageElement,
 }
 
 #[derive(Debug, PartialEq)]
@@ -90,11 +90,11 @@ pub struct InfoDestinationSubmessage {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct InfoReplySubmessage<L> {
+pub struct InfoReplySubmessage {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
-    pub unicast_locator_list: LocatorListSubmessageElement<L>,
-    pub multicast_locator_list: LocatorListSubmessageElement<L>,
+    pub unicast_locator_list: LocatorListSubmessageElement,
+    pub multicast_locator_list: LocatorListSubmessageElement,
 }
 
 #[derive(Debug, PartialEq)]
@@ -113,12 +113,12 @@ pub struct InfoTimestampSubmessage {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct NackFragSubmessage<F> {
+pub struct NackFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_number_state: FragmentNumberSetSubmessageElement<F>,
+    pub fragment_number_state: FragmentNumberSetSubmessageElement,
     pub count: CountSubmessageElement,
 }
 

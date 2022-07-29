@@ -1,38 +1,48 @@
 use rtps_pim::{
-    behavior::types::{
-        ChangeForReaderStatusKind::{self, Unacknowledged, Unsent},
-        Duration,
-    },
     messages::{
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, Parameter,
-            SequenceNumberSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
-        types::Count,
     },
-    structure::types::{
-        ChangeKind, EntityId, Guid, GuidPrefix, InstanceHandle, Locator, ReliabilityKind,
-        SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
-    },
+    structure::types::Locator,
 };
 
-use crate::implementation::rtps::utils::clock::{Timer, TimerConstructor};
+use crate::{
+    dcps_psm::{Duration, InstanceHandle},
+    implementation::rtps::utils::clock::{Timer, TimerConstructor},
+};
 
 use super::{
     endpoint::RtpsEndpointImpl,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    types::{
+        ChangeKind, Count, EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, TopicKind,
+        ENTITYID_UNKNOWN,
+    },
     writer::RtpsWriterImpl,
 };
 
+/// ChangeForReaderStatusKind
+/// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
+/// UNSENT, UNACKNOWLEDGED, REQUESTED, ACKNOWLEDGED, UNDERWAY
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum ChangeForReaderStatusKind {
+    Unsent,
+    Unacknowledged,
+    Requested,
+    Acknowledged,
+    Underway,
+}
+
 pub enum BestEffortStatefulWriterSendSubmessage<'a> {
-    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-    Gap(GapSubmessage<Vec<SequenceNumber>>),
+    Data(DataSubmessage<'a>),
+    Gap(GapSubmessage),
 }
 
 pub enum ReliableStatefulWriterSendSubmessage<'a> {
-    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-    Gap(GapSubmessage<Vec<SequenceNumber>>),
+    Data(DataSubmessage<'a>),
+    Gap(GapSubmessage),
 }
 
 #[derive(Debug, PartialEq)]
@@ -136,15 +146,14 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             if change.is_relevant() {
-                let mut data_submessage: DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> =
-                    change.into();
-                data_submessage.reader_id.value = reader_id;
+                let mut data_submessage: DataSubmessage<'a> = change.into();
+                data_submessage.reader_id.value = reader_id.into();
                 Some(BestEffortStatefulWriterSendSubmessage::Data(
                     data_submessage,
                 ))
             } else {
-                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> = change.into();
-                gap_submessage.reader_id.value = reader_id;
+                let mut gap_submessage: GapSubmessage = change.into();
+                gap_submessage.reader_id.value = reader_id.into();
                 Some(BestEffortStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
         } else {
@@ -167,12 +176,12 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             if change.is_relevant() {
-                let mut data_submessage: DataSubmessage<Vec<Parameter<'_>>, &[u8]> = change.into();
-                data_submessage.reader_id.value = reader_id;
+                let mut data_submessage: DataSubmessage<'_> = change.into();
+                data_submessage.reader_id.value = reader_id.into();
                 Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
             } else {
-                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> = change.into();
-                gap_submessage.reader_id.value = reader_id;
+                let mut gap_submessage: GapSubmessage = change.into();
+                gap_submessage.reader_id.value = reader_id.into();
                 Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
         } else {
@@ -185,16 +194,18 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
         let final_flag = false;
         let liveliness_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
+            value: ENTITYID_UNKNOWN.into(),
         };
-        let writer_id = EntityIdSubmessageElement { value: writer_id };
+        let writer_id = EntityIdSubmessageElement {
+            value: writer_id.into(),
+        };
         let first_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_min().unwrap_or(1),
         };
         let last_sn = SequenceNumberSubmessageElement {
             value: self.get_seq_num_max().unwrap_or(0),
         };
-        let count = CountSubmessageElement { value: Count(0) };
+        let count = CountSubmessageElement { value: 0 };
         HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -207,7 +218,7 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
         }
     }
 
-    pub fn reliable_receive_acknack(&mut self, acknack: &AckNackSubmessage<Vec<SequenceNumber>>) {
+    pub fn reliable_receive_acknack(&mut self, acknack: &AckNackSubmessage) {
         self.acked_changes_set(acknack.reader_sn_state.base - 1);
         self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
     }
@@ -223,14 +234,12 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
             // should be full-filled by next_requested_change()
             if change_for_reader.is_relevant() {
-                let mut data_submessage: DataSubmessage<Vec<Parameter<'_>>, &[u8]> =
-                    change_for_reader.into();
-                data_submessage.reader_id.value = reader_id;
+                let mut data_submessage: DataSubmessage<'_> = change_for_reader.into();
+                data_submessage.reader_id.value = reader_id.into();
                 Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
             } else {
-                let mut gap_submessage: GapSubmessage<Vec<SequenceNumber>> =
-                    change_for_reader.into();
-                gap_submessage.reader_id.value = reader_id;
+                let mut gap_submessage: GapSubmessage = change_for_reader.into();
+                gap_submessage.reader_id.value = reader_id.into();
                 Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
             }
         } else {
@@ -289,7 +298,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn kind(&self) -> rtps_pim::structure::types::ChangeKind {
+    pub fn kind(&self) -> ChangeKind {
         self.cache_change.kind()
     }
 
@@ -297,7 +306,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.cache_change.writer_guid()
     }
 
-    pub fn instance_handle(&self) -> rtps_pim::structure::types::InstanceHandle {
+    pub fn instance_handle(&self) -> InstanceHandle {
         self.cache_change.instance_handle()
     }
 
@@ -331,13 +340,13 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     }
 }
 
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage<Vec<SequenceNumber>> {
+impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage {
     fn from(_val: RtpsChangeForReaderCacheChange<'a>) -> Self {
         todo!()
     }
 }
 
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for DataSubmessage<'a> {
     fn from(val: RtpsChangeForReaderCacheChange<'a>) -> Self {
         val.cache_change.into()
     }
@@ -439,7 +448,7 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             .changes_for_reader
             .iter()
             .filter_map(|cc| {
-                if cc.status == Unsent {
+                if cc.status == ChangeForReaderStatusKind::Unsent {
                     Some(cc.sequence_number)
                 } else {
                     None
@@ -490,7 +499,7 @@ impl<'a> RtpsReaderProxyOperationsImpl<'a> {
             .changes_for_reader
             .iter()
             .filter_map(|cc| {
-                if cc.status == Unacknowledged {
+                if cc.status == ChangeForReaderStatusKind::Unacknowledged {
                     Some(cc.sequence_number)
                 } else {
                     None
@@ -667,9 +676,9 @@ impl<T> RtpsStatefulWriterImpl<T> {
 
         for reader_proxy in &mut self.matched_readers {
             let status = if self.writer.push_mode() {
-                Unsent
+                ChangeForReaderStatusKind::Unsent
             } else {
-                Unacknowledged
+                ChangeForReaderStatusKind::Unacknowledged
             };
             reader_proxy
                 .changes_for_reader_mut()
@@ -688,11 +697,11 @@ impl<T> RtpsStatefulWriterImpl<T> {
         self.writer.writer_cache().remove_change(f)
     }
 
-    pub fn get_seq_num_min(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         self.writer.writer_cache.get_seq_num_min()
     }
 
-    pub fn get_seq_num_max(&self) -> Option<rtps_pim::structure::types::SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         self.writer.writer_cache.get_seq_num_max()
     }
 }
@@ -703,16 +712,13 @@ where
 {
     pub fn send_submessages(
         &'a mut self,
-        mut send_data: impl FnMut(
-            &RtpsReaderProxyOperationsImpl<'a>,
-            DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>,
-        ),
-        mut send_gap: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, GapSubmessage<Vec<SequenceNumber>>),
+        mut send_data: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, DataSubmessage<'a>),
+        mut send_gap: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, GapSubmessage),
         mut send_heartbeat: impl FnMut(&RtpsReaderProxyOperationsImpl<'a>, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.writer.heartbeat_period().seconds as u64)
-                + std::time::Duration::from_nanos(self.writer.heartbeat_period().fraction as u64);
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
             self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
@@ -740,7 +746,7 @@ where
                 ReliabilityKind::Reliable => {
                     if time_for_heartbeat {
                         let mut heartbeat = reader_proxy.send_heartbeat(writer_id);
-                        heartbeat.count.value = heartbeat_count;
+                        heartbeat.count.value = heartbeat_count.0;
                         send_heartbeat(reader_proxy, heartbeat)
                     }
 
@@ -775,22 +781,25 @@ where
 impl<T> RtpsStatefulWriterImpl<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
-        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
+        acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reliability_level() == ReliabilityKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(
+                source_guid_prefix,
+                acknack_submessage.reader_id.value.into(),
+            );
 
             if let Some(reader_proxy) = self
                 .matched_readers
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                if reader_proxy.last_received_acknack_count != acknack_submessage.count.value {
+                if reader_proxy.last_received_acknack_count.0 != acknack_submessage.count.value {
                     RtpsReaderProxyOperationsImpl::new(reader_proxy, &self.writer.writer_cache)
                         .reliable_receive_acknack(acknack_submessage);
 
-                    reader_proxy.last_received_acknack_count = acknack_submessage.count.value;
+                    reader_proxy.last_received_acknack_count.0 = acknack_submessage.count.value;
                 }
             }
         }
@@ -799,11 +808,9 @@ impl<T> RtpsStatefulWriterImpl<T> {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN};
-
-    use crate::implementation::rtps::history_cache::RtpsCacheChangeImpl;
-
     use super::*;
+
+    use crate::implementation::rtps::{history_cache::RtpsCacheChangeImpl, types::GUID_UNKNOWN};
 
     fn add_new_change_push_mode_true(
         writer_cache: &mut RtpsHistoryCacheImpl,
@@ -821,7 +828,7 @@ mod tests {
         reader_proxy
             .changes_for_reader
             .push(RtpsChangeForReaderImpl {
-                status: Unsent,
+                status: ChangeForReaderStatusKind::Unsent,
                 is_relevant: true,
                 sequence_number,
             });
@@ -843,7 +850,7 @@ mod tests {
         reader_proxy
             .changes_for_reader
             .push(RtpsChangeForReaderImpl {
-                status: Unacknowledged,
+                status: ChangeForReaderStatusKind::Unacknowledged,
                 is_relevant: true,
                 sequence_number,
             })

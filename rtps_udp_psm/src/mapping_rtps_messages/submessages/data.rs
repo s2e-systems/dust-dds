@@ -3,9 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rtps_pim::messages::{
     overall_structure::RtpsSubmessageHeader,
-    submessage_elements::{
-        Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
-    },
+    submessage_elements::{ParameterListSubmessageElement, SerializedDataSubmessageElement},
     submessages::DataSubmessage,
     types::SubmessageKind,
 };
@@ -14,7 +12,7 @@ use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, Num
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]> {
+impl MappingWriteSubmessage for DataSubmessage<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
         let inline_qos_len = if self.inline_qos_flag {
             self.inline_qos.number_of_bytes()
@@ -72,7 +70,7 @@ impl MappingWriteSubmessage for DataSubmessage<Vec<Parameter<'_>>, &'_ [u8]> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<'a> {
     fn mapping_read_submessage<B: ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -133,15 +131,9 @@ mod tests {
     use crate::mapping_traits::{from_bytes, to_bytes};
 
     use super::*;
-    use rtps_pim::{
-        messages::{
-            submessage_elements::{
-                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-            },
-            types::ParameterId,
-        },
-        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+    use rtps_pim::messages::submessage_elements::{
+        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     };
 
     #[test]
@@ -152,10 +144,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
@@ -192,19 +184,19 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
-            parameter_id: ParameterId(6),
+            parameter_id: 6,
             length: 4,
             value: &[10, 11, 12, 13],
         };
         let parameter_2 = Parameter {
-            parameter_id: ParameterId(7),
+            parameter_id: 7,
             length: 4,
             value: &[20, 21, 22, 23],
         };
@@ -250,10 +242,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
@@ -293,10 +285,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
@@ -336,10 +328,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
@@ -376,10 +368,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
@@ -419,19 +411,19 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
-            parameter_id: ParameterId(6),
+            parameter_id: 6,
             length: 4,
             value: &[10, 11, 12, 13],
         };
         let parameter_2 = Parameter {
-            parameter_id: ParameterId(7),
+            parameter_id: 7,
             length: 4,
             value: &[20, 21, 22, 23],
         };

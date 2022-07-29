@@ -1,9 +1,5 @@
-use rtps_pim::{
-    messages::{
-        overall_structure::RtpsSubmessageHeader, submessages::AckNackSubmessage,
-        types::SubmessageKind,
-    },
-    structure::types::SequenceNumber,
+use rtps_pim::messages::{
+    overall_structure::RtpsSubmessageHeader, submessages::AckNackSubmessage, types::SubmessageKind,
 };
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes};
@@ -12,7 +8,7 @@ use std::io::{Error, Write};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
-impl MappingWriteSubmessage for AckNackSubmessage<Vec<SequenceNumber>> {
+impl MappingWriteSubmessage for AckNackSubmessage {
     fn submessage_header(&self) -> rtps_pim::messages::overall_structure::RtpsSubmessageHeader {
         let octets_to_next_header = self.reader_id.number_of_bytes()
             + self.writer_id.number_of_bytes()
@@ -50,7 +46,7 @@ impl MappingWriteSubmessage for AckNackSubmessage<Vec<SequenceNumber>> {
     }
 }
 
-impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage<Vec<SequenceNumber>> {
+impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
     fn mapping_read_submessage<B: byteorder::ByteOrder>(
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
@@ -75,16 +71,11 @@ impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage<Vec<SequenceNumber>> 
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::{
-        messages::{
-            submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement,
-                SequenceNumberSetSubmessageElement,
-            },
-            submessages::AckNackSubmessage,
-            types::Count,
+    use rtps_pim::messages::{
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
-        structure::types::{EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+        submessages::AckNackSubmessage,
     };
 
     use crate::mapping_traits::{from_bytes, to_bytes};
@@ -94,10 +85,10 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: [1, 2, 3, 0x04],
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: [6, 7, 8, 0x09],
         };
         let submessage = AckNackSubmessage {
             endianness_flag,
@@ -108,7 +99,7 @@ mod tests {
                 base: 10,
                 set: vec![],
             },
-            count: CountSubmessageElement { value: Count(0) },
+            count: CountSubmessageElement { value: 0 },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -141,16 +132,16 @@ mod tests {
                 endianness_flag: true,
                 final_flag: false,
                 reader_id: EntityIdSubmessageElement {
-                    value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+                    value: [1, 2, 3, 0x04],
                 },
                 writer_id: EntityIdSubmessageElement {
-                    value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+                    value: [6, 7, 8, 0x09],
                 },
                 reader_sn_state: SequenceNumberSetSubmessageElement {
                     base: 10,
                     set: vec![],
                 },
-                count: CountSubmessageElement { value: Count(0) },
+                count: CountSubmessageElement { value: 0 },
             },
             from_bytes(&buf).unwrap()
         );

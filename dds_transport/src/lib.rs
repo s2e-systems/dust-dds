@@ -1,16 +1,14 @@
 use rtps_pim::{
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::Parameter,
         submessages::{
             AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
             HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
             InfoReplySubmessage, InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
             PadSubmessage,
         },
-        types::FragmentNumber,
     },
-    structure::types::{Locator, SequenceNumber},
+    structure::types::Locator,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,17 +19,17 @@ pub struct RtpsMessage<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessageType<'a> {
-    AckNack(AckNackSubmessage<Vec<SequenceNumber>>),
-    Data(DataSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-    DataFrag(DataFragSubmessage<Vec<Parameter<'a>>, &'a [u8]>),
-    Gap(GapSubmessage<Vec<SequenceNumber>>),
+    AckNack(AckNackSubmessage),
+    Data(DataSubmessage<'a>),
+    DataFrag(DataFragSubmessage<'a>),
+    Gap(GapSubmessage),
     Heartbeat(HeartbeatSubmessage),
     HeartbeatFrag(HeartbeatFragSubmessage),
     InfoDestination(InfoDestinationSubmessage),
-    InfoReply(InfoReplySubmessage<Vec<Locator>>),
+    InfoReply(InfoReplySubmessage),
     InfoSource(InfoSourceSubmessage),
     InfoTimestamp(InfoTimestampSubmessage),
-    NackFrag(NackFragSubmessage<Vec<FragmentNumber>>),
+    NackFrag(NackFragSubmessage),
     Pad(PadSubmessage),
 }
 

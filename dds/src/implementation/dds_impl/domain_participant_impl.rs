@@ -5,12 +5,19 @@ use std::{
 };
 
 use crate::{
+    dcps_psm::{Duration, DURATION_ZERO},
     dds_type::DdsType,
     implementation::rtps::{
         discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
         stateful_reader::RtpsStatefulReaderImpl,
         stateful_writer::RtpsStatefulWriterImpl,
         stateless_reader::RtpsStatelessReaderImpl,
+        types::{
+            Count, EntityId, EntityKind, Guid, GuidPrefix, ProtocolVersion, ReliabilityKind,
+            TopicKind, VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY,
+            BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
+            USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+        },
     },
     return_type::DdsResult,
     {
@@ -40,16 +47,7 @@ use crate::{
     },
     return_type::DdsError,
 };
-use rtps_pim::{
-    behavior::types::{Duration, DURATION_ZERO},
-    messages::types::Count,
-    structure::types::{
-        EntityId, EntityKind, Guid, GuidPrefix, Locator, ProtocolVersion, ReliabilityKind,
-        TopicKind, VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY,
-        BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
-        USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
-    },
-};
+use rtps_pim::structure::types::Locator;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -104,22 +102,13 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration {
-    seconds: 2,
-    fraction: 0,
-};
+const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 
-const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration {
-    seconds: 0,
-    fraction: 200,
-};
+const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
 
 const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
-const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration {
-    seconds: 0,
-    fraction: 500,
-};
+const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
 
 const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
@@ -142,7 +131,7 @@ pub struct DomainParticipantImpl {
     user_defined_topic_counter: AtomicU8,
     default_topic_qos: TopicQos,
     manual_liveliness_count: Count,
-    lease_duration: rtps_pim::behavior::types::Duration,
+    lease_duration: Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
@@ -161,7 +150,7 @@ impl DomainParticipantImpl {
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
     ) -> DdsShared<Self> {
-        let lease_duration = rtps_pim::behavior::types::Duration::new(100, 0);
+        let lease_duration = Duration::new(100, 0);
         let protocol_version = PROTOCOLVERSION;
         let vendor_id = VENDOR_ID_S2E;
         let rtps_participant = RtpsParticipantImpl::new(
@@ -715,7 +704,7 @@ impl AnnounceParticipant for DdsShared<DomainParticipantImpl> {
                 manual_liveliness_count: self.manual_liveliness_count,
                 builtin_endpoint_qos: BuiltinEndpointQos::default(),
             },
-            lease_duration: self.lease_duration,
+            lease_duration: self.lease_duration.into(),
         };
         spdp_participant_writer.write(&spdp_discovered_participant_data, None)
     }

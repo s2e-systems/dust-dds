@@ -1,6 +1,6 @@
-use rtps_pim::{
-    behavior::types::Duration,
-    structure::types::{EntityId, ENTITYID_UNKNOWN},
+use crate::{
+    dcps_psm::Duration,
+    implementation::rtps::types::{EntityId, ENTITYID_UNKNOWN},
 };
 
 // Constant value from Table 9.13 - ParameterId Values
@@ -61,8 +61,5 @@ pub const PID_GROUP_ENTITYID: u16 = 0x0053;
 // PID_DOMAIN_ID is omitted since the default is dynamic
 pub const DEFAULT_DOMAIN_TAG: &str = "";
 pub const DEFAULT_EXPECTS_INLINE_QOS: bool = false;
-pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration {
-    seconds: 100,
-    fraction: 0,
-};
+pub const DEFAULT_PARTICIPANT_LEASE_DURATION: Duration = Duration::new(100, 0);
 pub const _DEFAULT_GROUP_ENTITYID: EntityId = ENTITYID_UNKNOWN;

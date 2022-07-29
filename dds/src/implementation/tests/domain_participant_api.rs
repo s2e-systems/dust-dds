@@ -1,11 +1,17 @@
-use crate::implementation::{
-    data_representation_builtin_endpoints::spdp_discovered_participant_data::{
-        ParticipantProxy, SpdpDiscoveredParticipantData,
+use crate::{
+    dcps_psm::Duration,
+    implementation::{
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::{
+            ParticipantLeaseDuration, ParticipantProxy, SpdpDiscoveredParticipantData,
+        },
+        dds_impl::domain_participant_impl::{
+            AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
+        },
+        rtps::{
+            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            types::{Count, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+        },
     },
-    dds_impl::domain_participant_impl::{
-        AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
-    },
-    rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
 };
 use crate::{
     dds_type::DdsType,
@@ -17,10 +23,6 @@ use crate::{
             entity::Entity, qos::DomainParticipantQos, qos_policy::UserDataQosPolicy,
         },
     },
-};
-use rtps_pim::{
-    messages::types::Count,
-    structure::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 
 struct Foo;
@@ -311,10 +313,7 @@ fn domain_participant_get_discovered_participant_data() {
             manual_liveliness_count: Count(0),
             builtin_endpoint_qos: BuiltinEndpointQos::default(),
         },
-        lease_duration: rtps_pim::behavior::types::Duration {
-            seconds: 30,
-            fraction: 0,
-        },
+        lease_duration: ParticipantLeaseDuration::from(Duration::new(30, 0)),
     };
     domain_participant.add_discovered_participant(&discovered_participant_data);
 

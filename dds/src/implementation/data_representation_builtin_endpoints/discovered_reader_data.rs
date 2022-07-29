@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use crate::implementation::rtps::types::{EntityId, Guid};
 use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
@@ -23,12 +24,12 @@ use crate::{
             TopicDataQosPolicySerialize, UserDataQosPolicyDeserialize, UserDataQosPolicySerialize,
         },
         serde_remote_rtps_pim::{
-            EntityIdDeserialize, EntityIdSerialize, ExpectsInlineQosDeserialize,
-            ExpectsInlineQosSerialize, LocatorDeserialize, LocatorSerialize,
+            ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize, LocatorDeserialize,
+            LocatorSerialize,
         },
     },
 };
-use rtps_pim::structure::types::{EntityId, Guid, Locator};
+use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
     PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS,
@@ -79,7 +80,7 @@ impl DdsSerialize for DiscoveredReaderData {
             PID_MULTICAST_LOCATOR,
             &self.reader_proxy.multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter::<EntityIdSerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&EntityId, _>(
             PID_GROUP_ENTITYID,
             &self.reader_proxy.remote_group_entity_id,
         )?;
@@ -177,8 +178,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy
-        let remote_group_entity_id =
-            param_list.get::<EntityIdDeserialize, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
         let unicast_locator_list =
             param_list.get_list::<LocatorDeserialize, _>(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list =
@@ -259,6 +259,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 mod tests {
     use super::*;
     use crate::dds_type::LittleEndian;
+    use crate::implementation::rtps::types::GuidPrefix;
     use crate::{
         dcps_psm::BuiltInTopicKey,
         infrastructure::qos_policy::{
@@ -268,7 +269,6 @@ mod tests {
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
         },
     };
-    use rtps_pim::structure::types::{EntityId, Guid, GuidPrefix};
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();

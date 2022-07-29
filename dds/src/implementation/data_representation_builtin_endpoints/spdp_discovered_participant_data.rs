@@ -1,5 +1,8 @@
-use crate::dcps_psm::DomainId;
+use crate::dcps_psm::{DomainId, Duration};
 use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
+use crate::implementation::rtps::types::{
+    Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+};
 use crate::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
@@ -8,29 +11,41 @@ use crate::{
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_dds_api::{UserDataQosPolicyDeserialize, UserDataQosPolicySerialize},
         serde_remote_rtps_pim::{
-            CountDeserialize, CountSerdeSerialize, DomainTag, DomainTagDeserialize,
-            DomainTagSerialize, DurationDeserialize, DurationSerialize,
-            ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize, GuidDeserialize, GuidSerialize,
-            LocatorDeserialize, LocatorSerialize, ProtocolVersionDeserialize,
-            ProtocolVersionSerialize,
+            DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
+            ExpectsInlineQosSerialize, LocatorDeserialize, LocatorSerialize,
         },
     },
 };
-use rtps_pim::{
-    behavior::types::Duration,
-    messages::types::Count,
-    structure::types::{
-        Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-    },
-};
+use rtps_pim::structure::types::Locator;
 
 use super::parameter_id_values::{
-    PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR,
-    PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION,
-    PID_USER_DATA, PID_VENDORID,
+    DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
+    PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG,
+    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
+    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
+
+#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub struct ParticipantLeaseDuration(Duration);
+
+impl Default for ParticipantLeaseDuration {
+    fn default() -> Self {
+        Self(DEFAULT_PARTICIPANT_LEASE_DURATION)
+    }
+}
+
+impl From<Duration> for ParticipantLeaseDuration {
+    fn from(value: Duration) -> Self {
+        Self(value)
+    }
+}
+
+impl From<ParticipantLeaseDuration> for Duration {
+    fn from(value: ParticipantLeaseDuration) -> Self {
+        value.0
+    }
+}
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
@@ -55,7 +70,7 @@ pub struct ParticipantProxy {
 pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,
-    pub lease_duration: Duration,
+    pub lease_duration: ParticipantLeaseDuration,
 }
 
 impl SpdpDiscoveredParticipantData {
@@ -103,7 +118,7 @@ impl SpdpDiscoveredParticipantData {
         self.participant_proxy.available_builtin_endpoints
     }
 
-    pub fn lease_duration(&self) -> Duration {
+    pub fn lease_duration(&self) -> ParticipantLeaseDuration {
         self.lease_duration
     }
 
@@ -145,12 +160,11 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_DOMAIN_TAG,
             &DomainTag(self.participant_proxy.domain_tag.as_str()),
         )?;
-        parameter_list_serializer.serialize_parameter::<ProtocolVersionSerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&ProtocolVersion, _>(
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
-        parameter_list_serializer
-            .serialize_parameter::<GuidSerialize, _>(PID_PARTICIPANT_GUID, &guid)?;
+        parameter_list_serializer.serialize_parameter::<&Guid, _>(PID_PARTICIPANT_GUID, &guid)?;
         parameter_list_serializer
             .serialize_parameter::<&[u8; 2], _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
@@ -178,7 +192,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_BUILTIN_ENDPOINT_SET,
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter::<CountSerdeSerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&Count, _>(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?;
@@ -186,7 +200,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
         )?;
-        parameter_list_serializer.serialize_parameter::<DurationSerialize, _>(
+        parameter_list_serializer.serialize_parameter::<&ParticipantLeaseDuration, _>(
             PID_PARTICIPANT_LEASE_DURATION,
             &self.lease_duration,
         )?;
@@ -203,13 +217,12 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> crate::return_type::DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let guid = param_list.get::<GuidDeserialize, Guid>(PID_PARTICIPANT_GUID)?;
+        let guid = param_list.get::<Guid, Guid>(PID_PARTICIPANT_GUID)?;
         let user_data =
             param_list.get_or_default::<UserDataQosPolicyDeserialize, _>(PID_USER_DATA)?;
         let domain_id = param_list.get::<i32, _>(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
-        let protocol_version =
-            param_list.get::<ProtocolVersionDeserialize, _>(PID_PROTOCOL_VERSION)?;
+        let protocol_version = param_list.get::<ProtocolVersion, _>(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get::<[u8; 2], _>(PID_VENDORID)?;
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
@@ -224,11 +237,11 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
         let manual_liveliness_count =
-            param_list.get::<CountDeserialize, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
+            param_list.get::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos =
             param_list.get_or_default::<BuiltinEndpointQos, _>(PID_BUILTIN_ENDPOINT_QOS)?;
         let lease_duration =
-            param_list.get::<DurationDeserialize, _>(PID_PARTICIPANT_LEASE_DURATION)?;
+            param_list.get::<ParticipantLeaseDuration, _>(PID_PARTICIPANT_LEASE_DURATION)?;
 
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData {
@@ -259,11 +272,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::dds_type::LittleEndian;
+    use crate::implementation::rtps::types::EntityId;
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
-    use rtps_pim::{
-        messages::types::Count,
-        structure::types::{EntityId, GuidPrefix, ProtocolVersion},
-    };
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
@@ -319,10 +329,7 @@ mod tests {
             manual_liveliness_count,
             builtin_endpoint_qos,
         };
-        let lease_duration = Duration {
-            seconds: 10,
-            fraction: 11,
-        };
+        let lease_duration = ParticipantLeaseDuration::from(Duration::new(10, 11));
 
         let expected = SpdpDiscoveredParticipantData {
             dds_participant_data,
@@ -446,10 +453,7 @@ mod tests {
             manual_liveliness_count,
             builtin_endpoint_qos,
         };
-        let lease_duration = Duration {
-            seconds: 10,
-            fraction: 11,
-        };
+        let lease_duration = ParticipantLeaseDuration::from(Duration::new(10, 11));
 
         let data = SpdpDiscoveredParticipantData {
             dds_participant_data,

@@ -1,6 +1,4 @@
-use rtps_pim::structure::types::Guid;
-
-use super::entity::RtpsEntityImpl;
+use super::{entity::RtpsEntityImpl, types::Guid};
 
 pub struct RtpsGroupImpl {
     entity: RtpsEntityImpl,

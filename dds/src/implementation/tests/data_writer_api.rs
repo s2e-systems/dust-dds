@@ -1,4 +1,5 @@
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
+use crate::implementation::rtps::types::GuidPrefix;
 use crate::return_type::DdsError;
 use crate::{
     dds_type::{DdsSerialize, DdsType, Endianness},
@@ -12,7 +13,6 @@ use crate::{
         },
     },
 };
-use rtps_pim::structure::types::GuidPrefix;
 
 struct Foo;
 

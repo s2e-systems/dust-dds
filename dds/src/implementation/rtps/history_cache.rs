@@ -1,26 +1,24 @@
 use std::convert::TryFrom;
 
-use rtps_pim::{
-    messages::{
-        submessage_elements::{
-            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-        },
-        submessages::DataSubmessage,
-        types::ParameterId,
+use rtps_pim::messages::{
+    submessage_elements::{
+        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     },
-    structure::types::{
-        ChangeKind, Guid, GuidPrefix, InstanceHandle, SequenceNumber, ENTITYID_UNKNOWN,
-    },
+    submessages::DataSubmessage,
+    types::ParameterId,
 };
 
 use crate::{
+    dcps_psm::InstanceHandle,
     implementation::data_representation_inline_qos::{
         parameter_id_values::PID_STATUS_INFO,
         types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
     },
     return_type::DdsError,
 };
+
+use super::types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsParameter {
@@ -63,14 +61,12 @@ impl PartialEq for RtpsCacheChangeImpl {
     }
 }
 
-impl TryFrom<(GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>)> for RtpsCacheChangeImpl {
+impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChangeImpl {
     type Error = DdsError;
 
-    fn try_from(
-        value: (GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (GuidPrefix, &DataSubmessage<'_>)) -> Result<Self, Self::Error> {
         let (source_guid_prefix, data) = value;
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value.into());
 
         let instance_handle = [0; 16];
         let sequence_number = data.writer_sn.value;
@@ -81,7 +77,7 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>)> for RtpsC
             .parameter
             .iter()
             .map(|p| RtpsParameter {
-                parameter_id: p.parameter_id,
+                parameter_id: ParameterId(p.parameter_id),
                 value: p.value.to_vec(),
             })
             .collect();
@@ -125,7 +121,7 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<Vec<Parameter<'_>>, &[u8]>)> for RtpsC
     }
 }
 
-impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<Vec<Parameter<'a>>, &'a [u8]> {
+impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<'a> {
     fn from(val: &'a RtpsCacheChangeImpl) -> Self {
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -136,10 +132,10 @@ impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<Vec<Parameter<'a>>, &'
         };
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
+            value: ENTITYID_UNKNOWN.into(),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: val.writer_guid().entity_id(),
+            value: val.writer_guid().entity_id().into(),
         };
         let writer_sn = SequenceNumberSubmessageElement {
             value: val.sequence_number(),
@@ -149,7 +145,7 @@ impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<Vec<Parameter<'a>>, &'
                 .inline_qos()
                 .iter()
                 .map(|p| Parameter {
-                    parameter_id: p.parameter_id,
+                    parameter_id: p.parameter_id.0,
                     length: p.value.len() as i16,
                     value: p.value.as_ref(),
                 })
@@ -261,21 +257,15 @@ impl RtpsHistoryCacheImpl {
 
 #[cfg(test)]
 mod tests {
+    use crate::implementation::rtps::types::GUID_UNKNOWN;
 
     use super::*;
-    use rtps_pim::structure::types::GUID_UNKNOWN;
 
     #[test]
     fn remove_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            1,
-            vec![],
-            vec![],
-        );
+        let change =
+            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.changes().is_empty());
@@ -284,22 +274,10 @@ mod tests {
     #[test]
     fn get_seq_num_min() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            1,
-            vec![],
-            vec![],
-        );
-        let change2 = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            2,
-            vec![],
-            vec![],
-        );
+        let change1 =
+            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+        let change2 =
+            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
@@ -308,22 +286,10 @@ mod tests {
     #[test]
     fn get_seq_num_max() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            1,
-            vec![],
-            vec![],
-        );
-        let change2 = RtpsCacheChangeImpl::new(
-            rtps_pim::structure::types::ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            2,
-            vec![],
-            vec![],
-        );
+        let change1 =
+            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+        let change2 =
+            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));

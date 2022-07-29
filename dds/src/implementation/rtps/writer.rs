@@ -1,13 +1,11 @@
-use rtps_pim::{
-    behavior::types::Duration,
-    structure::types::{
-        ChangeKind, Guid, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind,
-    },
-};
+use rtps_pim::structure::types::Locator;
+
+use crate::dcps_psm::{Duration, InstanceHandle};
 
 use super::{
     endpoint::RtpsEndpointImpl,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind},
 };
 
 pub struct RtpsWriterImpl {

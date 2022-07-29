@@ -16,7 +16,7 @@ pub type ReturnCode = i32;
 pub type QosPolicyId = i32;
 pub type StringSeq<'a> = &'a [&'a str];
 
-#[derive(PartialOrd, PartialEq, Debug, Clone)]
+#[derive(PartialOrd, PartialEq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Duration {
     sec: i32,
     nanosec: u32,
@@ -28,20 +28,37 @@ impl Duration {
     }
 
     /// Get a reference to the duration's sec.
-    pub fn sec(&self) -> &i32 {
-        &self.sec
+    pub fn sec(&self) -> i32 {
+        self.sec
     }
 
     /// Get a reference to the duration's nanosec.
-    pub fn nanosec(&self) -> &u32 {
-        &self.nanosec
+    pub fn nanosec(&self) -> u32 {
+        self.nanosec
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub struct Time {
     pub sec: i32,
     pub nanosec: u32,
+}
+
+const SEC_IN_NANOSEC: u64 = 1000000000;
+
+impl From<Time> for u64 {
+    fn from(value: Time) -> Self {
+        (value.sec as u64 * SEC_IN_NANOSEC) + (value.nanosec as u64 as u64)
+    }
+}
+
+impl From<u64> for Time {
+    fn from(value: u64) -> Self {
+        let sec = (value / SEC_IN_NANOSEC) as u64;
+        let nanosec = (value - sec * SEC_IN_NANOSEC) as u32;
+        let sec = sec as i32;
+        Self { sec, nanosec }
+    }
 }
 
 // ----------------------------------------------------------------------
@@ -321,3 +338,23 @@ pub const NOT_ALIVE_NO_WRITERS_INSTANCE_STATE: InstanceStateKind = 0x0001 << 2;
 pub type InstanceStateMask = u32;
 pub const ANY_INSTANCE_STATE: InstanceStateMask = 0xffff;
 pub const NOT_ALIVE_INSTANCE_STATE: InstanceStateMask = 0x006;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn time_from_u64() {
+        let expected_time = Time {
+            sec: 11,
+            nanosec: 100,
+        };
+        let value_u64 = 11000000100;
+        let time = Time::from(value_u64);
+        let time_u64: u64 = time.into();
+
+        assert_eq!(time, expected_time);
+
+        assert_eq!(value_u64, time_u64);
+    }
+}

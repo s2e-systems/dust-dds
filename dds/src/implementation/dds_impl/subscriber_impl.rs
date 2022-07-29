@@ -1,6 +1,9 @@
-use crate::implementation::rtps::{
-    group::RtpsGroupImpl, stateful_reader::RtpsStatefulReaderImpl,
+use crate::dcps_psm::DURATION_ZERO;
+use crate::implementation::rtps::types::{
+    EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+    USER_DEFINED_WRITER_WITH_KEY,
 };
+use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReaderImpl};
 use crate::return_type::{DdsError, DdsResult};
 use crate::subscription::data_reader::AnyDataReader;
 use crate::subscription::subscriber_listener::SubscriberListener;
@@ -18,16 +21,7 @@ use crate::{
         },
     },
 };
-use rtps_pim::{
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{DataSubmessage, HeartbeatSubmessage},
-    },
-    structure::types::{
-        EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-        USER_DEFINED_WRITER_WITH_KEY,
-    },
-};
+use rtps_pim::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -184,8 +178,8 @@ impl DdsShared<SubscriberImpl> {
                     .as_ref()
                     .map(|dp| dp.default_multicast_locator_list())
                     .unwrap_or(&[]),
-                rtps_pim::behavior::types::DURATION_ZERO,
-                rtps_pim::behavior::types::DURATION_ZERO,
+                DURATION_ZERO,
+                DURATION_ZERO,
                 false,
             ));
 
@@ -417,7 +411,7 @@ impl AddMatchedWriter for DdsShared<SubscriberImpl> {
 impl ReceiveRtpsDataSubmessage for DdsShared<SubscriberImpl> {
     fn on_data_submessage_received(
         &self,
-        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {

@@ -1,17 +1,13 @@
-use rtps_pim::{
-    messages::{
-        submessage_elements::Parameter,
-        submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage},
-    },
-    structure::types::{GuidPrefix, SequenceNumber},
-};
+use rtps_pim::messages::submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage};
 
 use dds_transport::TransportWrite;
+
+use crate::implementation::rtps::types::GuidPrefix;
 
 pub trait ReceiveRtpsDataSubmessage {
     fn on_data_submessage_received(
         &self,
-        data_submessage: &DataSubmessage<Vec<Parameter>, &[u8]>,
+        data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     );
 }
@@ -27,7 +23,7 @@ pub trait ReceiveRtpsHeartbeatSubmessage {
 pub trait ReceiveRtpsAckNackSubmessage {
     fn on_acknack_submessage_received(
         &self,
-        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
+        acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     );
 }

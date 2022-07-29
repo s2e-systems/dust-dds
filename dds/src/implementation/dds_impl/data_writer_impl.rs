@@ -5,7 +5,11 @@ use std::{
 };
 
 use crate::{
+    dcps_psm::TIME_INVALID,
     dds_type::{DdsSerialize, DdsType, LittleEndian},
+    implementation::rtps::types::{
+        ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
+    },
     publication::data_writer::DataWriterProxy,
     return_type::{DdsError, DdsResult},
     {
@@ -44,16 +48,14 @@ use crate::{
     publication::data_writer_listener::DataWriterListener,
 };
 
-use rtps_pim::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::TimestampSubmessageElement,
-        submessages::{AckNackSubmessage, InfoTimestampSubmessage},
-        types::{ParameterId, TIME_INVALID},
+use rtps_pim::messages::{
+    overall_structure::RtpsMessageHeader,
+    submessage_elements::{
+        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, TimestampSubmessageElement,
+        VendorIdSubmessageElement,
     },
-    structure::types::{
-        ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    submessages::{AckNackSubmessage, InfoTimestampSubmessage},
+    types::ParameterId,
 };
 use serde::Serialize;
 
@@ -196,7 +198,7 @@ impl RtpsWriter {
         kind: ChangeKind,
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
-        handle: rtps_pim::structure::types::InstanceHandle,
+        handle: InstanceHandle,
     ) -> RtpsCacheChangeImpl {
         match self {
             RtpsWriter::Stateless(w) => w.new_change(kind, data, inline_qos, handle),
@@ -246,21 +248,21 @@ impl RtpsWriter {
         }
     }
 
-    pub fn heartbeat_period(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn heartbeat_period(&self) -> Duration {
         match self {
             RtpsWriter::Stateless(w) => w.heartbeat_period(),
             RtpsWriter::Stateful(w) => w.heartbeat_period(),
         }
     }
 
-    pub fn nack_response_delay(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn nack_response_delay(&self) -> Duration {
         match self {
             RtpsWriter::Stateless(w) => w.nack_response_delay(),
             RtpsWriter::Stateful(w) => w.nack_response_delay(),
         }
     }
 
-    pub fn nack_suppression_duration(&self) -> rtps_pim::behavior::types::Duration {
+    pub fn nack_suppression_duration(&self) -> Duration {
         match self {
             RtpsWriter::Stateless(w) => w.nack_suppression_duration(),
             RtpsWriter::Stateful(w) => w.nack_suppression_duration(),
@@ -395,7 +397,7 @@ impl DdsShared<DataWriterImpl> {
 impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
     fn on_acknack_submessage_received(
         &self,
-        acknack_submessage: &AckNackSubmessage<Vec<SequenceNumber>>,
+        acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         match &mut *self.rtps_writer.write_lock() {
@@ -1006,22 +1008,18 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
                 stateless_rtps_writer.send_submessages(
                     |reader_locator, data| {
                         let info_ts =
-                            if let Some(time) = sample_info_lock.get(&data.writer_sn.value) {
+                            if let Some(&time) = sample_info_lock.get(&data.writer_sn.value) {
                                 InfoTimestampSubmessage {
                                     endianness_flag: true,
                                     invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: rtps_pim::messages::types::Time(
-                                            ((time.sec as u64) << 32) + time.nanosec as u64,
-                                        ),
-                                    },
+                                    timestamp: TimestampSubmessageElement { value: time.into() },
                                 }
                             } else {
                                 InfoTimestampSubmessage {
                                     endianness_flag: true,
                                     invalidate_flag: true,
                                     timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID,
+                                        value: TIME_INVALID.into(),
                                     },
                                 }
                             };
@@ -1046,22 +1044,18 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
                 stateful_rtps_writer.send_submessages(
                     |reader_proxy, data| {
                         let info_ts =
-                            if let Some(time) = sample_info_lock.get(&data.writer_sn.value) {
+                            if let Some(&time) = sample_info_lock.get(&data.writer_sn.value) {
                                 InfoTimestampSubmessage {
                                     endianness_flag: true,
                                     invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: rtps_pim::messages::types::Time(
-                                            ((time.sec as u64) << 32) + time.nanosec as u64,
-                                        ),
-                                    },
+                                    timestamp: TimestampSubmessageElement { value: time.into() },
                                 }
                             } else {
                                 InfoTimestampSubmessage {
                                     endianness_flag: true,
                                     invalidate_flag: true,
                                     timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID,
+                                        value: TIME_INVALID.into(),
                                     },
                                 }
                             };
@@ -1093,9 +1087,15 @@ impl SendRtpsMessage for DdsShared<DataWriterImpl> {
         for (locator_list, submessages) in writer_destined_submessages {
             let header = RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E,
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: guid_prefix.into(),
+                },
             };
 
             let rtps_message = RtpsMessage {
@@ -1114,7 +1114,12 @@ mod test {
     use std::io::Write;
 
     use crate::{
+        dcps_psm::DURATION_ZERO,
         dds_type::Endianness,
+        implementation::rtps::types::{
+            ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+            PROTOCOLVERSION_2_4,
+        },
         {
             dcps_psm::{BuiltInTopicKey, QosPolicyCount},
             infrastructure::{
@@ -1131,19 +1136,16 @@ mod test {
     };
     use mockall::mock;
     use rtps_pim::{
-        behavior::types::DURATION_ZERO,
         messages::{
             submessage_elements::Parameter,
             submessage_elements::{
                 EntityIdSubmessageElement, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
+                SerializedDataSubmessageElement,
             },
             submessages::DataSubmessage,
         },
-        structure::types::{
-            EntityId, Locator, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-            PROTOCOLVERSION_2_4,
-        },
+        structure::types::Locator,
     };
 
     use crate::implementation::{
@@ -1212,8 +1214,8 @@ mod test {
 
         let rtps_writer = RtpsStatefulWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1238,8 +1240,8 @@ mod test {
     fn write_w_timestamp_stateless_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1283,8 +1285,8 @@ mod test {
     fn write_w_timestamp_stateful_message() {
         let mut stateful_rtps_writer = RtpsStatefulWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1336,8 +1338,8 @@ mod test {
     fn unregister_w_timestamp_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1375,16 +1377,22 @@ mod test {
         let expected_message = RtpsMessage {
             header: RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION_2_4,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix: GUIDPREFIX_UNKNOWN,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION_2_4.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E.into(),
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: GUIDPREFIX_UNKNOWN.into(),
+                },
             },
             submessages: vec![
                 RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
                     endianness_flag: true,
                     invalidate_flag: false,
                     timestamp: TimestampSubmessageElement {
-                        value: rtps_pim::messages::types::Time(0),
+                        value: Time::from(0).into(),
                     },
                 }),
                 RtpsSubmessageType::Data(DataSubmessage {
@@ -1394,15 +1402,15 @@ mod test {
                     key_flag: true,
                     non_standard_payload_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: ENTITYID_UNKNOWN.into(),
                     },
                     writer_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: ENTITYID_UNKNOWN.into(),
                     },
                     writer_sn: SequenceNumberSubmessageElement { value: 1 },
                     inline_qos: ParameterListSubmessageElement {
                         parameter: vec![Parameter {
-                            parameter_id: ParameterId(PID_STATUS_INFO),
+                            parameter_id: PID_STATUS_INFO,
                             length: 4,
                             value: &[2, 0, 0, 0],
                         }],
@@ -1425,8 +1433,8 @@ mod test {
     fn dispose_w_timestamp_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::NoKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::NoKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1464,16 +1472,22 @@ mod test {
         let expected_message = RtpsMessage {
             header: RtpsMessageHeader {
                 protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION_2_4,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix: GUIDPREFIX_UNKNOWN,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION_2_4.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E.into(),
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: GUIDPREFIX_UNKNOWN.into(),
+                },
             },
             submessages: vec![
                 RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
                     endianness_flag: true,
                     invalidate_flag: false,
                     timestamp: TimestampSubmessageElement {
-                        value: rtps_pim::messages::types::Time(0),
+                        value: Time::from(0).into(),
                     },
                 }),
                 RtpsSubmessageType::Data(DataSubmessage {
@@ -1483,15 +1497,15 @@ mod test {
                     key_flag: true,
                     non_standard_payload_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: ENTITYID_UNKNOWN.into(),
                     },
                     writer_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: ENTITYID_UNKNOWN.into(),
                     },
                     writer_sn: SequenceNumberSubmessageElement { value: 1 },
                     inline_qos: ParameterListSubmessageElement {
                         parameter: vec![Parameter {
-                            parameter_id: ParameterId(PID_STATUS_INFO),
+                            parameter_id: PID_STATUS_INFO,
                             length: 4,
                             value: &[1, 0, 0, 0],
                         }],
@@ -1567,8 +1581,8 @@ mod test {
 
         let rtps_writer = RtpsStatefulWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,
@@ -1660,8 +1674,8 @@ mod test {
 
         let rtps_writer = RtpsStatefulWriterImpl::new(
             GUID_UNKNOWN,
-            rtps_pim::structure::types::TopicKind::WithKey,
-            rtps_pim::structure::types::ReliabilityKind::BestEffort,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             &[],
             &[],
             true,

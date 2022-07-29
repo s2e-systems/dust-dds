@@ -3,7 +3,23 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 use rtps_pim::messages::submessage_elements::VendorIdSubmessageElement;
 
-use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
+use crate::mapping_traits::{
+    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
+};
+
+impl MappingWrite for VendorIdSubmessageElement {
+    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        self.value.mapping_write(&mut writer)
+    }
+}
+
+impl<'de> MappingRead<'de> for VendorIdSubmessageElement {
+    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        Ok(Self {
+            value: MappingRead::mapping_read(buf)?,
+        })
+    }
+}
 
 impl MappingWriteByteOrdered for VendorIdSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

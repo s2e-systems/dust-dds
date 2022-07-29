@@ -1,8 +1,6 @@
 use rtps_pim::messages::{
-    overall_structure::RtpsSubmessageHeader,
-    submessage_elements::TimestampSubmessageElement,
-    submessages::InfoTimestampSubmessage,
-    types::{SubmessageKind, TIME_INVALID},
+    overall_structure::RtpsSubmessageHeader, submessage_elements::TimestampSubmessageElement,
+    submessages::InfoTimestampSubmessage, types::SubmessageKind,
 };
 
 use std::io::{Error, Write};
@@ -52,13 +50,9 @@ impl<'de> MappingReadSubmessage<'de> for InfoTimestampSubmessage {
         let endianness_flag = header.flags[0];
         let invalidate_flag = header.flags[1];
         let timestamp = if invalidate_flag {
-            TimestampSubmessageElement {
-                value: TIME_INVALID,
-            }
+            TimestampSubmessageElement { value: u64::MAX }
         } else {
-            TimestampSubmessageElement {
-                value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-            }
+            MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         };
         Ok(InfoTimestampSubmessage {
             endianness_flag,
@@ -70,9 +64,7 @@ impl<'de> MappingReadSubmessage<'de> for InfoTimestampSubmessage {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::messages::{
-        submessage_elements::TimestampSubmessageElement, types::TIME_INVALID,
-    };
+    use rtps_pim::messages::submessage_elements::TimestampSubmessageElement;
 
     use crate::mapping_traits::{from_bytes, to_bytes};
 
@@ -83,15 +75,13 @@ mod tests {
         let submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
-            timestamp: TimestampSubmessageElement {
-                value: rtps_pim::messages::types::Time(4),
-            },
+            timestamp: TimestampSubmessageElement { value: 4000000000 },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
                 0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
-                0, 0, 0, 0, // Time
                 4, 0, 0, 0, // Time
+                0, 0, 0, 0, // Time
             ]
         );
     }
@@ -101,9 +91,7 @@ mod tests {
         let submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: true,
-            timestamp: TimestampSubmessageElement {
-                value: TIME_INVALID,
-            },
+            timestamp: TimestampSubmessageElement { value: u64::MAX },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -117,17 +105,15 @@ mod tests {
         #[rustfmt::skip]
         let buf = [
             0x09_u8, 0b_0000_0001, 8, 0, // Submessage header
-            0, 0, 0, 0, // Time
             4, 0, 0, 0, // Time
+            0, 0, 0, 0, // Time
         ];
 
         assert_eq!(
             InfoTimestampSubmessage {
                 endianness_flag: true,
                 invalidate_flag: false,
-                timestamp: TimestampSubmessageElement {
-                    value: rtps_pim::messages::types::Time(4),
-                },
+                timestamp: TimestampSubmessageElement { value: 4000000000 },
             },
             from_bytes(&buf).unwrap()
         )
@@ -144,9 +130,7 @@ mod tests {
             InfoTimestampSubmessage {
                 endianness_flag: true,
                 invalidate_flag: true,
-                timestamp: TimestampSubmessageElement {
-                    value: TIME_INVALID,
-                },
+                timestamp: TimestampSubmessageElement { value: u64::MAX },
             },
             from_bytes(&buf).unwrap()
         )

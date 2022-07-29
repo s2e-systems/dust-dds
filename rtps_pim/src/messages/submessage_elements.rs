@@ -1,112 +1,112 @@
-use crate::structure::types::{EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId};
+use alloc::vec::Vec;
 
-use super::types::{Count, FragmentNumber, GroupDigest, ParameterId, Time};
+use crate::structure::types::Locator;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UShortSubmessageElement {
     pub value: u16,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ShortSubmessageElement {
     pub value: i16,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ULongSubmessageElement {
     pub value: u32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LongSubmessageElementConstructor {
     pub value: i32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GuidPrefixSubmessageElement {
-    pub value: GuidPrefix,
+    pub value: [u8; 12],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EntityIdSubmessageElement {
-    pub value: EntityId,
+    pub value: [u8; 4],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VendorIdSubmessageElement {
-    pub value: VendorId,
+    pub value: [u8; 2],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ProtocolVersionSubmessageElement {
-    pub value: ProtocolVersion,
+    pub value: [u8; 2],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SequenceNumberSubmessageElement {
-    pub value: SequenceNumber,
+    pub value: i64,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SequenceNumberSetSubmessageElement<S> {
-    pub base: SequenceNumber,
-    pub set: S,
+#[derive(Clone, Debug, PartialEq)]
+pub struct SequenceNumberSetSubmessageElement {
+    pub base: i64,
+    pub set: Vec<i64>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FragmentNumberSubmessageElement {
-    pub value: FragmentNumber,
+    pub value: u32,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct FragmentNumberSetSubmessageElement<F> {
-    pub base: FragmentNumber,
-    pub set: F,
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentNumberSetSubmessageElement {
+    pub base: u32,
+    pub set: Vec<u32>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct TimestampSubmessageElement {
-    pub value: Time,
+    pub value: u64,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Parameter<'a> {
-    pub parameter_id: ParameterId,
+    pub parameter_id: u16,
     pub length: i16,
     pub value: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ParameterListSubmessageElement<P> {
-    pub parameter: P,
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParameterListSubmessageElement<'a> {
+    pub parameter: Vec<Parameter<'a>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CountSubmessageElement {
-    pub value: Count,
+    pub value: i32,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct LocatorListSubmessageElement<L> {
-    pub value: L,
+#[derive(Clone, Debug, PartialEq)]
+pub struct LocatorListSubmessageElement {
+    pub value: Vec<Locator>,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SerializedDataSubmessageElement<D> {
-    pub value: D,
+#[derive(Clone, Debug, PartialEq)]
+pub struct SerializedDataSubmessageElement<'a> {
+    pub value: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SerializedDataFragmentSubmessageElement<D> {
-    pub value: D,
+#[derive(Clone, Debug, PartialEq)]
+pub struct SerializedDataFragmentSubmessageElement<'a> {
+    pub value: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GroupDigestSubmessageElement {
-    pub value: GroupDigest,
+    pub value: [u8; 4],
 }

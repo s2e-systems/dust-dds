@@ -42,7 +42,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
+            version: MappingRead::mapping_read(buf)?,
             vendor_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
             guid_prefix: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
@@ -71,7 +71,9 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::{GuidPrefix, ProtocolVersion};
+    use rtps_pim::messages::submessage_elements::{
+        GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
+    };
 
     use super::*;
     use crate::mapping_traits::{from_bytes, to_bytes};
@@ -80,9 +82,9 @@ mod tests {
     fn serialize_rtps_header() {
         let value = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion { major: 2, minor: 3 },
-            vendor_id: [9, 8],
-            guid_prefix: GuidPrefix([3; 12]),
+            version: ProtocolVersionSubmessageElement { value: [2, 3] },
+            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            guid_prefix: GuidPrefixSubmessageElement { value: [3; 12] },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
@@ -98,9 +100,9 @@ mod tests {
     fn deserialize_rtps_header() {
         let expected = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersion { major: 2, minor: 3 },
-            vendor_id: [9, 8],
-            guid_prefix: GuidPrefix([3; 12]),
+            version: ProtocolVersionSubmessageElement { value: [2, 3] },
+            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            guid_prefix: GuidPrefixSubmessageElement { value: [3; 12] },
         };
         #[rustfmt::skip]
         let result = from_bytes(&[

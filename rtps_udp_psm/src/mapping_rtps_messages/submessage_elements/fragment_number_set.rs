@@ -1,19 +1,11 @@
-use std::{
-    io::{Error, Write},
-    iter::FromIterator,
-};
+use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
-use rtps_pim::messages::{
-    submessage_elements::FragmentNumberSetSubmessageElement, types::FragmentNumber,
-};
+use rtps_pim::messages::submessage_elements::FragmentNumberSetSubmessageElement;
 
 use crate::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered};
 
-impl<T> MappingWriteByteOrdered for FragmentNumberSetSubmessageElement<T>
-where
-    for<'a> &'a T: IntoIterator<Item = &'a FragmentNumber>,
-{
+impl MappingWriteByteOrdered for FragmentNumberSetSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -21,7 +13,7 @@ where
         let mut bitmap = [0; 8];
         let mut num_bits = 0;
         for fragment_number in &self.set {
-            let delta_n = (fragment_number.0 - self.base.0) as u32;
+            let delta_n = (fragment_number - self.base) as u32;
             let bitmap_num = delta_n / 32;
             bitmap[bitmap_num as usize] |= 1 << (31 - delta_n % 32);
             if delta_n + 1 > num_bits {
@@ -39,12 +31,9 @@ where
     }
 }
 
-impl<'de, T> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement<T>
-where
-    T: FromIterator<FragmentNumber>,
-{
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let base: FragmentNumber = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
+        let base: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let number_of_bitmap_elements = ((num_bits + 31) / 32) as usize; //In standard refered to as "M"
         let mut bitmap = [0; 8];
@@ -55,13 +44,10 @@ where
         let mut set = Vec::with_capacity(256);
         for delta_n in 0..num_bits as usize {
             if (bitmap[delta_n / 32] & (1 << (31 - delta_n % 32))) == (1 << (31 - delta_n % 32)) {
-                set.push(FragmentNumber(base.0 + delta_n as u32));
+                set.push(base + delta_n as u32);
             }
         }
-        Ok(Self {
-            base,
-            set: T::from_iter(set.into_iter()),
-        })
+        Ok(Self { base, set })
     }
 }
 
@@ -73,8 +59,8 @@ mod tests {
     #[test]
     fn serialize_fragment_number_max_gap() {
         let fragment_number_set = FragmentNumberSetSubmessageElement {
-            base: FragmentNumber(2),
-            set: vec![FragmentNumber(2), FragmentNumber(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&fragment_number_set).unwrap(), vec![
@@ -94,8 +80,8 @@ mod tests {
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
         let expected = FragmentNumberSetSubmessageElement {
-            base: FragmentNumber(2),
-            set: vec![FragmentNumber(2), FragmentNumber(257)],
+            base: 2,
+            set: vec![2, 257],
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[

@@ -1,3 +1,4 @@
+use crate::implementation::rtps::types::Guid;
 use crate::return_type::DdsError;
 use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
@@ -11,7 +12,6 @@ use crate::{
         },
     },
 };
-use rtps_pim::structure::types::Guid;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
@@ -185,7 +185,8 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use rtps_pim::structure::types::{EntityId, GuidPrefix};
+
+    use crate::implementation::rtps::types::{EntityId, GuidPrefix};
 
     use super::*;
 
