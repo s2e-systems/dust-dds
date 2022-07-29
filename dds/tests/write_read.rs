@@ -1,4 +1,5 @@
 use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use dds::domain::domain_participant_factory::DdsDomainParticipantFactory;
 use dds::return_type::{DdsError, DdsResult};
 use dds::{
     dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},

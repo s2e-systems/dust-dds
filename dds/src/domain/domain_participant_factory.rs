@@ -1,9 +1,4 @@
-use std::{
-    io::{self, ErrorKind},
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
-    str::FromStr,
-    sync::Mutex,
-};
+use std::sync::Mutex;
 
 use crate::{
     dcps_psm::{DomainId, StatusMask},
@@ -25,13 +20,9 @@ use crate::{
     },
     return_type::{DdsError, DdsResult},
 };
-use mac_address::MacAddress;
 
 use lazy_static::lazy_static;
-
-use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator};
-use rtps_udp_psm::udp_transport::{UdpMulticastTransport, UdpUnicastTransport};
-use socket2::Socket;
+use rtps_udp_psm::udp_transport::RtpsUdpPsm;
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 
@@ -57,186 +48,123 @@ use super::domain_participant::DomainParticipant;
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
 
-// As of 9.6.1.4.1  Default multicast address
-const DEFAULT_MULTICAST_LOCATOR_ADDRESS: [u8; 16] =
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
-
-const PB: u16 = 7400;
-const DG: u16 = 250;
-const PG: u16 = 2;
-#[allow(non_upper_case_globals)]
-const d0: u16 = 0;
-#[allow(non_upper_case_globals)]
-const d1: u16 = 10;
-#[allow(non_upper_case_globals)]
-const _d2: u16 = 1;
-#[allow(non_upper_case_globals)]
-const d3: u16 = 11;
-
-pub fn port_builtin_multicast(domain_id: u16) -> u16 {
-    PB + DG * domain_id + d0
-}
-
-pub fn port_builtin_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d1 + PG * participant_id
-}
-
-pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d3 + PG * participant_id
-}
-
-pub fn get_multicast_socket(multicast_address: Ipv4Addr, port: u16) -> io::Result<UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
-
-    let socket = Socket::new(
-        socket2::Domain::IPV4,
-        socket2::Type::DGRAM,
-        Some(socket2::Protocol::UDP),
-    )?;
-
-    socket.set_reuse_address(true)?;
-
-    //socket.set_nonblocking(true).ok()?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
-
-    socket.bind(&socket_addr.into())?;
-
-    socket.join_multicast_v4(&multicast_address, &Ipv4Addr::UNSPECIFIED)?;
-    socket.set_multicast_loop_v4(true)?;
-
-    Ok(socket.into())
-}
-
-pub fn get_unicast_socket(port: u16) -> io::Result<UdpSocket> {
-    let socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)))?;
-    socket.set_nonblocking(true)?;
-
-    Ok(socket)
-}
-
-fn ipv4_from_locator(address: &[u8; 16]) -> Ipv4Addr {
-    [address[12], address[13], address[14], address[15]].into()
-}
-
-#[rustfmt::skip]
-fn locator_from_ipv4(address: Ipv4Addr) -> [u8; 16] {
-    [0, 0, 0, 0,
-     0, 0, 0, 0,
-     0, 0, 0, 0,
-     address.octets()[0], address.octets()[1], address.octets()[2], address.octets()[3]]
-}
-
-pub struct Communications {
-    pub domain_id: DomainId,
-    pub participant_id: usize,
-    pub guid_prefix: GuidPrefix,
-    pub unicast_address_list: Vec<Ipv4Addr>,
-    pub multicast_address: Ipv4Addr,
-    pub metatraffic_multicast: UdpMulticastTransport,
-    pub metatraffic_unicast: UdpUnicastTransport,
-    pub default_unicast: UdpUnicastTransport,
-}
-
-impl Communications {
-    pub fn find_available(
-        domain_id: DomainId,
-        mac_address: [u8; 6],
-        unicast_address_list: Vec<Ipv4Addr>,
-        multicast_address: Ipv4Addr,
-    ) -> DdsResult<Self> {
-        let metatraffic_multicast_socket =
-            get_multicast_socket(multicast_address, port_builtin_multicast(domain_id as u16))
-                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
-
-        let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
-            .map(
-                |participant_id| -> io::Result<(usize, UdpSocket, UdpSocket)> {
-                    Ok((
-                        participant_id,
-                        get_unicast_socket(port_builtin_unicast(
-                            domain_id as u16,
-                            participant_id as u16,
-                        ))?,
-                        get_unicast_socket(port_user_unicast(
-                            domain_id as u16,
-                            participant_id as u16,
-                        ))?,
-                    ))
-                },
-            )
-            .find(|result| match result {
-                Err(e) => e.kind() != ErrorKind::AddrInUse,
-                _ => true,
-            })
-            .unwrap()
-            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))?;
-
-        #[rustfmt::skip]
-        let guid_prefix = GuidPrefix([
-            mac_address[0], mac_address[1], mac_address[2],
-            mac_address[3], mac_address[4], mac_address[5],
-            domain_id as u8, participant_id as u8, 0, 0, 0, 0
-        ]);
-
-        Ok(Communications {
-            domain_id,
-            participant_id,
-            guid_prefix,
-            unicast_address_list,
-            multicast_address,
-            metatraffic_multicast: UdpMulticastTransport::new(metatraffic_multicast_socket),
-            metatraffic_unicast: UdpUnicastTransport::new(metatraffic_unicast_socket),
-            default_unicast: UdpUnicastTransport::new(default_unicast_socket),
-        })
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
-        vec![Locator::new(
-            LOCATOR_KIND_UDPv4,
-            port_builtin_multicast(self.domain_id as u16) as u32,
-            locator_from_ipv4(self.multicast_address),
-        )]
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> Vec<Locator> {
-        self.unicast_address_list
-            .iter()
-            .map(|&address| {
-                Locator::new(
-                    LOCATOR_KIND_UDPv4,
-                    port_builtin_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
-                    locator_from_ipv4(address),
-                )
-            })
-            .collect()
-    }
-
-    pub fn default_unicast_locator_list(&self) -> Vec<Locator> {
-        self.unicast_address_list
-            .iter()
-            .map(|&address| {
-                Locator::new(
-                    LOCATOR_KIND_UDPv4,
-                    port_user_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
-                    locator_from_ipv4(address),
-                )
-            })
-            .collect()
-    }
-}
-
 struct ParticipantManager {
     participant: DdsShared<DomainParticipantImpl>,
     task_manager: TaskManager,
 }
 
-lazy_static! {
-    static ref PARTICIPANT_MANAGER_LIST: Mutex<Vec<ParticipantManager>> = Mutex::new(vec![]);
+impl ParticipantManager {
+    fn start(&mut self, mut transport: RtpsUdpPsm) {
+        //     let mut metatraffic_multicast_communication = communications.metatraffic_multicast;
+        //     let mut metatraffic_unicast_communication = communications.metatraffic_unicast;
+        //     let mut default_unicast_communication = communications.default_unicast;
+
+        // //////////// SPDP Communication
+
+        // ////////////// SPDP participant discovery
+        {
+            let domain_participant = self.participant.clone();
+            let mut metatraffic_multicast_transport =
+                transport.metatraffic_multicast_transport().unwrap();
+            self.task_manager.spawn_enabled_periodic_task(
+                "builtin multicast communication",
+                move || {
+                    domain_participant.receive_built_in_data(&mut metatraffic_multicast_transport);
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // ////////////// SPDP builtin endpoint configuration
+        {
+            let domain_participant = self.participant.clone();
+
+            self.task_manager.spawn_enabled_periodic_task(
+                "spdp endpoint configuration",
+                move || match domain_participant.discover_matched_participants() {
+                    Ok(()) => (),
+                    Err(e) => println!("spdp discovery failed: {:?}", e),
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // //////////// Unicast Communication
+        {
+            let domain_participant = self.participant.clone();
+            let mut metatraffic_unicast_transport =
+                transport.metatraffic_unicast_transport().unwrap();
+            self.task_manager.spawn_enabled_periodic_task(
+                "builtin unicast communication",
+                move || {
+                    domain_participant.send_built_in_data(&mut metatraffic_unicast_transport);
+                    domain_participant.receive_built_in_data(&mut metatraffic_unicast_transport);
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // ////////////// SEDP user-defined endpoint configuration
+        {
+            let domain_participant = self.participant.clone();
+
+            self.task_manager.spawn_enabled_periodic_task(
+                "sedp user endpoint configuration",
+                move || {
+                    match domain_participant.discover_matched_writers() {
+                        Ok(()) => (),
+                        Err(e) => println!("sedp writer discovery failed: {:?}", e),
+                    }
+                    match domain_participant.discover_matched_readers() {
+                        Ok(()) => (),
+                        Err(e) => println!("sedp reader discovery failed: {:?}", e),
+                    }
+                },
+                std::time::Duration::from_millis(500),
+            );
+        }
+
+        // //////////// User-defined Communication
+        {
+            let domain_participant = self.participant.clone();
+            let mut default_unicast_transport = transport.default_unicast_transport().unwrap();
+            self.task_manager.spawn_enabled_periodic_task(
+                "user-defined communication",
+                move || {
+                    domain_participant.send_user_defined_data(&mut default_unicast_transport);
+                    domain_participant.receive_user_defined_data(&mut default_unicast_transport);
+                },
+                std::time::Duration::from_millis(50),
+            );
+        }
+
+        // //////////// Announce participant
+        let domain_participant = self.participant.clone();
+        self.task_manager.spawn_enabled_periodic_task(
+            "participant announcement",
+            move || match domain_participant.announce_participant() {
+                Ok(_) => (),
+                Err(e) => println!("participant announcement failed: {:?}", e),
+            },
+            std::time::Duration::from_millis(5000),
+        );
+
+        // //////////// Start running tasks
+        self.task_manager.enable_tasks();
+    }
 }
 
-pub struct DomainParticipantFactory;
+lazy_static! {
+    static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
+        participant_list: Mutex::new(vec![])
+    };
+}
 
-impl DomainParticipantFactory {
+pub struct DomainParticipantFactory {
+    participant_list: Mutex<Vec<ParticipantManager>>,
+}
+
+pub trait DdsDomainParticipantFactory<T = RtpsUdpPsm> {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
@@ -245,7 +173,17 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_participant(
+    fn create_participant(
+        &self,
+        domain_id: DomainId,
+        qos: Option<DomainParticipantQos>,
+        _a_listener: Option<Box<dyn DomainParticipantListener>>,
+        _mask: StatusMask,
+    ) -> DdsResult<DomainParticipant>;
+}
+
+impl DdsDomainParticipantFactory for DomainParticipantFactory {
+    fn create_participant(
         &self,
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
@@ -254,44 +192,16 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipant> {
         let qos = qos.unwrap_or_default();
 
-        let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .flat_map(|i| {
-                i.addresses.into_iter().filter_map(|a| match a.address? {
-                    SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(*v4.ip()),
-                    _ => None,
-                })
-            })
-            .collect();
-
-        assert!(
-            !unicast_address_list.is_empty(),
-            "Could not find any IPv4 address"
-        );
-
-        let mac_address = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .expect("Could not find any mac address");
-
-        let communications = Communications::find_available(
-            domain_id,
-            mac_address.bytes(),
-            unicast_address_list,
-            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        )?;
+        let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
 
         let domain_participant = DomainParticipantImpl::new(
-            communications.guid_prefix,
+            GuidPrefix(rtps_udp_psm.guid_prefix()),
             domain_id,
             "".to_string(),
             qos.clone(),
-            communications.metatraffic_unicast_locator_list(),
-            communications.metatraffic_multicast_locator_list(),
-            communications.default_unicast_locator_list(),
+            rtps_udp_psm.metatraffic_unicast_locator_list(),
+            rtps_udp_psm.metatraffic_multicast_locator_list(),
+            rtps_udp_psm.default_unicast_locator_list(),
             vec![],
         );
 
@@ -301,30 +211,35 @@ impl DomainParticipantFactory {
 
         domain_participant.create_builtins()?;
 
+        if qos.entity_factory.autoenable_created_entities {
+            domain_participant.enable()?;
+        }
+
         let mut participant_manager = ParticipantManager {
             participant: domain_participant,
             task_manager: TaskManager::new(),
         };
-
-        if qos.entity_factory.autoenable_created_entities {
-            self.enable(&mut participant_manager, communications)?;
-        }
+        participant_manager.start(rtps_udp_psm);
 
         let participant_proxy = DomainParticipant::new(participant_manager.participant.downgrade());
 
-        PARTICIPANT_MANAGER_LIST
+        THE_PARTICIPANT_FACTORY
+            .participant_list
             .lock()
             .unwrap()
             .push(participant_manager);
 
         Ok(participant_proxy)
     }
+}
 
+impl DomainParticipantFactory {
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
     /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let mut participant_list = PARTICIPANT_MANAGER_LIST
+        let mut participant_list = THE_PARTICIPANT_FACTORY
+            .participant_list
             .lock()
             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
@@ -344,8 +259,8 @@ impl DomainParticipantFactory {
     /// expressed in the IDL PSM.
     /// The pre-defined value TheParticipantFactory can also be used as an alias for the singleton factory returned by the operation
     /// get_instance.
-    pub fn get_instance() -> Self {
-        Self
+    pub fn get_instance() -> &'static Self {
+        &THE_PARTICIPANT_FACTORY
     }
 
     /// This operation retrieves a previously created DomainParticipant belonging to specified domain_id. If no such
@@ -389,129 +304,10 @@ impl DomainParticipantFactory {
     }
 }
 
-impl DomainParticipantFactory {
-    fn enable(
-        &self,
-        participant_manager: &mut ParticipantManager,
-        communications: Communications,
-    ) -> DdsResult<()> {
-        let mut metatraffic_multicast_communication = communications.metatraffic_multicast;
-        let mut metatraffic_unicast_communication = communications.metatraffic_unicast;
-        let mut default_unicast_communication = communications.default_unicast;
-
-        // //////////// SPDP Communication
-
-        // ////////////// SPDP participant discovery
-        {
-            let domain_participant = participant_manager.participant.clone();
-            participant_manager
-                .task_manager
-                .spawn_enabled_periodic_task(
-                    "builtin multicast communication",
-                    move || {
-                        domain_participant
-                            .receive_built_in_data(&mut metatraffic_multicast_communication);
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-        }
-
-        // ////////////// SPDP builtin endpoint configuration
-        {
-            let domain_participant = participant_manager.participant.clone();
-
-            participant_manager
-                .task_manager
-                .spawn_enabled_periodic_task(
-                    "spdp endpoint configuration",
-                    move || match domain_participant.discover_matched_participants() {
-                        Ok(()) => (),
-                        Err(e) => println!("spdp discovery failed: {:?}", e),
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-        }
-
-        // //////////// Unicast Communication
-        {
-            let domain_participant = participant_manager.participant.clone();
-            participant_manager
-                .task_manager
-                .spawn_enabled_periodic_task(
-                    "builtin unicast communication",
-                    move || {
-                        domain_participant
-                            .send_built_in_data(&mut metatraffic_unicast_communication);
-                        domain_participant
-                            .receive_built_in_data(&mut metatraffic_unicast_communication);
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-        }
-
-        // ////////////// SEDP user-defined endpoint configuration
-        {
-            let domain_participant = participant_manager.participant.clone();
-
-            participant_manager
-                .task_manager
-                .spawn_enabled_periodic_task(
-                    "sedp user endpoint configuration",
-                    move || {
-                        match domain_participant.discover_matched_writers() {
-                            Ok(()) => (),
-                            Err(e) => println!("sedp writer discovery failed: {:?}", e),
-                        }
-                        match domain_participant.discover_matched_readers() {
-                            Ok(()) => (),
-                            Err(e) => println!("sedp reader discovery failed: {:?}", e),
-                        }
-                    },
-                    std::time::Duration::from_millis(500),
-                );
-        }
-
-        // //////////// User-defined Communication
-        {
-            let domain_participant = participant_manager.participant.clone();
-            participant_manager
-                .task_manager
-                .spawn_enabled_periodic_task(
-                    "user-defined communication",
-                    move || {
-                        domain_participant
-                            .send_user_defined_data(&mut default_unicast_communication);
-                        domain_participant
-                            .receive_user_defined_data(&mut default_unicast_communication);
-                    },
-                    std::time::Duration::from_millis(50),
-                );
-        }
-
-        // //////////// Announce participant
-        let domain_participant = participant_manager.participant.clone();
-        participant_manager
-            .task_manager
-            .spawn_enabled_periodic_task(
-                "participant announcement",
-                move || match domain_participant.announce_participant() {
-                    Ok(_) => (),
-                    Err(e) => println!("participant announcement failed: {:?}", e),
-                },
-                std::time::Duration::from_millis(5000),
-            );
-
-        // //////////// Start running tasks
-        participant_manager.task_manager.enable_tasks();
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
-        implementation::rtps::types::{Guid, ENTITYID_PARTICIPANT},
+        implementation::rtps::types::{Guid, ENTITYID_PARTICIPANT, GUIDPREFIX_UNKNOWN},
         publication::data_writer::DataWriterProxy,
         publication::data_writer_listener::DataWriterListener,
         subscription::{
@@ -545,100 +341,95 @@ mod tests {
             dds_impl::domain_participant_impl::CreateBuiltIns,
         },
     };
+    use dds_transport::{TransportRead, TransportWrite};
     use mockall::mock;
+    use rtps_pim::structure::types::{LOCATOR_KIND_UDPv4, Locator};
+    use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
 
-    #[test]
-    fn communicaitons_make_different_guids() {
-        let comm1 = Communications::find_available(
-            0,
-            [0; 6],
-            vec![[127, 0, 0, 1].into()],
-            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        )
-        .unwrap();
-
-        let comm2 = Communications::find_available(
-            0,
-            [0; 6],
-            vec![[127, 0, 0, 1].into()],
-            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        )
-        .unwrap();
-
-        assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
+    struct Mailbox {
+        received_messages: Vec<(Locator, Vec<u8>)>,
+        read: usize,
     }
 
-    #[test]
-    fn multicast_socket_behaviour() {
-        let port = 6000;
-        let multicast_ip = [239, 255, 0, 1];
-        let multicast_addr = SocketAddr::from((multicast_ip, port));
+    impl Mailbox {
+        fn new() -> Self {
+            Self {
+                received_messages: vec![],
+                read: 0,
+            }
+        }
+    }
 
-        let socket1 = get_multicast_socket(multicast_ip.into(), port).unwrap();
-        let socket2 = get_multicast_socket(multicast_ip.into(), port).unwrap();
-        let socket3 = get_multicast_socket(multicast_ip.into(), port).unwrap();
+    impl TransportWrite for Mailbox {
+        fn write(
+            &mut self,
+            message: &dds_transport::RtpsMessage<'_>,
+            destination_locator: rtps_pim::structure::types::Locator,
+        ) {
+            self.received_messages
+                .push((destination_locator, to_bytes(message).unwrap()));
+        }
+    }
 
-        socket1.send_to(&[1, 2, 3, 4], multicast_addr).unwrap();
+    impl<'a> TransportRead<'a> for Mailbox {
+        fn read(
+            &'a mut self,
+        ) -> Option<(
+            rtps_pim::structure::types::Locator,
+            dds_transport::RtpsMessage<'a>,
+        )> {
+            if self.read < self.received_messages.len() {
+                let (locator, message_bytes) = &self.received_messages[self.read];
+                self.read += 1;
+                Some((
+                    locator.clone(),
+                    from_bytes(message_bytes.as_slice()).unwrap(),
+                ))
+            } else {
+                None
+            }
+        }
+    }
 
-        // Everyone receives the data
-        let mut buf = [0; 4];
-        let (size, _) = socket1.recv_from(&mut buf).unwrap();
-        assert_eq!(4, size);
-        let (size, _) = socket2.recv_from(&mut buf).unwrap();
-        assert_eq!(4, size);
-        let (size, _) = socket3.recv_from(&mut buf).unwrap();
-        assert_eq!(4, size);
-
-        // Data is received only once
-        assert!(socket1.recv_from(&mut buf).is_err());
-        assert!(socket2.recv_from(&mut buf).is_err());
-        assert!(socket3.recv_from(&mut buf).is_err());
+    fn mock_locator(i: u8) -> Locator {
+        Locator {
+            kind: LOCATOR_KIND_UDPv4,
+            port: 42,
+            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i],
+        }
     }
 
     #[test]
     fn test_spdp_send_receive() {
-        let domain_id = 4;
-        let interface_address = [127, 0, 0, 1];
-        let multicast_ip = [239, 255, 0, 1];
+        let domain_id = 8;
+        let guid_prefix = GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        let metatraffic_unicast_locator_list = vec![mock_locator(0)];
+        let metatraffic_multicast_locator_list = vec![mock_locator(1)];
+        let default_unicast_locator_list = vec![mock_locator(2), mock_locator(3), mock_locator(4)];
 
         // ////////// Create 2 participants
 
-        let mut communications1 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![interface_address.into()],
-            multicast_ip.into(),
-        )
-        .unwrap();
         let participant1 = DomainParticipantImpl::new(
-            communications1.guid_prefix,
+            guid_prefix,
             domain_id,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locator_list(),
-            communications1.default_unicast_locator_list(),
+            metatraffic_unicast_locator_list.clone(),
+            metatraffic_multicast_locator_list.clone(),
+            default_unicast_locator_list.clone(),
             vec![],
         );
         participant1.enable().unwrap();
         participant1.create_builtins().unwrap();
 
-        let mut communications2 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![interface_address.into()],
-            multicast_ip.into(),
-        )
-        .unwrap();
-
         let participant2 = DomainParticipantImpl::new(
-            communications2.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0 as i32,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locator_list(),
-            communications2.default_unicast_locator_list(),
+            vec![],
+            vec![],
+            vec![],
             vec![],
         );
         participant2.enable().unwrap();
@@ -646,9 +437,11 @@ mod tests {
 
         // ////////// Send and receive SPDP data
         {
+            let mut spdp_mailbox = Mailbox::new();
+
             participant1.announce_participant().unwrap();
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_multicast);
+            participant1.send_built_in_data(&mut spdp_mailbox);
+            participant2.receive_built_in_data(&mut spdp_mailbox);
         }
 
         // ////////// Participant 2 receives discovered participant data
@@ -678,7 +471,7 @@ mod tests {
         {
             assert_eq!(
                 BuiltInTopicKey {
-                    value: Guid::new(communications1.guid_prefix, ENTITYID_PARTICIPANT).into()
+                    value: Guid::new(guid_prefix, ENTITYID_PARTICIPANT).into()
                 },
                 spdp_discovered_participant_data_sample
                     .data
@@ -695,11 +488,11 @@ mod tests {
                     .as_ref()
                     .unwrap()
                     .participant_proxy
-                    .domain_id as i32
+                    .domain_id
             );
 
             assert_eq!(
-                communications1.guid_prefix,
+                guid_prefix,
                 spdp_discovered_participant_data_sample
                     .data
                     .as_ref()
@@ -709,7 +502,7 @@ mod tests {
             );
 
             assert_eq!(
-                communications1.metatraffic_unicast_locator_list(),
+                metatraffic_unicast_locator_list,
                 spdp_discovered_participant_data_sample
                     .data
                     .as_ref()
@@ -719,7 +512,7 @@ mod tests {
             );
 
             assert_eq!(
-                communications1.metatraffic_multicast_locator_list(),
+                metatraffic_multicast_locator_list,
                 spdp_discovered_participant_data_sample
                     .data
                     .as_ref()
@@ -729,7 +522,7 @@ mod tests {
             );
 
             assert_eq!(
-                participant1.default_unicast_locator_list(),
+                default_unicast_locator_list,
                 spdp_discovered_participant_data_sample
                     .data
                     .as_ref()
@@ -739,7 +532,6 @@ mod tests {
             );
         }
     }
-
     struct UserData(u8);
 
     impl DdsType for UserData {
@@ -772,50 +564,29 @@ mod tests {
 
     #[test]
     fn test_sedp_send_receive() {
-        let domain_id = 5;
-        let unicast_address = [127, 0, 0, 1];
-        let multicast_address = [239, 255, 0, 1];
-
         // ////////// Create 2 participants
-
-        let mut communications1 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![unicast_address.into()],
-            multicast_address.into(),
-        )
-        .unwrap();
-
         let participant1 = DomainParticipantImpl::new(
-            communications1.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locator_list(),
-            communications1.default_unicast_locator_list(),
+            vec![mock_locator(0)],
+            vec![mock_locator(1)],
+            vec![mock_locator(2)],
             vec![],
         );
         participant1.enable().unwrap();
         let participant1_proxy = DomainParticipant::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
-        let mut communications2 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![[127, 0, 0, 1].into()],
-            ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS),
-        )
-        .unwrap();
-
         let participant2 = DomainParticipantImpl::new(
-            communications2.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locator_list(),
-            communications2.default_unicast_locator_list(),
+            vec![mock_locator(3)],
+            vec![mock_locator(4)],
+            vec![mock_locator(5)],
             vec![],
         );
         participant2.enable().unwrap();
@@ -824,14 +595,17 @@ mod tests {
 
         // Match SEDP endpoints
         {
+            let mut spdp_mailbox1 = Mailbox::new();
+            let mut spdp_mailbox2 = Mailbox::new();
+
             participant1.announce_participant().unwrap();
             participant2.announce_participant().unwrap();
 
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut spdp_mailbox2);
+            participant2.send_built_in_data(&mut spdp_mailbox1);
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_multicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_multicast);
+            participant1.receive_built_in_data(&mut spdp_mailbox1);
+            participant2.receive_built_in_data(&mut spdp_mailbox2);
 
             participant1.discover_matched_participants().unwrap();
             participant2.discover_matched_participants().unwrap();
@@ -853,11 +627,14 @@ mod tests {
 
         // ////////// Send and receive SEDP data
         {
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            let mut sedp_mailbox1 = Mailbox::new();
+            let mut sedp_mailbox2 = Mailbox::new();
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut sedp_mailbox2);
+            participant2.send_built_in_data(&mut sedp_mailbox1);
+
+            participant1.receive_built_in_data(&mut sedp_mailbox1);
+            participant2.receive_built_in_data(&mut sedp_mailbox2);
         }
 
         // ////////// Check that the received data corresponds to the sent data
@@ -959,49 +736,29 @@ mod tests {
 
     #[test]
     fn test_reader_writer_matching_listener() {
-        let domain_id = 6;
-        let unicast_address = [127, 0, 0, 1];
-        let multicast_address = [239, 255, 0, 1];
-
         // ////////// Create 2 participants
-        let mut communications1 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![unicast_address.into()],
-            multicast_address.into(),
-        )
-        .unwrap();
-
         let participant1 = DomainParticipantImpl::new(
-            communications1.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locator_list(),
-            communications1.default_unicast_locator_list(),
+            vec![mock_locator(0)],
+            vec![mock_locator(1)],
+            vec![mock_locator(2)],
             vec![],
         );
         participant1.enable().unwrap();
         let participant1_proxy = DomainParticipant::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
-        let mut communications2 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![unicast_address.into()],
-            multicast_address.into(),
-        )
-        .unwrap();
-
         let participant2 = DomainParticipantImpl::new(
-            communications2.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locator_list(),
-            communications2.default_unicast_locator_list(),
+            vec![mock_locator(3)],
+            vec![mock_locator(4)],
+            vec![mock_locator(5)],
             vec![],
         );
         participant2.enable().unwrap();
@@ -1010,14 +767,17 @@ mod tests {
 
         // ////////// Match SEDP endpoints
         {
+            let mut spdp_mailbox1 = Mailbox::new();
+            let mut spdp_mailbox2 = Mailbox::new();
+
             participant1.announce_participant().unwrap();
             participant2.announce_participant().unwrap();
 
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut spdp_mailbox2);
+            participant2.send_built_in_data(&mut spdp_mailbox1);
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_multicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_multicast);
+            participant1.receive_built_in_data(&mut spdp_mailbox1);
+            participant2.receive_built_in_data(&mut spdp_mailbox2);
 
             participant1.discover_matched_participants().unwrap();
             participant2.discover_matched_participants().unwrap();
@@ -1049,11 +809,14 @@ mod tests {
 
         // ////////// Send SEDP data
         {
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            let mut sedp_mailbox1 = Mailbox::new();
+            let mut sedp_mailbox2 = Mailbox::new();
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut sedp_mailbox2);
+            participant2.send_built_in_data(&mut sedp_mailbox1);
+
+            participant1.receive_built_in_data(&mut sedp_mailbox1);
+            participant2.receive_built_in_data(&mut sedp_mailbox2);
         }
 
         // ////////// Process SEDP data
@@ -1093,49 +856,29 @@ mod tests {
 
     #[test]
     fn test_reader_available_data_listener() {
-        let domain_id = 7;
-        let unicast_address = [127, 0, 0, 1];
-        let multicast_address = [239, 255, 0, 1];
-
         // ////////// Create 2 participants
-        let mut communications1 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![unicast_address.into()],
-            multicast_address.into(),
-        )
-        .unwrap();
-
         let participant1 = DomainParticipantImpl::new(
-            communications1.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications1.metatraffic_unicast_locator_list(),
-            communications1.metatraffic_multicast_locator_list(),
-            communications1.default_unicast_locator_list(),
+            vec![mock_locator(0)],
+            vec![mock_locator(1)],
+            vec![mock_locator(2)],
             vec![],
         );
         participant1.enable().unwrap();
         let participant1_proxy = DomainParticipant::new(participant1.downgrade());
         participant1.create_builtins().unwrap();
 
-        let mut communications2 = Communications::find_available(
-            domain_id,
-            [0; 6],
-            vec![unicast_address.into()],
-            multicast_address.into(),
-        )
-        .unwrap();
-
         let participant2 = DomainParticipantImpl::new(
-            communications2.guid_prefix,
-            domain_id,
+            GUIDPREFIX_UNKNOWN,
+            0,
             "".to_string(),
             DomainParticipantQos::default(),
-            communications2.metatraffic_unicast_locator_list(),
-            communications2.metatraffic_multicast_locator_list(),
-            communications2.default_unicast_locator_list(),
+            vec![mock_locator(3)],
+            vec![mock_locator(4)],
+            vec![mock_locator(5)],
             vec![],
         );
         participant2.enable().unwrap();
@@ -1144,14 +887,17 @@ mod tests {
 
         // ////////// Match SEDP endpoints
         {
+            let mut spdp_mailbox1 = Mailbox::new();
+            let mut spdp_mailbox2 = Mailbox::new();
+
             participant1.announce_participant().unwrap();
             participant2.announce_participant().unwrap();
 
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut spdp_mailbox2);
+            participant2.send_built_in_data(&mut spdp_mailbox1);
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_multicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_multicast);
+            participant1.receive_built_in_data(&mut spdp_mailbox1);
+            participant2.receive_built_in_data(&mut spdp_mailbox2);
 
             participant1.discover_matched_participants().unwrap();
             participant2.discover_matched_participants().unwrap();
@@ -1181,11 +927,14 @@ mod tests {
 
         // ////////// Activate SEDP
         {
-            participant1.send_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.send_built_in_data(&mut communications2.metatraffic_unicast);
+            let mut sedp_mailbox1 = Mailbox::new();
+            let mut sedp_mailbox2 = Mailbox::new();
 
-            participant1.receive_built_in_data(&mut communications1.metatraffic_unicast);
-            participant2.receive_built_in_data(&mut communications2.metatraffic_unicast);
+            participant1.send_built_in_data(&mut sedp_mailbox2);
+            participant2.send_built_in_data(&mut sedp_mailbox1);
+
+            participant1.receive_built_in_data(&mut sedp_mailbox1);
+            participant2.receive_built_in_data(&mut sedp_mailbox2);
 
             // ////////// Process SEDP data
             participant1.discover_matched_readers().unwrap();
@@ -1210,7 +959,9 @@ mod tests {
 
         // ////////// Send user data
         {
-            participant1.send_user_defined_data(&mut communications1.default_unicast);
+            let mut user_mailbox = Mailbox::new();
+
+            participant1.send_user_defined_data(&mut user_mailbox);
 
             // On receive the available data listener should be called
             let mut reader_listener = Box::new(MockReaderListener::new());
@@ -1220,7 +971,7 @@ mod tests {
                 .return_const(());
             user_reader.set_listener(Some(reader_listener), 0).unwrap();
 
-            participant2.receive_user_defined_data(&mut communications2.default_unicast);
+            participant2.receive_user_defined_data(&mut user_mailbox);
 
             // From now on no listener should be called anymore
             user_reader
@@ -1230,7 +981,11 @@ mod tests {
     }
 
     fn reset_singleton() {
-        PARTICIPANT_MANAGER_LIST.lock().unwrap().clear();
+        THE_PARTICIPANT_FACTORY
+            .participant_list
+            .lock()
+            .unwrap()
+            .clear();
     }
 
     #[test]
@@ -1251,7 +1006,14 @@ mod tests {
             .delete_participant(&participant1)
             .unwrap();
 
-        assert_eq!(1, PARTICIPANT_MANAGER_LIST.lock().unwrap().len());
+        assert_eq!(
+            1,
+            THE_PARTICIPANT_FACTORY
+                .participant_list
+                .lock()
+                .unwrap()
+                .len()
+        );
 
         assert!(participant1.enable().is_err());
         assert!(participant2.enable().is_ok());

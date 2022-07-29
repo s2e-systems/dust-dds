@@ -1,5 +1,7 @@
 use dds::dds_type::{DdsSerde, DdsType};
-use dds::domain::domain_participant_factory::DomainParticipantFactory;
+use dds::domain::domain_participant_factory::{
+    DdsDomainParticipantFactory, DomainParticipantFactory,
+};
 use dds_derive::DdsType;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +13,7 @@ struct HelloWorldType {
 
 impl DdsSerde for HelloWorldType {}
 
-fn main() {
+fn main()    {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 

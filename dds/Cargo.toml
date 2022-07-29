@@ -23,15 +23,8 @@ derive_more = "0.99.16"
 md5 = "0.7.0"  # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 byteorder = "1.4.3"
-socket2 = "0.4"
 erased-serde = "0.3"
-ifcfg = "0.1"
 lazy_static = "1.4"
-mac_address = "1.1"
-
-[dependencies.async-std]
-version = "1.7.0"
-features = ["unstable"]
 
 [dev-dependencies]
 mockall = { version = "0.11" }

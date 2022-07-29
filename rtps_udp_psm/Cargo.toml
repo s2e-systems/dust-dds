@@ -13,3 +13,4 @@ dds-transport = {path="../dds_transport"}
 byteorder = "1.4.3"
 socket2 = "0.4"
 ifcfg = "0.1"
+mac_address = "1.1"
