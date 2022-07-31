@@ -39,7 +39,7 @@ fn create_and_delete_datawriter_succeeds() {
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<Foo>(&topic, None, None, 0)
+        .create_datawriter::<Foo>(&topic, None, None, 0, &domain_participant)
         .unwrap();
 
     publisher.delete_datawriter(&data_writer).unwrap();
@@ -65,7 +65,7 @@ fn delete_datawriter_from_other_publisher_returns_error() {
         .unwrap();
 
     let data_writer = publisher1
-        .create_datawriter::<Foo>(&topic, None, None, 0)
+        .create_datawriter::<Foo>(&topic, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(matches!(
@@ -112,7 +112,7 @@ fn lookup_datawriter_with_one_datawriter_created() {
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<Foo>(&topic, None, None, 0)
+        .create_datawriter::<Foo>(&topic, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic).unwrap() == data_writer);
@@ -139,7 +139,7 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_type() {
         .unwrap();
 
     publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, 0)
+        .create_datawriter::<Bar>(&topic_bar, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic_bar).is_err());
@@ -166,7 +166,7 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_topic() {
         .unwrap();
 
     publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, 0)
+        .create_datawriter::<Bar>(&topic_bar, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Bar>(&topic_foo).is_err());
@@ -193,10 +193,10 @@ fn lookup_datawriter_with_two_datawriters_with_different_types() {
         .unwrap();
 
     let data_writer_foo = publisher
-        .create_datawriter::<Foo>(&topic_foo, None, None, 0)
+        .create_datawriter::<Foo>(&topic_foo, None, None, 0, &domain_participant)
         .unwrap();
     let data_writer_bar = publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, 0)
+        .create_datawriter::<Bar>(&topic_bar, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic_foo).unwrap() == data_writer_foo);
@@ -225,10 +225,10 @@ fn lookup_datawriter_with_two_datawriters_with_different_topics() {
         .unwrap();
 
     let data_writer1 = publisher
-        .create_datawriter::<Foo>(&topic1, None, None, 0)
+        .create_datawriter::<Foo>(&topic1, None, None, 0, &domain_participant)
         .unwrap();
     let data_writer2 = publisher
-        .create_datawriter::<Foo>(&topic2, None, None, 0)
+        .create_datawriter::<Foo>(&topic2, None, None, 0, &domain_participant)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic1).unwrap() == data_writer1);

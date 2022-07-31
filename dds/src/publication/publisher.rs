@@ -1,5 +1,7 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
+    domain::{
+        domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
+    },
     {
         dcps_psm::{Duration, InstanceHandle, StatusMask},
         infrastructure::{
@@ -30,7 +32,7 @@ use super::publisher_listener::PublisherListener;
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Publisher {
     publisher_attributes: DdsWeak<PublisherImpl>,
 }
@@ -89,6 +91,8 @@ impl Publisher {
                 qos,
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
+                &THE_PARTICIPANT_FACTORY
+                    .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
             )
             .map(|x| DataWriterProxy::new(x.downgrade()))
     }
@@ -184,10 +188,10 @@ impl Publisher {
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.publisher_attributes
-            .upgrade()?
-            .get_participant()
-            .map(|x| DomainParticipant::new(x.downgrade()))
+        let dp = THE_PARTICIPANT_FACTORY
+            .lookup_participant_by_entity_handle(&self.get_instance_handle()?);
+
+        Ok(DomainParticipant::new(dp.downgrade()))
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -275,7 +279,10 @@ impl Entity for Publisher {
     }
 
     fn enable(&self) -> DdsResult<()> {
-        self.publisher_attributes.upgrade()?.enable()
+        self.publisher_attributes.upgrade()?.enable(
+            &THE_PARTICIPANT_FACTORY
+                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+        )
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

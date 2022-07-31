@@ -2,6 +2,7 @@ use crate::dds_type::DdsType;
 use crate::implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
 };
+use crate::publication::publisher_listener::PublisherListener;
 use crate::return_type::DdsResult;
 use crate::subscription::subscriber::Subscriber;
 use crate::{
@@ -22,6 +23,7 @@ use crate::{
     publication::publisher::Publisher, topic_definition::topic::Topic,
 };
 
+#[derive(Debug)]
 pub struct DomainParticipant {
     domain_participant_attributes: DdsWeak<DomainParticipantImpl>,
 }
@@ -60,7 +62,7 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        a_listener: Option<<Publisher as Entity>::Listener>,
+        a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
     ) -> DdsResult<Publisher> {
         self.domain_participant_attributes

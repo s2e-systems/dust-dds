@@ -78,9 +78,8 @@ use dds_transport::{
 };
 
 use super::{
-    participant_discovery::ParticipantDiscovery,
-    subscriber_impl::{AnnounceDataReader, SubscriberImpl},
-    topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, participant_discovery::ParticipantDiscovery,
+    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
 pub trait AnyDataReaderListener {
@@ -219,7 +218,7 @@ pub struct DataReaderImpl<Tim> {
     rtps_reader: DdsRwLock<RtpsReader>,
     qos: DdsRwLock<DataReaderQos>,
     topic: DdsShared<TopicImpl>,
-    listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
     parent_subscriber: DdsWeak<SubscriberImpl>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
@@ -242,7 +241,7 @@ where
         qos: DataReaderQos,
         rtps_reader: RtpsReader,
         topic: DdsShared<TopicImpl>,
-        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         parent_subscriber: DdsWeak<SubscriberImpl>,
     ) -> DdsShared<Self> {
         let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
@@ -1060,11 +1059,8 @@ where
     }
 }
 
-impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
-    type Qos = DataReaderQos;
-    type Listener = Box<dyn AnyDataReaderListener + Send + Sync>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+    pub fn set_qos(&self, qos: Option<DataReaderQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
         qos.is_consistent()?;
@@ -1077,43 +1073,45 @@ impl<Tim> Entity for DdsShared<DataReaderImpl<Tim>> {
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
         Ok(self.qos.read_lock().clone())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+        _mask: StatusMask,
+    ) -> DdsResult<()> {
         *self.listener.write_lock() = a_listener;
         Ok(())
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyDataReaderListener + Send + Sync>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
         Ok(*self.status_change.read_lock())
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
         if !self.parent_subscriber.upgrade()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent subscriber disabled".to_string(),
             ));
         }
 
-        self.parent_subscriber
-            .upgrade()?
-            .announce_datareader(self.try_into()?);
+        parent_participant.announce_datareader(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -1797,11 +1795,8 @@ mod tests {
     fn add_compatible_matched_writer() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_subscriber = SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-        );
+        let parent_subscriber =
+            SubscriberImpl::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1890,11 +1885,8 @@ mod tests {
     fn add_incompatible_matched_writer() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_subscriber = SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-        );
+        let parent_subscriber =
+            SubscriberImpl::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),

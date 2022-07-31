@@ -1,5 +1,6 @@
 use crate::{
     dds_type::{DdsDeserialize, DdsType},
+    domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
@@ -763,7 +764,10 @@ where
     }
 
     fn enable(&self) -> DdsResult<()> {
-        self.data_reader_attributes.upgrade()?.enable()
+        self.data_reader_attributes.upgrade()?.enable(
+            &THE_PARTICIPANT_FACTORY
+                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+        )
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

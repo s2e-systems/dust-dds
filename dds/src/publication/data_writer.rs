@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
+    domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
         utils::shared_object::DdsWeak,
@@ -76,9 +77,13 @@ where
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
     pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+        let timestamp = self
+            .get_publisher()?
+            .get_participant()?
+            .get_current_time()?;
         self.data_writer_attributes
             .upgrade()?
-            .register_instance(instance)
+            .register_instance_w_timestamp(instance, timestamp)
     }
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
@@ -130,9 +135,13 @@ where
         instance: &Foo,
         handle: Option<InstanceHandle>,
     ) -> DdsResult<()> {
+        let timestamp = self
+            .get_publisher()?
+            .get_participant()?
+            .get_current_time()?;
         self.data_writer_attributes
             .upgrade()?
-            .unregister_instance(instance, handle)
+            .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
@@ -214,7 +223,13 @@ where
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
     pub fn write(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.write(data, handle)
+        let timestamp = self
+            .get_publisher()?
+            .get_participant()?
+            .get_current_time()?;
+        self.data_writer_attributes
+            .upgrade()?
+            .write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -254,7 +269,13 @@ where
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     pub fn dispose(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.dispose(data, handle)
+        let timestamp = self
+            .get_publisher()?
+            .get_participant()?
+            .get_current_time()?;
+        self.data_writer_attributes
+            .upgrade()?
+            .dispose_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -420,7 +441,10 @@ where
     }
 
     fn enable(&self) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.enable()
+        self.data_writer_attributes.upgrade()?.enable(
+            &THE_PARTICIPANT_FACTORY
+                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+        )
     }
 
     fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

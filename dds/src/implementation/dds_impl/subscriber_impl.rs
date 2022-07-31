@@ -15,7 +15,7 @@ use crate::{
             ViewStateMask,
         },
         infrastructure::{
-            entity::{Entity, StatusCondition},
+            entity::StatusCondition,
             qos::{DataReaderQos, SubscriberQos, TopicQos},
             qos_policy::ReliabilityQosPolicyKind,
         },
@@ -24,23 +24,21 @@ use crate::{
 use dds_transport::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 
 use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
-        discovered_writer_data::DiscoveredWriterData,
-    },
+    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     utils::{
         discovery_traits::AddMatchedWriter,
         rtps_communication_traits::{
             ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
         },
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
 };
 
+use super::data_reader_impl::AnyDataReaderListener;
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReader},
-    domain_participant_impl::{DataReaderDiscovery, DomainParticipantImpl},
+    domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
 
@@ -52,23 +50,17 @@ pub struct SubscriberImpl {
     data_reader_list: DdsRwLock<Vec<DdsShared<DataReaderImpl<ThreadTimer>>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
-    parent_domain_participant: DdsWeak<DomainParticipantImpl>,
     enabled: DdsRwLock<bool>,
 }
 
 impl SubscriberImpl {
-    pub fn new(
-        qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
-        parent_domain_participant: DdsWeak<DomainParticipantImpl>,
-    ) -> DdsShared<Self> {
+    pub fn new(qos: SubscriberQos, rtps_group: RtpsGroupImpl) -> DdsShared<Self> {
         DdsShared::new(SubscriberImpl {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
-            parent_domain_participant,
             enabled: DdsRwLock::new(false),
         })
     }
@@ -97,36 +89,14 @@ impl AddDataReader for DdsShared<SubscriberImpl> {
     }
 }
 
-pub trait AnnounceDataReader {
-    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData);
-}
-
-impl AnnounceDataReader for DdsShared<SubscriberImpl> {
-    fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
-        if let Ok(domain_participant) = self.parent_domain_participant.upgrade() {
-            domain_participant.add_created_data_reader(&DiscoveredReaderData {
-                reader_proxy: RtpsReaderProxy {
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    ..sedp_discovered_reader_data.reader_proxy
-                },
-                ..sedp_discovered_reader_data
-            });
-        }
-    }
-}
-
 impl DdsShared<SubscriberImpl> {
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataReaderQos>,
-        a_listener: Option<<DdsShared<DataReaderImpl<ThreadTimer>> as Entity>::Listener>,
+        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         _mask: StatusMask,
+        parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<DataReaderImpl<ThreadTimer>>>
     where
         Foo: DdsType,
@@ -165,19 +135,12 @@ impl DdsShared<SubscriberImpl> {
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let domain_participant = self.parent_domain_participant.upgrade().ok();
             let rtps_reader = RtpsReader::Stateful(RtpsStatefulReaderImpl::new(
                 guid,
                 topic_kind,
                 reliability_level,
-                domain_participant
-                    .as_ref()
-                    .map(|dp| dp.default_unicast_locator_list())
-                    .unwrap_or(&[]),
-                domain_participant
-                    .as_ref()
-                    .map(|dp| dp.default_multicast_locator_list())
-                    .unwrap_or(&[]),
+                parent_participant.default_unicast_locator_list(),
+                parent_participant.default_multicast_locator_list(),
                 DURATION_ZERO,
                 DURATION_ZERO,
                 false,
@@ -205,7 +168,7 @@ impl DdsShared<SubscriberImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_reader_shared.enable()?;
+            data_reader_shared.enable(parent_participant)?;
         }
 
         Ok(data_reader_shared)
@@ -292,13 +255,6 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
-        Ok(self
-            .parent_domain_participant
-            .upgrade()
-            .expect("Failed to get parent participant of subscriber"))
-    }
-
     pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
         todo!()
     }
@@ -328,11 +284,8 @@ impl DdsShared<SubscriberImpl> {
     }
 }
 
-impl Entity for DdsShared<SubscriberImpl> {
-    type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DdsShared<SubscriberImpl> {
+    pub fn set_qos(&self, qos: Option<SubscriberQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
         if *self.enabled.read_lock() {
@@ -344,32 +297,32 @@ impl Entity for DdsShared<SubscriberImpl> {
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         Ok(self.qos.read_lock().clone())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: StatusMask,
     ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
         todo!()
     }
 
-    fn enable(&self) -> DdsResult<()> {
-        if !self.parent_domain_participant.upgrade()?.is_enabled() {
+    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
+        if !parent_participant.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
@@ -384,14 +337,14 @@ impl Entity for DdsShared<SubscriberImpl> {
             .autoenable_created_entities
         {
             for data_reader in self.data_reader_list.read_lock().iter() {
-                data_reader.enable()?;
+                data_reader.enable(parent_participant)?;
             }
         }
 
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

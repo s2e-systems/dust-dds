@@ -76,9 +76,8 @@ use crate::implementation::{
 };
 
 use super::{
-    participant_discovery::ParticipantDiscovery,
-    publisher_impl::{AnnounceDataWriter, PublisherImpl},
-    topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, participant_discovery::ParticipantDiscovery,
+    publisher_impl::PublisherImpl, topic_impl::TopicImpl,
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
@@ -298,7 +297,7 @@ pub struct DataWriterImpl {
     rtps_writer: DdsRwLock<RtpsWriter>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
-    listener: DdsRwLock<Option<<DdsShared<Self> as Entity>::Listener>>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<PublisherImpl>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -313,7 +312,7 @@ impl DataWriterImpl {
     pub fn new(
         qos: DataWriterQos,
         rtps_writer: RtpsWriter,
-        listener: Option<<DdsShared<Self> as Entity>::Listener>,
+        listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<PublisherImpl>,
     ) -> DdsShared<Self> {
@@ -382,17 +381,6 @@ impl DataWriterImpl {
                 }
             }
         }
-    }
-}
-
-impl DdsShared<DataWriterImpl> {
-    fn get_timestamp(&self) -> Time {
-        self.get_publisher()
-            .expect("Failed to get parent publisher of datawriter.")
-            .get_participant()
-            .expect("Failed to get parent participant of publisher")
-            .get_current_time()
-            .expect("Failed to get current time from participant")
     }
 }
 
@@ -551,18 +539,6 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
 }
 
 impl DdsShared<DataWriterImpl> {
-    pub fn register_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let timestamp = self.get_timestamp();
-        self.register_instance_w_timestamp(instance, timestamp)
-    }
-
     pub fn register_instance_w_timestamp<Foo>(
         &self,
         instance: &Foo,
@@ -595,22 +571,6 @@ impl DdsShared<DataWriterImpl> {
         } else {
             Ok(None)
         }
-    }
-
-    pub fn unregister_instance<Foo>(
-        &self,
-        instance: &Foo,
-        handle: Option<InstanceHandle>,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let timestamp = self.get_timestamp();
-        self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     pub fn unregister_instance_w_timestamp<Foo>(
@@ -697,18 +657,6 @@ impl DdsShared<DataWriterImpl> {
         }
     }
 
-    pub fn write<Foo>(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let timestamp = self.get_timestamp();
-        self.write_w_timestamp(data, handle, timestamp)
-    }
-
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
@@ -734,18 +682,6 @@ impl DdsShared<DataWriterImpl> {
         sample_info_lock.insert(sequence_number, timestamp);
 
         Ok(())
-    }
-
-    pub fn dispose<Foo>(&self, data: &Foo, handle: Option<InstanceHandle>) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let timestamp = self.get_timestamp();
-        self.dispose_w_timestamp(data, handle, timestamp)
     }
 
     pub fn dispose_w_timestamp<Foo>(
@@ -893,11 +829,8 @@ impl DdsShared<DataWriterImpl> {
     }
 }
 
-impl Entity for DdsShared<DataWriterImpl> {
-    type Qos = DataWriterQos;
-    type Listener = Box<dyn AnyDataWriterListener + Send + Sync>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DdsShared<DataWriterImpl> {
+    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
         qos.is_consistent()?;
@@ -910,43 +843,45 @@ impl Entity for DdsShared<DataWriterImpl> {
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         Ok(self.qos.read_lock().clone())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, _mask: StatusMask) -> DdsResult<()> {
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        _mask: StatusMask,
+    ) -> DdsResult<()> {
         *self.listener.write_lock() = a_listener;
         Ok(())
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyDataWriterListener + Send + Sync>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
         todo!()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
         if !self.publisher.upgrade()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent publisher disabled".to_string(),
             ));
         }
 
-        self.publisher
-            .upgrade()?
-            .announce_datawriter(self.try_into()?);
+        parent_participant.announce_datawriter(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -1568,11 +1503,8 @@ mod test {
     fn add_compatible_matched_reader() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_publisher = PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-        );
+        let parent_publisher =
+            PublisherImpl::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1661,11 +1593,8 @@ mod test {
     fn add_incompatible_matched_reader() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_publisher = PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-        );
+        let parent_publisher =
+            PublisherImpl::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),

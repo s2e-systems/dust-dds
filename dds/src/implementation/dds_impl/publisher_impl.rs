@@ -7,13 +7,13 @@ use crate::implementation::rtps::types::{
     USER_DEFINED_WRITER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl};
+use crate::infrastructure::entity::StatusCondition;
 use crate::return_type::{DdsError, DdsResult};
 use crate::{
     publication::publisher_listener::PublisherListener,
     {
         dcps_psm::{Duration, InstanceHandle, StatusMask},
         infrastructure::{
-            entity::Entity,
             qos::{DataWriterQos, PublisherQos, TopicQos},
             qos_policy::ReliabilityQosPolicyKind,
         },
@@ -22,20 +22,18 @@ use crate::{
 use dds_transport::messages::submessages::AckNackSubmessage;
 
 use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData,
-        discovered_writer_data::{DiscoveredWriterData, RtpsWriterProxy},
-    },
+    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     utils::{
         discovery_traits::AddMatchedReader,
         rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        shared_object::{DdsRwLock, DdsShared},
     },
 };
 
+use super::data_writer_impl::AnyDataWriterListener;
 use super::{
     data_writer_impl::{DataWriterImpl, RtpsWriter},
-    domain_participant_impl::{DataWriterDiscovery, DomainParticipantImpl},
+    domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
 
@@ -47,23 +45,17 @@ pub struct PublisherImpl {
     data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterImpl>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     enabled: DdsRwLock<bool>,
 }
 
 impl PublisherImpl {
-    pub fn new(
-        qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
-        parent_participant: DdsWeak<DomainParticipantImpl>,
-    ) -> DdsShared<Self> {
+    pub fn new(qos: PublisherQos, rtps_group: RtpsGroupImpl) -> DdsShared<Self> {
         DdsShared::new(PublisherImpl {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            parent_participant,
             enabled: DdsRwLock::new(false),
         })
     }
@@ -93,36 +85,14 @@ impl AddDataWriter for DdsShared<PublisherImpl> {
     }
 }
 
-pub trait AnnounceDataWriter {
-    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData);
-}
-
-impl AnnounceDataWriter for DdsShared<PublisherImpl> {
-    fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
-        if let Ok(domain_participant) = self.parent_participant.upgrade() {
-            domain_participant.add_created_data_writer(&DiscoveredWriterData {
-                writer_proxy: RtpsWriterProxy {
-                    unicast_locator_list: domain_participant
-                        .default_unicast_locator_list()
-                        .to_vec(),
-                    multicast_locator_list: domain_participant
-                        .default_multicast_locator_list()
-                        .to_vec(),
-                    ..sedp_discovered_writer_data.writer_proxy
-                },
-                ..sedp_discovered_writer_data
-            });
-        }
-    }
-}
-
 impl DdsShared<PublisherImpl> {
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataWriterQos>,
-        a_listener: Option<<DdsShared<DataWriterImpl> as Entity>::Listener>,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: StatusMask,
+        parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<DataWriterImpl>>
     where
         Foo: DdsType,
@@ -168,19 +138,12 @@ impl DdsShared<PublisherImpl> {
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let domain_participant = self.parent_participant.upgrade().ok();
             let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
                 guid,
                 topic_kind,
                 reliability_level,
-                domain_participant
-                    .as_ref()
-                    .map(|dp| dp.default_unicast_locator_list())
-                    .unwrap_or(&[]),
-                domain_participant
-                    .as_ref()
-                    .map(|dp| dp.default_multicast_locator_list())
-                    .unwrap_or(&[]),
+                parent_participant.default_unicast_locator_list(),
+                parent_participant.default_multicast_locator_list(),
                 true,
                 Duration::new(0, 200_000_000),
                 DURATION_ZERO,
@@ -210,7 +173,7 @@ impl DdsShared<PublisherImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_writer_shared.enable()?;
+            data_writer_shared.enable(parent_participant)?;
         }
 
         Ok(data_writer_shared)
@@ -296,13 +259,6 @@ impl DdsShared<PublisherImpl> {
         todo!()
     }
 
-    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
-        Ok(self
-            .parent_participant
-            .upgrade()
-            .expect("Failed to get parent participant of publisher"))
-    }
-
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -328,11 +284,8 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl Entity for DdsShared<PublisherImpl> {
-    type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DdsShared<PublisherImpl> {
+    pub fn set_qos(&self, qos: Option<PublisherQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
         if *self.enabled.read_lock() {
@@ -344,32 +297,32 @@ impl Entity for DdsShared<PublisherImpl> {
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         Ok(self.qos.read_lock().clone())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: StatusMask,
     ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
         todo!()
     }
 
-    fn enable(&self) -> DdsResult<()> {
-        if !self.parent_participant.upgrade()?.is_enabled() {
+    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
+        if !parent_participant.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
@@ -384,14 +337,14 @@ impl Entity for DdsShared<PublisherImpl> {
             .autoenable_created_entities
         {
             for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable()?;
+                data_writer.enable(parent_participant)?;
             }
         }
 
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

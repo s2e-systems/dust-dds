@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     ops::Deref,
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
@@ -84,6 +85,18 @@ impl<T> DdsWeak<T> {
 impl<T: ?Sized> Clone for DdsWeak<T> {
     fn clone(&self) -> Self {
         DdsWeak(self.0.clone())
+    }
+}
+
+impl<T> PartialEq for DdsWeak<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ptr_eq(other)
+    }
+}
+
+impl<T> Debug for DdsWeak<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("DdsWeak").finish()
     }
 }
 

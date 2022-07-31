@@ -7,19 +7,27 @@ use std::{
 use crate::{
     dcps_psm::{Duration, DURATION_ZERO},
     dds_type::DdsType,
-    implementation::rtps::{
-        discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-        stateful_reader::RtpsStatefulReaderImpl,
-        stateful_writer::RtpsStatefulWriterImpl,
-        stateless_reader::RtpsStatelessReaderImpl,
-        types::{
-            Count, EntityId, EntityKind, Guid, GuidPrefix, ProtocolVersion, ReliabilityKind,
-            TopicKind, VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY,
-            BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, PROTOCOLVERSION,
-            USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP, VENDOR_ID_S2E,
+    implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::RtpsReaderProxy, discovered_writer_data::RtpsWriterProxy,
+        },
+        rtps::{
+            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            stateful_reader::RtpsStatefulReaderImpl,
+            stateful_writer::RtpsStatefulWriterImpl,
+            stateless_reader::RtpsStatelessReaderImpl,
+            types::{
+                Count, EntityId, EntityKind, Guid, GuidPrefix, ProtocolVersion, ReliabilityKind,
+                TopicKind, VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY,
+                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
+                PROTOCOLVERSION, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
+                VENDOR_ID_S2E,
+            },
         },
     },
+    publication::publisher_listener::PublisherListener,
     return_type::DdsResult,
+    subscription::subscriber_listener::SubscriberListener,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         dcps_psm::{
@@ -189,6 +197,10 @@ impl DomainParticipantImpl {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
+
+    pub fn is_parent(&self, other: &InstanceHandle) -> bool {
+        self.rtps_participant.guid().prefix.0 == other[0..12]
+    }
 }
 
 pub trait AnnounceTopic {
@@ -206,7 +218,11 @@ impl AnnounceTopic for DdsShared<DomainParticipantImpl> {
                     .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
                 {
                     sedp_builtin_topic_announcer
-                        .write(&sedp_discovered_topic_data, None)
+                        .write_w_timestamp(
+                            &sedp_discovered_topic_data,
+                            None,
+                            self.get_current_time().unwrap(),
+                        )
                         .unwrap();
                 }
             }
@@ -218,7 +234,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        _a_listener: Option<<DdsShared<PublisherImpl> as Entity>::Listener>,
+        _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: StatusMask,
     ) -> DdsResult<DdsShared<PublisherImpl>> {
         let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
@@ -228,7 +244,7 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group, self.downgrade());
+        let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -236,7 +252,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher_impl_shared.enable()?;
+            publisher_impl_shared.enable(self)?;
         }
 
         self.user_defined_publisher_list
@@ -247,7 +263,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_publisher(&self, a_publisher: &DdsShared<PublisherImpl>) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_publisher.get_participant()?, self) {
+        if !self.is_parent(&a_publisher.get_instance_handle().unwrap()) {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -269,7 +285,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        _a_listener: Option<<DdsShared<SubscriberImpl> as Entity>::Listener>,
+        _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: StatusMask,
     ) -> DdsResult<DdsShared<SubscriberImpl>> {
         let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
@@ -279,7 +295,7 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group, self.downgrade());
+        let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -287,7 +303,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber_shared.enable()?;
+            subscriber_shared.enable(self)?;
         }
 
         self.user_defined_subscriber_list
@@ -298,7 +314,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &DdsShared<SubscriberImpl>) -> DdsResult<()> {
-        if !DdsShared::ptr_eq(&a_subscriber.get_participant()?, self) {
+        if !self.is_parent(&a_subscriber.get_instance_handle()?) {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));
@@ -636,11 +652,11 @@ impl Entity for DdsShared<DomainParticipantImpl> {
             .autoenable_created_entities
         {
             for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                publisher.enable()?;
+                publisher.enable(self)?;
             }
 
             for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                subscriber.enable()?;
+                subscriber.enable(self)?;
             }
 
             for topic in self.topic_list.read_lock().iter() {
@@ -706,7 +722,11 @@ impl AnnounceParticipant for DdsShared<DomainParticipantImpl> {
             },
             lease_duration: self.lease_duration.into(),
         };
-        spdp_participant_writer.write(&spdp_discovered_participant_data, None)
+        spdp_participant_writer.write_w_timestamp(
+            &spdp_discovered_participant_data,
+            None,
+            self.get_current_time().unwrap(),
+        )
     }
 }
 
@@ -812,7 +832,7 @@ impl DataWriterDiscovery for DdsShared<DomainParticipantImpl> {
                     builtin_publisher.lookup_datawriter::<DiscoveredWriterData>(&publication_topic)
                 {
                     sedp_builtin_publications_announcer
-                        .write(writer_data, None)
+                        .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
                         .unwrap();
                 }
             }
@@ -835,7 +855,7 @@ impl DataReaderDiscovery for DdsShared<DomainParticipantImpl> {
                     builtin_publisher.lookup_datawriter::<DiscoveredReaderData>(&subscription_topic)
                 {
                     sedp_builtin_subscription_announcer
-                        .write(reader_data, None)
+                        .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
                         .unwrap();
                 }
             }
@@ -897,9 +917,8 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
             )),
-            self.downgrade(),
         );
-        builtin_subscriber.enable()?;
+        builtin_subscriber.enable(self)?;
 
         *self.builtin_subscriber.write_lock() = Some(builtin_subscriber);
 
@@ -909,9 +928,8 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 guid_prefix,
                 EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
             )),
-            self.downgrade(),
         );
-        builtin_publisher.enable()?;
+        builtin_publisher.enable(self)?;
 
         *self.builtin_publisher.write_lock() = Some(builtin_publisher);
 
@@ -962,7 +980,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            spdp_builtin_participant_data_reader.enable()?;
+            spdp_builtin_participant_data_reader.enable(self)?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -1008,7 +1026,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            spdp_builtin_participant_data_writer.enable()?;
+            spdp_builtin_participant_data_writer.enable(self)?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -1056,7 +1074,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_publications_data_reader.enable()?;
+            sedp_builtin_publications_data_reader.enable(self)?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -1095,7 +1113,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_publications_data_writer.enable()?;
+            sedp_builtin_publications_data_writer.enable(self)?;
 
             self.builtin_publisher
                 .write_lock()
@@ -1144,7 +1162,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_subscriptions_data_reader.enable()?;
+            sedp_builtin_subscriptions_data_reader.enable(self)?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -1184,7 +1202,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_subscriptions_data_writer.enable()?;
+            sedp_builtin_subscriptions_data_writer.enable(self)?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -1232,7 +1250,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_topics_data_reader.enable()?;
+            sedp_builtin_topics_data_reader.enable(self)?;
             self.builtin_subscriber
                 .write_lock()
                 .as_ref()
@@ -1273,7 +1291,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     .unwrap()
                     .downgrade(),
             );
-            sedp_builtin_topics_data_writer.enable()?;
+            sedp_builtin_topics_data_writer.enable(self)?;
             self.builtin_publisher
                 .write_lock()
                 .as_ref()
@@ -1433,5 +1451,221 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
         }
 
         Ok(())
+    }
+}
+
+impl DdsShared<DomainParticipantImpl> {
+    pub fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
+        self.add_created_data_writer(&DiscoveredWriterData {
+            writer_proxy: RtpsWriterProxy {
+                unicast_locator_list: self.default_unicast_locator_list().to_vec(),
+                multicast_locator_list: self.default_multicast_locator_list().to_vec(),
+                ..sedp_discovered_writer_data.writer_proxy
+            },
+            ..sedp_discovered_writer_data
+        });
+    }
+
+    pub fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
+        self.add_created_data_reader(&DiscoveredReaderData {
+            reader_proxy: RtpsReaderProxy {
+                unicast_locator_list: self.default_unicast_locator_list().to_vec(),
+                multicast_locator_list: self.default_multicast_locator_list().to_vec(),
+                ..sedp_discovered_reader_data.reader_proxy
+            },
+            ..sedp_discovered_reader_data
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use dds_transport::{messages::RtpsMessage, types::LOCATOR_KIND_UDPv4};
+    use rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
+
+    use crate::{
+        domain::domain_participant::DomainParticipant,
+        implementation::rtps::types::GUIDPREFIX_UNKNOWN, subscription::subscriber::Subscriber,
+        topic_definition::topic::Topic,
+    };
+
+    use super::*;
+
+    struct Mailbox {
+        received_messages: Vec<(Locator, Vec<u8>)>,
+        read: usize,
+    }
+
+    impl Mailbox {
+        fn new() -> Self {
+            Self {
+                received_messages: vec![],
+                read: 0,
+            }
+        }
+    }
+
+    impl TransportWrite for Mailbox {
+        fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
+            self.received_messages
+                .push((destination_locator, to_bytes(message).unwrap()));
+        }
+    }
+
+    impl<'a> TransportRead<'a> for Mailbox {
+        fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
+            if self.read < self.received_messages.len() {
+                let (locator, message_bytes) = &self.received_messages[self.read];
+                self.read += 1;
+                Some((
+                    locator.clone(),
+                    from_bytes(message_bytes.as_slice()).unwrap(),
+                ))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn mock_locator(i: u8) -> Locator {
+        Locator {
+            kind: LOCATOR_KIND_UDPv4,
+            port: 42,
+            address: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i],
+        }
+    }
+
+    #[test]
+    fn test_spdp_send_receive() {
+        let domain_id = 8;
+        let guid_prefix = GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        let metatraffic_unicast_locator_list = vec![mock_locator(0)];
+        let metatraffic_multicast_locator_list = vec![mock_locator(1)];
+        let default_unicast_locator_list = vec![mock_locator(2), mock_locator(3), mock_locator(4)];
+
+        // ////////// Create 2 participants
+
+        let participant1 = DomainParticipantImpl::new(
+            guid_prefix,
+            domain_id,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            metatraffic_unicast_locator_list.clone(),
+            metatraffic_multicast_locator_list.clone(),
+            default_unicast_locator_list.clone(),
+            vec![],
+        );
+        participant1.enable().unwrap();
+        participant1.create_builtins().unwrap();
+
+        let participant2 = DomainParticipantImpl::new(
+            GUIDPREFIX_UNKNOWN,
+            0 as i32,
+            "".to_string(),
+            DomainParticipantQos::default(),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        participant2.enable().unwrap();
+        participant2.create_builtins().unwrap();
+
+        // ////////// Send and receive SPDP data
+        {
+            let mut spdp_mailbox = Mailbox::new();
+
+            participant1.announce_participant().unwrap();
+            participant1.send_built_in_data(&mut spdp_mailbox);
+            participant2.receive_built_in_data(&mut spdp_mailbox);
+        }
+
+        // ////////// Participant 2 receives discovered participant data
+        let spdp_discovered_participant_data_sample = {
+            let participant2_proxy = DomainParticipant::new(participant2.downgrade());
+
+            let subscriber = Subscriber::new(
+                participant2
+                    .get_builtin_subscriber()
+                    .as_ref()
+                    .unwrap()
+                    .downgrade(),
+            );
+
+            let participant_topic: Topic<SpdpDiscoveredParticipantData> = participant2_proxy
+                .lookup_topicdescription(DCPS_PARTICIPANT)
+                .unwrap();
+            let participant2_builtin_participant_data_reader =
+                subscriber.lookup_datareader(&participant_topic).unwrap();
+
+            &participant2_builtin_participant_data_reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .unwrap()[0]
+        };
+
+        // ////////// Check that the received data is correct
+        {
+            assert_eq!(
+                BuiltInTopicKey {
+                    value: Guid::new(guid_prefix, ENTITYID_PARTICIPANT).into()
+                },
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .dds_participant_data
+                    .key,
+            );
+
+            assert_eq!(
+                domain_id,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .domain_id
+            );
+
+            assert_eq!(
+                guid_prefix,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .guid_prefix
+            );
+
+            assert_eq!(
+                metatraffic_unicast_locator_list,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .metatraffic_unicast_locator_list
+            );
+
+            assert_eq!(
+                metatraffic_multicast_locator_list,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .metatraffic_multicast_locator_list
+            );
+
+            assert_eq!(
+                default_unicast_locator_list,
+                spdp_discovered_participant_data_sample
+                    .data
+                    .as_ref()
+                    .unwrap()
+                    .participant_proxy
+                    .default_unicast_locator_list
+            );
+        }
     }
 }
