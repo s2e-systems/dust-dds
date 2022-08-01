@@ -211,10 +211,6 @@ impl DdsDomainParticipantFactory for DomainParticipantFactory {
 
         domain_participant.create_builtins()?;
 
-        if qos.entity_factory.autoenable_created_entities {
-            domain_participant.enable()?;
-        }
-
         let mut participant_manager = ParticipantManager {
             participant: domain_participant,
             task_manager: TaskManager::new(),
