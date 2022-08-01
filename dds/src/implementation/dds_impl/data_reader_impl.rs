@@ -8,7 +8,7 @@ use crate::{
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, RtpsReaderProxy},
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
         },
@@ -17,13 +17,10 @@ use crate::{
             stateful_reader::RtpsStatefulReaderImpl,
             stateless_reader::RtpsStatelessReaderImpl,
             types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
-            writer_proxy::RtpsWriterProxyImpl,
+            writer_proxy::RtpsWriterProxy,
         },
         utils::{
             discovery_traits::AddMatchedWriter,
-            rtps_communication_traits::{
-                ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
-            },
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
             timer::Timer,
         },
@@ -364,8 +361,8 @@ impl<Tim> DataReaderImpl<Tim> {
     }
 }
 
-impl ReceiveRtpsDataSubmessage for DdsShared<DataReaderImpl<ThreadTimer>> {
-    fn on_data_submessage_received(
+impl DdsShared<DataReaderImpl<ThreadTimer>> {
+    pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
@@ -399,8 +396,8 @@ impl ReceiveRtpsDataSubmessage for DdsShared<DataReaderImpl<ThreadTimer>> {
     }
 }
 
-impl<Tim> ReceiveRtpsHeartbeatSubmessage for DdsShared<DataReaderImpl<Tim>> {
-    fn on_heartbeat_submessage_received(
+impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+    pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -461,7 +458,7 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
                 match &mut *self.rtps_reader.write_lock() {
                     RtpsReader::Stateless(_) => (),
                     RtpsReader::Stateful(r) => {
-                        let writer_proxy = RtpsWriterProxyImpl::new(
+                        let writer_proxy = RtpsWriterProxy::new(
                             discovered_writer_data.writer_proxy.remote_writer_guid,
                             discovered_writer_data
                                 .writer_proxy
@@ -1130,7 +1127,7 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
         let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos()?;
 
         Ok(DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: guid,
                 remote_group_entity_id: guid.entity_id,
                 unicast_locator_list: vec![],
@@ -1161,8 +1158,8 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
     }
 }
 
-impl<Tim> SendRtpsMessage for DdsShared<DataReaderImpl<Tim>> {
-    fn send_message(&self, transport: &mut impl TransportWrite) {
+impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
         if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
             let mut acknacks = Vec::new();
             stateful_rtps_reader.send_submessages(|wp, acknack| {
@@ -1230,7 +1227,7 @@ mod tests {
     use crate::{
         dds_type::{DdsType, Endianness},
         implementation::{
-            data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
+            data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
             data_representation_inline_qos::parameter_id_values::PID_STATUS_INFO,
             dds_impl::{data_reader_impl::RtpsReader, topic_impl::TopicImpl},
             rtps::group::RtpsGroupImpl,
@@ -1849,7 +1846,7 @@ mod tests {
             ownership_strength: OwnershipStrengthQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: Guid {
                     prefix: GuidPrefix([2; 12]),
                     entity_id: EntityId {
@@ -1940,7 +1937,7 @@ mod tests {
             ownership_strength: OwnershipStrengthQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: Guid {
                     prefix: GuidPrefix([2; 12]),
                     entity_id: EntityId {

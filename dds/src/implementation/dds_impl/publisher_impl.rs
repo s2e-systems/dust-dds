@@ -3,7 +3,7 @@ use std::sync::atomic::{self, AtomicU8};
 use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
 use crate::implementation::rtps::types::{
-    EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+    EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
     USER_DEFINED_WRITER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl};
@@ -25,12 +25,12 @@ use crate::implementation::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     utils::{
         discovery_traits::AddMatchedReader,
-        rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
         shared_object::{DdsRwLock, DdsShared},
     },
 };
 
 use super::data_writer_impl::AnyDataWriterListener;
+use super::message_receiver::MessageReceiver;
 use super::{
     data_writer_impl::{DataWriterImpl, RtpsWriter},
     domain_participant_impl::DomainParticipantImpl,
@@ -361,20 +361,20 @@ impl AddMatchedReader for DdsShared<PublisherImpl> {
     }
 }
 
-impl ReceiveRtpsAckNackSubmessage for DdsShared<PublisherImpl> {
-    fn on_acknack_submessage_received(
+impl DdsShared<PublisherImpl> {
+    pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
-        source_guid_prefix: GuidPrefix,
+        message_receiver: &MessageReceiver,
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.on_acknack_submessage_received(acknack_submessage, source_guid_prefix);
+            data_writer.on_acknack_submessage_received(acknack_submessage, message_receiver);
         }
     }
 }
 
-impl SendRtpsMessage for DdsShared<PublisherImpl> {
-    fn send_message(&self, transport: &mut impl TransportWrite) {
+impl DdsShared<PublisherImpl> {
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);
         }

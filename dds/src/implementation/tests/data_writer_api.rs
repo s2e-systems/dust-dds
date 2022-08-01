@@ -1,5 +1,6 @@
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
-use crate::implementation::rtps::types::GuidPrefix;
+use crate::implementation::rtps::participant::RtpsParticipant;
+use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::return_type::DdsError;
 use crate::{
     dds_type::{DdsSerialize, DdsType, Endianness},
@@ -59,13 +60,18 @@ impl DdsSerialize for KeyedFoo {
 
 #[test]
 fn register_instance_w_timestamp_different_keys() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -120,13 +126,18 @@ fn register_instance_w_timestamp_different_keys() {
 
 #[test]
 fn register_instance_w_timestamp_no_key() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -149,13 +160,18 @@ fn register_instance_w_timestamp_no_key() {
 
 #[test]
 fn register_instance_w_timestamp_out_of_resources() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -200,13 +216,18 @@ fn register_instance_w_timestamp_out_of_resources() {
 
 #[test]
 fn lookup_instance() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -237,13 +258,18 @@ fn lookup_instance() {
 
 #[test]
 fn unregister_registered_instance() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -269,13 +295,18 @@ fn unregister_registered_instance() {
 
 #[test]
 fn unregister_instance_not_registered() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -301,13 +332,18 @@ fn unregister_instance_not_registered() {
 
 #[test]
 fn unregister_instance_non_registered_handle() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -335,13 +371,18 @@ fn unregister_instance_non_registered_handle() {
 
 #[test]
 fn unregister_instance_not_matching_handle() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -378,13 +419,18 @@ fn unregister_instance_not_matching_handle() {
 
 #[test]
 fn dispose_not_registered() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -410,13 +456,18 @@ fn dispose_not_registered() {
 
 #[test]
 fn dispose_non_registered_handle() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -444,13 +495,18 @@ fn dispose_non_registered_handle() {
 
 #[test]
 fn dispose_not_matching_handle() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -487,13 +543,18 @@ fn dispose_not_matching_handle() {
 
 #[test]
 fn get_key_value_known_instance() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -522,13 +583,18 @@ fn get_key_value_known_instance() {
 
 #[test]
 fn get_key_value_unknown_instance() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );

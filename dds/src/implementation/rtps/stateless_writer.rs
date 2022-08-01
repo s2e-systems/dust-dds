@@ -13,6 +13,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpointImpl,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
     types::{
         ChangeKind, Count, EntityId, Guid, ReliabilityKind, SequenceNumber, TopicKind,
         ENTITYID_UNKNOWN,
@@ -20,220 +21,9 @@ use super::{
     writer::RtpsWriterImpl,
 };
 
-pub enum BestEffortStatelessWriterSendSubmessage<'a> {
-    Data(DataSubmessage<'a>),
-    Gap(GapSubmessage),
-}
-
-pub struct RtpsReaderLocatorAttributesImpl {
-    requested_changes: Vec<SequenceNumber>,
-    unsent_changes: Vec<SequenceNumber>,
-    locator: Locator,
-    expects_inline_qos: bool,
-    last_received_acknack_count: Count,
-}
-
-impl RtpsReaderLocatorAttributesImpl {
-    pub fn unsent_changes_reset(&mut self) {
-        self.unsent_changes = vec![];
-    }
-}
-
-impl RtpsReaderLocatorAttributesImpl {
-    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            requested_changes: vec![],
-            unsent_changes: vec![],
-            last_received_acknack_count: Count(0),
-        }
-    }
-}
-
-impl RtpsReaderLocatorAttributesImpl {
-    pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
-        &mut self.unsent_changes
-    }
-
-    pub fn requested_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
-        &mut self.requested_changes
-    }
-
-    pub fn locator(&self) -> Locator {
-        self.locator
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-}
-
-pub struct RtpsReaderLocatorOperationsImpl<'a> {
-    reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
-    writer_cache: &'a RtpsHistoryCacheImpl,
-}
-
-impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
-    pub fn new(
-        reader_locator_attributes: &'a mut RtpsReaderLocatorAttributesImpl,
-        writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Self {
-        Self {
-            reader_locator_attributes,
-            writer_cache,
-        }
-    }
-
-    /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes(&mut self) -> Option<BestEffortStatelessWriterSendSubmessage<'a>> {
-        if self.unsent_changes().into_iter().next().is_some() {
-            let change = self.next_unsent_change();
-            // The post-condition:
-            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-            // should be full-filled by next_unsent_change()
-            if change.is_in_cache() {
-                let data_submessage = change.into();
-                Some(BestEffortStatelessWriterSendSubmessage::Data(
-                    data_submessage,
-                ))
-            } else {
-                let gap_submessage = change.into();
-                Some(BestEffortStatelessWriterSendSubmessage::Gap(gap_submessage))
-            }
-        } else {
-            None
-        }
-    }
-
-    /// 8.4.8.2.5 Transition T6
-    /// Implementation does not include the part corresponding to searching the reader locator
-    /// on the stateless writer
-    pub fn receive_acknack(&mut self, acknack: &AckNackSubmessage) {
-        self.requested_changes_set(acknack.reader_sn_state.set.as_ref());
-    }
-}
-
-impl RtpsReaderLocatorOperationsImpl<'_> {
-    pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
-        self.reader_locator_attributes.unsent_changes_mut()
-    }
-
-    pub fn requested_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
-        self.reader_locator_attributes.requested_changes_mut()
-    }
-
-    pub fn locator(&self) -> Locator {
-        self.reader_locator_attributes.locator()
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.reader_locator_attributes.expects_inline_qos()
-    }
-}
-
-pub struct RtpsReaderLocatorCacheChange<'a> {
-    cache_change: Option<&'a RtpsCacheChangeImpl>,
-}
-
-impl RtpsReaderLocatorCacheChange<'_> {
-    fn is_in_cache(&self) -> bool {
-        self.cache_change.is_some()
-    }
-}
-
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage {
-    fn from(_val: RtpsReaderLocatorCacheChange<'a>) -> Self {
-        todo!()
-    }
-}
-
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<'a> {
-    fn from(val: RtpsReaderLocatorCacheChange<'a>) -> Self {
-        let cache_change = val
-            .cache_change
-            .expect("Can only convert to data if it exists in the writer cache");
-        cache_change.into()
-    }
-}
-
-impl<'a> RtpsReaderLocatorOperationsImpl<'a> {
-    pub fn next_requested_change(&mut self) -> RtpsReaderLocatorCacheChange<'a> {
-        // "next_seq_num := MIN {change.sequenceNumber
-        //     SUCH-THAT change IN this.requested_changes()};
-        // return change IN this.requested_changes()
-        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-
-        let next_seq_num = self
-            .reader_locator_attributes
-            .requested_changes
-            .iter()
-            .min()
-            .cloned()
-            .unwrap();
-
-        // 8.4.8.2.4 Transition T4
-        // "After the transition, the following post-conditions hold:
-        //   ( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-        self.reader_locator_attributes
-            .unsent_changes
-            .retain(|c| *c != next_seq_num);
-
-        let cache_change = self
-            .writer_cache
-            .changes()
-            .iter()
-            .find(|c| c.sequence_number() == next_seq_num);
-
-        RtpsReaderLocatorCacheChange { cache_change }
-    }
-
-    pub fn next_unsent_change(&mut self) -> RtpsReaderLocatorCacheChange<'a> {
-        // "next_seq_num := MIN { change.sequenceNumber
-        //     SUCH-THAT change IN this.unsent_changes() };
-        // return change IN this.unsent_changes()
-        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-
-        let next_seq_num = self
-            .reader_locator_attributes
-            .unsent_changes
-            .iter()
-            .min()
-            .cloned()
-            .unwrap();
-
-        // 8.4.8.2.10 Transition T10
-        // "After the transition, the following post-conditions hold:
-        //   ( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-        self.reader_locator_attributes
-            .unsent_changes
-            .retain(|c| *c != next_seq_num);
-
-        let cache_change = self
-            .writer_cache
-            .changes()
-            .iter()
-            .find(|c| c.sequence_number() == next_seq_num);
-
-        RtpsReaderLocatorCacheChange { cache_change }
-    }
-
-    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
-        self.reader_locator_attributes.requested_changes = req_seq_num_set.to_vec();
-    }
-
-    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
-        self.reader_locator_attributes.requested_changes.clone()
-    }
-
-    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
-        self.reader_locator_attributes.unsent_changes.clone()
-    }
-}
-
 pub struct RtpsStatelessWriterImpl<T> {
     writer: RtpsWriterImpl,
-    reader_locators: Vec<RtpsReaderLocatorAttributesImpl>,
+    reader_locators: Vec<RtpsReaderLocator>,
     heartbeat_timer: T,
     _heartbeat_count: Count,
 }
@@ -293,14 +83,8 @@ impl<T> RtpsStatelessWriterImpl<T> {
 }
 
 impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn reader_locators(&'_ mut self) -> Vec<RtpsReaderLocatorOperationsImpl<'_>> {
-        let writer_cache = &self.writer.writer_cache;
-        self.reader_locators
-            .iter_mut()
-            .map(|reader_locator_attributes| {
-                RtpsReaderLocatorOperationsImpl::new(reader_locator_attributes, writer_cache)
-            })
-            .collect()
+    pub fn reader_locators(&'_ mut self) -> &mut Vec<RtpsReaderLocator> {
+        &mut self.reader_locators
     }
 }
 
@@ -341,7 +125,7 @@ impl<T: TimerConstructor> RtpsStatelessWriterImpl<T> {
 }
 
 impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocatorAttributesImpl) {
+    pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
             .writer_cache()
             .changes()
@@ -353,9 +137,18 @@ impl<T> RtpsStatelessWriterImpl<T> {
 
     pub fn reader_locator_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&RtpsReaderLocatorAttributesImpl) -> bool,
+        F: FnMut(&RtpsReaderLocator) -> bool,
     {
         self.reader_locators.retain(|x| !f(x))
+    }
+
+    pub fn reader_locator_lookup(
+        &mut self,
+        locator: &Locator,
+    ) -> Option<&mut RtpsReaderLocator> {
+        self.reader_locators
+            .iter_mut()
+            .find(|x| x.locator() == *locator)
     }
 
     pub fn unsent_changes_reset(&mut self) {
@@ -409,9 +202,9 @@ where
 {
     pub fn send_submessages(
         &'a mut self,
-        mut send_data: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, DataSubmessage<'a>),
-        mut send_gap: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, GapSubmessage),
-        _send_heartbeat: impl FnMut(&RtpsReaderLocatorOperationsImpl<'a>, HeartbeatSubmessage),
+        mut send_data: impl FnMut(&RtpsReaderLocator, DataSubmessage<'a>),
+        mut send_gap: impl FnMut(&RtpsReaderLocator, GapSubmessage),
+        _send_heartbeat: impl FnMut(&RtpsReaderLocator, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.heartbeat_period().sec() as u64)
@@ -420,10 +213,12 @@ where
             self.heartbeat_timer.reset();
         }
         let reliability_level = self.reliability_level();
-        for reader_locator in &mut self.reader_locators() {
+        for reader_locator in &mut self.reader_locators {
             match reliability_level {
                 ReliabilityKind::BestEffort => {
-                    while let Some(send_submessage) = reader_locator.send_unsent_changes() {
+                    while let Some(send_submessage) =
+                        reader_locator.send_unsent_changes(&self.writer.writer_cache)
+                    {
                         match send_submessage {
                             BestEffortStatelessWriterSendSubmessage::Data(data) => {
                                 send_data(reader_locator, data)
@@ -448,87 +243,8 @@ impl<T> RtpsStatelessWriterImpl<T> {
 
         if self.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
             for reader_locator in self.reader_locators.iter_mut() {
-                if reader_locator.last_received_acknack_count.0 != acknack_submessage.count.value {
-                    RtpsReaderLocatorOperationsImpl::new(reader_locator, &self.writer.writer_cache)
-                        .receive_acknack(acknack_submessage);
-
-                    reader_locator.last_received_acknack_count.0 = acknack_submessage.count.value;
-                }
+                reader_locator.receive_acknack(acknack_submessage);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use dds_transport::types::LOCATOR_INVALID;
-
-    use crate::implementation::rtps::{history_cache::RtpsCacheChangeImpl, types::GUID_UNKNOWN};
-
-    use super::*;
-
-    #[test]
-    fn reader_locator_next_unsent_change() {
-        let mut hc = RtpsHistoryCacheImpl::new();
-        hc.add_change(RtpsCacheChangeImpl::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            1,
-            vec![],
-            vec![],
-        ));
-        hc.add_change(RtpsCacheChangeImpl::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            [0; 16],
-            2,
-            vec![],
-            vec![],
-        ));
-        let mut reader_locator_attributes =
-            RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
-        reader_locator_attributes.unsent_changes = vec![1, 2];
-        let mut reader_locator_operations = RtpsReaderLocatorOperationsImpl {
-            reader_locator_attributes: &mut reader_locator_attributes,
-            writer_cache: &hc,
-        };
-
-        assert_eq!(
-            reader_locator_operations
-                .next_unsent_change()
-                .cache_change
-                .unwrap()
-                .sequence_number(),
-            1
-        );
-        assert_eq!(
-            reader_locator_operations
-                .next_unsent_change()
-                .cache_change
-                .unwrap()
-                .sequence_number(),
-            2
-        );
-    }
-
-    #[test]
-    fn reader_locator_requested_changes_set() {
-        let hc = RtpsHistoryCacheImpl::new();
-        let mut reader_locator_attributes =
-            RtpsReaderLocatorAttributesImpl::new(LOCATOR_INVALID, false);
-        let mut reader_locator_operations = RtpsReaderLocatorOperationsImpl {
-            reader_locator_attributes: &mut reader_locator_attributes,
-            writer_cache: &hc,
-        };
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_locator_operations.requested_changes_set(&req_seq_num_set);
-
-        let expected_requested_changes = vec![1, 2, 3];
-        assert_eq!(
-            reader_locator_operations.requested_changes(),
-            expected_requested_changes
-        )
     }
 }

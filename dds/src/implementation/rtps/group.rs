@@ -1,13 +1,13 @@
-use super::{entity::RtpsEntityImpl, types::Guid};
+use super::{entity::RtpsEntity, types::Guid};
 
 pub struct RtpsGroupImpl {
-    entity: RtpsEntityImpl,
+    entity: RtpsEntity,
 }
 
 impl RtpsGroupImpl {
     pub fn new(guid: Guid) -> Self {
         Self {
-            entity: RtpsEntityImpl::new(guid),
+            entity: RtpsEntity::new(guid),
         }
     }
 }

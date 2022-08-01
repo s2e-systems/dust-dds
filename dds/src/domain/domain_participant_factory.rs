@@ -2,7 +2,10 @@ use std::sync::Mutex;
 
 use crate::{
     dcps_psm::{DomainId, InstanceHandle, StatusMask},
-    implementation::rtps::types::GuidPrefix,
+    implementation::rtps::{
+        participant::RtpsParticipant,
+        types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+    },
     infrastructure::{
         entity::Entity,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
@@ -193,16 +196,20 @@ impl DdsDomainParticipantFactory for DomainParticipantFactory {
         let qos = qos.unwrap_or_default();
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
-
-        let domain_participant = DomainParticipantImpl::new(
+        let rtps_participant = RtpsParticipant::new(
             GuidPrefix(rtps_udp_psm.guid_prefix()),
+            rtps_udp_psm.default_unicast_locator_list().as_ref(),
+            rtps_udp_psm.default_multicast_locator_list(),
+            PROTOCOLVERSION,
+            VENDOR_ID_S2E,
+        );
+        let domain_participant = DomainParticipantImpl::new(
+            rtps_participant,
             domain_id,
             "".to_string(),
             qos.clone(),
             rtps_udp_psm.metatraffic_unicast_locator_list(),
             rtps_udp_psm.metatraffic_multicast_locator_list(),
-            rtps_udp_psm.default_unicast_locator_list(),
-            vec![],
         );
 
         if qos.entity_factory.autoenable_created_entities {

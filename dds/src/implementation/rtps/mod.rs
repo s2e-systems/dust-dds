@@ -5,6 +5,8 @@ pub mod group;
 pub mod history_cache;
 pub mod participant;
 pub mod reader;
+pub mod reader_locator;
+pub mod reader_proxy;
 pub mod stateful_reader;
 pub mod stateful_writer;
 pub mod stateless_reader;

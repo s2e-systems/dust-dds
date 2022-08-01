@@ -11,7 +11,7 @@ use dds_transport::{
 use super::types::{Count, EntityId, Guid, SequenceNumber};
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsWriterProxyImpl {
+pub struct RtpsWriterProxy {
     remote_writer_guid: Guid,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
@@ -26,7 +26,7 @@ pub struct RtpsWriterProxyImpl {
     pub acknack_count: Count,
 }
 
-impl RtpsWriterProxyImpl {
+impl RtpsWriterProxy {
     pub fn best_effort_receive_gap(&mut self, gap: &GapSubmessage) {
         for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
             self.irrelevant_change_set(seq_num);
@@ -85,7 +85,7 @@ impl RtpsWriterProxyImpl {
     }
 }
 
-impl RtpsWriterProxyImpl {
+impl RtpsWriterProxy {
     pub fn new(
         remote_writer_guid: Guid,
         unicast_locator_list: &[Locator],
@@ -110,7 +110,7 @@ impl RtpsWriterProxyImpl {
     }
 }
 
-impl RtpsWriterProxyImpl {
+impl RtpsWriterProxy {
     pub fn remote_writer_guid(&self) -> Guid {
         self.remote_writer_guid
     }
@@ -132,7 +132,7 @@ impl RtpsWriterProxyImpl {
     }
 }
 
-impl RtpsWriterProxyImpl {
+impl RtpsWriterProxy {
     pub fn available_changes_max(&self) -> SequenceNumber {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
@@ -222,8 +222,8 @@ mod tests {
 
     use super::*;
 
-    fn create_test_proxy() -> RtpsWriterProxyImpl {
-        RtpsWriterProxyImpl::new(GUID_UNKNOWN, &[], &[], None, ENTITYID_UNKNOWN)
+    fn create_test_proxy() -> RtpsWriterProxy {
+        RtpsWriterProxy::new(GUID_UNKNOWN, &[], &[], None, ENTITYID_UNKNOWN)
     }
 
     #[test]

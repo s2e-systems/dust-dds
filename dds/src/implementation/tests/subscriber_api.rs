@@ -1,6 +1,7 @@
 use crate::dds_type::DdsType;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
-use crate::implementation::rtps::types::GuidPrefix;
+use crate::implementation::rtps::participant::RtpsParticipant;
+use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::return_type::DdsError;
 use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
 
@@ -22,13 +23,18 @@ impl DdsType for Bar {
 
 #[test]
 fn create_and_delete_datareader_succeeds() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -47,13 +53,18 @@ fn create_and_delete_datareader_succeeds() {
 
 #[test]
 fn delete_datareader_from_other_subscriber_returns_error() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -76,13 +87,18 @@ fn delete_datareader_from_other_subscriber_returns_error() {
 
 #[test]
 fn lookup_datareader_without_readers_created() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -96,13 +112,18 @@ fn lookup_datareader_without_readers_created() {
 
 #[test]
 fn lookup_datareader_with_one_datareader_created() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -120,13 +141,18 @@ fn lookup_datareader_with_one_datareader_created() {
 
 #[test]
 fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -147,13 +173,18 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
 
 #[test]
 fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -174,13 +205,18 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
 
 #[test]
 fn lookup_datareader_with_two_datareaders_with_different_types() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -206,13 +242,18 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
 
 #[test]
 fn lookup_datareader_with_two_datareaders_with_different_topics() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );

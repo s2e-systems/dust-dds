@@ -53,7 +53,7 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsReaderProxy {
+pub struct ReaderProxy {
     pub remote_reader_guid: Guid,
     pub remote_group_entity_id: EntityId,
     pub unicast_locator_list: Vec<Locator>,
@@ -63,7 +63,7 @@ pub struct RtpsReaderProxy {
 
 #[derive(Debug, PartialEq)]
 pub struct DiscoveredReaderData {
-    pub reader_proxy: RtpsReaderProxy,
+    pub reader_proxy: ReaderProxy,
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
 
@@ -217,7 +217,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let remote_reader_guid = key.value.into();
 
         Ok(Self {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 remote_reader_guid,
                 remote_group_entity_id,
                 unicast_locator_list,
@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix([5; 12]),
                     EntityId {
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
                     GuidPrefix([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),

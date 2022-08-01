@@ -9,19 +9,18 @@ use crate::{
     dds_type::DdsType,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::RtpsReaderProxy, discovered_writer_data::RtpsWriterProxy,
+            discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            reader_locator::RtpsReaderLocator,
             stateful_reader::RtpsStatefulReaderImpl,
             stateful_writer::RtpsStatefulWriterImpl,
             stateless_reader::RtpsStatelessReaderImpl,
             types::{
-                Count, EntityId, EntityKind, Guid, GuidPrefix, ProtocolVersion, ReliabilityKind,
-                TopicKind, VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY,
-                BUILT_IN_WRITER_GROUP, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
-                PROTOCOLVERSION, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
-                VENDOR_ID_S2E,
+                Count, EntityId, EntityKind, Guid, ProtocolVersion, ReliabilityKind, TopicKind,
+                VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
             },
         },
     },
@@ -45,13 +44,9 @@ use crate::{
     },
 };
 use crate::{
-    implementation::{
-        rtps::{
-            group::RtpsGroupImpl,
-            participant::RtpsParticipantImpl,
-            stateless_writer::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
-        },
-        utils::rtps_communication_traits::SendRtpsMessage,
+    implementation::rtps::{
+        group::RtpsGroupImpl, participant::RtpsParticipant,
+        stateless_writer::RtpsStatelessWriterImpl,
     },
     return_type::DdsError,
 };
@@ -123,7 +118,7 @@ const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
 
 pub struct DomainParticipantImpl {
-    rtps_participant: RtpsParticipantImpl,
+    rtps_participant: RtpsParticipant,
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
@@ -147,27 +142,16 @@ pub struct DomainParticipantImpl {
 }
 
 impl DomainParticipantImpl {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        guid_prefix: GuidPrefix,
+        rtps_participant: RtpsParticipant,
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
-        let protocol_version = PROTOCOLVERSION;
-        let vendor_id = VENDOR_ID_S2E;
-        let rtps_participant = RtpsParticipantImpl::new(
-            Guid::new(guid_prefix, ENTITYID_PARTICIPANT),
-            &default_unicast_locator_list,
-            &default_multicast_locator_list,
-            protocol_version,
-            vendor_id,
-        );
+        let guid_prefix = rtps_participant.guid().prefix;
 
         let builtin_subscriber = SubscriberImpl::new(
             SubscriberQos::default(),
@@ -954,10 +938,10 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             self.builtin_subscriber
                 .add_data_reader(spdp_builtin_participant_data_reader);
 
-            let spdp_reader_locators: Vec<RtpsReaderLocatorAttributesImpl> = self
+            let spdp_reader_locators: Vec<RtpsReaderLocator> = self
                 .metatraffic_multicast_locator_list
                 .iter()
-                .map(|&locator| RtpsReaderLocatorAttributesImpl::new(locator, false))
+                .map(|&locator| RtpsReaderLocator::new(locator, false))
                 .collect();
 
             let spdp_builtin_participant_writer_guid =
@@ -1363,7 +1347,7 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
         self.add_created_data_writer(&DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
                 multicast_locator_list: self.default_multicast_locator_list().to_vec(),
                 ..sedp_discovered_writer_data.writer_proxy
@@ -1374,7 +1358,7 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
         self.add_created_data_reader(&DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
                 multicast_locator_list: self.default_multicast_locator_list().to_vec(),
                 ..sedp_discovered_reader_data.reader_proxy

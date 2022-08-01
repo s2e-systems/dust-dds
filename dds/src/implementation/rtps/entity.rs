@@ -1,16 +1,16 @@
 use super::types::Guid;
 
-pub struct RtpsEntityImpl {
+pub struct RtpsEntity {
     guid: Guid,
 }
 
-impl RtpsEntityImpl {
+impl RtpsEntity {
     pub fn new(guid: Guid) -> Self {
         Self { guid }
     }
 }
 
-impl RtpsEntityImpl {
+impl RtpsEntity {
     pub fn guid(&self) -> Guid {
         self.guid
     }

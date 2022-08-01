@@ -48,7 +48,7 @@ impl Default for ReliabilityQosPolicyDataWriterDeserialize {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RtpsWriterProxy {
+pub struct WriterProxy {
     pub remote_writer_guid: Guid,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
@@ -58,7 +58,7 @@ pub struct RtpsWriterProxy {
 
 #[derive(Debug, PartialEq)]
 pub struct DiscoveredWriterData {
-    pub writer_proxy: RtpsWriterProxy,
+    pub writer_proxy: WriterProxy,
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,
 }
 
@@ -225,7 +225,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 
         let remote_writer_guid = key.value.into();
         Ok(Self {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid,
                 unicast_locator_list,
                 multicast_locator_list,
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix([5; 12]),
                     EntityId {
@@ -353,7 +353,7 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
                     GuidPrefix([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),

@@ -1,12 +1,12 @@
 use dds_transport::types::Locator;
 
 use super::{
-    entity::RtpsEntityImpl,
+    entity::RtpsEntity,
     types::{Guid, ReliabilityKind, TopicKind},
 };
 
 pub struct RtpsEndpointImpl {
-    entity: RtpsEntityImpl,
+    entity: RtpsEntity,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
     unicast_locator_list: Vec<Locator>,
@@ -22,7 +22,7 @@ impl RtpsEndpointImpl {
         multicast_locator_list: &[Locator],
     ) -> Self {
         Self {
-            entity: RtpsEntityImpl::new(guid),
+            entity: RtpsEntity::new(guid),
             topic_kind,
             reliability_level,
             unicast_locator_list: unicast_locator_list.to_vec(),

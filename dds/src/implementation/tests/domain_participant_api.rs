@@ -9,6 +9,7 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            participant::RtpsParticipant,
             types::{Count, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
     },
@@ -47,13 +48,18 @@ impl DdsType for Bar {
 
 #[test]
 fn domain_participant_create_and_delete_topic() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -67,24 +73,34 @@ fn domain_participant_create_and_delete_topic() {
 
 #[test]
 fn not_allowed_to_delete_topic_from_other_participant() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
 
-    let domain_participant2 = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant2 = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -101,13 +117,18 @@ fn not_allowed_to_delete_topic_from_other_participant() {
 
 #[test]
 fn domain_participant_lookup_topic_without_creating_any_topic() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -119,13 +140,18 @@ fn domain_participant_lookup_topic_without_creating_any_topic() {
 
 #[test]
 fn domain_participant_lookup_single_existing_topic() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -144,13 +170,18 @@ fn domain_participant_lookup_single_existing_topic() {
 
 #[test]
 fn domain_participant_lookup_topic_with_wrong_type() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -166,13 +197,18 @@ fn domain_participant_lookup_topic_with_wrong_type() {
 
 #[test]
 fn domain_participant_lookup_topic_with_wrong_name() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -188,13 +224,18 @@ fn domain_participant_lookup_topic_with_wrong_name() {
 
 #[test]
 fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -223,13 +264,18 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
 
 #[test]
 fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
-    let domain_participant = DomainParticipantImpl::new(
+    let rtps_participant = RtpsParticipant::new(
         GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
+    let domain_participant = DomainParticipantImpl::new(
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -259,13 +305,13 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
 #[test]
 fn get_instance_handle() {
     let guid_prefix = GuidPrefix([1; 12]);
+    let rtps_participant =
+        RtpsParticipant::new(guid_prefix, &[], &[], PROTOCOLVERSION, VENDOR_ID_S2E);
     let domain_participant = DomainParticipantImpl::new(
-        guid_prefix,
+        rtps_participant,
         DomainId::default(),
         "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );
@@ -279,13 +325,18 @@ fn domain_participant_get_discovered_participant_data() {
     let guid_prefix = GuidPrefix([1; 12]);
     let domain_id = DomainId::default();
     let domain_tag = "".to_string();
+    let rtps_participant = RtpsParticipant::new(
+        GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
     let domain_participant = DomainParticipantImpl::new(
-        guid_prefix,
-        domain_id,
-        domain_tag.clone(),
+        rtps_participant,
+        DomainId::default(),
+        "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );

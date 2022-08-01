@@ -14,7 +14,7 @@ use super::{
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
     reader::RtpsReaderImpl,
     types::{Count, Guid, GuidPrefix, ReliabilityKind, TopicKind},
-    writer_proxy::RtpsWriterProxyImpl,
+    writer_proxy::RtpsWriterProxy,
 };
 
 /// ChangeFromWriterStatusKind
@@ -31,7 +31,7 @@ pub enum ChangeFromWriterStatusKind {
 
 pub struct RtpsStatefulReaderImpl {
     reader: RtpsReaderImpl,
-    matched_writers: Vec<RtpsWriterProxyImpl>,
+    matched_writers: Vec<RtpsWriterProxy>,
 }
 
 impl RtpsStatefulReaderImpl {
@@ -132,7 +132,7 @@ impl RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
-    pub fn matched_writers(&mut self) -> &mut [RtpsWriterProxyImpl] {
+    pub fn matched_writers(&mut self) -> &mut [RtpsWriterProxy] {
         self.matched_writers.as_mut_slice()
     }
 }
@@ -168,13 +168,13 @@ impl RtpsStatefulReaderImpl {
 }
 
 impl RtpsStatefulReaderImpl {
-    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxyImpl) {
+    pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         self.matched_writers.push(a_writer_proxy);
     }
 
     pub fn matched_writer_remove<F>(&mut self, mut f: F)
     where
-        F: FnMut(&RtpsWriterProxyImpl) -> bool,
+        F: FnMut(&RtpsWriterProxy) -> bool,
     {
         self.matched_writers.retain(|x| !f(x))
     }
@@ -182,7 +182,7 @@ impl RtpsStatefulReaderImpl {
     pub fn matched_writer_lookup(
         &mut self,
         a_writer_guid: Guid,
-    ) -> Option<&mut RtpsWriterProxyImpl> {
+    ) -> Option<&mut RtpsWriterProxy> {
         self.matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
@@ -256,7 +256,7 @@ impl RtpsStatefulReaderImpl {
 impl RtpsStatefulReaderImpl {
     pub fn send_submessages(
         &mut self,
-        mut send_acknack: impl FnMut(&RtpsWriterProxyImpl, AckNackSubmessage),
+        mut send_acknack: impl FnMut(&RtpsWriterProxy, AckNackSubmessage),
     ) {
         let entity_id = self.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
@@ -312,7 +312,7 @@ mod tests {
         );
 
         let writer_proxy =
-            RtpsWriterProxyImpl::new(source_guid, &[], &[], None, source_guid.entity_id);
+            RtpsWriterProxy::new(source_guid, &[], &[], None, source_guid.entity_id);
 
         reader.matched_writer_add(writer_proxy);
 
@@ -369,7 +369,7 @@ mod tests {
             false,
         );
 
-        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+        reader.matched_writer_add(RtpsWriterProxy::new(
             writer_guid,
             &[],
             &[],
@@ -425,7 +425,7 @@ mod tests {
             false,
         );
 
-        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+        reader.matched_writer_add(RtpsWriterProxy::new(
             writer_guid,
             &[],
             &[],
@@ -481,7 +481,7 @@ mod tests {
             false,
         );
 
-        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+        reader.matched_writer_add(RtpsWriterProxy::new(
             writer_guid,
             &[],
             &[],
@@ -568,7 +568,7 @@ mod tests {
             false,
         );
 
-        reader.matched_writer_add(RtpsWriterProxyImpl::new(
+        reader.matched_writer_add(RtpsWriterProxy::new(
             writer_guid,
             &[],
             &[],

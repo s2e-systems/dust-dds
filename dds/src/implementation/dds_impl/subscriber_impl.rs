@@ -27,9 +27,6 @@ use crate::implementation::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     utils::{
         discovery_traits::AddMatchedWriter,
-        rtps_communication_traits::{
-            ReceiveRtpsDataSubmessage, ReceiveRtpsHeartbeatSubmessage, SendRtpsMessage,
-        },
         shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
@@ -361,8 +358,8 @@ impl AddMatchedWriter for DdsShared<SubscriberImpl> {
     }
 }
 
-impl ReceiveRtpsDataSubmessage for DdsShared<SubscriberImpl> {
-    fn on_data_submessage_received(
+impl DdsShared<SubscriberImpl> {
+    pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
@@ -373,8 +370,8 @@ impl ReceiveRtpsDataSubmessage for DdsShared<SubscriberImpl> {
     }
 }
 
-impl ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberImpl> {
-    fn on_heartbeat_submessage_received(
+impl DdsShared<SubscriberImpl> {
+    pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -385,8 +382,8 @@ impl ReceiveRtpsHeartbeatSubmessage for DdsShared<SubscriberImpl> {
     }
 }
 
-impl SendRtpsMessage for DdsShared<SubscriberImpl> {
-    fn send_message(&self, transport: &mut impl TransportWrite) {
+impl DdsShared<SubscriberImpl> {
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.send_message(transport);
         }

@@ -7,9 +7,12 @@ use std::{
 use crate::{
     dcps_psm::TIME_INVALID,
     dds_type::{DdsSerialize, DdsType, LittleEndian},
-    implementation::rtps::types::{
-        ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
+    implementation::rtps::{
+        reader_locator::RtpsReaderLocator,
+        reader_proxy::RtpsReaderProxy,
+        types::{ChangeKind, EntityId, Guid, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
+    infrastructure::qos_policy::ReliabilityQosPolicyKind,
     publication::data_writer::DataWriterProxy,
     return_type::{DdsError, DdsResult},
     {
@@ -33,15 +36,15 @@ use crate::{
 };
 use crate::{
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::RtpsWriterProxy,
+        data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
             types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
         rtps::{
             history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
-            stateful_writer::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
-            stateless_writer::{RtpsReaderLocatorAttributesImpl, RtpsStatelessWriterImpl},
+            stateful_writer::RtpsStatefulWriterImpl,
+            stateless_writer::RtpsStatelessWriterImpl,
             utils::clock::StdTimer,
         },
     },
@@ -70,14 +73,14 @@ use crate::implementation::{
     },
     utils::{
         discovery_traits::AddMatchedReader,
-        rtps_communication_traits::{ReceiveRtpsAckNackSubmessage, SendRtpsMessage},
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, participant_discovery::ParticipantDiscovery,
-    publisher_impl::PublisherImpl, topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, publisher_impl::PublisherImpl,
+    topic_impl::TopicImpl,
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
@@ -366,7 +369,7 @@ impl DataWriterImpl {
         if let RtpsWriter::Stateful(rtps_writer) = &mut *rtps_writer_lock {
             if !rtps_writer
                 .matched_readers()
-                .into_iter()
+                .iter_mut()
                 .any(|r| r.remote_reader_guid().prefix == participant_discovery.guid_prefix())
             {
                 let type_name = self.topic.get_type_name().unwrap();
@@ -384,18 +387,34 @@ impl DataWriterImpl {
     }
 }
 
-impl ReceiveRtpsAckNackSubmessage for DdsShared<DataWriterImpl> {
-    fn on_acknack_submessage_received(
+impl DdsShared<DataWriterImpl> {
+    pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
-        source_guid_prefix: GuidPrefix,
+        message_receiver: &MessageReceiver,
     ) {
-        match &mut *self.rtps_writer.write_lock() {
-            RtpsWriter::Stateless(stateless_rtps_writer) => {
-                stateless_rtps_writer.on_acknack_submessage_received(acknack_submessage)
+        if self.qos.read_lock().reliability.kind == ReliabilityQosPolicyKind::ReliableReliabilityQos
+        {
+            match &mut *self.rtps_writer.write_lock() {
+                RtpsWriter::Stateless(stateless_rtps_writer) => {
+                    for reader_locator in message_receiver
+                        .unicast_reply_locator_list()
+                        .iter()
+                        .chain(message_receiver.multicast_reply_locator_list().iter())
+                    {
+                        if let Some(rl) =
+                            stateless_rtps_writer.reader_locator_lookup(reader_locator)
+                        {
+                            rl.receive_acknack(acknack_submessage)
+                        }
+                    }
+                }
+                RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
+                    .on_acknack_submessage_received(
+                        acknack_submessage,
+                        message_receiver.source_guid_prefix(),
+                    ),
             }
-            RtpsWriter::Stateful(stateful_rtps_writer) => stateful_rtps_writer
-                .on_acknack_submessage_received(acknack_submessage, source_guid_prefix),
         }
     }
 }
@@ -457,7 +476,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                                     .iter(),
                             )
                         {
-                            let a_locator = RtpsReaderLocatorAttributesImpl::new(
+                            let a_locator = RtpsReaderLocator::new(
                                 locator,
                                 discovered_reader_data.reader_proxy.expects_inline_qos,
                             );
@@ -465,7 +484,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                         }
                     }
                     RtpsWriter::Stateful(w) => {
-                        let reader_proxy = RtpsReaderProxyImpl::new(
+                        let reader_proxy = RtpsReaderProxy::new(
                             discovered_reader_data.reader_proxy.remote_reader_guid,
                             discovered_reader_data.reader_proxy.remote_group_entity_id,
                             discovered_reader_data
@@ -900,7 +919,7 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
         let publisher_qos = val.publisher.upgrade()?.get_qos()?;
 
         Ok(DiscoveredWriterData {
-            writer_proxy: RtpsWriterProxy {
+            writer_proxy: WriterProxy {
                 remote_writer_guid: guid,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -933,8 +952,8 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
     }
 }
 
-impl SendRtpsMessage for DdsShared<DataWriterImpl> {
-    fn send_message(&self, transport: &mut impl TransportWrite) {
+impl DdsShared<DataWriterImpl> {
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let destined_submessages = RefCell::new(Vec::new());
 
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
@@ -1054,8 +1073,8 @@ mod test {
         dcps_psm::DURATION_ZERO,
         dds_type::Endianness,
         implementation::rtps::types::{
-            ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-            PROTOCOLVERSION_2_4,
+            GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
+            GUID_UNKNOWN, PROTOCOLVERSION_2_4,
         },
         {
             dcps_psm::{BuiltInTopicKey, QosPolicyCount},
@@ -1086,11 +1105,8 @@ mod test {
     use mockall::mock;
 
     use crate::implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::RtpsReaderProxy,
-        rtps::{
-            group::RtpsGroupImpl, stateful_writer::RtpsReaderProxyImpl,
-            stateless_writer::RtpsReaderLocatorAttributesImpl,
-        },
+        data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
+        rtps::group::RtpsGroupImpl,
     };
 
     use super::*;
@@ -1189,7 +1205,7 @@ mod test {
         );
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
         stateless_rtps_writer.reader_locator_add(reader_locator);
 
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
@@ -1235,7 +1251,7 @@ mod test {
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = RtpsReaderProxyImpl::new(
+        let reader_proxy = RtpsReaderProxy::new(
             GUID_UNKNOWN,
             ENTITYID_UNKNOWN,
             &[locator],
@@ -1287,7 +1303,7 @@ mod test {
         );
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
         stateless_rtps_writer.reader_locator_add(reader_locator);
 
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
@@ -1382,7 +1398,7 @@ mod test {
         );
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocatorAttributesImpl::new(locator, expects_inline_qos);
+        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
         stateless_rtps_writer.reader_locator_add(reader_locator);
 
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
@@ -1557,7 +1573,7 @@ mod test {
             group_data: GroupDataQosPolicy::default(),
         };
         let discovered_reader_data = DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid {
                     prefix: GuidPrefix([2; 12]),
                     entity_id: EntityId {
@@ -1648,7 +1664,7 @@ mod test {
             group_data: GroupDataQosPolicy::default(),
         };
         let discovered_reader_data = DiscoveredReaderData {
-            reader_proxy: RtpsReaderProxy {
+            reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid {
                     prefix: GuidPrefix([2; 12]),
                     entity_id: EntityId {

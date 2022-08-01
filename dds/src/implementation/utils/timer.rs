@@ -99,30 +99,7 @@ impl Drop for ThreadTimer {
 mod test {
     use super::*;
     use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
-    use std::time::{Duration, Instant};
-
-    #[test]
-    fn timer_executes_function_in_time() {
-        let counter = DdsShared::new(DdsRwLock::new(0));
-
-        let mut timer = ThreadTimer::new(Duration::from_millis(20));
-
-        let counter_ref = counter.clone();
-        timer.on_deadline(move || {
-            *counter_ref.write_lock() += 1;
-        });
-
-        let start = Instant::now();
-        while *counter.read_lock() == 0 {
-            if Instant::now() - start >= Duration::from_millis(50) {
-                panic!("(;_;) Too late");
-            }
-        }
-
-        if Instant::now() - start <= Duration::from_millis(20) {
-            panic!("(;_;) Too early!");
-        }
-    }
+    use std::time::Duration;
 
     #[test]
     fn timer_doesnt_execute_function_if_reset() {

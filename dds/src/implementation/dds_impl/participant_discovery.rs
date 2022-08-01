@@ -8,11 +8,12 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReaderImpl,
-            stateful_writer::{RtpsReaderProxyImpl, RtpsStatefulWriterImpl},
+            stateful_writer::RtpsStatefulWriterImpl,
             types::{Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_UNKNOWN},
             utils::clock::StdTimer,
-            writer_proxy::RtpsWriterProxyImpl,
+            writer_proxy::RtpsWriterProxy,
         },
     },
 };
@@ -75,7 +76,7 @@ impl<'a> ParticipantDiscovery<'a> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let proxy = RtpsReaderProxyImpl::new(
+            let proxy = RtpsReaderProxy::new(
                 remote_reader_guid,
                 remote_group_entity_id,
                 self.participant_data.metatraffic_unicast_locator_list(),
@@ -103,7 +104,7 @@ impl<'a> ParticipantDiscovery<'a> {
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let data_max_size_serialized = None;
 
-            let proxy = RtpsWriterProxyImpl::new(
+            let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),
@@ -130,7 +131,7 @@ impl<'a> ParticipantDiscovery<'a> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let proxy = RtpsReaderProxyImpl::new(
+            let proxy = RtpsReaderProxy::new(
                 remote_reader_guid,
                 remote_group_entity_id,
                 self.participant_data.metatraffic_unicast_locator_list(),
@@ -158,7 +159,7 @@ impl<'a> ParticipantDiscovery<'a> {
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let data_max_size_serialized = None;
 
-            let proxy = RtpsWriterProxyImpl::new(
+            let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),
@@ -184,7 +185,7 @@ impl<'a> ParticipantDiscovery<'a> {
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let expects_inline_qos = false;
-            let proxy = RtpsReaderProxyImpl::new(
+            let proxy = RtpsReaderProxy::new(
                 remote_reader_guid,
                 remote_group_entity_id,
                 self.participant_data.metatraffic_unicast_locator_list(),
@@ -209,7 +210,7 @@ impl<'a> ParticipantDiscovery<'a> {
             let remote_group_entity_id = ENTITYID_UNKNOWN;
             let data_max_size_serialized = None;
 
-            let proxy = RtpsWriterProxyImpl::new(
+            let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
                 self.participant_data.metatraffic_unicast_locator_list(),
                 self.participant_data.metatraffic_multicast_locator_list(),

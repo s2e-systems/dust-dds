@@ -1,7 +1,8 @@
 use crate::implementation::dds_impl::domain_participant_impl::{
     CreateBuiltIns, DomainParticipantImpl, SendUserDefinedData,
 };
-use crate::implementation::rtps::types::GuidPrefix;
+use crate::implementation::rtps::participant::RtpsParticipant;
+use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::infrastructure::{entity::Entity, qos::DomainParticipantQos};
 use dds_transport::messages::RtpsMessage;
 use dds_transport::types::{LOCATOR_KIND_UDPv4, Locator};
@@ -18,13 +19,18 @@ mock! {
 
 #[test]
 fn participant_sends_spdp_discovery() {
+    let rtps_participant = RtpsParticipant::new(
+        GuidPrefix([1; 12]),
+        &[],
+        &[],
+        PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    );
     let dp = DomainParticipantImpl::new(
-        GuidPrefix([0; 12]),
+        rtps_participant,
         1,
-        String::new(),
+        "".to_string(),
         DomainParticipantQos::default(),
-        vec![],
-        vec![],
         vec![],
         vec![],
     );

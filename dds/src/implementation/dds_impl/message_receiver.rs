@@ -6,13 +6,7 @@ use crate::{
             GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
             VENDOR_ID_UNKNOWN,
         },
-        utils::{
-            rtps_communication_traits::{
-                ReceiveRtpsAckNackSubmessage, ReceiveRtpsDataSubmessage,
-                ReceiveRtpsHeartbeatSubmessage,
-            },
-            shared_object::DdsShared,
-        },
+        utils::shared_object::DdsShared,
     },
 };
 use dds_transport::{
@@ -72,10 +66,7 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageType::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
-                        publisher.on_acknack_submessage_received(
-                            acknack_submessage,
-                            self.source_guid_prefix,
-                        )
+                        publisher.on_acknack_submessage_received(acknack_submessage, self)
                     }
                 }
                 RtpsSubmessageType::Data(data_submessage) => {
@@ -115,6 +106,46 @@ impl MessageReceiver {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn source_version(&self) -> ProtocolVersion {
+        self.source_version
+    }
+
+    #[allow(dead_code)]
+    pub fn source_vendor_id(&self) -> [u8; 2] {
+        self.source_vendor_id
+    }
+
+    #[allow(dead_code)]
+    pub fn source_guid_prefix(&self) -> GuidPrefix {
+        self.source_guid_prefix
+    }
+
+    #[allow(dead_code)]
+    pub fn dest_guid_prefix(&self) -> GuidPrefix {
+        self.dest_guid_prefix
+    }
+
+    #[allow(dead_code)]
+    pub fn unicast_reply_locator_list(&self) -> &[Locator] {
+        self.unicast_reply_locator_list.as_ref()
+    }
+
+    #[allow(dead_code)]
+    pub fn multicast_reply_locator_list(&self) -> &[Locator] {
+        self.multicast_reply_locator_list.as_ref()
+    }
+
+    #[allow(dead_code)]
+    pub fn have_timestamp(&self) -> bool {
+        self.have_timestamp
+    }
+
+    #[allow(dead_code)]
+    pub fn timestamp(&self) -> Time {
+        self.timestamp
     }
 }
 
