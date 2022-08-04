@@ -11,7 +11,7 @@ use dds_transport::{
 use crate::dcps_psm::InstanceHandle;
 
 use super::{
-    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
     types::{ChangeKind, Count, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
@@ -265,7 +265,7 @@ impl RtpsChangeForReader {
 
 pub struct RtpsChangeForReaderCacheChange<'a> {
     change_for_reader: RtpsChangeForReader,
-    cache_change: &'a RtpsCacheChangeImpl,
+    cache_change: &'a RtpsCacheChange,
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
@@ -464,14 +464,14 @@ impl RtpsReaderProxy {
 mod tests {
     use super::*;
 
-    use crate::implementation::rtps::{history_cache::RtpsCacheChangeImpl, types::GUID_UNKNOWN};
+    use crate::implementation::rtps::{history_cache::RtpsCacheChange, types::GUID_UNKNOWN};
 
     fn add_new_change_push_mode_true(
         writer_cache: &mut RtpsHistoryCacheImpl,
         reader_proxy: &mut RtpsReaderProxy,
         sequence_number: SequenceNumber,
     ) {
-        writer_cache.add_change(RtpsCacheChangeImpl::new(
+        writer_cache.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],
@@ -491,7 +491,7 @@ mod tests {
         reader_proxy: &mut RtpsReaderProxy,
         sequence_number: SequenceNumber,
     ) {
-        writer_cache.add_change(RtpsCacheChangeImpl::new(
+        writer_cache.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],

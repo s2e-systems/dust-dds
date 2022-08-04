@@ -6,117 +6,44 @@ use dds_transport::{
 };
 
 use crate::{
-    dcps_psm::{Duration, InstanceHandle},
+    dcps_psm::InstanceHandle,
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
 };
 
 use super::{
-    endpoint::RtpsEndpoint,
-    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    history_cache::{RtpsCacheChange, RtpsParameter},
     reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
-    types::{
-        ChangeKind, Count, EntityId, Guid, ReliabilityKind, SequenceNumber, TopicKind,
-        ENTITYID_UNKNOWN,
-    },
-    writer::RtpsWriterImpl,
+    types::{ChangeKind, Count, EntityId, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
+    writer::RtpsWriter,
 };
 
-pub struct RtpsStatelessWriterImpl<T> {
-    writer: RtpsWriterImpl,
+pub struct RtpsStatelessWriter<T> {
+    writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     heartbeat_timer: T,
     _heartbeat_count: Count,
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn guid(&self) -> Guid {
-        self.writer.guid()
+impl<T> RtpsStatelessWriter<T> {
+    pub fn writer(&self) -> &RtpsWriter {
+        &self.writer
+    }
+
+    pub fn writer_mut(&mut self) -> &mut RtpsWriter {
+        &mut self.writer
     }
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn topic_kind(&self) -> TopicKind {
-        self.writer.topic_kind()
-    }
-
-    pub fn reliability_level(&self) -> ReliabilityKind {
-        self.writer.reliability_level()
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.writer.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.writer.multicast_locator_list()
-    }
-}
-
-impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn push_mode(&self) -> bool {
-        self.writer.push_mode()
-    }
-
-    pub fn heartbeat_period(&self) -> Duration {
-        self.writer.heartbeat_period()
-    }
-
-    pub fn nack_response_delay(&self) -> Duration {
-        self.writer.nack_response_delay()
-    }
-
-    pub fn nack_suppression_duration(&self) -> Duration {
-        self.writer.nack_suppression_duration()
-    }
-
-    pub fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.writer.last_change_sequence_number()
-    }
-
-    pub fn data_max_size_serialized(&self) -> Option<i32> {
-        self.writer.data_max_size_serialized()
-    }
-
-    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
-        self.writer.writer_cache()
-    }
-}
-
-impl<T> RtpsStatelessWriterImpl<T> {
+impl<T> RtpsStatelessWriter<T> {
     pub fn reader_locators(&'_ mut self) -> &mut Vec<RtpsReaderLocator> {
         &mut self.reader_locators
     }
 }
 
-impl<T: TimerConstructor> RtpsStatelessWriterImpl<T> {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_size_serialized: Option<i32>,
-    ) -> Self {
+impl<T: TimerConstructor> RtpsStatelessWriter<T> {
+    pub fn new(writer: RtpsWriter) -> Self {
         Self {
-            writer: RtpsWriterImpl::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    reliability_level,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-            ),
+            writer,
             reader_locators: Vec::new(),
             heartbeat_timer: T::new(),
             _heartbeat_count: Count(0),
@@ -124,9 +51,10 @@ impl<T: TimerConstructor> RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
+impl<T> RtpsStatelessWriter<T> {
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
+            .writer
             .writer_cache()
             .changes()
             .iter()
@@ -142,10 +70,7 @@ impl<T> RtpsStatelessWriterImpl<T> {
         self.reader_locators.retain(|x| !f(x))
     }
 
-    pub fn reader_locator_lookup(
-        &mut self,
-        locator: &Locator,
-    ) -> Option<&mut RtpsReaderLocator> {
+    pub fn reader_locator_lookup(&mut self, locator: &Locator) -> Option<&mut RtpsReaderLocator> {
         self.reader_locators
             .iter_mut()
             .find(|x| x.locator() == *locator)
@@ -158,20 +83,20 @@ impl<T> RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
+impl<T> RtpsStatelessWriter<T> {
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> RtpsCacheChangeImpl {
+    ) -> RtpsCacheChange {
         self.writer.new_change(kind, data, inline_qos, handle)
     }
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
-    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
+impl<T> RtpsStatelessWriter<T> {
+    pub fn add_change(&mut self, change: RtpsCacheChange) {
         for reader_locator in &mut self.reader_locators {
             reader_locator
                 .unsent_changes_mut()
@@ -182,7 +107,7 @@ impl<T> RtpsStatelessWriterImpl<T> {
 
     pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&RtpsCacheChangeImpl) -> bool,
+        F: FnMut(&RtpsCacheChange) -> bool,
     {
         self.writer.writer_cache().remove_change(f)
     }
@@ -196,7 +121,7 @@ impl<T> RtpsStatelessWriterImpl<T> {
     }
 }
 
-impl<'a, T> RtpsStatelessWriterImpl<T>
+impl<'a, T> RtpsStatelessWriter<T>
 where
     T: Timer,
 {
@@ -207,12 +132,12 @@ where
         _send_heartbeat: impl FnMut(&RtpsReaderLocator, HeartbeatSubmessage),
     ) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.heartbeat_period().sec() as u64)
-                + std::time::Duration::from_nanos(self.heartbeat_period().nanosec() as u64);
+            >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
+                + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
         }
-        let reliability_level = self.reliability_level();
+        let reliability_level = self.writer.reliability_level();
         for reader_locator in &mut self.reader_locators {
             match reliability_level {
                 ReliabilityKind::BestEffort => {
@@ -235,13 +160,13 @@ where
     }
 }
 
-impl<T> RtpsStatelessWriterImpl<T> {
+impl<T> RtpsStatelessWriter<T> {
     pub fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage) {
         let acknack_reader_id: EntityId = acknack_submessage.reader_id.value.into();
-        let message_is_for_me =
-            acknack_reader_id == ENTITYID_UNKNOWN || acknack_reader_id == self.guid().entity_id();
+        let message_is_for_me = acknack_reader_id == ENTITYID_UNKNOWN
+            || acknack_reader_id == self.writer.guid().entity_id();
 
-        if self.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
+        if self.writer.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
             for reader_locator in self.reader_locators.iter_mut() {
                 reader_locator.receive_acknack(acknack_submessage);
             }

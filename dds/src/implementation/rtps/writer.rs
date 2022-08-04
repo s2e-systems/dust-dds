@@ -4,11 +4,11 @@ use crate::dcps_psm::{Duration, InstanceHandle};
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
+    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
     types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind},
 };
 
-pub struct RtpsWriterImpl {
+pub struct RtpsWriter {
     endpoint: RtpsEndpoint,
     push_mode: bool,
     heartbeat_period: Duration,
@@ -19,7 +19,7 @@ pub struct RtpsWriterImpl {
     pub writer_cache: RtpsHistoryCacheImpl,
 }
 
-impl RtpsWriterImpl {
+impl RtpsWriter {
     pub fn new(
         endpoint: RtpsEndpoint,
         push_mode: bool,
@@ -41,13 +41,13 @@ impl RtpsWriterImpl {
     }
 }
 
-impl RtpsWriterImpl {
+impl RtpsWriter {
     pub fn guid(&self) -> Guid {
         self.endpoint.guid()
     }
 }
 
-impl RtpsWriterImpl {
+impl RtpsWriter {
     pub fn topic_kind(&self) -> TopicKind {
         self.endpoint.topic_kind()
     }
@@ -65,7 +65,7 @@ impl RtpsWriterImpl {
     }
 }
 
-impl RtpsWriterImpl {
+impl RtpsWriter {
     pub fn push_mode(&self) -> bool {
         self.push_mode
     }
@@ -95,16 +95,16 @@ impl RtpsWriterImpl {
     }
 }
 
-impl RtpsWriterImpl {
+impl RtpsWriter {
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> RtpsCacheChangeImpl {
+    ) -> RtpsCacheChange {
         self.last_change_sequence_number += 1;
-        RtpsCacheChangeImpl::new(
+        RtpsCacheChange::new(
             kind,
             self.guid(),
             handle,

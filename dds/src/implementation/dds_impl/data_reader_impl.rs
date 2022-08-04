@@ -12,7 +12,7 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            history_cache::RtpsCacheChangeImpl,
+            history_cache::RtpsCacheChange,
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
             stateless_reader::RtpsStatelessReader,
@@ -275,7 +275,7 @@ where
 
 fn read_sample<'a, Tim>(
     data_reader_attributes: &DataReaderImpl<Tim>,
-    cache_change: &'a RtpsCacheChangeImpl,
+    cache_change: &'a RtpsCacheChange,
 ) -> (&'a [u8], SampleInfo) {
     *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
 
@@ -346,7 +346,7 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
         data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
-        let a_change = match RtpsCacheChangeImpl::try_from((source_guid_prefix, data_submessage)) {
+        let a_change = match RtpsCacheChange::try_from((source_guid_prefix, data_submessage)) {
             Ok(a_change) => a_change,
             Err(_) => return,
         };
@@ -1276,8 +1276,8 @@ mod tests {
         }
     }
 
-    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsCacheChangeImpl {
-        let cache_change = RtpsCacheChangeImpl::new(
+    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsCacheChange {
+        let cache_change = RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],
@@ -1290,7 +1290,7 @@ mod tests {
     }
 
     fn reader_with_changes(
-        changes: Vec<RtpsCacheChangeImpl>,
+        changes: Vec<RtpsCacheChange>,
     ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {

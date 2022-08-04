@@ -10,7 +10,7 @@ use crate::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriterImpl,
+            stateful_writer::RtpsStatefulWriter,
             types::{Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_UNKNOWN},
             utils::clock::StdTimer,
             writer_proxy::RtpsWriterProxy,
@@ -63,7 +63,7 @@ impl<'a> ParticipantDiscovery<'a> {
 
     pub fn discovered_participant_add_publications_writer(
         &self,
-        writer: &mut RtpsStatefulWriterImpl<StdTimer>,
+        writer: &mut RtpsStatefulWriter<StdTimer>,
     ) {
         if self
             .participant_data
@@ -118,7 +118,7 @@ impl<'a> ParticipantDiscovery<'a> {
 
     pub fn discovered_participant_add_subscriptions_writer(
         &self,
-        writer: &mut RtpsStatefulWriterImpl<StdTimer>,
+        writer: &mut RtpsStatefulWriter<StdTimer>,
     ) {
         if self
             .participant_data
@@ -172,7 +172,7 @@ impl<'a> ParticipantDiscovery<'a> {
 
     pub fn discovered_participant_add_topics_writer(
         &self,
-        writer: &mut RtpsStatefulWriterImpl<StdTimer>,
+        writer: &mut RtpsStatefulWriter<StdTimer>,
     ) {
         if self
             .participant_data

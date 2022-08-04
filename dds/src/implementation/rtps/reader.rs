@@ -8,7 +8,7 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl},
     types::{Guid, ReliabilityKind, SequenceNumber, TopicKind},
 };
 
@@ -79,11 +79,11 @@ impl RtpsReader {
 }
 
 impl RtpsReader {
-    pub fn changes(&self) -> &[RtpsCacheChangeImpl] {
+    pub fn changes(&self) -> &[RtpsCacheChange] {
         self.reader_cache.changes()
     }
 
-    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
+    pub fn add_change(&mut self, change: RtpsCacheChange) {
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
             let cache_len = self.reader_cache.changes().len() as i32;
             if cache_len > self.qos.history.depth {
@@ -110,7 +110,7 @@ impl RtpsReader {
 
     pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&RtpsCacheChangeImpl) -> bool,
+        F: FnMut(&RtpsCacheChange) -> bool,
     {
         self.reader_cache.remove_change(f)
     }

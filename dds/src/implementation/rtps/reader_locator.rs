@@ -4,7 +4,7 @@ use dds_transport::{
 };
 
 use super::{
-    history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
+    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl},
     types::{Count, SequenceNumber},
 };
 
@@ -147,7 +147,7 @@ impl RtpsReaderLocator {
 }
 
 pub struct RtpsReaderLocatorCacheChange<'a> {
-    cache_change: Option<&'a RtpsCacheChangeImpl>,
+    cache_change: Option<&'a RtpsCacheChange>,
 }
 
 impl RtpsReaderLocatorCacheChange<'_> {
@@ -177,7 +177,7 @@ mod tests {
     use dds_transport::types::LOCATOR_INVALID;
 
     use crate::implementation::rtps::{
-        history_cache::RtpsCacheChangeImpl,
+        history_cache::RtpsCacheChange,
         types::{ChangeKind, GUID_UNKNOWN},
     };
 
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn reader_locator_next_unsent_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        hc.add_change(RtpsCacheChangeImpl::new(
+        hc.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],
@@ -194,7 +194,7 @@ mod tests {
             vec![],
             vec![],
         ));
-        hc.add_change(RtpsCacheChangeImpl::new(
+        hc.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],

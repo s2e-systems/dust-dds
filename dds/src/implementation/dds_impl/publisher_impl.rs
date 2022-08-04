@@ -2,11 +2,13 @@ use std::sync::atomic::{self, AtomicU8};
 
 use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
+use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::types::{
     EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
     USER_DEFINED_WRITER_WITH_KEY,
 };
-use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriterImpl};
+use crate::implementation::rtps::writer::RtpsWriter;
+use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
 use crate::infrastructure::entity::StatusCondition;
 use crate::return_type::{DdsError, DdsResult};
 use crate::{
@@ -32,7 +34,7 @@ use crate::implementation::{
 use super::data_writer_impl::AnyDataWriterListener;
 use super::message_receiver::MessageReceiver;
 use super::{
-    data_writer_impl::{DataWriterImpl, RtpsWriter},
+    data_writer_impl::{DataWriterImpl, RtpsWriterKind},
     domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
@@ -138,18 +140,21 @@ impl DdsShared<PublisherImpl> {
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let rtps_writer_impl = RtpsWriter::Stateful(RtpsStatefulWriterImpl::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                parent_participant.default_unicast_locator_list(),
-                parent_participant.default_multicast_locator_list(),
-                true,
-                Duration::new(0, 200_000_000),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                None,
-            ));
+            let rtps_writer_impl =
+                RtpsWriterKind::Stateful(RtpsStatefulWriter::new(RtpsWriter::new(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        reliability_level,
+                        parent_participant.default_unicast_locator_list(),
+                        parent_participant.default_multicast_locator_list(),
+                    ),
+                    true,
+                    Duration::new(0, 200_000_000),
+                    DURATION_ZERO,
+                    DURATION_ZERO,
+                    None,
+                )));
 
             let data_writer_shared = DataWriterImpl::new(
                 qos,

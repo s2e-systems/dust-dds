@@ -43,7 +43,7 @@ impl RtpsParameter {
     }
 }
 
-pub struct RtpsCacheChangeImpl {
+pub struct RtpsCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
@@ -52,7 +52,7 @@ pub struct RtpsCacheChangeImpl {
     inline_qos: Vec<RtpsParameter>,
 }
 
-impl PartialEq for RtpsCacheChangeImpl {
+impl PartialEq for RtpsCacheChange {
     fn eq(&self, other: &Self) -> bool {
         self.kind == other.kind
             && self.writer_guid == other.writer_guid
@@ -61,7 +61,7 @@ impl PartialEq for RtpsCacheChangeImpl {
     }
 }
 
-impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChangeImpl {
+impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChange {
     type Error = DdsError;
 
     fn try_from(value: (GuidPrefix, &DataSubmessage<'_>)) -> Result<Self, Self::Error> {
@@ -110,7 +110,7 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChangeImpl {
             )),
         }?;
 
-        Ok(RtpsCacheChangeImpl {
+        Ok(RtpsCacheChange {
             kind,
             writer_guid,
             instance_handle,
@@ -121,8 +121,8 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChangeImpl {
     }
 }
 
-impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<'a> {
-    fn from(val: &'a RtpsCacheChangeImpl) -> Self {
+impl<'a> From<&'a RtpsCacheChange> for DataSubmessage<'a> {
+    fn from(val: &'a RtpsCacheChange) -> Self {
         let endianness_flag = true;
         let inline_qos_flag = true;
         let (data_flag, key_flag) = match val.kind() {
@@ -169,7 +169,7 @@ impl<'a> From<&'a RtpsCacheChangeImpl> for DataSubmessage<'a> {
     }
 }
 
-impl RtpsCacheChangeImpl {
+impl RtpsCacheChange {
     pub fn new(
         kind: ChangeKind,
         writer_guid: Guid,
@@ -189,7 +189,7 @@ impl RtpsCacheChangeImpl {
     }
 }
 
-impl RtpsCacheChangeImpl {
+impl RtpsCacheChange {
     pub fn kind(&self) -> ChangeKind {
         self.kind
     }
@@ -217,7 +217,7 @@ impl RtpsCacheChangeImpl {
 
 #[derive(Default)]
 pub struct RtpsHistoryCacheImpl {
-    changes: Vec<RtpsCacheChangeImpl>,
+    changes: Vec<RtpsCacheChange>,
 }
 
 impl RtpsHistoryCacheImpl {
@@ -229,19 +229,19 @@ impl RtpsHistoryCacheImpl {
 }
 
 impl RtpsHistoryCacheImpl {
-    pub fn changes(&self) -> &[RtpsCacheChangeImpl] {
+    pub fn changes(&self) -> &[RtpsCacheChange] {
         &self.changes
     }
 }
 
 impl RtpsHistoryCacheImpl {
-    pub fn add_change(&mut self, change: RtpsCacheChangeImpl) {
+    pub fn add_change(&mut self, change: RtpsCacheChange) {
         self.changes.push(change);
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
     where
-        F: FnMut(&RtpsCacheChangeImpl) -> bool,
+        F: FnMut(&RtpsCacheChange) -> bool,
     {
         self.changes.retain(|cc| !f(cc));
     }
@@ -265,7 +265,7 @@ mod tests {
     fn remove_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change =
-            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.changes().is_empty());
@@ -275,9 +275,9 @@ mod tests {
     fn get_seq_num_min() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 =
-            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
         let change2 =
-            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
+            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
@@ -287,9 +287,9 @@ mod tests {
     fn get_seq_num_max() {
         let mut hc = RtpsHistoryCacheImpl::new();
         let change1 =
-            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
         let change2 =
-            RtpsCacheChangeImpl::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
+            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));
