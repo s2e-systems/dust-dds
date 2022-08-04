@@ -1,9 +1,11 @@
 use crate::dcps_psm::DURATION_ZERO;
+use crate::implementation::rtps::endpoint::RtpsEndpoint;
+use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::types::{
     EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
     USER_DEFINED_WRITER_WITH_KEY,
 };
-use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReaderImpl};
+use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::return_type::{DdsError, DdsResult};
 use crate::subscription::data_reader::AnyDataReader;
 use crate::subscription::subscriber_listener::SubscriberListener;
@@ -34,7 +36,7 @@ use crate::implementation::{
 
 use super::data_reader_impl::AnyDataReaderListener;
 use super::{
-    data_reader_impl::{DataReaderImpl, RtpsReader},
+    data_reader_impl::{DataReaderImpl, RtpsReaderKind},
     domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
@@ -132,24 +134,22 @@ impl DdsShared<SubscriberImpl> {
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
             };
 
-            let rtps_reader = RtpsReader::Stateful(RtpsStatefulReaderImpl::new(
-                guid,
-                topic_kind,
-                reliability_level,
-                parent_participant.default_unicast_locator_list(),
-                parent_participant.default_multicast_locator_list(),
+            let rtps_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
+                RtpsEndpoint::new(
+                    guid,
+                    topic_kind,
+                    reliability_level,
+                    parent_participant.default_unicast_locator_list(),
+                    parent_participant.default_multicast_locator_list(),
+                ),
                 DURATION_ZERO,
                 DURATION_ZERO,
                 false,
-            ));
-
-            let data_reader_shared = DataReaderImpl::new(
                 qos,
-                rtps_reader,
-                a_topic.clone(),
-                a_listener,
-                self.downgrade(),
-            );
+            )));
+
+            let data_reader_shared =
+                DataReaderImpl::new(rtps_reader, a_topic.clone(), a_listener, self.downgrade());
 
             self.data_reader_list
                 .write_lock()

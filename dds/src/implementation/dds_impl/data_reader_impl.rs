@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::{Duration, LENGTH_UNLIMITED},
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -13,11 +12,12 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
-            stateful_reader::RtpsStatefulReaderImpl,
-            stateless_reader::RtpsStatelessReaderImpl,
+            history_cache::RtpsCacheChangeImpl,
+            reader::RtpsReader,
+            stateful_reader::RtpsStatefulReader,
+            stateless_reader::RtpsStatelessReader,
             types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN,
+                ChangeKind, EntityId, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN,
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
             writer_proxy::RtpsWriterProxy,
@@ -54,8 +54,8 @@ use crate::{
             entity::{Entity, StatusCondition},
             qos::DataReaderQos,
             qos_policy::{
-                HistoryQosPolicyKind, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
-                DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+                DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
                 OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
                 RELIABILITY_QOS_POLICY_ID,
             },
@@ -171,53 +171,29 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
     }
 }
 
-pub enum RtpsReader {
-    Stateless(RtpsStatelessReaderImpl),
-    Stateful(RtpsStatefulReaderImpl),
+pub enum RtpsReaderKind {
+    Stateless(RtpsStatelessReader),
+    Stateful(RtpsStatefulReader),
 }
 
-impl RtpsReader {
-    pub fn heartbeat_response_delay(&self) -> Duration {
+impl RtpsReaderKind {
+    pub fn reader(&self) -> &RtpsReader {
         match self {
-            RtpsReader::Stateless(reader) => reader.heartbeat_response_delay(),
-            RtpsReader::Stateful(reader) => reader.heartbeat_response_delay(),
+            RtpsReaderKind::Stateless(r) => r.reader(),
+            RtpsReaderKind::Stateful(r) => r.reader(),
         }
     }
 
-    pub fn heartbeat_suppression_duration(&self) -> Duration {
+    pub fn reader_mut(&mut self) -> &mut RtpsReader {
         match self {
-            RtpsReader::Stateless(reader) => reader.heartbeat_suppression_duration(),
-            RtpsReader::Stateful(reader) => reader.heartbeat_suppression_duration(),
-        }
-    }
-
-    pub fn reader_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
-        match self {
-            RtpsReader::Stateless(reader) => reader.reader_cache(),
-            RtpsReader::Stateful(reader) => reader.reader_cache(),
-        }
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        match self {
-            RtpsReader::Stateless(reader) => reader.expects_inline_qos(),
-            RtpsReader::Stateful(reader) => reader.expects_inline_qos(),
-        }
-    }
-}
-
-impl RtpsReader {
-    fn guid(&self) -> Guid {
-        match self {
-            RtpsReader::Stateless(r) => r.guid(),
-            RtpsReader::Stateful(r) => r.guid(),
+            RtpsReaderKind::Stateless(r) => r.reader_mut(),
+            RtpsReaderKind::Stateful(r) => r.reader_mut(),
         }
     }
 }
 
 pub struct DataReaderImpl<Tim> {
-    rtps_reader: DdsRwLock<RtpsReader>,
-    qos: DdsRwLock<DataReaderQos>,
+    rtps_reader: DdsRwLock<RtpsReaderKind>,
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
     parent_subscriber: DdsWeak<SubscriberImpl>,
@@ -239,18 +215,17 @@ where
     Tim: Timer,
 {
     pub fn new(
-        qos: DataReaderQos,
-        rtps_reader: RtpsReader,
+        rtps_reader: RtpsReaderKind,
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         parent_subscriber: DdsWeak<SubscriberImpl>,
     ) -> DdsShared<Self> {
+        let qos = rtps_reader.reader().get_qos();
         let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
 
         DdsShared::new(DataReaderImpl {
             rtps_reader: DdsRwLock::new(rtps_reader),
-            qos: DdsRwLock::new(qos),
             topic,
             listener: DdsRwLock::new(listener),
             parent_subscriber,
@@ -344,7 +319,7 @@ fn read_sample<'a, Tim>(
 impl<Tim> DataReaderImpl<Tim> {
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
-        if let RtpsReader::Stateful(rtps_reader) = &mut *rtps_reader_lock {
+        if let RtpsReaderKind::Stateful(rtps_reader) = &mut *rtps_reader_lock {
             if !rtps_reader
                 .matched_writers()
                 .iter_mut()
@@ -380,26 +355,20 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
         let after_data_cache_len;
         let mut rtps_reader = self.rtps_reader.write_lock();
         match &mut *rtps_reader {
-            RtpsReader::Stateless(stateless_rtps_reader) => {
-                before_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
+            RtpsReaderKind::Stateless(stateless_rtps_reader) => {
+                before_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
 
                 let data_reader_id: EntityId = data_submessage.reader_id.value.into();
                 if data_reader_id == ENTITYID_UNKNOWN
-                    || data_reader_id == stateless_rtps_reader.guid().entity_id()
+                    || data_reader_id == stateless_rtps_reader.reader().guid().entity_id()
                 {
-                    let qos = self.qos.read_lock();
-                    if qos.resource_limits.max_samples == LENGTH_UNLIMITED
-                        || (stateless_rtps_reader.reader_cache().changes().len() as i32)
-                            < qos.resource_limits.max_samples
-                    {
-                        stateless_rtps_reader.reader_cache().add_change(a_change);
-                    }
+                    stateless_rtps_reader.reader_mut().add_change(a_change);
                 }
 
-                after_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
+                after_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
             }
-            RtpsReader::Stateful(stateful_rtps_reader) => {
-                before_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
+            RtpsReaderKind::Stateful(stateful_rtps_reader) => {
+                before_data_cache_len = stateful_rtps_reader.reader_mut().changes().len();
 
                 if let Some(writer_proxy) =
                     stateful_rtps_reader.matched_writer_lookup(a_change.writer_guid())
@@ -410,10 +379,16 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                             .missing_changes()
                             .contains(&data_submessage.writer_sn.value)
                     {
+                        let reliability_kind = stateful_rtps_reader
+                            .reader()
+                            .get_qos()
+                            .reliability
+                            .kind
+                            .clone();
                         if let Some(writer_proxy) =
                             stateful_rtps_reader.matched_writer_lookup(a_change.writer_guid())
                         {
-                            match self.qos.read_lock().reliability.kind {
+                            match reliability_kind {
                                 ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
                                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                                     if a_change.sequence_number() >= expected_seq_num {
@@ -423,61 +398,25 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                                             writer_proxy
                                                 .lost_changes_update(a_change.sequence_number());
                                         }
-                                        let qos = self.qos.read_lock();
-                                        if qos.resource_limits.max_samples == LENGTH_UNLIMITED
-                                            || (stateful_rtps_reader.reader_cache().changes().len()
-                                                as i32)
-                                                < qos.resource_limits.max_samples
-                                        {
-                                            stateful_rtps_reader
-                                                .reader_cache()
-                                                .add_change(a_change);
-                                        }
+
+                                        stateful_rtps_reader.reader_mut().add_change(a_change);
                                     }
                                 }
                                 ReliabilityQosPolicyKind::ReliableReliabilityQos => {
                                     writer_proxy.received_change_set(a_change.sequence_number());
-                                    let qos = self.qos.read_lock();
-                                    if qos.resource_limits.max_samples == LENGTH_UNLIMITED
-                                        || (stateful_rtps_reader.reader_cache().changes().len()
-                                            as i32)
-                                            < qos.resource_limits.max_samples
-                                    {
-                                        stateful_rtps_reader.reader_cache().add_change(a_change);
-                                    }
+                                    stateful_rtps_reader.reader_mut().add_change(a_change);
                                 }
                             }
                         }
                     }
                 }
 
-                after_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
+                after_data_cache_len = stateful_rtps_reader.reader_mut().changes().len();
             }
         }
         // Call the listener after dropping the rtps_reader lock to avoid deadlock
         drop(rtps_reader);
         if before_data_cache_len < after_data_cache_len {
-            if self.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
-                let mut rtps_reader = self.rtps_reader.write_lock();
-
-                let cache_len = rtps_reader.reader_cache().changes().len() as i32;
-                if cache_len > self.qos.read_lock().history.depth {
-                    let mut seq_nums: Vec<_> = rtps_reader
-                        .reader_cache()
-                        .changes()
-                        .iter()
-                        .map(|c| c.sequence_number())
-                        .collect();
-                    seq_nums.sort_unstable();
-
-                    let to_delete = &seq_nums
-                        [0..(cache_len as usize - self.qos.read_lock().history.depth as usize)];
-                    rtps_reader
-                        .reader_cache()
-                        .remove_change(|c| to_delete.contains(&c.sequence_number()));
-                }
-            }
-
             let reader_shared = self.clone();
             self.deadline_timer.write_lock().on_deadline(move || {
                 reader_shared
@@ -518,7 +457,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         source_guid_prefix: GuidPrefix,
     ) {
         let mut rtps_reader = self.rtps_reader.write_lock();
-        if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *rtps_reader {
+        if let RtpsReaderKind::Stateful(stateful_rtps_reader) = &mut *rtps_reader {
             stateful_rtps_reader
                 .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         }
@@ -533,12 +472,13 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
 
         if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
         {
-            let reader_qos_lock = self.qos.read_lock();
+            let mut rtps_reader_lock = self.rtps_reader.write_lock();
+            let reader_qos = rtps_reader_lock.reader().get_qos();
             let parent_subscriber_qos = self.get_subscriber().unwrap().get_qos().unwrap();
 
             let mut incompatible_qos_policy_list = Vec::new();
 
-            if reader_qos_lock.durability < writer_info.durability {
+            if reader_qos.durability < writer_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
             }
             if parent_subscriber_qos.presentation.access_scope
@@ -550,29 +490,29 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
             {
                 incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
             }
-            if reader_qos_lock.deadline > writer_info.deadline {
+            if reader_qos.deadline > writer_info.deadline {
                 incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
             }
-            if reader_qos_lock.latency_budget > writer_info.latency_budget {
+            if reader_qos.latency_budget > writer_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
             }
-            if reader_qos_lock.ownership != writer_info.ownership {
+            if reader_qos.ownership != writer_info.ownership {
                 incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
             }
-            if reader_qos_lock.liveliness > writer_info.liveliness {
+            if reader_qos.liveliness > writer_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
             }
-            if reader_qos_lock.reliability.kind > writer_info.reliability.kind {
+            if reader_qos.reliability.kind > writer_info.reliability.kind {
                 incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
             }
-            if reader_qos_lock.destination_order > writer_info.destination_order {
+            if reader_qos.destination_order > writer_info.destination_order {
                 incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                match &mut *self.rtps_reader.write_lock() {
-                    RtpsReader::Stateless(_) => (),
-                    RtpsReader::Stateful(r) => {
+                match &mut *rtps_reader_lock {
+                    RtpsReaderKind::Stateless(_) => (),
+                    RtpsReaderKind::Stateful(r) => {
                         let writer_proxy = RtpsWriterProxy::new(
                             discovered_writer_data.writer_proxy.remote_writer_guid,
                             discovered_writer_data
@@ -669,7 +609,7 @@ where
         let mut rtps_reader = self.rtps_reader.write_lock();
 
         let samples = rtps_reader
-            .reader_cache()
+            .reader_mut()
             .changes()
             .iter()
             .map(|sample| {
@@ -714,7 +654,7 @@ where
         let mut rtps_reader = self.rtps_reader.write_lock();
 
         let (samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
-            .reader_cache()
+            .reader_mut()
             .changes()
             .iter()
             .map(|cache_change| match cache_change.kind() {
@@ -750,7 +690,7 @@ where
             .unzip();
 
         rtps_reader
-            .reader_cache()
+            .reader_mut()
             .remove_change(|x| to_delete.contains(&x.sequence_number()));
 
         Ok(samples)
@@ -1118,18 +1058,21 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
     pub fn set_qos(&self, qos: Option<DataReaderQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
-        qos.is_consistent()?;
+        let mut rtps_reader_lock = self.rtps_reader.write_lock();
         if *self.enabled.read_lock() {
-            self.qos.read_lock().check_immutability(&qos)?;
+            rtps_reader_lock
+                .reader()
+                .get_qos()
+                .check_immutability(&qos)?;
         }
 
-        *self.qos.write_lock() = qos;
+        rtps_reader_lock.reader_mut().set_qos(qos)?;
 
         Ok(())
     }
 
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(self.qos.read_lock().clone())
+        Ok(self.rtps_reader.read_lock().reader().get_qos().clone())
     }
 
     pub fn set_listener(
@@ -1171,7 +1114,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_reader.read_lock().guid().into())
+        Ok(self.rtps_reader.read_lock().reader().guid().into())
     }
 }
 
@@ -1179,8 +1122,9 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
     type Error = DdsError;
 
     fn try_from(val: &DdsShared<DataReaderImpl<Tim>>) -> DdsResult<Self> {
-        let guid = val.rtps_reader.read_lock().guid();
-        let reader_qos = val.qos.read_lock();
+        let rtps_reader_lock = val.rtps_reader.read_lock();
+        let guid = rtps_reader_lock.reader().guid();
+        let reader_qos = rtps_reader_lock.reader().get_qos();
         let topic_qos = val.topic.get_qos()?;
         let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos()?;
 
@@ -1218,7 +1162,8 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
 
 impl<Tim> DdsShared<DataReaderImpl<Tim>> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        if let RtpsReader::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock() {
+        if let RtpsReaderKind::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock()
+        {
             let mut acknacks = Vec::new();
             stateful_rtps_reader.send_submessages(|wp, acknack| {
                 acknacks.push((
@@ -1237,7 +1182,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
                         value: VENDOR_ID_S2E,
                     },
                     guid_prefix: GuidPrefixSubmessageElement {
-                        value: stateful_rtps_reader.guid().prefix().into(),
+                        value: stateful_rtps_reader.reader().guid().prefix().into(),
                     },
                 };
 
@@ -1260,10 +1205,15 @@ mod tests {
     use crate::{
         dcps_psm::DURATION_ZERO,
         dds_type::DdsSerialize,
-        implementation::rtps::types::{
-            EntityId, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
-            GUID_UNKNOWN,
+        implementation::rtps::{
+            endpoint::RtpsEndpoint,
+            reader::RtpsReader,
+            types::{
+                EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
+                GUID_UNKNOWN,
+            },
         },
+        infrastructure::qos_policy::HistoryQosPolicyKind,
         {
             dcps_psm::{
                 BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
@@ -1287,7 +1237,7 @@ mod tests {
         implementation::{
             data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
             data_representation_inline_qos::parameter_id_values::PID_STATUS_INFO,
-            dds_impl::{data_reader_impl::RtpsReader, topic_impl::TopicImpl},
+            dds_impl::{data_reader_impl::RtpsReaderKind, topic_impl::TopicImpl},
             rtps::group::RtpsGroupImpl,
             utils::shared_object::DdsShared,
         },
@@ -1342,29 +1292,32 @@ mod tests {
     fn reader_with_changes(
         changes: Vec<RtpsCacheChangeImpl>,
     ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
-        let mut stateful_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
+        let qos = DataReaderQos {
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                depth: 0,
+            },
+            ..Default::default()
+        };
+        let mut stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
+            RtpsEndpoint::new(
+                GUID_UNKNOWN,
+                TopicKind::NoKey,
+                ReliabilityKind::BestEffort,
+                &[],
+                &[],
+            ),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
+            qos,
+        ));
         for change in changes {
-            stateful_reader.reader_cache().add_change(change);
+            stateful_reader.reader_mut().add_change(change);
         }
 
         let data_reader = DataReaderImpl::new(
-            DataReaderQos {
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                    depth: 0,
-                },
-                ..Default::default()
-            },
-            RtpsReader::Stateful(stateful_reader),
+            RtpsReaderKind::Stateful(stateful_reader),
             TopicImpl::new(
                 GUID_UNKNOWN,
                 Default::default(),
@@ -1479,21 +1432,23 @@ mod tests {
             },
         );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let stateful_reader = RtpsStatefulReaderImpl::new(
-            guid,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
+        let qos = DataReaderQos::default();
+        let stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
+            RtpsEndpoint::new(
+                guid,
+                TopicKind::NoKey,
+                ReliabilityKind::BestEffort,
+                &[],
+                &[],
+            ),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
+            qos,
+        ));
 
         let data_reader: DdsShared<DataReaderImpl<ThreadTimer>> = DataReaderImpl::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(stateful_reader),
+            RtpsReaderKind::Stateful(stateful_reader),
             dummy_topic,
             None,
             DdsWeak::new(),
@@ -1508,21 +1463,23 @@ mod tests {
     #[test]
     fn receive_disposed_data_submessage() {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let stateless_reader = RtpsStatelessReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
+        let qos = DataReaderQos::default();
+        let stateless_reader = RtpsStatelessReader::new(RtpsReader::new(
+            RtpsEndpoint::new(
+                GUID_UNKNOWN,
+                TopicKind::NoKey,
+                ReliabilityKind::BestEffort,
+                &[],
+                &[],
+            ),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
+            qos,
+        ));
 
         let data_reader: DdsShared<DataReaderImpl<ThreadTimer>> = DataReaderImpl::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateless(stateless_reader),
+            RtpsReaderKind::Stateless(stateless_reader),
             dummy_topic,
             None,
             DdsWeak::new(),
@@ -1580,20 +1537,22 @@ mod tests {
             DdsWeak::new(),
         );
 
-        let rtps_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
+        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
+            RtpsEndpoint::new(
+                GUID_UNKNOWN,
+                TopicKind::WithKey,
+                ReliabilityKind::BestEffort,
+                &[],
+                &[],
+            ),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
+            DataReaderQos::default(),
+        ));
 
         let data_reader = DataReaderImpl::<ThreadTimer>::new(
-            DataReaderQos::default(),
-            RtpsReader::Stateful(rtps_reader),
+            RtpsReaderKind::Stateful(rtps_reader),
             test_topic,
             None,
             parent_subscriber.downgrade(),
@@ -1670,21 +1629,25 @@ mod tests {
             DdsWeak::new(),
         );
 
-        let rtps_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
+        let mut data_reader_qos = DataReaderQos::default();
+        data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
+            RtpsEndpoint::new(
+                GUID_UNKNOWN,
+                TopicKind::WithKey,
+                ReliabilityKind::BestEffort,
+                &[],
+                &[],
+            ),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-        );
-        let mut data_reader_qos = DataReaderQos::default();
-        data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
-        let data_reader = DataReaderImpl::<ThreadTimer>::new(
             data_reader_qos,
-            RtpsReader::Stateful(rtps_reader),
+        ));
+
+        let data_reader = DataReaderImpl::<ThreadTimer>::new(
+            RtpsReaderKind::Stateful(rtps_reader),
             test_topic,
             None,
             parent_subscriber.downgrade(),

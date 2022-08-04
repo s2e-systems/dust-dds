@@ -3,13 +3,13 @@ use dds_transport::types::Locator;
 use crate::dcps_psm::{Duration, InstanceHandle};
 
 use super::{
-    endpoint::RtpsEndpointImpl,
+    endpoint::RtpsEndpoint,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
     types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind},
 };
 
 pub struct RtpsWriterImpl {
-    endpoint: RtpsEndpointImpl,
+    endpoint: RtpsEndpoint,
     push_mode: bool,
     heartbeat_period: Duration,
     nack_response_delay: Duration,
@@ -21,7 +21,7 @@ pub struct RtpsWriterImpl {
 
 impl RtpsWriterImpl {
     pub fn new(
-        endpoint: RtpsEndpointImpl,
+        endpoint: RtpsEndpoint,
         push_mode: bool,
         heartbeat_period: Duration,
         nack_response_delay: Duration,

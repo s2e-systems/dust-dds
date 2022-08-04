@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    endpoint::RtpsEndpointImpl,
+    endpoint::RtpsEndpoint,
     history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl, RtpsParameter},
     reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
     types::{
@@ -104,7 +104,7 @@ impl<T: TimerConstructor> RtpsStatelessWriterImpl<T> {
     ) -> Self {
         Self {
             writer: RtpsWriterImpl::new(
-                RtpsEndpointImpl::new(
+                RtpsEndpoint::new(
                     guid,
                     topic_kind,
                     reliability_level,

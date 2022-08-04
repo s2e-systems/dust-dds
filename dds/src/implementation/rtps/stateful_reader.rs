@@ -1,15 +1,8 @@
-use dds_transport::{
-    messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
-    types::Locator,
-};
-
-use crate::dcps_psm::Duration;
+use dds_transport::messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage};
 
 use super::{
-    endpoint::RtpsEndpointImpl,
-    history_cache::RtpsHistoryCacheImpl,
-    reader::RtpsReaderImpl,
-    types::{Count, Guid, GuidPrefix, ReliabilityKind, TopicKind},
+    reader::RtpsReader,
+    types::{Count, Guid, GuidPrefix, ReliabilityKind},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -25,111 +18,35 @@ pub enum ChangeFromWriterStatusKind {
     Unknown,
 }
 
-pub struct RtpsStatefulReaderImpl {
-    reader: RtpsReaderImpl,
+pub struct RtpsStatefulReader {
+    reader: RtpsReader,
     matched_writers: Vec<RtpsWriterProxy>,
 }
 
-impl RtpsStatefulReaderImpl {
-    pub fn process_gap_submessage(
-        &mut self,
-        gap_submessage: &GapSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value.into());
-        let reliability_level = self.reliability_level();
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == writer_guid)
-        {
-            match reliability_level {
-                ReliabilityKind::BestEffort => writer_proxy.best_effort_receive_gap(gap_submessage),
-                ReliabilityKind::Reliable => writer_proxy.reliable_receive_gap(gap_submessage),
-            }
-        }
-    }
-}
-
-impl RtpsStatefulReaderImpl {
-    pub fn guid(&self) -> Guid {
-        self.reader.guid()
-    }
-}
-
-impl RtpsStatefulReaderImpl {
-    pub fn topic_kind(&self) -> TopicKind {
-        self.reader.topic_kind()
+impl RtpsStatefulReader {
+    pub fn reader(&self) -> &RtpsReader {
+        &self.reader
     }
 
-    pub fn reliability_level(&self) -> ReliabilityKind {
-        self.reader.reliability_level()
+    pub fn reader_mut(&mut self) -> &mut RtpsReader {
+        &mut self.reader
     }
 
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.reader.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.reader.multicast_locator_list()
-    }
-}
-
-impl RtpsStatefulReaderImpl {
-    pub fn heartbeat_response_delay(&self) -> Duration {
-        self.reader.heartbeat_response_delay()
-    }
-
-    pub fn heartbeat_suppression_duration(&self) -> Duration {
-        self.reader.heartbeat_suppression_duration()
-    }
-
-    pub fn reader_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
-        self.reader.reader_cache()
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.reader.expects_inline_qos()
-    }
-}
-
-impl RtpsStatefulReaderImpl {
     pub fn matched_writers(&mut self) -> &mut [RtpsWriterProxy] {
         self.matched_writers.as_mut_slice()
     }
 }
 
-impl RtpsStatefulReaderImpl {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        guid: Guid,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[Locator],
-        multicast_locator_list: &[Locator],
-        heartbeat_response_delay: Duration,
-        heartbeat_suppression_duration: Duration,
-        expects_inline_qos: bool,
-    ) -> Self {
+impl RtpsStatefulReader {
+    pub fn new(reader: RtpsReader) -> Self {
         Self {
-            reader: RtpsReaderImpl::new(
-                RtpsEndpointImpl::new(
-                    guid,
-                    topic_kind,
-                    reliability_level,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                heartbeat_response_delay,
-                heartbeat_suppression_duration,
-                expects_inline_qos,
-            ),
+            reader,
             matched_writers: Vec::new(),
         }
     }
 }
 
-impl RtpsStatefulReaderImpl {
+impl RtpsStatefulReader {
     pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         self.matched_writers.push(a_writer_proxy);
     }
@@ -148,13 +65,34 @@ impl RtpsStatefulReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderImpl {
+impl RtpsStatefulReader {
+    pub fn process_gap_submessage(
+        &mut self,
+        gap_submessage: &GapSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value.into());
+        let reliability_level = self.reader.reliability_level();
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|x| x.remote_writer_guid() == writer_guid)
+        {
+            match reliability_level {
+                ReliabilityKind::BestEffort => writer_proxy.best_effort_receive_gap(gap_submessage),
+                ReliabilityKind::Reliable => writer_proxy.reliable_receive_gap(gap_submessage),
+            }
+        }
+    }
+}
+
+impl RtpsStatefulReader {
     pub fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.reliability_level() == ReliabilityKind::Reliable {
+        if self.reader.reliability_level() == ReliabilityKind::Reliable {
             let writer_guid = Guid::new(
                 source_guid_prefix,
                 heartbeat_submessage.writer_id.value.into(),
@@ -180,12 +118,12 @@ impl RtpsStatefulReaderImpl {
     }
 }
 
-impl RtpsStatefulReaderImpl {
+impl RtpsStatefulReader {
     pub fn send_submessages(
         &mut self,
         mut send_acknack: impl FnMut(&RtpsWriterProxy, AckNackSubmessage),
     ) {
-        let entity_id = self.guid().entity_id;
+        let entity_id = self.reader.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks {
                 if !writer_proxy.missing_changes().is_empty() {

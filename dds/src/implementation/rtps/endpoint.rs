@@ -5,7 +5,7 @@ use super::{
     types::{Guid, ReliabilityKind, TopicKind},
 };
 
-pub struct RtpsEndpointImpl {
+pub struct RtpsEndpoint {
     entity: RtpsEntity,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -13,7 +13,7 @@ pub struct RtpsEndpointImpl {
     multicast_locator_list: Vec<Locator>,
 }
 
-impl RtpsEndpointImpl {
+impl RtpsEndpoint {
     pub fn new(
         guid: Guid,
         topic_kind: TopicKind,
@@ -31,13 +31,13 @@ impl RtpsEndpointImpl {
     }
 }
 
-impl RtpsEndpointImpl {
+impl RtpsEndpoint {
     pub fn guid(&self) -> Guid {
         self.entity.guid()
     }
 }
 
-impl RtpsEndpointImpl {
+impl RtpsEndpoint {
     pub fn topic_kind(&self) -> TopicKind {
         self.topic_kind
     }
