@@ -1,13 +1,11 @@
-use std::convert::TryFrom;
-
-use dds_transport::{messages::submessages::DataSubmessage, types::Locator};
+use dds_transport::types::Locator;
 
 use crate::{dcps_psm::Duration, implementation::rtps::history_cache::RtpsHistoryCacheImpl};
 
 use super::{
     endpoint::RtpsEndpointImpl,
     reader::RtpsReaderImpl,
-    types::{EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN},
+    types::{Guid, ReliabilityKind, TopicKind},
 };
 
 pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
@@ -15,12 +13,6 @@ pub struct RtpsStatelessReaderImpl(RtpsReaderImpl);
 impl RtpsStatelessReaderImpl {
     pub fn guid(&self) -> Guid {
         self.0.guid()
-    }
-
-    pub fn receive_data(&mut self, source_guid_prefix: GuidPrefix, data: &DataSubmessage<'_>) {
-        if let Ok(a_change) = TryFrom::try_from((source_guid_prefix, data)) {
-            self.reader_cache().add_change(a_change);
-        }
     }
 }
 
@@ -91,77 +83,11 @@ impl RtpsStatelessReaderImpl {
     }
 }
 
-impl RtpsStatelessReaderImpl {
-    pub fn on_data_submessage_received(
-        &mut self,
-        data_submessage: &DataSubmessage<'_>,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        let data_reader_id: EntityId = data_submessage.reader_id.value.into();
-        if data_reader_id == ENTITYID_UNKNOWN || data_reader_id == self.guid().entity_id() {
-            self.receive_data(source_guid_prefix, data_submessage)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use dds_transport::messages::submessage_elements::{
-        EntityIdSubmessageElement, ParameterListSubmessageElement, SequenceNumberSubmessageElement,
-        SerializedDataSubmessageElement,
-    };
-
-    use crate::implementation::rtps::types::{
-        USER_DEFINED_READER_NO_KEY, USER_DEFINED_WRITER_NO_KEY,
-    };
+    use crate::implementation::rtps::types::{EntityId, GuidPrefix, USER_DEFINED_READER_NO_KEY};
 
     use super::*;
-
-    #[test]
-    fn on_data_submessage_received_test() {
-        let mut reader = RtpsStatelessReaderImpl::new(
-            Guid::new(
-                GuidPrefix([3; 12]),
-                EntityId::new([4, 1, 3], USER_DEFINED_READER_NO_KEY),
-            ),
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            Duration::new(0, 0),
-            Duration::new(0, 0),
-            false,
-        );
-
-        let data: DataSubmessage<'_> = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: reader.0.guid().entity_id.into(),
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY).into(),
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement {
-                value: &[1, 0, 2, 5],
-            },
-        };
-
-        let source_guid_prefix = GuidPrefix([6; 12]);
-
-        reader.on_data_submessage_received(&data, source_guid_prefix);
-
-        assert_eq!(1, reader.0.reader_cache().changes().len());
-        let change = &reader.0.reader_cache().changes()[0];
-        assert_eq!(source_guid_prefix, change.writer_guid().prefix);
-        assert_eq!(data.writer_sn.value, change.sequence_number());
-        assert_eq!(data.serialized_payload.value, change.data_value());
-    }
 
     #[test]
     #[should_panic]
@@ -179,53 +105,5 @@ mod tests {
             Duration::new(0, 0),
             false,
         );
-    }
-
-    #[test]
-    fn best_effort_stateless_data_reader_all_data_received_when_not_sent_in_order() {
-        let reader_guid = Guid::new(
-            GuidPrefix([3; 12]),
-            EntityId::new([4, 1, 3], USER_DEFINED_READER_NO_KEY),
-        );
-
-        let source_guid = Guid::new(
-            GuidPrefix([6; 12]),
-            EntityId::new([6, 1, 2], USER_DEFINED_WRITER_NO_KEY),
-        );
-
-        let mut reader = RtpsStatelessReaderImpl::new(
-            reader_guid,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            Duration::new(0, 0),
-            Duration::new(0, 0),
-            false,
-        );
-
-        let make_data = |seq_num, data: &'static [u8]| DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: reader_guid.entity_id.into(),
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: source_guid.entity_id.into(),
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: seq_num },
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: data },
-        };
-
-        reader.on_data_submessage_received(&make_data(2, &[2, 8, 4, 5]), source_guid.prefix);
-        reader.on_data_submessage_received(&make_data(0, &[2, 7, 1, 8]), source_guid.prefix);
-        reader.on_data_submessage_received(&make_data(3, &[9, 0, 4, 5]), source_guid.prefix);
-        reader.on_data_submessage_received(&make_data(1, &[2, 8, 1, 8]), source_guid.prefix);
-
-        assert_eq!(4, reader.0.reader_cache().changes().len());
     }
 }

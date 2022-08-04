@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::Duration,
+    dcps_psm::{Duration, LENGTH_UNLIMITED},
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -16,7 +16,10 @@ use crate::{
             history_cache::{RtpsCacheChangeImpl, RtpsHistoryCacheImpl},
             stateful_reader::RtpsStatefulReaderImpl,
             stateless_reader::RtpsStatelessReaderImpl,
-            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{
+                ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN,
+                PROTOCOLVERSION, VENDOR_ID_S2E,
+            },
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -25,6 +28,7 @@ use crate::{
             timer::Timer,
         },
     },
+    infrastructure::qos_policy::ReliabilityQosPolicyKind,
 };
 use crate::{
     dds_type::DdsType,
@@ -367,6 +371,11 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
         data_submessage: &DataSubmessage<'_>,
         source_guid_prefix: GuidPrefix,
     ) {
+        let a_change = match RtpsCacheChangeImpl::try_from((source_guid_prefix, data_submessage)) {
+            Ok(a_change) => a_change,
+            Err(_) => return,
+        };
+
         let before_data_cache_len;
         let after_data_cache_len;
         let mut rtps_reader = self.rtps_reader.write_lock();
@@ -374,16 +383,73 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
             RtpsReader::Stateless(stateless_rtps_reader) => {
                 before_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
 
-                stateless_rtps_reader
-                    .on_data_submessage_received(data_submessage, source_guid_prefix);
+                let data_reader_id: EntityId = data_submessage.reader_id.value.into();
+                if data_reader_id == ENTITYID_UNKNOWN
+                    || data_reader_id == stateless_rtps_reader.guid().entity_id()
+                {
+                    let qos = self.qos.read_lock();
+                    if qos.resource_limits.max_samples == LENGTH_UNLIMITED
+                        || (stateless_rtps_reader.reader_cache().changes().len() as i32)
+                            < qos.resource_limits.max_samples
+                    {
+                        stateless_rtps_reader.reader_cache().add_change(a_change);
+                    }
+                }
 
                 after_data_cache_len = stateless_rtps_reader.reader_cache().changes().len();
             }
             RtpsReader::Stateful(stateful_rtps_reader) => {
                 before_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
 
-                stateful_rtps_reader
-                    .on_data_submessage_received(data_submessage, source_guid_prefix);
+                if let Some(writer_proxy) =
+                    stateful_rtps_reader.matched_writer_lookup(a_change.writer_guid())
+                {
+                    if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
+                        || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
+                        || writer_proxy
+                            .missing_changes()
+                            .contains(&data_submessage.writer_sn.value)
+                    {
+                        if let Some(writer_proxy) =
+                            stateful_rtps_reader.matched_writer_lookup(a_change.writer_guid())
+                        {
+                            match self.qos.read_lock().reliability.kind {
+                                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                                    if a_change.sequence_number() >= expected_seq_num {
+                                        writer_proxy
+                                            .received_change_set(a_change.sequence_number());
+                                        if a_change.sequence_number() > expected_seq_num {
+                                            writer_proxy
+                                                .lost_changes_update(a_change.sequence_number());
+                                        }
+                                        let qos = self.qos.read_lock();
+                                        if qos.resource_limits.max_samples == LENGTH_UNLIMITED
+                                            || (stateful_rtps_reader.reader_cache().changes().len()
+                                                as i32)
+                                                < qos.resource_limits.max_samples
+                                        {
+                                            stateful_rtps_reader
+                                                .reader_cache()
+                                                .add_change(a_change);
+                                        }
+                                    }
+                                }
+                                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                                    writer_proxy.received_change_set(a_change.sequence_number());
+                                    let qos = self.qos.read_lock();
+                                    if qos.resource_limits.max_samples == LENGTH_UNLIMITED
+                                        || (stateful_rtps_reader.reader_cache().changes().len()
+                                            as i32)
+                                            < qos.resource_limits.max_samples
+                                    {
+                                        stateful_rtps_reader.reader_cache().add_change(a_change);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 after_data_cache_len = stateful_rtps_reader.reader_cache().changes().len();
             }
@@ -391,7 +457,56 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
         // Call the listener after dropping the rtps_reader lock to avoid deadlock
         drop(rtps_reader);
         if before_data_cache_len < after_data_cache_len {
-            DataReaderImpl::on_data_received(self.clone()).unwrap();
+            if self.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
+                let mut rtps_reader = self.rtps_reader.write_lock();
+
+                let cache_len = rtps_reader.reader_cache().changes().len() as i32;
+                if cache_len > self.qos.read_lock().history.depth {
+                    let mut seq_nums: Vec<_> = rtps_reader
+                        .reader_cache()
+                        .changes()
+                        .iter()
+                        .map(|c| c.sequence_number())
+                        .collect();
+                    seq_nums.sort_unstable();
+
+                    let to_delete = &seq_nums
+                        [0..(cache_len as usize - self.qos.read_lock().history.depth as usize)];
+                    rtps_reader
+                        .reader_cache()
+                        .remove_change(|c| to_delete.contains(&c.sequence_number()));
+                }
+            }
+
+            let reader_shared = self.clone();
+            self.deadline_timer.write_lock().on_deadline(move || {
+                reader_shared
+                    .requested_deadline_missed_status
+                    .write_lock()
+                    .total_count += 1;
+                reader_shared
+                    .requested_deadline_missed_status
+                    .write_lock()
+                    .total_count_change += 1;
+
+                *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
+                if let Some(l) = reader_shared.listener.write_lock().as_mut() {
+                    *reader_shared.status_change.write_lock() &= !REQUESTED_DEADLINE_MISSED_STATUS;
+                    l.trigger_on_requested_deadline_missed(
+                        &reader_shared,
+                        reader_shared
+                            .requested_deadline_missed_status
+                            .read_lock()
+                            .clone(),
+                    )
+                };
+            });
+
+            *self.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
+            if let Some(l) = self.listener.write_lock().as_mut() {
+                *self.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
+                l.trigger_on_data_available(self)
+            };
         }
     }
 }
@@ -530,63 +645,6 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
                 }
             }
         }
-    }
-}
-
-impl DataReaderImpl<ThreadTimer> {
-    pub fn on_data_received(reader: DdsShared<Self>) -> DdsResult<()> {
-        if reader.qos.read_lock().history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
-            let mut rtps_reader = reader.rtps_reader.write_lock();
-
-            let cache_len = rtps_reader.reader_cache().changes().len() as i32;
-            if cache_len > reader.qos.read_lock().history.depth {
-                let mut seq_nums: Vec<_> = rtps_reader
-                    .reader_cache()
-                    .changes()
-                    .iter()
-                    .map(|c| c.sequence_number())
-                    .collect();
-                seq_nums.sort_unstable();
-
-                let to_delete = &seq_nums
-                    [0..(cache_len as usize - reader.qos.read_lock().history.depth as usize)];
-                rtps_reader
-                    .reader_cache()
-                    .remove_change(|c| to_delete.contains(&c.sequence_number()));
-            }
-        }
-
-        let reader_shared = reader.clone();
-        reader.deadline_timer.write_lock().on_deadline(move || {
-            reader_shared
-                .requested_deadline_missed_status
-                .write_lock()
-                .total_count += 1;
-            reader_shared
-                .requested_deadline_missed_status
-                .write_lock()
-                .total_count_change += 1;
-
-            *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
-            if let Some(l) = reader_shared.listener.write_lock().as_mut() {
-                *reader_shared.status_change.write_lock() &= !REQUESTED_DEADLINE_MISSED_STATUS;
-                l.trigger_on_requested_deadline_missed(
-                    &reader_shared,
-                    reader_shared
-                        .requested_deadline_missed_status
-                        .read_lock()
-                        .clone(),
-                )
-            };
-        });
-
-        *reader.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
-        if let Some(l) = reader.listener.write_lock().as_mut() {
-            *reader.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
-            l.trigger_on_data_available(&reader)
-        };
-
-        Ok(())
     }
 }
 
@@ -1374,72 +1432,6 @@ mod tests {
             .is_err());
     }
 
-    #[test]
-    fn on_missed_deadline_increases_total_count() {
-        let stateful_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        );
-
-        let reader = DataReaderImpl::new(
-            DataReaderQos {
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                    depth: 0,
-                },
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            },
-            RtpsReader::Stateful(stateful_reader),
-            TopicImpl::new(
-                GUID_UNKNOWN,
-                Default::default(),
-                "type_name",
-                "topic_name",
-                DdsWeak::new(),
-            ),
-            None,
-            DdsWeak::new(),
-        );
-        *reader.enabled.write_lock() = true;
-
-        assert_eq!(
-            0,
-            reader
-                .get_requested_deadline_missed_status()
-                .unwrap()
-                .total_count
-        );
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-
-        assert_eq!(
-            0,
-            reader
-                .get_requested_deadline_missed_status()
-                .unwrap()
-                .total_count
-        );
-
-        std::thread::sleep(std::time::Duration::from_secs(2));
-
-        assert_eq!(
-            1,
-            reader
-                .get_requested_deadline_missed_status()
-                .unwrap()
-                .total_count
-        );
-    }
-
     mock! {
         Listener {}
         impl AnyDataReaderListener for Listener {
@@ -1475,220 +1467,6 @@ mod tests {
                 status: SampleLostStatus,
             );
         }
-    }
-
-    #[test]
-    fn on_deadline_missed_calls_listener() {
-        let reader = {
-            let reader = reader_with_changes(vec![]);
-            *reader.qos.write_lock() = DataReaderQos {
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            };
-            reader
-        };
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-
-        let mut listener = MockListener::new();
-        listener
-            .expect_trigger_on_requested_deadline_missed()
-            .once()
-            .return_const(());
-        reader.set_listener(Some(Box::new(listener)), 0).unwrap();
-
-        std::thread::sleep(std::time::Duration::from_secs(1));
-    }
-
-    #[test]
-    fn receiving_data_triggers_status_change() {
-        let reader = {
-            let reader = reader_with_changes(vec![]);
-            *reader.qos.write_lock() = DataReaderQos {
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            };
-            reader
-        };
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-
-        assert!(reader.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS > 0);
-    }
-
-    #[test]
-    fn on_data_available_listener_resets_status_change() {
-        let reader = {
-            let reader = reader_with_changes(vec![]);
-            *reader.qos.write_lock() = DataReaderQos {
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            };
-            reader
-        };
-
-        let listener = {
-            let mut listener = MockListener::new();
-            listener
-                .expect_trigger_on_data_available()
-                .once()
-                .return_const(());
-            listener
-        };
-        reader.set_listener(Some(Box::new(listener)), 0).unwrap();
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-
-        assert_eq!(
-            0,
-            reader.get_status_changes().unwrap() & DATA_AVAILABLE_STATUS
-        );
-    }
-
-    #[test]
-    fn deadline_missed_triggers_status_change() {
-        let stateful_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        );
-
-        let reader = DataReaderImpl::new(
-            DataReaderQos {
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                    depth: 0,
-                },
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            },
-            RtpsReader::Stateful(stateful_reader),
-            TopicImpl::new(
-                GUID_UNKNOWN,
-                Default::default(),
-                "type_name",
-                "topic_name",
-                DdsWeak::new(),
-            ),
-            None,
-            DdsWeak::new(),
-        );
-        *reader.enabled.write_lock() = true;
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(2));
-
-        assert!(reader.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS > 0);
-    }
-
-    #[test]
-    fn on_deadline_missed_listener_resets_status_changed() {
-        let reader = {
-            let reader = reader_with_changes(vec![]);
-            *reader.qos.write_lock() = DataReaderQos {
-                deadline: DeadlineQosPolicy {
-                    period: crate::dcps_psm::Duration::new(1, 0),
-                },
-                ..Default::default()
-            };
-            reader
-        };
-
-        let listener = {
-            let mut listener = Box::new(MockListener::new());
-            listener
-                .expect_trigger_on_requested_deadline_missed()
-                .once()
-                .return_const(());
-            listener
-                .expect_trigger_on_data_available()
-                .once()
-                .return_const(());
-            listener
-        };
-
-        reader.set_listener(Some(listener), 0).unwrap();
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(1));
-
-        assert_eq!(
-            0,
-            reader.get_status_changes().unwrap() & REQUESTED_DEADLINE_MISSED_STATUS
-        );
-    }
-
-    fn reader_with_max_depth(
-        max_depth: i32,
-        changes: Vec<RtpsCacheChangeImpl>,
-    ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
-        let mut history_cache = RtpsHistoryCacheImpl::new();
-        for change in changes {
-            history_cache.add_change(change);
-        }
-
-        let stateful_reader = RtpsStatefulReaderImpl::new(
-            GUID_UNKNOWN,
-            TopicKind::NoKey,
-            ReliabilityKind::BestEffort,
-            &[],
-            &[],
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-        );
-
-        DataReaderImpl::new(
-            DataReaderQos {
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
-                    depth: max_depth,
-                },
-                ..Default::default()
-            },
-            RtpsReader::Stateful(stateful_reader),
-            TopicImpl::new(
-                GUID_UNKNOWN,
-                Default::default(),
-                "type_name",
-                "topic_name",
-                DdsWeak::new(),
-            ),
-            None,
-            DdsWeak::new(),
-        )
-    }
-
-    #[test]
-    fn keep_last_qos() {
-        let reader = {
-            let reader = reader_with_max_depth(
-                2,
-                vec![
-                    cache_change(1, 1),
-                    cache_change(2, 2),
-                    cache_change(3, 3),
-                    cache_change(4, 4),
-                ],
-            );
-
-            reader
-        };
-
-        DataReaderImpl::on_data_received(reader.clone()).unwrap();
     }
 
     #[test]
