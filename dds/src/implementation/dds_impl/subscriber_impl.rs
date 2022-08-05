@@ -35,6 +35,7 @@ use crate::implementation::{
 };
 
 use super::data_reader_impl::AnyDataReaderListener;
+use super::message_receiver::MessageReceiver;
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReaderKind},
     domain_participant_impl::DomainParticipantImpl,
@@ -362,10 +363,10 @@ impl DdsShared<SubscriberImpl> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
-        source_guid_prefix: GuidPrefix,
+        message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_data_submessage_received(data_submessage, source_guid_prefix)
+            data_reader.on_data_submessage_received(data_submessage, message_receiver)
         }
     }
 }

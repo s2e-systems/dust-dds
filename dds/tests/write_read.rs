@@ -1,10 +1,10 @@
-use dds::dcps_psm::{DURATION_ZERO, LENGTH_UNLIMITED};
+use dds::dcps_psm::{Time, DURATION_ZERO, LENGTH_UNLIMITED};
 use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use dds::domain::domain_participant_factory::DdsDomainParticipantFactory;
 use dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dds::infrastructure::qos_policy::{
-    HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-    ResourceLimitsQosPolicy,
+    DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
+    HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
 };
 
 use dds::return_type::{DdsError, DdsResult};
@@ -164,4 +164,112 @@ fn data_reader_resource_limits() {
     }
     let samples = samples.unwrap();
     assert_eq!(samples.len(), 2);
+}
+
+#[test]
+fn data_reader_order_by_source_timestamp() {
+    let domain_id = 11;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+    let topic1 = participant1
+        .create_topic::<UserData>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+    let topic2 = participant2
+        .create_topic::<UserData>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let data_writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+            max_blocking_time: DURATION_ZERO,
+        },
+        destination_order: DestinationOrderQosPolicy {
+            kind: DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+            depth: LENGTH_UNLIMITED,
+        },
+        ..Default::default()
+    };
+    let data_writer = publisher
+        .create_datawriter(&topic1, Some(data_writer_qos), None, 0)
+        .unwrap();
+
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+    let data_reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+            depth: 1,
+        },
+        destination_order: DestinationOrderQosPolicy {
+            kind: DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS,
+        },
+        ..Default::default()
+    };
+    let data_reader = subscriber
+        .create_datareader(&topic2, Some(data_reader_qos), None, 0)
+        .unwrap();
+
+    //Wait for reader to be aware of the user writer
+    while data_reader
+        .get_subscription_matched_status()
+        .unwrap()
+        .total_count
+        < 1
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    data_writer
+        .write_w_timestamp(
+            &UserData(1),
+            None,
+            Time {
+                sec: 30,
+                nanosec: 0,
+            },
+        )
+        .unwrap();
+    data_writer
+        .write_w_timestamp(
+            &UserData(2),
+            None,
+            Time {
+                sec: 20,
+                nanosec: 0,
+            },
+        )
+        .unwrap();
+    data_writer
+        .write_w_timestamp(
+            &UserData(3),
+            None,
+            Time {
+                sec: 10,
+                nanosec: 0,
+            },
+        )
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    let mut samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    while let Err(DdsError::NoData) = samples {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
+    }
+    let samples = samples.unwrap();
+    assert_eq!(samples.len(), 3);
+    assert_eq!(&samples[0].data, &Some(UserData(3)));
+    assert_eq!(&samples[1].data, &Some(UserData(2)));
+    assert_eq!(&samples[2].data, &Some(UserData(1)));
 }

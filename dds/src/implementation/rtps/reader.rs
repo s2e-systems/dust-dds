@@ -8,15 +8,27 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl},
+    reader_cache_change::RtpsReaderCacheChange,
     types::{Guid, ReliabilityKind, SequenceNumber, TopicKind},
 };
+
+struct ReaderHistoryCache {
+    changes: Vec<RtpsReaderCacheChange>,
+}
+
+impl ReaderHistoryCache {
+    fn new() -> Self {
+        Self {
+            changes: Vec::new(),
+        }
+    }
+}
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
     heartbeat_response_delay: Duration,
     heartbeat_suppression_duration: Duration,
-    reader_cache: RtpsHistoryCacheImpl,
+    reader_cache: ReaderHistoryCache,
     expects_inline_qos: bool,
     qos: DataReaderQos,
 }
@@ -33,7 +45,7 @@ impl RtpsReader {
             endpoint,
             heartbeat_response_delay,
             heartbeat_suppression_duration,
-            reader_cache: RtpsHistoryCacheImpl::new(),
+            reader_cache: ReaderHistoryCache::new(),
             expects_inline_qos,
             qos,
         }
@@ -79,17 +91,17 @@ impl RtpsReader {
 }
 
 impl RtpsReader {
-    pub fn changes(&self) -> &[RtpsCacheChange] {
-        self.reader_cache.changes()
+    pub fn changes(&self) -> &[RtpsReaderCacheChange] {
+        self.reader_cache.changes.as_ref()
     }
 
-    pub fn add_change(&mut self, change: RtpsCacheChange) {
+    pub fn add_change(&mut self, change: RtpsReaderCacheChange) {
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
-            let cache_len = self.reader_cache.changes().len() as i32;
+            let cache_len = self.reader_cache.changes.len() as i32;
             if cache_len > self.qos.history.depth {
                 let mut seq_nums: Vec<_> = self
                     .reader_cache
-                    .changes()
+                    .changes
                     .iter()
                     .map(|c| c.sequence_number())
                     .collect();
@@ -102,25 +114,33 @@ impl RtpsReader {
         }
 
         if self.qos.resource_limits.max_samples == LENGTH_UNLIMITED
-            || (self.reader_cache.changes().len() as i32) < self.qos.resource_limits.max_samples
+            || (self.reader_cache.changes.len() as i32) < self.qos.resource_limits.max_samples
         {
-            self.reader_cache.add_change(change)
+            self.reader_cache.changes.push(change);
         }
     }
 
-    pub fn remove_change<F>(&mut self, f: F)
+    pub fn remove_change<F>(&mut self, mut f: F)
     where
-        F: FnMut(&RtpsCacheChange) -> bool,
+        F: FnMut(&RtpsReaderCacheChange) -> bool,
     {
-        self.reader_cache.remove_change(f)
+        self.reader_cache.changes.retain(|cc| !f(cc));
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.reader_cache.get_seq_num_min()
+        self.reader_cache
+            .changes
+            .iter()
+            .map(|cc| cc.sequence_number())
+            .min()
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.reader_cache.get_seq_num_min()
+        self.reader_cache
+            .changes
+            .iter()
+            .map(|cc| cc.sequence_number())
+            .max()
     }
 }
 

@@ -38,7 +38,7 @@ impl Duration {
     }
 }
 
-#[derive(Clone, PartialEq, Debug, Copy)]
+#[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
 pub struct Time {
     pub sec: i32,
     pub nanosec: u32,

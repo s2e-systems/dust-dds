@@ -30,7 +30,7 @@ pub struct SampleInfo {
     /// in the returned collection) related to the same instance was received.
     pub absolute_generation_rank: i32,
     /// the source_timestamp that indicates the time provided by the DataWriter when the sample was written.
-    pub source_timestamp: Time,
+    pub source_timestamp: Option<Time>,
     /// the instance_handle that identifies locally the corresponding instance
     pub instance_handle: InstanceHandle,
     /// the publication_handle that identifies locally the DataWriter that modified the instance. The publication_handle is the

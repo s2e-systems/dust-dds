@@ -12,8 +12,8 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            history_cache::RtpsCacheChange,
             reader::RtpsReader,
+            reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
             stateless_reader::RtpsStatelessReader,
             types::{
@@ -28,7 +28,7 @@ use crate::{
             timer::Timer,
         },
     },
-    infrastructure::qos_policy::ReliabilityQosPolicyKind,
+    infrastructure::qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
 };
 use crate::{
     dds_type::DdsType,
@@ -45,7 +45,7 @@ use crate::{
             BuiltInTopicKey, InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
             QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask,
-            StatusMask, SubscriptionMatchedStatus, Time, ViewStateMask, ALIVE_INSTANCE_STATE,
+            StatusMask, SubscriptionMatchedStatus, ViewStateMask, ALIVE_INSTANCE_STATE,
             DATA_AVAILABLE_STATUS, HANDLE_NIL, HANDLE_NIL_NATIVE, NEW_VIEW_STATE,
             NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
             REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
@@ -79,8 +79,9 @@ use dds_transport::{
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, participant_discovery::ParticipantDiscovery,
-    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, subscriber_impl::SubscriberImpl,
+    topic_impl::TopicImpl,
 };
 
 pub trait AnyDataReaderListener {
@@ -275,7 +276,7 @@ where
 
 fn read_sample<'a, Tim>(
     data_reader_attributes: &DataReaderImpl<Tim>,
-    cache_change: &'a RtpsCacheChange,
+    cache_change: &'a RtpsReaderCacheChange,
 ) -> (&'a [u8], SampleInfo) {
     *data_reader_attributes.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
 
@@ -307,7 +308,7 @@ fn read_sample<'a, Tim>(
         sample_rank: 0,
         generation_rank: 0,
         absolute_generation_rank: 0,
-        source_timestamp: Time { sec: 0, nanosec: 0 },
+        source_timestamp: *cache_change.source_timestamp(),
         instance_handle: HANDLE_NIL_NATIVE,
         publication_handle: HANDLE_NIL_NATIVE,
         valid_data,
@@ -344,9 +345,9 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
-        source_guid_prefix: GuidPrefix,
+        message_receiver: &MessageReceiver,
     ) {
-        let a_change = match RtpsCacheChange::try_from((source_guid_prefix, data_submessage)) {
+        let a_change = match RtpsReaderCacheChange::try_from((message_receiver, data_submessage)) {
             Ok(a_change) => a_change,
             Err(_) => return,
         };
@@ -608,7 +609,7 @@ where
 
         let mut rtps_reader = self.rtps_reader.write_lock();
 
-        let samples = rtps_reader
+        let mut samples = rtps_reader
             .reader_mut()
             .changes()
             .iter()
@@ -629,6 +630,18 @@ where
             })
             .take(max_samples as usize)
             .collect::<DdsResult<Vec<_>>>()?;
+
+        if rtps_reader.reader().get_qos().destination_order.kind
+            == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+        {
+            samples.sort_by(|a, b| {
+                a.sample_info
+                    .source_timestamp
+                    .as_ref()
+                    .unwrap()
+                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
+            });
+        }
 
         if samples.is_empty() {
             Err(DdsError::NoData)
@@ -653,7 +666,7 @@ where
 
         let mut rtps_reader = self.rtps_reader.write_lock();
 
-        let (samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
+        let (mut samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
             .reader_mut()
             .changes()
             .iter()
@@ -692,6 +705,18 @@ where
         rtps_reader
             .reader_mut()
             .remove_change(|x| to_delete.contains(&x.sequence_number()));
+
+        if rtps_reader.reader().get_qos().destination_order.kind
+            == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+        {
+            samples.sort_by(|a, b| {
+                a.sample_info
+                    .source_timestamp
+                    .as_ref()
+                    .unwrap()
+                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
+            });
+        }
 
         Ok(samples)
     }
@@ -1208,17 +1233,11 @@ mod tests {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
-            types::{
-                EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
-                GUID_UNKNOWN,
-            },
+            types::{EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
         infrastructure::qos_policy::HistoryQosPolicyKind,
         {
-            dcps_psm::{
-                BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-                NOT_ALIVE_DISPOSED_INSTANCE_STATE,
-            },
+            dcps_psm::{BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
             infrastructure::{
                 qos::{SubscriberQos, TopicQos},
                 qos_policy::{
@@ -1236,16 +1255,12 @@ mod tests {
         dds_type::{DdsType, Endianness},
         implementation::{
             data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-            data_representation_inline_qos::parameter_id_values::PID_STATUS_INFO,
             dds_impl::{data_reader_impl::RtpsReaderKind, topic_impl::TopicImpl},
             rtps::group::RtpsGroupImpl,
             utils::shared_object::DdsShared,
         },
     };
-    use dds_transport::messages::submessage_elements::{
-        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-    };
+
     use mockall::mock;
     use std::io::Write;
 
@@ -1276,21 +1291,22 @@ mod tests {
         }
     }
 
-    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsCacheChange {
-        let cache_change = RtpsCacheChange::new(
+    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsReaderCacheChange {
+        let cache_change = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             [0; 16],
             sn,
             vec![value],
             vec![],
+            None,
         );
 
         cache_change
     }
 
     fn reader_with_changes(
-        changes: Vec<RtpsCacheChange>,
+        changes: Vec<RtpsReaderCacheChange>,
     ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
@@ -1458,69 +1474,6 @@ mod tests {
         let expected_instance_handle: [u8; 16] = guid.into();
         let instance_handle = data_reader.get_instance_handle().unwrap();
         assert_eq!(expected_instance_handle, instance_handle);
-    }
-
-    #[test]
-    fn receive_disposed_data_submessage() {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-        let qos = DataReaderQos::default();
-        let stateless_reader = RtpsStatelessReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-        ));
-
-        let data_reader: DdsShared<DataReaderImpl<ThreadTimer>> = DataReaderImpl::new(
-            RtpsReaderKind::Stateless(stateless_reader),
-            dummy_topic,
-            None,
-            DdsWeak::new(),
-        );
-
-        let data_submessage = DataSubmessage {
-            endianness_flag: true,
-            inline_qos_flag: true,
-            data_flag: false,
-            key_flag: true,
-            non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_sn: SequenceNumberSubmessageElement { value: 1 },
-            inline_qos: ParameterListSubmessageElement {
-                parameter: vec![Parameter {
-                    parameter_id: PID_STATUS_INFO,
-                    length: 4,
-                    value: &[1, 0, 0, 0],
-                }],
-            },
-            serialized_payload: SerializedDataSubmessageElement { value: &[1][..] },
-        };
-        *data_reader.enabled.write_lock() = true;
-
-        data_reader.on_data_submessage_received(&data_submessage, GUIDPREFIX_UNKNOWN);
-        let data: Vec<Sample<UserData>> = data_reader
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap();
-
-        assert_eq!(data.len(), 1);
-        assert!(data[0].data.is_none());
-        assert_eq!(&data[0].sample_info.valid_data, &false);
-        assert_eq!(
-            &data[0].sample_info.instance_state,
-            &NOT_ALIVE_DISPOSED_INSTANCE_STATE
-        );
     }
 
     #[test]

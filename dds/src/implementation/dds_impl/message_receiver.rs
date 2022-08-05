@@ -71,8 +71,7 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageType::Data(data_submessage) => {
                     for subscriber in subscriber_list {
-                        subscriber
-                            .on_data_submessage_received(data_submessage, self.source_guid_prefix)
+                        subscriber.on_data_submessage_received(data_submessage, self)
                     }
                 }
                 RtpsSubmessageType::DataFrag(_) => todo!(),

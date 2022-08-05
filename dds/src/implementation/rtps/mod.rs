@@ -11,6 +11,7 @@ pub mod stateful_reader;
 pub mod stateful_writer;
 pub mod stateless_reader;
 pub mod stateless_writer;
+pub mod reader_cache_change;
 pub mod types;
 pub mod writer;
 pub mod writer_proxy;
