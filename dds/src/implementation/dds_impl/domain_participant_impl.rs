@@ -20,13 +20,14 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             stateless_reader::RtpsStatelessReader,
             types::{
-                Count, EntityId, EntityKind, Guid, ProtocolVersion, ReliabilityKind, TopicKind,
-                VendorId, BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
+                Count, EntityId, EntityKind, Guid, ProtocolVersion, TopicKind, VendorId,
+                BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
                 BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
             },
             writer::RtpsWriter,
         },
     },
+    infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
     publication::publisher_listener::PublisherListener,
     return_type::DdsResult,
     subscription::subscriber_listener::SubscriberListener,
@@ -895,14 +896,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
         ///////// Create built-in DDS data readers and data writers
 
-        let builtin_reader_qos = DataReaderQos {
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                depth: 0,
-            },
-            ..Default::default()
-        };
-
         ////////// SPDP built-in topic, reader and writer
         {
             let spdp_topic_participant = self.create_topic::<SpdpDiscoveredParticipantData>(
@@ -922,14 +915,19 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     spdp_builtin_participant_reader_guid,
                     TopicKind::WithKey,
-                    ReliabilityKind::BestEffort,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
                 DURATION_ZERO,
                 DURATION_ZERO,
                 false,
-                builtin_reader_qos.clone(),
+                DataReaderQos {
+                    history: HistoryQosPolicy {
+                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                        depth: 0,
+                    },
+                    ..Default::default()
+                },
             ));
 
             let spdp_builtin_participant_data_reader = DataReaderImpl::new(
@@ -958,7 +956,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     RtpsEndpoint::new(
                         spdp_builtin_participant_writer_guid,
                         TopicKind::WithKey,
-                        ReliabilityKind::BestEffort,
                         unicast_locator_list,
                         multicast_locator_list,
                     ),
@@ -967,6 +964,13 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     DURATION_ZERO,
                     DURATION_ZERO,
                     None,
+                    DataWriterQos {
+                        reliability: ReliabilityQosPolicy {
+                            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                            max_blocking_time: DURATION_ZERO,
+                        },
+                        ..Default::default()
+                    },
                 ));
 
             for reader_locator in spdp_reader_locators {
@@ -974,7 +978,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             }
 
             let spdp_builtin_participant_data_writer = DataWriterImpl::new(
-                DataWriterQos::default(),
                 RtpsWriterKind::Stateless(spdp_builtin_participant_rtps_writer),
                 None,
                 spdp_topic_participant,
@@ -997,7 +1000,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
             let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
             let expects_inline_qos = false;
@@ -1007,14 +1009,23 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
                 heartbeat_response_delay,
                 heartbeat_suppression_duration,
                 expects_inline_qos,
-                builtin_reader_qos.clone(),
+                DataReaderQos {
+                    history: HistoryQosPolicy {
+                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                        depth: 0,
+                    },
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                        max_blocking_time: DURATION_ZERO,
+                    },
+                    ..Default::default()
+                },
             ));
 
             let sedp_builtin_publications_data_reader = DataReaderImpl::new(
@@ -1029,7 +1040,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let push_mode = true;
             let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
             let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
@@ -1039,7 +1049,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
@@ -1048,10 +1057,10 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 nack_response_delay,
                 nack_suppression_duration,
                 data_max_size_serialized,
+                DataWriterQos::default(),
             ));
 
             let sedp_builtin_publications_data_writer = DataWriterImpl::new(
-                DataWriterQos::default(),
                 RtpsWriterKind::Stateful(sedp_builtin_publications_rtps_writer),
                 None,
                 sedp_topic_publication,
@@ -1075,7 +1084,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
             let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
             let expects_inline_qos = false;
@@ -1085,14 +1093,23 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
                 heartbeat_response_delay,
                 heartbeat_suppression_duration,
                 expects_inline_qos,
-                builtin_reader_qos.clone(),
+                DataReaderQos {
+                    history: HistoryQosPolicy {
+                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                        depth: 0,
+                    },
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                        max_blocking_time: DURATION_ZERO,
+                    },
+                    ..Default::default()
+                },
             ));
 
             let sedp_builtin_subscriptions_data_reader = DataReaderImpl::new(
@@ -1107,7 +1124,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let push_mode = true;
             let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
             let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
@@ -1119,7 +1135,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
@@ -1128,9 +1143,9 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 nack_response_delay,
                 nack_suppression_duration,
                 data_max_size_serialized,
+                DataWriterQos::default(),
             ));
             let sedp_builtin_subscriptions_data_writer = DataWriterImpl::new(
-                DataWriterQos::default(),
                 RtpsWriterKind::Stateful(sedp_builtin_subscriptions_rtps_writer),
                 None,
                 sedp_topic_subscription,
@@ -1153,7 +1168,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
             let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
             let expects_inline_qos = false;
@@ -1163,14 +1177,23 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
                 heartbeat_response_delay,
                 heartbeat_suppression_duration,
                 expects_inline_qos,
-                builtin_reader_qos,
+                DataReaderQos {
+                    history: HistoryQosPolicy {
+                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                        depth: 0,
+                    },
+                    reliability: ReliabilityQosPolicy {
+                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                        max_blocking_time: DURATION_ZERO,
+                    },
+                    ..Default::default()
+                },
             ));
 
             let sedp_builtin_topics_data_reader = DataReaderImpl::new(
@@ -1185,7 +1208,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
             let topic_kind = TopicKind::WithKey;
-            let reliability_level = ReliabilityKind::Reliable;
             let push_mode = true;
             let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
             let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
@@ -1197,7 +1219,6 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     unicast_locator_list,
                     multicast_locator_list,
                 ),
@@ -1206,10 +1227,10 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 nack_response_delay,
                 nack_suppression_duration,
                 data_max_size_serialized,
+                DataWriterQos::default(),
             ));
 
             let sedp_builtin_topics_data_writer = DataWriterImpl::new(
-                DataWriterQos::default(),
                 RtpsWriterKind::Stateful(sedp_builtin_topics_rtps_writer),
                 None,
                 sedp_topic_topic,

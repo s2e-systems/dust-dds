@@ -1,10 +1,12 @@
-use super::{reader::RtpsReader, types::ReliabilityKind};
+use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+
+use super::reader::RtpsReader;
 
 pub struct RtpsStatelessReader(RtpsReader);
 
 impl RtpsStatelessReader {
     pub fn new(reader: RtpsReader) -> Self {
-        if reader.reliability_level() == ReliabilityKind::Reliable {
+        if reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::ReliableReliabilityQos {
             panic!("Reliable stateless reader is not supported");
         }
 
@@ -23,12 +25,12 @@ impl RtpsStatelessReader {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::Duration,
+        dcps_psm::{Duration, DURATION_ZERO},
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             types::{EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY},
         },
-        infrastructure::qos::DataReaderQos,
+        infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicy},
     };
 
     use super::*;
@@ -42,7 +44,6 @@ mod tests {
                 EntityId::new([4, 1, 3], USER_DEFINED_READER_NO_KEY),
             ),
             TopicKind::NoKey,
-            ReliabilityKind::Reliable,
             &[],
             &[],
         );
@@ -51,7 +52,13 @@ mod tests {
             Duration::new(0, 0),
             Duration::new(0, 0),
             false,
-            DataReaderQos::default(),
+            DataReaderQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         );
         RtpsStatelessReader::new(reader);
     }

@@ -1,11 +1,15 @@
 use dds_transport::types::Locator;
 
-use crate::dcps_psm::{Duration, InstanceHandle};
+use crate::{
+    dcps_psm::{Duration, InstanceHandle},
+    infrastructure::qos::DataWriterQos,
+    return_type::DdsResult,
+};
 
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
-    types::{ChangeKind, Guid, ReliabilityKind, SequenceNumber, TopicKind},
+    types::{ChangeKind, Guid, SequenceNumber, TopicKind},
 };
 
 pub struct RtpsWriter {
@@ -17,6 +21,7 @@ pub struct RtpsWriter {
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: Option<i32>,
     pub writer_cache: RtpsHistoryCacheImpl,
+    qos: DataWriterQos,
 }
 
 impl RtpsWriter {
@@ -27,6 +32,7 @@ impl RtpsWriter {
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
         data_max_size_serialized: Option<i32>,
+        qos: DataWriterQos,
     ) -> Self {
         Self {
             endpoint,
@@ -37,6 +43,7 @@ impl RtpsWriter {
             last_change_sequence_number: 0,
             data_max_size_serialized,
             writer_cache: RtpsHistoryCacheImpl::new(),
+            qos,
         }
     }
 }
@@ -50,10 +57,6 @@ impl RtpsWriter {
 impl RtpsWriter {
     pub fn topic_kind(&self) -> TopicKind {
         self.endpoint.topic_kind()
-    }
-
-    pub fn reliability_level(&self) -> ReliabilityKind {
-        self.endpoint.reliability_level()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {
@@ -112,5 +115,17 @@ impl RtpsWriter {
             data,
             inline_qos,
         )
+    }
+}
+
+impl RtpsWriter {
+    pub fn get_qos(&self) -> &DataWriterQos {
+        &self.qos
+    }
+
+    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+        qos.is_consistent()?;
+        self.qos = qos;
+        Ok(())
     }
 }

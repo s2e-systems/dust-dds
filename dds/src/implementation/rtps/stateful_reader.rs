@@ -1,8 +1,10 @@
 use dds_transport::messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage};
 
+use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+
 use super::{
     reader::RtpsReader,
-    types::{Count, Guid, GuidPrefix, ReliabilityKind},
+    types::{Count, Guid, GuidPrefix},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -72,15 +74,19 @@ impl RtpsStatefulReader {
         source_guid_prefix: GuidPrefix,
     ) {
         let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value.into());
-        let reliability_level = self.reader.reliability_level();
+        let reliability_level = &self.reader.get_qos().reliability.kind;
         if let Some(writer_proxy) = self
             .matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             match reliability_level {
-                ReliabilityKind::BestEffort => writer_proxy.best_effort_receive_gap(gap_submessage),
-                ReliabilityKind::Reliable => writer_proxy.reliable_receive_gap(gap_submessage),
+                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                    writer_proxy.best_effort_receive_gap(gap_submessage)
+                }
+                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                    writer_proxy.reliable_receive_gap(gap_submessage)
+                }
             }
         }
     }
@@ -92,7 +98,9 @@ impl RtpsStatefulReader {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.reader.reliability_level() == ReliabilityKind::Reliable {
+        if self.reader.get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+        {
             let writer_guid = Guid::new(
                 source_guid_prefix,
                 heartbeat_submessage.writer_id.value.into(),

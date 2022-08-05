@@ -1233,7 +1233,7 @@ mod tests {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
-            types::{EntityId, Guid, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{EntityId, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
         infrastructure::qos_policy::HistoryQosPolicyKind,
         {
@@ -1316,13 +1316,7 @@ mod tests {
             ..Default::default()
         };
         let mut stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
@@ -1450,13 +1444,7 @@ mod tests {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
         let stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                guid,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(guid, TopicKind::NoKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
@@ -1491,13 +1479,7 @@ mod tests {
         );
 
         let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
@@ -1586,13 +1568,7 @@ mod tests {
         data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
         let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,

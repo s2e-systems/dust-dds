@@ -4,8 +4,7 @@ use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::types::{
-    EntityId, Guid, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-    USER_DEFINED_WRITER_WITH_KEY,
+    EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
 };
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
@@ -15,10 +14,7 @@ use crate::{
     publication::publisher_listener::PublisherListener,
     {
         dcps_psm::{Duration, InstanceHandle, StatusMask},
-        infrastructure::{
-            qos::{DataWriterQos, PublisherQos, TopicQos},
-            qos_policy::ReliabilityQosPolicyKind,
-        },
+        infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
     },
 };
 use dds_transport::messages::submessages::AckNackSubmessage;
@@ -135,17 +131,11 @@ impl DdsShared<PublisherImpl> {
                 false => TopicKind::NoKey,
             };
 
-            let reliability_level = match qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-            };
-
             let rtps_writer_impl =
                 RtpsWriterKind::Stateful(RtpsStatefulWriter::new(RtpsWriter::new(
                     RtpsEndpoint::new(
                         guid,
                         topic_kind,
-                        reliability_level,
                         parent_participant.default_unicast_locator_list(),
                         parent_participant.default_multicast_locator_list(),
                     ),
@@ -154,10 +144,10 @@ impl DdsShared<PublisherImpl> {
                     DURATION_ZERO,
                     DURATION_ZERO,
                     None,
+                    qos,
                 )));
 
             let data_writer_shared = DataWriterImpl::new(
-                qos,
                 rtps_writer_impl,
                 a_listener,
                 topic_shared.clone(),

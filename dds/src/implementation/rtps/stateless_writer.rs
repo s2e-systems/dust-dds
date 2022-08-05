@@ -8,12 +8,13 @@ use dds_transport::{
 use crate::{
     dcps_psm::InstanceHandle,
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
+    infrastructure::qos_policy::ReliabilityQosPolicyKind,
 };
 
 use super::{
     history_cache::{RtpsCacheChange, RtpsParameter},
     reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
-    types::{ChangeKind, Count, EntityId, ReliabilityKind, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, EntityId, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
@@ -137,10 +138,10 @@ where
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
         }
-        let reliability_level = self.writer.reliability_level();
+        let reliability_kind = &self.writer.get_qos().reliability.kind;
         for reader_locator in &mut self.reader_locators {
-            match reliability_level {
-                ReliabilityKind::BestEffort => {
+            match reliability_kind {
+                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
                     while let Some(send_submessage) =
                         reader_locator.send_unsent_changes(&self.writer.writer_cache)
                     {
@@ -154,7 +155,7 @@ where
                         }
                     }
                 }
-                ReliabilityKind::Reliable => todo!(),
+                ReliabilityQosPolicyKind::ReliableReliabilityQos => todo!(),
             }
         }
     }
@@ -166,7 +167,10 @@ impl<T> RtpsStatelessWriter<T> {
         let message_is_for_me = acknack_reader_id == ENTITYID_UNKNOWN
             || acknack_reader_id == self.writer.guid().entity_id();
 
-        if self.writer.reliability_level() == ReliabilityKind::Reliable && message_is_for_me {
+        if self.writer.get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+            && message_is_for_me
+        {
             for reader_locator in self.reader_locators.iter_mut() {
                 reader_locator.receive_acknack(acknack_submessage);
             }

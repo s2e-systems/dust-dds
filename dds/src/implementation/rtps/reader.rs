@@ -9,7 +9,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     reader_cache_change::RtpsReaderCacheChange,
-    types::{Guid, ReliabilityKind, SequenceNumber, TopicKind},
+    types::{Guid, SequenceNumber, TopicKind},
 };
 
 struct ReaderHistoryCache {
@@ -61,10 +61,6 @@ impl RtpsReader {
 impl RtpsReader {
     pub fn topic_kind(&self) -> TopicKind {
         self.endpoint.topic_kind()
-    }
-
-    pub fn reliability_level(&self) -> ReliabilityKind {
-        self.endpoint.reliability_level()
     }
 
     pub fn unicast_locator_list(&self) -> &[Locator] {

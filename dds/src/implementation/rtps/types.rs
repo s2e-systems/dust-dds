@@ -210,15 +210,6 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-/// ReliabilityKind_t
-/// Enumeration used to indicate the level of the reliability used for communications. It can take the values:
-/// BEST_EFFORT, RELIABLE.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
-}
-
 /// ProtocolVersion_t
 /// Type used to represent the version of the RTPS protocol. The version is composed of a major and a minor version number. See also 8.6.
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2

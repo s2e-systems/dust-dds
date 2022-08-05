@@ -5,6 +5,7 @@ use dds_transport::messages::submessages::{
 use crate::{
     dcps_psm::InstanceHandle,
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
+    infrastructure::qos_policy::ReliabilityQosPolicyKind,
 };
 
 use super::{
@@ -13,7 +14,7 @@ use super::{
         BestEffortStatefulWriterSendSubmessage, ChangeForReaderStatusKind,
         ReliableStatefulWriterSendSubmessage, RtpsChangeForReader, RtpsReaderProxy,
     },
-    types::{ChangeKind, Count, Guid, GuidPrefix, ReliabilityKind, SequenceNumber},
+    types::{ChangeKind, Count, Guid, GuidPrefix, SequenceNumber},
     writer::RtpsWriter,
 };
 
@@ -152,13 +153,13 @@ where
             self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
         }
 
-        let reliability_level = self.writer.reliability_level();
+        let reliability_level = &self.writer.get_qos().reliability.kind;
         let writer_id = self.writer.guid().entity_id;
         let heartbeat_count = self.heartbeat_count;
 
         for reader_proxy in self.matched_readers.iter_mut() {
             match reliability_level {
-                ReliabilityKind::BestEffort => {
+                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
                     while let Some(send_submessage) =
                         reader_proxy.best_effort_send_unsent_changes(&self.writer.writer_cache)
                     {
@@ -172,7 +173,7 @@ where
                         }
                     }
                 }
-                ReliabilityKind::Reliable => {
+                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
                     if time_for_heartbeat {
                         let mut heartbeat =
                             reader_proxy.send_heartbeat(writer_id, &self.writer.writer_cache);
@@ -216,7 +217,9 @@ impl<T> RtpsStatefulWriter<T> {
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.writer.reliability_level() == ReliabilityKind::Reliable {
+        if self.writer.get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+        {
             let reader_guid = Guid::new(
                 source_guid_prefix,
                 acknack_submessage.reader_id.value.into(),

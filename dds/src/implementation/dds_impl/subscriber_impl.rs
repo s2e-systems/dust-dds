@@ -2,8 +2,7 @@ use crate::dcps_psm::DURATION_ZERO;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::types::{
-    EntityId, Guid, GuidPrefix, ReliabilityKind, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-    USER_DEFINED_WRITER_WITH_KEY,
+    EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::return_type::{DdsError, DdsResult};
@@ -19,7 +18,6 @@ use crate::{
         infrastructure::{
             entity::StatusCondition,
             qos::{DataReaderQos, SubscriberQos, TopicQos},
-            qos_policy::ReliabilityQosPolicyKind,
         },
     },
 };
@@ -130,16 +128,10 @@ impl DdsShared<SubscriberImpl> {
                 false => TopicKind::NoKey,
             };
 
-            let reliability_level = match qos.reliability.kind {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-            };
-
             let rtps_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    reliability_level,
                     parent_participant.default_unicast_locator_list(),
                     parent_participant.default_multicast_locator_list(),
                 ),

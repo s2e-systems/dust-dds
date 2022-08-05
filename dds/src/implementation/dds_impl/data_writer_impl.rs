@@ -254,7 +254,6 @@ impl RtpsWriterKind {
 }
 
 pub struct DataWriterImpl {
-    qos: DdsRwLock<DataWriterQos>,
     rtps_writer: DdsRwLock<RtpsWriterKind>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
@@ -271,7 +270,6 @@ pub struct DataWriterImpl {
 
 impl DataWriterImpl {
     pub fn new(
-        qos: DataWriterQos,
         rtps_writer: RtpsWriterKind,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         topic: DdsShared<TopicImpl>,
@@ -304,7 +302,6 @@ impl DataWriterImpl {
         };
 
         DdsShared::new(DataWriterImpl {
-            qos: DdsRwLock::new(qos),
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
             registered_instance_list: DdsRwLock::new(HashMap::new()),
@@ -351,7 +348,9 @@ impl DdsShared<DataWriterImpl> {
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        if self.qos.read_lock().reliability.kind == ReliabilityQosPolicyKind::ReliableReliabilityQos
+        let rtps_writer_lock = self.rtps_writer.write_lock();
+        if rtps_writer_lock.writer().get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::ReliableReliabilityQos
         {
             match &mut *self.rtps_writer.write_lock() {
                 RtpsWriterKind::Stateless(stateless_rtps_writer) => {
@@ -382,14 +381,14 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
         let writer_topic_name = self.topic.get_name().unwrap();
         let writer_type_name = self.topic.get_type_name().unwrap();
+        let mut rtps_writer_lock = self.rtps_writer.write_lock();
 
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
-            let writer_qos_lock = self.qos.read_lock();
             let parent_publisher_qos = self.get_publisher().unwrap().get_qos().unwrap();
-
+            let qos = rtps_writer_lock.writer().get_qos();
             let mut incompatible_qos_policy_list = Vec::new();
-            if writer_qos_lock.durability < reader_info.durability {
+            if qos.durability < reader_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
             }
             if parent_publisher_qos.presentation.access_scope
@@ -401,27 +400,27 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
             {
                 incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
             }
-            if writer_qos_lock.deadline < reader_info.deadline {
+            if qos.deadline < reader_info.deadline {
                 incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
             }
-            if writer_qos_lock.latency_budget < reader_info.latency_budget {
+            if qos.latency_budget < reader_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
             }
-            if writer_qos_lock.ownership != reader_info.ownership {
+            if qos.ownership != reader_info.ownership {
                 incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
             }
-            if writer_qos_lock.liveliness < reader_info.liveliness {
+            if qos.liveliness < reader_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
             }
-            if writer_qos_lock.reliability.kind < reader_info.reliability.kind {
+            if qos.reliability.kind < reader_info.reliability.kind {
                 incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
             }
-            if writer_qos_lock.destination_order < reader_info.destination_order {
+            if qos.destination_order < reader_info.destination_order {
                 incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                match &mut *self.rtps_writer.write_lock() {
+                match &mut *rtps_writer_lock {
                     RtpsWriterKind::Stateless(w) => {
                         for &locator in discovered_reader_data
                             .reader_proxy
@@ -533,11 +532,20 @@ impl DdsShared<DataWriterImpl> {
             let instance_handle = calculate_instance_handle(&serialized_key);
 
             let mut registered_instances_lock = self.registered_instance_list.write_lock();
-            let qos_lock = self.qos.read_lock();
+            let rtps_writer_lock = self.rtps_writer.read_lock();
             if !registered_instances_lock.contains_key(&instance_handle) {
-                if qos_lock.resource_limits.max_instances == LENGTH_UNLIMITED
+                if rtps_writer_lock
+                    .writer()
+                    .get_qos()
+                    .resource_limits
+                    .max_instances
+                    == LENGTH_UNLIMITED
                     || (registered_instances_lock.len() as i32)
-                        < qos_lock.resource_limits.max_instances
+                        < rtps_writer_lock
+                            .writer()
+                            .get_qos()
+                            .resource_limits
+                            .max_instances
                 {
                     registered_instances_lock.insert(instance_handle, serialized_key);
                 } else {
@@ -810,18 +818,20 @@ impl DdsShared<DataWriterImpl> {
     pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
-        qos.is_consistent()?;
+        let mut rtps_writer_lock = self.rtps_writer.write_lock();
+
         if *self.enabled.read_lock() {
-            self.qos.read_lock().check_immutability(&qos)?;
+            rtps_writer_lock
+                .writer()
+                .get_qos()
+                .check_immutability(&qos)?;
         }
 
-        *self.qos.write_lock() = qos;
-
-        Ok(())
+        rtps_writer_lock.writer_mut().set_qos(qos)
     }
 
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.qos.read_lock().clone())
+        Ok(self.rtps_writer.read_lock().writer().get_qos().clone())
     }
 
     pub fn set_listener(
@@ -871,16 +881,17 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
     type Error = DdsError;
 
     fn try_from(val: &DdsShared<DataWriterImpl>) -> DdsResult<Self> {
+        let rtps_writer_lock = val.rtps_writer.read_lock();
         let guid = val.rtps_writer.read_lock().writer().guid();
-        let writer_qos = val.qos.read_lock();
+        let writer_qos = rtps_writer_lock.writer().get_qos();
         let topic_qos = val.topic.get_qos()?;
         let publisher_qos = val.publisher.upgrade()?.get_qos()?;
 
         Ok(DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: guid,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
+                remote_writer_guid: rtps_writer_lock.writer().guid(),
+                unicast_locator_list: rtps_writer_lock.writer().unicast_locator_list().to_vec(),
+                multicast_locator_list: rtps_writer_lock.writer().multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
                 remote_group_entity_id: EntityId::new([0; 3], 0),
             },
@@ -1033,8 +1044,8 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             types::{
-                Guid, GuidPrefix, ReliabilityKind, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
-                GUID_UNKNOWN, PROTOCOLVERSION_2_4,
+                Guid, GuidPrefix, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+                PROTOCOLVERSION_2_4,
             },
             writer::RtpsWriter,
         },
@@ -1128,22 +1139,16 @@ mod test {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos::default(),
         ));
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateful(rtps_writer),
             None,
             dummy_topic,
@@ -1156,18 +1161,19 @@ mod test {
     #[test]
     fn write_w_timestamp_stateless_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
@@ -1177,7 +1183,6 @@ mod test {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateless(stateless_rtps_writer),
             None,
             dummy_topic,
@@ -1203,18 +1208,19 @@ mod test {
     #[test]
     fn write_w_timestamp_stateful_message() {
         let mut stateful_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
@@ -1232,7 +1238,6 @@ mod test {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateful(stateful_rtps_writer),
             None,
             dummy_topic,
@@ -1258,18 +1263,19 @@ mod test {
     #[test]
     fn unregister_w_timestamp_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
@@ -1279,7 +1285,6 @@ mod test {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateless(stateless_rtps_writer),
             None,
             dummy_topic,
@@ -1355,18 +1360,19 @@ mod test {
     #[test]
     fn dispose_w_timestamp_message() {
         let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::NoKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
         let locator = Locator::new(1, 7400, [1; 16]);
         let expects_inline_qos = false;
@@ -1376,7 +1382,6 @@ mod test {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateless(stateless_rtps_writer),
             None,
             dummy_topic,
@@ -1502,22 +1507,22 @@ mod test {
         );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
 
         let data_writer = DataWriterImpl::new(
-            DataWriterQos::default(),
             RtpsWriterKind::Stateful(rtps_writer),
             None,
             test_topic,
@@ -1594,23 +1599,21 @@ mod test {
         );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                GUID_UNKNOWN,
-                TopicKind::WithKey,
-                ReliabilityKind::BestEffort,
-                &[],
-                &[],
-            ),
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
             None,
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    max_blocking_time: DURATION_ZERO,
+                },
+                ..Default::default()
+            },
         ));
-        let mut data_writer_qos = DataWriterQos::default();
-        data_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
         let data_writer = DataWriterImpl::new(
-            data_writer_qos,
             RtpsWriterKind::Stateful(rtps_writer),
             None,
             test_topic,
