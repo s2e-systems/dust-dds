@@ -363,7 +363,10 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                 if data_reader_id == ENTITYID_UNKNOWN
                     || data_reader_id == stateless_rtps_reader.reader().guid().entity_id()
                 {
-                    stateless_rtps_reader.reader_mut().add_change(a_change);
+                    stateless_rtps_reader
+                        .reader_mut()
+                        .add_change(a_change)
+                        .ok();
                 }
 
                 after_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
@@ -400,12 +403,18 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                                                 .lost_changes_update(a_change.sequence_number());
                                         }
 
-                                        stateful_rtps_reader.reader_mut().add_change(a_change);
+                                        stateful_rtps_reader
+                                            .reader_mut()
+                                            .add_change(a_change)
+                                            .ok();
                                     }
                                 }
                                 ReliabilityQosPolicyKind::ReliableReliabilityQos => {
                                     writer_proxy.received_change_set(a_change.sequence_number());
-                                    stateful_rtps_reader.reader_mut().add_change(a_change);
+                                    stateful_rtps_reader
+                                        .reader_mut()
+                                        .add_change(a_change)
+                                        .ok();
                                 }
                             }
                         }
@@ -1323,7 +1332,7 @@ mod tests {
             qos,
         ));
         for change in changes {
-            stateful_reader.reader_mut().add_change(change);
+            stateful_reader.reader_mut().add_change(change).unwrap();
         }
 
         let data_reader = DataReaderImpl::new(

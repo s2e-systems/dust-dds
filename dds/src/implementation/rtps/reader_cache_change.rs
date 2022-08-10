@@ -26,7 +26,7 @@ use super::{
     types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 
 pub struct RtpsReaderCacheChange {
     kind: ChangeKind,

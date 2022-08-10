@@ -20,7 +20,7 @@ use crate::{
 
 use super::types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RtpsParameter {
     parameter_id: ParameterId,
     value: Vec<u8>,
