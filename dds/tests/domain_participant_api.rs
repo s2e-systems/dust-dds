@@ -314,31 +314,3 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .expect("Failed to delete datareader");
     assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
 }
-
-#[test]
-fn get_publisher_parent_participant() {
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-    let participant = domain_participant_factory
-        .create_participant(0, None, None, 0)
-        .unwrap();
-
-    let publisher = participant.create_publisher(None, None, 0).unwrap();
-
-    let publisher_parent_participant = publisher.get_participant().unwrap();
-
-    assert_eq!(participant, publisher_parent_participant);
-}
-
-#[test]
-fn get_subscriber_parent_participant() {
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-    let participant = domain_participant_factory
-        .create_participant(0, None, None, 0)
-        .unwrap();
-
-    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-
-    let subscriber_parent_participant = subscriber.get_participant().unwrap();
-
-    assert_eq!(participant, subscriber_parent_participant);
-}

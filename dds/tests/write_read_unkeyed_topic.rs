@@ -46,7 +46,7 @@ impl<'de> DdsDeserialize<'de> for UserData {
 }
 
 #[test]
-fn user_defined_write_read_auto_enable() {
+fn write_read_unkeyed_topic() {
     let domain_id = 8;
     let participant_factory = DomainParticipantFactory::get_instance();
 
