@@ -312,7 +312,7 @@ fn read_sample<'a, Tim>(
         generation_rank: 0,
         absolute_generation_rank: 0,
         source_timestamp: *cache_change.source_timestamp(),
-        instance_handle: HANDLE_NIL,
+        instance_handle: cache_change.instance_handle(),
         publication_handle: HANDLE_NIL,
         valid_data,
     };
