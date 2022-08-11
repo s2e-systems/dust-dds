@@ -443,7 +443,7 @@ where
     fn enable(&self) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
-                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+                .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 

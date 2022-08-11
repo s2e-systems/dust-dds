@@ -55,6 +55,20 @@ impl DdsType for DiscoveredTopicData {
     fn has_key() -> bool {
         true
     }
+
+    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
+        self.topic_builtin_topic_data.key.value.to_vec()
+    }
+
+    fn set_key_fields_from_serialized_key(
+        &mut self,
+        _key: &[u8],
+    ) -> crate::return_type::DdsResult<()> {
+        if Self::has_key() {
+            unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
+        }
+        Ok(())
+    }
 }
 
 impl DdsSerialize for DiscoveredTopicData {

@@ -1,4 +1,5 @@
 use crate::dcps_psm::DURATION_ZERO;
+use crate::dds_type::DdsDeserialize;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::types::{
@@ -33,6 +34,7 @@ use crate::implementation::{
 };
 
 use super::data_reader_impl::AnyDataReaderListener;
+use super::data_submessage_handler::DataSubmessageHandler;
 use super::message_receiver::MessageReceiver;
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReaderKind},
@@ -97,7 +99,7 @@ impl DdsShared<SubscriberImpl> {
         parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<DataReaderImpl<ThreadTimer>>>
     where
-        Foo: DdsType,
+        Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         // /////// Build the GUID
         let entity_id = {
@@ -141,8 +143,13 @@ impl DdsShared<SubscriberImpl> {
                 qos,
             )));
 
-            let data_reader_shared =
-                DataReaderImpl::new(rtps_reader, a_topic.clone(), a_listener, self.downgrade());
+            let data_reader_shared = DataReaderImpl::new(
+                rtps_reader,
+                a_topic.clone(),
+                a_listener,
+                self.downgrade(),
+                DataSubmessageHandler::new::<Foo>(),
+            );
 
             self.data_reader_list
                 .write_lock()
@@ -339,7 +346,7 @@ impl DdsShared<SubscriberImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_group.guid().into())
+        Ok(<[u8; 16]>::from(self.rtps_group.guid()).into())
     }
 }
 

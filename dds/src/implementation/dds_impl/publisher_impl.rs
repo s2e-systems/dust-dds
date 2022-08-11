@@ -344,7 +344,7 @@ impl DdsShared<PublisherImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_group.guid().into())
+        Ok(<[u8; 16]>::from(self.rtps_group.guid()).into())
     }
 }
 

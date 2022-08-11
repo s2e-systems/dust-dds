@@ -153,7 +153,7 @@ impl Entity for DdsShared<TopicImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.guid.into())
+        Ok(<[u8; 16]>::from(self.guid).into())
     }
 }
 
@@ -202,7 +202,7 @@ mod tests {
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;
 
-        let expected_instance_handle: [u8; 16] = guid.into();
+        let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
         let instance_handle = topic.get_instance_handle().unwrap();
         assert_eq!(expected_instance_handle, instance_handle);
     }

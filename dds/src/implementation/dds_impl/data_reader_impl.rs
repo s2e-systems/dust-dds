@@ -46,9 +46,9 @@ use crate::{
             QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask,
             StatusMask, SubscriptionMatchedStatus, ViewStateMask, ALIVE_INSTANCE_STATE,
-            DATA_AVAILABLE_STATUS, HANDLE_NIL, HANDLE_NIL_NATIVE, NEW_VIEW_STATE,
-            NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
-            REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
+            DATA_AVAILABLE_STATUS, HANDLE_NIL, NEW_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE,
+            NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE, REQUESTED_DEADLINE_MISSED_STATUS,
+            SUBSCRIPTION_MATCHED_STATUS,
         },
         infrastructure::{
             entity::{Entity, StatusCondition},
@@ -79,9 +79,9 @@ use dds_transport::{
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, subscriber_impl::SubscriberImpl,
-    topic_impl::TopicImpl,
+    data_submessage_handler::DataSubmessageHandler, domain_participant_impl::DomainParticipantImpl,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
 pub trait AnyDataReaderListener {
@@ -209,6 +209,7 @@ pub struct DataReaderImpl<Tim> {
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
+    data_submessage_handler: DataSubmessageHandler,
 }
 
 impl<Tim> DataReaderImpl<Tim>
@@ -220,6 +221,7 @@ where
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         parent_subscriber: DdsWeak<SubscriberImpl>,
+        data_submessage_handler: DataSubmessageHandler,
     ) -> DdsShared<Self> {
         let qos = rtps_reader.reader().get_qos();
         let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
@@ -243,7 +245,7 @@ where
             requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
                 total_count: 0,
                 total_count_change: 0,
-                last_instance_handle: HANDLE_NIL_NATIVE,
+                last_instance_handle: HANDLE_NIL,
             }),
             requested_incompatible_qos_status: DdsRwLock::new(RequestedIncompatibleQosStatus {
                 total_count: 0,
@@ -259,17 +261,18 @@ where
                 total_count: 0,
                 total_count_change: 0,
                 last_reason: SampleRejectedStatusKind::NotRejected,
-                last_instance_handle: HANDLE_NIL_NATIVE,
+                last_instance_handle: HANDLE_NIL,
             }),
             subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus {
                 total_count: 0,
                 total_count_change: 0,
-                last_publication_handle: HANDLE_NIL_NATIVE,
+                last_publication_handle: HANDLE_NIL,
                 current_count: 0,
                 current_count_change: 0,
             }),
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
+            data_submessage_handler,
         })
     }
 }
@@ -309,8 +312,8 @@ fn read_sample<'a, Tim>(
         generation_rank: 0,
         absolute_generation_rank: 0,
         source_timestamp: *cache_change.source_timestamp(),
-        instance_handle: HANDLE_NIL_NATIVE,
-        publication_handle: HANDLE_NIL_NATIVE,
+        instance_handle: HANDLE_NIL,
+        publication_handle: HANDLE_NIL,
         valid_data,
     };
 
@@ -347,7 +350,10 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let a_change = match RtpsReaderCacheChange::try_from((message_receiver, data_submessage)) {
+        let a_change = match self
+            .data_submessage_handler
+            .try_into_reader_cache_change(message_receiver, data_submessage)
+        {
             Ok(a_change) => a_change,
             Err(_) => return,
         };
@@ -363,10 +369,7 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                 if data_reader_id == ENTITYID_UNKNOWN
                     || data_reader_id == stateless_rtps_reader.reader().guid().entity_id()
                 {
-                    stateless_rtps_reader
-                        .reader_mut()
-                        .add_change(a_change)
-                        .ok();
+                    stateless_rtps_reader.reader_mut().add_change(a_change).ok();
                 }
 
                 after_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
@@ -403,18 +406,12 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                                                 .lost_changes_update(a_change.sequence_number());
                                         }
 
-                                        stateful_rtps_reader
-                                            .reader_mut()
-                                            .add_change(a_change)
-                                            .ok();
+                                        stateful_rtps_reader.reader_mut().add_change(a_change).ok();
                                     }
                                 }
                                 ReliabilityQosPolicyKind::ReliableReliabilityQos => {
                                     writer_proxy.received_change_set(a_change.sequence_number());
-                                    stateful_rtps_reader
-                                        .reader_mut()
-                                        .add_change(a_change)
-                                        .ok();
+                                    stateful_rtps_reader.reader_mut().add_change(a_change).ok();
                                 }
                             }
                         }
@@ -542,7 +539,7 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
                 }
                 self.matched_publication_list
                     .write_lock()
-                    .insert(writer_info.key.value, writer_info.clone());
+                    .insert(writer_info.key.value.into(), writer_info.clone());
 
                 // Drop the subscription_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -1148,7 +1145,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_reader.read_lock().reader().guid().into())
+        Ok(<[u8; 16]>::from(self.rtps_reader.read_lock().reader().guid()).into())
     }
 }
 
@@ -1304,7 +1301,7 @@ mod tests {
         let cache_change = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             sn,
             vec![value],
             vec![],
@@ -1346,6 +1343,7 @@ mod tests {
             ),
             None,
             DdsWeak::new(),
+            DataSubmessageHandler::new::<UserData>(),
         );
         *data_reader.enabled.write_lock() = true;
         data_reader
@@ -1465,10 +1463,11 @@ mod tests {
             dummy_topic,
             None,
             DdsWeak::new(),
+            DataSubmessageHandler::new::<UserData>(),
         );
         *data_reader.enabled.write_lock() = true;
 
-        let expected_instance_handle: [u8; 16] = guid.into();
+        let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
         let instance_handle = data_reader.get_instance_handle().unwrap();
         assert_eq!(expected_instance_handle, instance_handle);
     }
@@ -1500,6 +1499,7 @@ mod tests {
             test_topic,
             None,
             parent_subscriber.downgrade(),
+            DataSubmessageHandler::new::<UserData>(),
         );
         *data_reader.enabled.write_lock() = true;
         let publication_builtin_topic_data = PublicationBuiltinTopicData {
@@ -1552,7 +1552,7 @@ mod tests {
 
         let matched_publications = data_reader.get_matched_publications().unwrap();
         assert_eq!(matched_publications.len(), 1);
-        assert_eq!(matched_publications[0], [2; 16]);
+        assert_eq!(matched_publications[0], [2; 16].into());
         let matched_publication_data = data_reader
             .get_matched_publication_data(matched_publications[0])
             .unwrap();
@@ -1589,6 +1589,7 @@ mod tests {
             test_topic,
             None,
             parent_subscriber.downgrade(),
+            DataSubmessageHandler::new::<UserData>(),
         );
         *data_reader.enabled.write_lock() = true;
         let publication_builtin_topic_data = PublicationBuiltinTopicData {

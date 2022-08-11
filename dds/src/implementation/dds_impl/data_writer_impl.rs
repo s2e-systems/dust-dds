@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::TIME_INVALID,
+    dcps_psm::{HANDLE_NIL, TIME_INVALID},
     dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
         reader_locator::RtpsReaderLocator,
@@ -21,7 +21,7 @@ use crate::{
         dcps_psm::{
             BuiltInTopicKey, Duration, InstanceHandle, LivelinessLostStatus,
             OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            QosPolicyCount, StatusMask, Time, HANDLE_NIL_NATIVE, LENGTH_UNLIMITED,
+            QosPolicyCount, StatusMask, Time, LENGTH_UNLIMITED,
         },
         infrastructure::{
             entity::{Entity, StatusCondition},
@@ -84,13 +84,13 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-fn calculate_instance_handle(serialized_key: &[u8]) -> [u8; 16] {
+fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
     if serialized_key.len() <= 16 {
         let mut h = [0; 16];
         h[..serialized_key.len()].clone_from_slice(serialized_key);
-        h
+        h.into()
     } else {
-        md5::compute(serialized_key).into()
+        <[u8; 16]>::from(md5::compute(serialized_key)).into()
     }
 }
 
@@ -98,7 +98,7 @@ fn retrieve_instance_handle(
     handle: Option<InstanceHandle>,
     registered_instance_list: &HashMap<InstanceHandle, Vec<u8>>,
     serialized_key: &[u8],
-) -> DdsResult<[u8; 16]> {
+) -> DdsResult<InstanceHandle> {
     match handle {
         Some(h) => {
             if let Some(stored_key) = registered_instance_list.get(&h) {
@@ -283,7 +283,7 @@ impl DataWriterImpl {
         let publication_matched_status = PublicationMatchedStatus {
             total_count: 0,
             total_count_change: 0,
-            last_subscription_handle: HANDLE_NIL_NATIVE,
+            last_subscription_handle: HANDLE_NIL,
             current_count: 0,
             current_count_change: 0,
         };
@@ -291,7 +291,7 @@ impl DataWriterImpl {
         let offered_deadline_missed_status = OfferedDeadlineMissedStatus {
             total_count: 0,
             total_count_change: 0,
-            last_instance_handle: HANDLE_NIL_NATIVE,
+            last_instance_handle: HANDLE_NIL,
         };
 
         let offered_incompatible_qos_status = OfferedIncompatibleQosStatus {
@@ -460,7 +460,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                 }
                 self.matched_subscription_list
                     .write_lock()
-                    .insert(reader_info.key.value, reader_info.clone());
+                    .insert(reader_info.key.value.into(), reader_info.clone());
 
                 // Drop the publication_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -660,7 +660,7 @@ impl DdsShared<DataWriterImpl> {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         let mut sample_info_lock = self.sample_info.write_lock();
         let change =
-            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], [0; 16]);
+            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], HANDLE_NIL);
         let sequence_number = change.sequence_number();
         rtps_writer_lock.add_change(change);
 
@@ -873,7 +873,7 @@ impl DdsShared<DataWriterImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_writer.read_lock().writer().guid().into())
+        Ok(<[u8; 16]>::from(self.rtps_writer.read_lock().writer().guid()).into())
     }
 }
 
@@ -1487,7 +1487,7 @@ mod test {
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
         assert_eq!(
-            data_writer.get_key_value(&mut keyed_foo, [1; 16]),
+            data_writer.get_key_value(&mut keyed_foo, [1; 16].into()),
             Err(DdsError::BadParameter)
         );
     }
@@ -1577,7 +1577,7 @@ mod test {
 
         let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
         assert_eq!(matched_subscriptions.len(), 1);
-        assert_eq!(matched_subscriptions[0], [2; 16]);
+        assert_eq!(matched_subscriptions[0], [2; 16].into());
         let matched_subscription_data = data_writer
             .get_matched_subscription_data(matched_subscriptions[0])
             .unwrap();

@@ -464,7 +464,10 @@ impl RtpsReaderProxy {
 mod tests {
     use super::*;
 
-    use crate::implementation::rtps::{history_cache::RtpsCacheChange, types::GUID_UNKNOWN};
+    use crate::{
+        dcps_psm::HANDLE_NIL,
+        implementation::rtps::{history_cache::RtpsCacheChange, types::GUID_UNKNOWN},
+    };
 
     fn add_new_change_push_mode_true(
         writer_cache: &mut RtpsHistoryCacheImpl,
@@ -474,7 +477,7 @@ mod tests {
         writer_cache.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             sequence_number,
             vec![],
             vec![],
@@ -494,7 +497,7 @@ mod tests {
         writer_cache.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             sequence_number,
             vec![],
             vec![],

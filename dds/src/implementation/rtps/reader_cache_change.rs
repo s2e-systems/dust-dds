@@ -1,25 +1,12 @@
-use std::convert::TryFrom;
-
 use dds_transport::messages::{
     submessage_elements::{
         EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
         SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
     },
     submessages::DataSubmessage,
-    types::ParameterId,
 };
 
-use crate::{
-    dcps_psm::{InstanceHandle, Time},
-    implementation::{
-        data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
-            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
-        },
-        dds_impl::message_receiver::MessageReceiver,
-    },
-    return_type::DdsError,
-};
+use crate::dcps_psm::{InstanceHandle, Time};
 
 use super::{
     history_cache::RtpsParameter,
@@ -44,73 +31,6 @@ impl PartialEq for RtpsReaderCacheChange {
             && self.writer_guid == other.writer_guid
             && self.sequence_number == other.sequence_number
             && self.instance_handle == other.instance_handle
-    }
-}
-
-impl TryFrom<(&MessageReceiver, &DataSubmessage<'_>)> for RtpsReaderCacheChange {
-    type Error = DdsError;
-
-    fn try_from(value: (&MessageReceiver, &DataSubmessage<'_>)) -> Result<Self, Self::Error> {
-        let (message_receiver, data) = value;
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data.writer_id.value.into(),
-        );
-
-        let instance_handle = [0; 16];
-        let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value.to_vec();
-
-        let inline_qos: Vec<RtpsParameter> = data
-            .inline_qos
-            .parameter
-            .iter()
-            .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
-            .collect();
-
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => Ok(ChangeKind::Alive),
-            (false, true) => {
-                if let Some(p) = inline_qos
-                    .iter()
-                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
-                {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-                    let status_info = serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    match status_info {
-                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
-                        _ => Err(DdsError::PreconditionNotMet(
-                            "Unknown status info value".to_string(),
-                        )),
-                    }
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Missing mandatory StatusInfo parameter".to_string(),
-                    ))
-                }
-            }
-            _ => Err(DdsError::PreconditionNotMet(
-                "Invalid data submessage data and key flag combination".to_string(),
-            )),
-        }?;
-
-        let source_timestamp = if message_receiver.have_timestamp() {
-            Some(message_receiver.timestamp())
-        } else {
-            None
-        };
-
-        Ok(RtpsReaderCacheChange {
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data: data_value,
-            inline_qos,
-            source_timestamp,
-        })
     }
 }
 

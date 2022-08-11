@@ -92,7 +92,7 @@ impl Publisher {
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
                 &THE_PARTICIPANT_FACTORY
-                    .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+                    .lookup_participant_by_entity_handle(self.get_instance_handle()?),
             )
             .map(|x| DataWriterProxy::new(x.downgrade()))
     }
@@ -189,7 +189,7 @@ impl Publisher {
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         let dp = THE_PARTICIPANT_FACTORY
-            .lookup_participant_by_entity_handle(&self.get_instance_handle()?);
+            .lookup_participant_by_entity_handle(self.get_instance_handle()?);
 
         Ok(DomainParticipant::new(dp.downgrade()))
     }
@@ -281,7 +281,7 @@ impl Entity for Publisher {
     fn enable(&self) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
-                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+                .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 

@@ -176,9 +176,12 @@ mod tests {
 
     use dds_transport::types::LOCATOR_INVALID;
 
-    use crate::implementation::rtps::{
-        history_cache::RtpsCacheChange,
-        types::{ChangeKind, GUID_UNKNOWN},
+    use crate::{
+        dcps_psm::HANDLE_NIL,
+        implementation::rtps::{
+            history_cache::RtpsCacheChange,
+            types::{ChangeKind, GUID_UNKNOWN},
+        },
     };
 
     use super::*;
@@ -189,7 +192,7 @@ mod tests {
         hc.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             1,
             vec![],
             vec![],
@@ -197,7 +200,7 @@ mod tests {
         hc.add_change(RtpsCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             2,
             vec![],
             vec![],

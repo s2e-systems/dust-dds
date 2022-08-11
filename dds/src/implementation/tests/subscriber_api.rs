@@ -1,8 +1,8 @@
-use crate::dds_type::DdsType;
+use crate::dds_type::{DdsDeserialize, DdsType};
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
-use crate::return_type::DdsError;
+use crate::return_type::{DdsError, DdsResult};
 use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
 
 struct Foo;
@@ -13,11 +13,23 @@ impl DdsType for Foo {
     }
 }
 
+impl<'de> DdsDeserialize<'de> for Foo {
+    fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
+        todo!()
+    }
+}
+
 struct Bar;
 
 impl DdsType for Bar {
     fn type_name() -> &'static str {
         "Bar"
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for Bar {
+    fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
+        todo!()
     }
 }
 

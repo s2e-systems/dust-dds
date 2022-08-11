@@ -8,3 +8,4 @@ pub mod topic_impl;
 pub mod participant_discovery;
 
 pub mod message_receiver;
+pub mod data_submessage_handler;

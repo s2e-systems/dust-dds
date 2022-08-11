@@ -103,7 +103,7 @@ impl Subscriber {
                 a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
                 &THE_PARTICIPANT_FACTORY
-                    .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+                    .lookup_participant_by_entity_handle(self.get_instance_handle()?),
             )
             .map(|x| DataReader::new(x.downgrade()))
     }
@@ -212,7 +212,7 @@ impl Subscriber {
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         let dp = THE_PARTICIPANT_FACTORY
-            .lookup_participant_by_entity_handle(&self.get_instance_handle()?);
+            .lookup_participant_by_entity_handle(self.get_instance_handle()?);
 
         Ok(DomainParticipant::new(dp.downgrade()))
     }
@@ -314,7 +314,7 @@ impl Entity for Subscriber {
     fn enable(&self) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
-                .lookup_participant_by_entity_handle(&self.get_instance_handle()?),
+                .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 

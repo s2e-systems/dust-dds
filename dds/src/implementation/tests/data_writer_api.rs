@@ -91,7 +91,7 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some([1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        Some([1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into())
     );
 
     let instance_handle = data_writer
@@ -104,7 +104,7 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some([1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        Some([1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into())
     );
 
     let instance_handle = data_writer
@@ -117,10 +117,13 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some([
-            0x50, 0x20, 0x7f, 0xa2, 0x81, 0x4e, 0x81, 0xa0, 0x67, 0xbd, 0x26, 0x62, 0xba, 0x10,
-            0xb0, 0xf1
-        ])
+        Some(
+            [
+                0x50, 0x20, 0x7f, 0xa2, 0x81, 0x4e, 0x81, 0xa0, 0x67, 0xbd, 0x26, 0x62, 0xba, 0x10,
+                0xb0, 0xf1
+            ]
+            .into()
+        )
     );
 }
 
@@ -363,7 +366,7 @@ fn unregister_instance_non_registered_handle() {
         .unwrap();
     let result = data_writer.unregister_instance_w_timestamp(
         &instance,
-        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()),
         TIME_INVALID,
     );
     assert_eq!(result, Err(DdsError::BadParameter));
@@ -406,7 +409,7 @@ fn unregister_instance_not_matching_handle() {
         .unwrap();
     let result = data_writer.unregister_instance_w_timestamp(
         &instance1,
-        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()),
         TIME_INVALID,
     );
     assert_eq!(
@@ -487,7 +490,7 @@ fn dispose_non_registered_handle() {
         .unwrap();
     let result = data_writer.dispose_w_timestamp(
         &instance,
-        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()),
         TIME_INVALID,
     );
     assert_eq!(result, Err(DdsError::BadParameter));
@@ -530,7 +533,7 @@ fn dispose_not_matching_handle() {
         .unwrap();
     let result = data_writer.dispose_w_timestamp(
         &instance1,
-        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        Some([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()),
         TIME_INVALID,
     );
     assert_eq!(
@@ -616,7 +619,7 @@ fn get_key_value_unknown_instance() {
 
     let mut keyed_foo = KeyedFoo { key: vec![] };
     assert_eq!(
-        data_writer.get_key_value(&mut keyed_foo, [1; 16]),
+        data_writer.get_key_value(&mut keyed_foo, [1; 16].into()),
         Err(DdsError::BadParameter)
     );
 }

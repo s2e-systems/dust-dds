@@ -68,7 +68,7 @@ impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChange {
         let (source_guid_prefix, data) = value;
         let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value.into());
 
-        let instance_handle = [0; 16];
+        let instance_handle = [0; 16].into();
         let sequence_number = data.writer_sn.value;
         let data_value = data.serialized_payload.value.to_vec();
 
@@ -257,15 +257,21 @@ impl RtpsHistoryCacheImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::GUID_UNKNOWN;
+    use crate::{dcps_psm::HANDLE_NIL, implementation::rtps::types::GUID_UNKNOWN};
 
     use super::*;
 
     #[test]
     fn remove_change() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change =
-            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
+        let change = RtpsCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            HANDLE_NIL,
+            1,
+            vec![],
+            vec![],
+        );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == 1);
         assert!(hc.changes().is_empty());
@@ -274,10 +280,22 @@ mod tests {
     #[test]
     fn get_seq_num_min() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 =
-            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
-        let change2 =
-            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
+        let change1 = RtpsCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            HANDLE_NIL,
+            1,
+            vec![],
+            vec![],
+        );
+        let change2 = RtpsCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            HANDLE_NIL,
+            2,
+            vec![],
+            vec![],
+        );
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_min(), Some(1));
@@ -286,10 +304,22 @@ mod tests {
     #[test]
     fn get_seq_num_max() {
         let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 =
-            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 1, vec![], vec![]);
-        let change2 =
-            RtpsCacheChange::new(ChangeKind::Alive, GUID_UNKNOWN, [0; 16], 2, vec![], vec![]);
+        let change1 = RtpsCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            HANDLE_NIL,
+            1,
+            vec![],
+            vec![],
+        );
+        let change2 = RtpsCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            HANDLE_NIL,
+            2,
+            vec![],
+            vec![],
+        );
         hc.add_change(change1);
         hc.add_change(change2);
         assert_eq!(hc.get_seq_num_max(), Some(2));

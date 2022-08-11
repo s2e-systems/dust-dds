@@ -312,14 +312,14 @@ impl DomainParticipantFactory {
     /// of the object passed as instance handle.
     pub(crate) fn lookup_participant_by_entity_handle(
         &self,
-        instance_handle: &InstanceHandle,
+        instance_handle: InstanceHandle,
     ) -> DdsShared<DomainParticipantImpl> {
         let participant_list_lock = self.participant_list.lock().unwrap();
         participant_list_lock
             .iter()
             .find(|x| {
                 if let Ok(handle) = x.participant.get_instance_handle() {
-                    handle[0..12] == instance_handle[0..12]
+                    <[u8; 16]>::from(handle)[0..12] == <[u8; 16]>::from(instance_handle)[0..12]
                 } else {
                     false
                 }

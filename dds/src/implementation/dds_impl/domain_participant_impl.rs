@@ -72,6 +72,7 @@ use crate::implementation::{
 
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReaderKind},
+    data_submessage_handler::DataSubmessageHandler,
     data_writer_impl::{DataWriterImpl, RtpsWriterKind},
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
@@ -201,8 +202,8 @@ impl DomainParticipantImpl {
         *self.enabled.read_lock()
     }
 
-    pub fn is_parent(&self, other: &InstanceHandle) -> bool {
-        self.rtps_participant.guid().prefix.0 == other[0..12]
+    pub fn is_parent(&self, other: InstanceHandle) -> bool {
+        self.rtps_participant.guid().prefix.0 == <[u8; 16]>::from(other)[0..12]
     }
 }
 
@@ -264,7 +265,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_publisher(&self, a_publisher: &DdsShared<PublisherImpl>) -> DdsResult<()> {
-        if !self.is_parent(&a_publisher.get_instance_handle().unwrap()) {
+        if !self.is_parent(a_publisher.get_instance_handle().unwrap()) {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant".to_string(),
             ));
@@ -315,7 +316,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &DdsShared<SubscriberImpl>) -> DdsResult<()> {
-        if !self.is_parent(&a_subscriber.get_instance_handle()?) {
+        if !self.is_parent(a_subscriber.get_instance_handle()?) {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant".to_string(),
             ));
@@ -671,7 +672,7 @@ impl Entity for DdsShared<DomainParticipantImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_participant.guid().into())
+        Ok(<[u8; 16]>::from(self.rtps_participant.guid()).into())
     }
 }
 
@@ -790,7 +791,11 @@ impl AddDiscoveredParticipant for DdsShared<DomainParticipantImpl> {
             sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
 
             self.discovered_participant_list.write_lock().insert(
-                discovered_participant_data.dds_participant_data.key.value,
+                discovered_participant_data
+                    .dds_participant_data
+                    .key
+                    .value
+                    .into(),
                 discovered_participant_data.dds_participant_data.clone(),
             );
         }
@@ -935,6 +940,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 spdp_topic_participant.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
+                DataSubmessageHandler::new::<SpdpDiscoveredParticipantData>(),
             );
             spdp_builtin_participant_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1033,6 +1039,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 sedp_topic_publication.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
+                DataSubmessageHandler::new::<DiscoveredReaderData>(),
             );
             sedp_builtin_publications_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1117,6 +1124,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 sedp_topic_subscription.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
+                DataSubmessageHandler::new::<DiscoveredWriterData>(),
             );
             sedp_builtin_subscriptions_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1201,6 +1209,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 sedp_topic_topic.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
+                DataSubmessageHandler::new::<DiscoveredTopicData>(),
             );
             sedp_builtin_topics_data_reader.enable(self)?;
             self.builtin_subscriber

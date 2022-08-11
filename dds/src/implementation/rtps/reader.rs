@@ -193,7 +193,7 @@ impl RtpsReader {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::DURATION_ZERO,
+        dcps_psm::{DURATION_ZERO, HANDLE_NIL},
         implementation::rtps::types::{ChangeKind, GUID_UNKNOWN},
         infrastructure::qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
     };
@@ -215,7 +215,7 @@ mod tests {
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             1,
             vec![1],
             vec![],
@@ -224,7 +224,7 @@ mod tests {
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            HANDLE_NIL,
             2,
             vec![1],
             vec![],
@@ -252,7 +252,7 @@ mod tests {
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             1,
             vec![1],
             vec![],
@@ -261,7 +261,7 @@ mod tests {
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             2,
             vec![1],
             vec![],
@@ -273,7 +273,7 @@ mod tests {
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             1,
             vec![1],
             vec![],
@@ -282,7 +282,7 @@ mod tests {
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             2,
             vec![1],
             vec![],
@@ -311,7 +311,7 @@ mod tests {
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             1,
             vec![1],
             vec![],
@@ -320,7 +320,7 @@ mod tests {
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             2,
             vec![2],
             vec![],
@@ -329,7 +329,7 @@ mod tests {
         let change3 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             3,
             vec![3],
             vec![],
@@ -338,7 +338,7 @@ mod tests {
         let change4 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             4,
             vec![4],
             vec![],
@@ -370,7 +370,7 @@ mod tests {
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             1,
             vec![1],
             vec![],
@@ -379,7 +379,7 @@ mod tests {
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             2,
             vec![1],
             vec![],
@@ -388,7 +388,7 @@ mod tests {
         let change3_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             3,
             vec![1],
             vec![],
@@ -397,7 +397,7 @@ mod tests {
         let change4_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             4,
             vec![1],
             vec![],
@@ -411,7 +411,7 @@ mod tests {
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             1,
             vec![1],
             vec![],
@@ -420,7 +420,7 @@ mod tests {
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             2,
             vec![1],
             vec![],
@@ -429,7 +429,7 @@ mod tests {
         let change3_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             3,
             vec![1],
             vec![],
@@ -438,7 +438,7 @@ mod tests {
         let change4_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             4,
             vec![1],
             vec![],
@@ -478,7 +478,7 @@ mod tests {
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             1,
             vec![1],
             vec![],
@@ -487,7 +487,7 @@ mod tests {
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             2,
             vec![1],
             vec![],
@@ -518,7 +518,7 @@ mod tests {
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16],
+            [0; 16].into(),
             1,
             vec![1],
             vec![],
@@ -527,7 +527,7 @@ mod tests {
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             2,
             vec![1],
             vec![],
@@ -561,7 +561,7 @@ mod tests {
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [1; 16],
+            [1; 16].into(),
             1,
             vec![1],
             vec![],
@@ -570,7 +570,7 @@ mod tests {
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             2,
             vec![1],
             vec![],
@@ -579,7 +579,7 @@ mod tests {
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [2; 16],
+            [2; 16].into(),
             3,
             vec![1],
             vec![],

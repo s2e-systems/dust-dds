@@ -370,7 +370,7 @@ fn domain_participant_get_discovered_participant_data() {
 
     let discovered_participants = domain_participant.get_discovered_participants().unwrap();
     assert_eq!(discovered_participants.len(), 1);
-    assert_eq!(discovered_participants[0], [2; 16]);
+    assert_eq!(discovered_participants[0], [2; 16].into());
 
     let discovered_participant_data = domain_participant
         .get_discovered_participant_data(discovered_participants[0])

@@ -1,10 +1,25 @@
 pub type DomainIdTypeNative = i32;
-pub type HandleTypeNative = [u8; 16]; // Originally in the DDS idl i32
-pub const HANDLE_NIL_NATIVE: HandleTypeNative = [0; 16];
+type HandleTypeNative = [u8; 16]; // Originally in the DDS idl i32
+const HANDLE_NIL_NATIVE: HandleTypeNative = [0; 16];
+
 pub type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
 
 pub type DomainId = DomainIdTypeNative;
-pub type InstanceHandle = HandleTypeNative;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct InstanceHandle(HandleTypeNative);
+
+impl From<[u8; 16]> for InstanceHandle {
+    fn from(x: [u8; 16]) -> Self {
+        Self(x)
+    }
+}
+
+impl From<InstanceHandle> for [u8; 16] {
+    fn from(this: InstanceHandle) -> Self {
+        this.0
+    }
+}
 
 #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BuiltInTopicKey {
@@ -64,7 +79,7 @@ impl From<u64> for Time {
 // ----------------------------------------------------------------------
 // Pre-defined values
 // ----------------------------------------------------------------------
-pub const HANDLE_NIL: InstanceHandle = HANDLE_NIL_NATIVE;
+pub const HANDLE_NIL: InstanceHandle = InstanceHandle(HANDLE_NIL_NATIVE);
 pub const LENGTH_UNLIMITED: i32 = -1;
 
 pub const DURATION_INFINITE: Duration = Duration {
