@@ -11,7 +11,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     reader_cache_change::RtpsReaderCacheChange,
-    types::{Guid, SequenceNumber, TopicKind},
+    types::{ChangeKind, Guid, SequenceNumber, TopicKind},
 };
 
 struct ReaderHistoryCache {
@@ -94,12 +94,17 @@ impl RtpsReader {
     }
 
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
-        if self.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS {
+        if self.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS
+            && change.kind() == ChangeKind::Alive
+        {
             let num_instance_samples = self
                 .reader_cache
                 .changes
                 .iter()
-                .filter(|cc| cc.instance_handle() == change.instance_handle())
+                .filter(|cc| {
+                    cc.instance_handle() == change.instance_handle()
+                        && cc.kind() == ChangeKind::Alive
+                })
                 .count() as i32;
 
             if num_instance_samples >= self.qos.history.depth {
@@ -109,7 +114,10 @@ impl RtpsReader {
                     .reader_cache
                     .changes
                     .iter()
-                    .filter(|cc| cc.instance_handle() == change.instance_handle())
+                    .filter(|cc| {
+                        cc.instance_handle() == change.instance_handle()
+                            && cc.kind() == ChangeKind::Alive
+                    })
                     .map(|cc| cc.sequence_number())
                     .min()
                     .expect("If there are samples there must be a min sequence number");

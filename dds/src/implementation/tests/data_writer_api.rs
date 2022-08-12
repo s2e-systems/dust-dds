@@ -91,7 +91,7 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some([1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into())
+        [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()
     );
 
     let instance_handle = data_writer
@@ -104,7 +104,7 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some([1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into())
+        [1, 2, 3, 4, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()
     );
 
     let instance_handle = data_writer
@@ -117,13 +117,11 @@ fn register_instance_w_timestamp_different_keys() {
         .unwrap();
     assert_eq!(
         instance_handle,
-        Some(
-            [
-                0x50, 0x20, 0x7f, 0xa2, 0x81, 0x4e, 0x81, 0xa0, 0x67, 0xbd, 0x26, 0x62, 0xba, 0x10,
-                0xb0, 0xf1
-            ]
-            .into()
-        )
+        [
+            0x50, 0x20, 0x7f, 0xa2, 0x81, 0x4e, 0x81, 0xa0, 0x67, 0xbd, 0x26, 0x62, 0xba, 0x10,
+            0xb0, 0xf1
+        ]
+        .into()
     );
 }
 
@@ -158,7 +156,7 @@ fn register_instance_w_timestamp_no_key() {
     let instance_handle = data_writer
         .register_instance_w_timestamp(&Foo {}, TIME_INVALID)
         .unwrap();
-    assert_eq!(instance_handle, None);
+    assert_eq!(instance_handle, [0; 16].into());
 }
 
 #[test]
@@ -254,7 +252,7 @@ fn lookup_instance() {
 
     assert_eq!(
         data_writer.lookup_instance(&instance1),
-        Ok(instance_handle1)
+        Ok(Some(instance_handle1))
     );
     assert_eq!(data_writer.lookup_instance(&instance2), Ok(None));
 }
@@ -574,7 +572,6 @@ fn get_key_value_known_instance() {
 
     let instance_handle = data_writer
         .register_instance_w_timestamp(&KeyedFoo { key: vec![1, 2] }, Time { sec: 0, nanosec: 0 })
-        .unwrap()
         .unwrap();
 
     let mut keyed_foo = KeyedFoo { key: vec![] };
@@ -614,7 +611,6 @@ fn get_key_value_unknown_instance() {
 
     data_writer
         .register_instance_w_timestamp(&KeyedFoo { key: vec![1, 2] }, Time { sec: 0, nanosec: 0 })
-        .unwrap()
         .unwrap();
 
     let mut keyed_foo = KeyedFoo { key: vec![] };

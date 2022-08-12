@@ -76,7 +76,7 @@ where
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    pub fn register_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
+    pub fn register_instance(&self, instance: &Foo) -> DdsResult<InstanceHandle> {
         let timestamp = self
             .get_publisher()?
             .get_participant()?
@@ -97,7 +97,7 @@ where
         &self,
         instance: &Foo,
         timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>> {
+    ) -> DdsResult<InstanceHandle> {
         self.data_writer_attributes
             .upgrade()?
             .register_instance_w_timestamp(instance, timestamp)

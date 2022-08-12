@@ -519,7 +519,7 @@ impl DdsShared<DataWriterImpl> {
         &self,
         instance: &Foo,
         _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
+    ) -> DdsResult<InstanceHandle>
     where
         Foo: DdsType + DdsSerialize,
     {
@@ -527,35 +527,31 @@ impl DdsShared<DataWriterImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        if Foo::has_key() {
-            let serialized_key = instance.get_serialized_key::<LittleEndian>();
-            let instance_handle = calculate_instance_handle(&serialized_key);
+        let serialized_key = instance.get_serialized_key::<LittleEndian>();
+        let instance_handle = calculate_instance_handle(&serialized_key);
 
-            let mut registered_instances_lock = self.registered_instance_list.write_lock();
-            let rtps_writer_lock = self.rtps_writer.read_lock();
-            if !registered_instances_lock.contains_key(&instance_handle) {
-                if rtps_writer_lock
-                    .writer()
-                    .get_qos()
-                    .resource_limits
-                    .max_instances
-                    == LENGTH_UNLIMITED
-                    || (registered_instances_lock.len() as i32)
-                        < rtps_writer_lock
-                            .writer()
-                            .get_qos()
-                            .resource_limits
-                            .max_instances
-                {
-                    registered_instances_lock.insert(instance_handle, serialized_key);
-                } else {
-                    return Err(DdsError::OutOfResources);
-                }
+        let mut registered_instances_lock = self.registered_instance_list.write_lock();
+        let rtps_writer_lock = self.rtps_writer.read_lock();
+        if !registered_instances_lock.contains_key(&instance_handle) {
+            if rtps_writer_lock
+                .writer()
+                .get_qos()
+                .resource_limits
+                .max_instances
+                == LENGTH_UNLIMITED
+                || (registered_instances_lock.len() as i32)
+                    < rtps_writer_lock
+                        .writer()
+                        .get_qos()
+                        .resource_limits
+                        .max_instances
+            {
+                registered_instances_lock.insert(instance_handle, serialized_key);
+            } else {
+                return Err(DdsError::OutOfResources);
             }
-            Ok(Some(instance_handle))
-        } else {
-            Ok(None)
         }
+        Ok(instance_handle)
     }
 
     pub fn unregister_instance_w_timestamp<Foo>(
@@ -595,9 +591,13 @@ impl DdsShared<DataWriterImpl> {
                 serialized_status_info,
             )];
 
+            // Hardcoded CDR header to satisfy wireshark
+            let mut data = vec![0, 1, 0, 0];
+            data.extend(serialized_key);
+
             let change = rtps_writer_lock.new_change(
                 ChangeKind::NotAliveUnregistered,
-                serialized_key,
+                data,
                 inline_qos,
                 instance_handle,
             );
@@ -657,10 +657,11 @@ impl DdsShared<DataWriterImpl> {
 
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+        let handle = self.register_instance_w_timestamp(data, timestamp)?;
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         let mut sample_info_lock = self.sample_info.write_lock();
         let change =
-            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], HANDLE_NIL);
+            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], handle);
         let sequence_number = change.sequence_number();
         rtps_writer_lock.add_change(change);
 
@@ -706,9 +707,12 @@ impl DdsShared<DataWriterImpl> {
                 serialized_status_info,
             )];
 
+            // Hardcoded CDR header to satisfy wireshark
+            let mut data = vec![0, 1, 0, 0];
+            data.extend(serialized_key);
             let change = rtps_writer_lock.new_change(
                 ChangeKind::NotAliveDisposed,
-                serialized_key,
+                data,
                 inline_qos,
                 instance_handle,
             );
@@ -1340,10 +1344,12 @@ mod test {
                         parameter: vec![Parameter {
                             parameter_id: PID_STATUS_INFO,
                             length: 4,
-                            value: &[2, 0, 0, 0],
+                            value: &[0, 0, 0, 2],
                         }],
                     },
-                    serialized_payload: SerializedDataSubmessageElement { value: &[1] },
+                    serialized_payload: SerializedDataSubmessageElement {
+                        value: &[0, 1, 0, 0, 1],
+                    },
                 }),
             ],
         };
@@ -1437,10 +1443,12 @@ mod test {
                         parameter: vec![Parameter {
                             parameter_id: PID_STATUS_INFO,
                             length: 4,
-                            value: &[1, 0, 0, 0],
+                            value: &[0, 0, 0, 1],
                         }],
                     },
-                    serialized_payload: SerializedDataSubmessageElement { value: &[1] },
+                    serialized_payload: SerializedDataSubmessageElement {
+                        value: &[0, 1, 0, 0, 1],
+                    },
                 }),
             ],
         };
@@ -1463,7 +1471,6 @@ mod test {
                 &MockKeyedFoo { key: vec![1, 2] },
                 Time { sec: 0, nanosec: 0 },
             )
-            .unwrap()
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
@@ -1482,7 +1489,6 @@ mod test {
                 &MockKeyedFoo { key: vec![1, 2] },
                 Time { sec: 0, nanosec: 0 },
             )
-            .unwrap()
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
