@@ -1079,7 +1079,7 @@ where
             absolute_generation_rank: 0,
             source_timestamp: *cache_change.source_timestamp(),
             instance_handle: cache_change.instance_handle(),
-            publication_handle: HANDLE_NIL,
+            publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
             valid_data,
         };
 

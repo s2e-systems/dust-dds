@@ -273,3 +273,56 @@ fn data_reader_order_by_source_timestamp() {
     assert_eq!(&samples[1].data, &Some(UserData(2)));
     assert_eq!(&samples[2].data, &Some(UserData(1)));
 }
+
+#[test]
+fn data_reader_publication_handle_sample_info() {
+    let domain_id = 11;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+    let topic1 = participant1
+        .create_topic::<UserData>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let participant2 = participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+    let topic2 = participant2
+        .create_topic::<UserData>("MyTopic", None, None, 0)
+        .unwrap();
+
+    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+
+    let data_writer = publisher.create_datawriter(&topic1, None, None, 0).unwrap();
+
+    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
+
+    let data_reader = subscriber
+        .create_datareader(&topic2, None, None, 0)
+        .unwrap();
+
+    //Wait for reader to be aware of the user writer
+    while data_reader
+        .get_subscription_matched_status()
+        .unwrap()
+        .total_count
+        < 1
+    {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    data_writer.write(&UserData(1), None).unwrap();
+
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+
+    let samples = data_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert!(data_reader
+        .get_matched_publication_data(samples[0].sample_info.publication_handle)
+        .is_ok());
+}
