@@ -72,7 +72,6 @@ use crate::implementation::{
 
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReaderKind},
-    data_submessage_handler::DataSubmessageHandler,
     data_writer_impl::{DataWriterImpl, RtpsWriterKind},
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
@@ -916,31 +915,31 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
 
             let unicast_locator_list = &[];
             let multicast_locator_list = &[];
-            let spdp_builtin_participant_rtps_reader = RtpsStatelessReader::new(RtpsReader::new(
-                RtpsEndpoint::new(
-                    spdp_builtin_participant_reader_guid,
-                    TopicKind::WithKey,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                false,
-                DataReaderQos {
-                    history: HistoryQosPolicy {
-                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                        depth: 0,
+            let spdp_builtin_participant_rtps_reader =
+                RtpsStatelessReader::new(RtpsReader::new::<SpdpDiscoveredParticipantData>(
+                    RtpsEndpoint::new(
+                        spdp_builtin_participant_reader_guid,
+                        TopicKind::WithKey,
+                        unicast_locator_list,
+                        multicast_locator_list,
+                    ),
+                    DURATION_ZERO,
+                    DURATION_ZERO,
+                    false,
+                    DataReaderQos {
+                        history: HistoryQosPolicy {
+                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            depth: 0,
+                        },
+                        ..Default::default()
                     },
-                    ..Default::default()
-                },
-            ));
+                ));
 
             let spdp_builtin_participant_data_reader = DataReaderImpl::new(
                 RtpsReaderKind::Stateless(spdp_builtin_participant_rtps_reader),
                 spdp_topic_participant.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
-                DataSubmessageHandler::new::<SpdpDiscoveredParticipantData>(),
             );
             spdp_builtin_participant_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1011,35 +1010,35 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             let expects_inline_qos = false;
             let unicast_locator_list = &[];
             let multicast_locator_list = &[];
-            let sedp_builtin_publications_rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                heartbeat_response_delay,
-                heartbeat_suppression_duration,
-                expects_inline_qos,
-                DataReaderQos {
-                    history: HistoryQosPolicy {
-                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                        depth: 0,
+            let sedp_builtin_publications_rtps_reader =
+                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredReaderData>(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        unicast_locator_list,
+                        multicast_locator_list,
+                    ),
+                    heartbeat_response_delay,
+                    heartbeat_suppression_duration,
+                    expects_inline_qos,
+                    DataReaderQos {
+                        history: HistoryQosPolicy {
+                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            depth: 0,
+                        },
+                        reliability: ReliabilityQosPolicy {
+                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            max_blocking_time: DURATION_ZERO,
+                        },
+                        ..Default::default()
                     },
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                        max_blocking_time: DURATION_ZERO,
-                    },
-                    ..Default::default()
-                },
-            ));
+                ));
 
             let sedp_builtin_publications_data_reader = DataReaderImpl::new(
                 RtpsReaderKind::Stateful(sedp_builtin_publications_rtps_reader),
                 sedp_topic_publication.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
-                DataSubmessageHandler::new::<DiscoveredReaderData>(),
             );
             sedp_builtin_publications_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1096,35 +1095,35 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             let expects_inline_qos = false;
             let unicast_locator_list = &[];
             let multicast_locator_list = &[];
-            let sedp_builtin_subscriptions_rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                heartbeat_response_delay,
-                heartbeat_suppression_duration,
-                expects_inline_qos,
-                DataReaderQos {
-                    history: HistoryQosPolicy {
-                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                        depth: 0,
+            let sedp_builtin_subscriptions_rtps_reader =
+                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredWriterData>(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        unicast_locator_list,
+                        multicast_locator_list,
+                    ),
+                    heartbeat_response_delay,
+                    heartbeat_suppression_duration,
+                    expects_inline_qos,
+                    DataReaderQos {
+                        history: HistoryQosPolicy {
+                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            depth: 0,
+                        },
+                        reliability: ReliabilityQosPolicy {
+                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            max_blocking_time: DURATION_ZERO,
+                        },
+                        ..Default::default()
                     },
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                        max_blocking_time: DURATION_ZERO,
-                    },
-                    ..Default::default()
-                },
-            ));
+                ));
 
             let sedp_builtin_subscriptions_data_reader = DataReaderImpl::new(
                 RtpsReaderKind::Stateful(sedp_builtin_subscriptions_rtps_reader),
                 sedp_topic_subscription.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
-                DataSubmessageHandler::new::<DiscoveredWriterData>(),
             );
             sedp_builtin_subscriptions_data_reader.enable(self)?;
             self.builtin_subscriber
@@ -1181,35 +1180,35 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
             let expects_inline_qos = false;
             let unicast_locator_list = &[];
             let multicast_locator_list = &[];
-            let sedp_builtin_topics_rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                heartbeat_response_delay,
-                heartbeat_suppression_duration,
-                expects_inline_qos,
-                DataReaderQos {
-                    history: HistoryQosPolicy {
-                        kind: HistoryQosPolicyKind::KeepAllHistoryQos,
-                        depth: 0,
+            let sedp_builtin_topics_rtps_reader =
+                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredTopicData>(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        unicast_locator_list,
+                        multicast_locator_list,
+                    ),
+                    heartbeat_response_delay,
+                    heartbeat_suppression_duration,
+                    expects_inline_qos,
+                    DataReaderQos {
+                        history: HistoryQosPolicy {
+                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            depth: 0,
+                        },
+                        reliability: ReliabilityQosPolicy {
+                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            max_blocking_time: DURATION_ZERO,
+                        },
+                        ..Default::default()
                     },
-                    reliability: ReliabilityQosPolicy {
-                        kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                        max_blocking_time: DURATION_ZERO,
-                    },
-                    ..Default::default()
-                },
-            ));
+                ));
 
             let sedp_builtin_topics_data_reader = DataReaderImpl::new(
                 RtpsReaderKind::Stateful(sedp_builtin_topics_rtps_reader),
                 sedp_topic_topic.clone(),
                 None,
                 self.builtin_subscriber.downgrade(),
-                DataSubmessageHandler::new::<DiscoveredTopicData>(),
             );
             sedp_builtin_topics_data_reader.enable(self)?;
             self.builtin_subscriber

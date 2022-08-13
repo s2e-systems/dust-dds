@@ -1,16 +1,8 @@
-use dds_transport::messages::{
-    submessage_elements::{
-        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-    },
-    submessages::DataSubmessage,
-};
-
-use crate::dcps_psm::{InstanceHandle, Time};
+use crate::dcps_psm::{InstanceHandle, Time, ViewStateKind};
 
 use super::{
     history_cache::RtpsParameter,
-    types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Guid, SequenceNumber},
 };
 
 #[derive(Debug, Clone)]
@@ -23,6 +15,7 @@ pub struct RtpsReaderCacheChange {
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
+    view_state: ViewStateKind,
 }
 
 impl PartialEq for RtpsReaderCacheChange {
@@ -34,55 +27,8 @@ impl PartialEq for RtpsReaderCacheChange {
     }
 }
 
-impl<'a> From<&'a RtpsReaderCacheChange> for DataSubmessage<'a> {
-    fn from(val: &'a RtpsReaderCacheChange) -> Self {
-        let endianness_flag = true;
-        let inline_qos_flag = true;
-        let (data_flag, key_flag) = match val.kind() {
-            ChangeKind::Alive => (true, false),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
-            _ => todo!(),
-        };
-        let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN.into(),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: val.writer_guid().entity_id().into(),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: val.sequence_number(),
-        };
-        let inline_qos = ParameterListSubmessageElement {
-            parameter: val
-                .inline_qos()
-                .iter()
-                .map(|p| Parameter {
-                    parameter_id: p.parameter_id().0,
-                    length: p.value().len() as i16,
-                    value: p.value(),
-                })
-                .collect(),
-        };
-        let serialized_payload = SerializedDataSubmessageElement {
-            value: val.data_value(),
-        };
-        DataSubmessage {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
-    }
-}
-
 impl RtpsReaderCacheChange {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         kind: ChangeKind,
         writer_guid: Guid,
@@ -91,6 +37,7 @@ impl RtpsReaderCacheChange {
         data_value: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         source_timestamp: Option<Time>,
+        view_state: ViewStateKind,
     ) -> Self {
         Self {
             kind,
@@ -100,6 +47,7 @@ impl RtpsReaderCacheChange {
             data: data_value,
             inline_qos,
             source_timestamp,
+            view_state,
         }
     }
 
@@ -129,5 +77,9 @@ impl RtpsReaderCacheChange {
 
     pub fn source_timestamp(&self) -> &Option<Time> {
         &self.source_timestamp
+    }
+
+    pub fn view_state(&self) -> ViewStateKind {
+        self.view_state
     }
 }

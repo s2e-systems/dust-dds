@@ -34,7 +34,6 @@ use crate::implementation::{
 };
 
 use super::data_reader_impl::AnyDataReaderListener;
-use super::data_submessage_handler::DataSubmessageHandler;
 use super::message_receiver::MessageReceiver;
 use super::{
     data_reader_impl::{DataReaderImpl, RtpsReaderKind},
@@ -130,26 +129,22 @@ impl DdsShared<SubscriberImpl> {
                 false => TopicKind::NoKey,
             };
 
-            let rtps_reader = RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    parent_participant.default_unicast_locator_list(),
-                    parent_participant.default_multicast_locator_list(),
-                ),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                false,
-                qos,
-            )));
+            let rtps_reader =
+                RtpsReaderKind::Stateful(RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+                    RtpsEndpoint::new(
+                        guid,
+                        topic_kind,
+                        parent_participant.default_unicast_locator_list(),
+                        parent_participant.default_multicast_locator_list(),
+                    ),
+                    DURATION_ZERO,
+                    DURATION_ZERO,
+                    false,
+                    qos,
+                )));
 
-            let data_reader_shared = DataReaderImpl::new(
-                rtps_reader,
-                a_topic.clone(),
-                a_listener,
-                self.downgrade(),
-                DataSubmessageHandler::new::<Foo>(),
-            );
+            let data_reader_shared =
+                DataReaderImpl::new(rtps_reader, a_topic.clone(), a_listener, self.downgrade());
 
             self.data_reader_list
                 .write_lock()

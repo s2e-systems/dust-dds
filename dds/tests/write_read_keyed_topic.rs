@@ -1,7 +1,7 @@
 use dds::{
     dcps_psm::{
-        ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-        NOT_ALIVE_DISPOSED_INSTANCE_STATE,
+        ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NEW_VIEW_STATE,
+        NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
     },
     dds_type::{DdsSerde, DdsType, Endianness},
     domain::domain_participant_factory::{DdsDomainParticipantFactory, DomainParticipantFactory},
@@ -36,7 +36,7 @@ impl DdsType for KeyedData {
 impl DdsSerde for KeyedData {}
 
 #[test]
-fn write_read_keyed_topic() {
+fn write_read_keyed_topic_keep_last_one() {
     let domain_id = 20;
     let participant_factory = DomainParticipantFactory::get_instance();
 
@@ -68,10 +68,12 @@ fn write_read_keyed_topic() {
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
-    let data1 = KeyedData { id: 1, value: 1 };
+    let data1_1 = KeyedData { id: 1, value: 1 };
+    let data1_2 = KeyedData { id: 1, value: 2 };
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
-    writer.write(&data1, None).unwrap();
+    writer.write(&data1_1, None).unwrap();
+    writer.write(&data1_2, None).unwrap();
     writer.write(&data2, None).unwrap();
     writer.write(&data3, None).unwrap();
 
@@ -82,23 +84,26 @@ fn write_read_keyed_topic() {
         .unwrap();
 
     assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_2);
     assert_eq!(
         samples[0].sample_info.instance_handle,
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()
     );
+    assert_eq!(samples[0].sample_info.view_state, NOT_NEW_VIEW_STATE);
 
     assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
     assert_eq!(
         samples[1].sample_info.instance_handle,
         [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()
     );
+    assert_eq!(samples[1].sample_info.view_state, NEW_VIEW_STATE);
 
     assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
     assert_eq!(
         samples[2].sample_info.instance_handle,
         [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].into()
     );
+    assert_eq!(samples[2].sample_info.view_state, NEW_VIEW_STATE);
 }
 
 #[test]

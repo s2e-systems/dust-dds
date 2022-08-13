@@ -1,18 +1,40 @@
 use std::collections::HashSet;
 
-use dds_transport::types::Locator;
+use dds_transport::{
+    messages::{submessages::DataSubmessage, types::ParameterId},
+    types::Locator,
+};
 
 use crate::{
-    dcps_psm::{Duration, LENGTH_UNLIMITED},
+    dcps_psm::{Duration, InstanceHandle, LENGTH_UNLIMITED, NEW_VIEW_STATE, NOT_NEW_VIEW_STATE},
+    dds_type::{DdsDeserialize, DdsType, LittleEndian},
+    implementation::{
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+        },
+        dds_impl::message_receiver::MessageReceiver,
+    },
     infrastructure::{qos::DataReaderQos, qos_policy::HistoryQosPolicyKind},
     return_type::{DdsError, DdsResult},
 };
 
 use super::{
     endpoint::RtpsEndpoint,
+    history_cache::RtpsParameter,
     reader_cache_change::RtpsReaderCacheChange,
     types::{ChangeKind, Guid, SequenceNumber, TopicKind},
 };
+
+fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
+    if serialized_key.len() <= 16 {
+        let mut h = [0; 16];
+        h[..serialized_key.len()].clone_from_slice(serialized_key);
+        h.into()
+    } else {
+        <[u8; 16]>::from(md5::compute(serialized_key)).into()
+    }
+}
 
 struct ReaderHistoryCache {
     changes: Vec<RtpsReaderCacheChange>,
@@ -33,16 +55,29 @@ pub struct RtpsReader {
     reader_cache: ReaderHistoryCache,
     expects_inline_qos: bool,
     qos: DataReaderQos,
+    serialized_data_to_key_func: fn(&[u8]) -> DdsResult<Vec<u8>>,
 }
 
 impl RtpsReader {
-    pub fn new(
+    pub fn new<T>(
         endpoint: RtpsEndpoint,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
-    ) -> Self {
+    ) -> Self
+    where
+        T: for<'de> DdsDeserialize<'de> + DdsType,
+    {
+        // Create a function that deserializes the data and gets the key for the type
+        // without having to store the actual type intermediatelly to avoid generics
+        fn serialized_data_to_key_func<T>(mut buf: &[u8]) -> DdsResult<Vec<u8>>
+        where
+            T: for<'de> DdsDeserialize<'de> + DdsType,
+        {
+            Ok(T::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
+        }
+
         Self {
             endpoint,
             heartbeat_response_delay,
@@ -50,7 +85,84 @@ impl RtpsReader {
             reader_cache: ReaderHistoryCache::new(),
             expects_inline_qos,
             qos,
+            serialized_data_to_key_func: serialized_data_to_key_func::<T>,
         }
+    }
+
+    pub fn try_into_reader_cache_change(
+        &self,
+        message_receiver: &MessageReceiver,
+        data: &DataSubmessage<'_>,
+    ) -> DdsResult<RtpsReaderCacheChange> {
+        let writer_guid = Guid::new(
+            message_receiver.source_guid_prefix(),
+            data.writer_id.value.into(),
+        );
+
+        let instance_handle = calculate_instance_handle(
+            (self.serialized_data_to_key_func)(data.serialized_payload.value)?.as_ref(),
+        );
+        let sequence_number = data.writer_sn.value;
+        let data_value = data.serialized_payload.value.to_vec();
+
+        let inline_qos: Vec<RtpsParameter> = data
+            .inline_qos
+            .parameter
+            .iter()
+            .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
+            .collect();
+
+        let kind = match (data.data_flag, data.key_flag) {
+            (true, false) => Ok(ChangeKind::Alive),
+            (false, true) => {
+                if let Some(p) = inline_qos
+                    .iter()
+                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+                {
+                    let mut deserializer =
+                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+                    let status_info = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    match status_info {
+                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
+                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                        _ => Err(DdsError::PreconditionNotMet(
+                            "Unknown status info value".to_string(),
+                        )),
+                    }
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Missing mandatory StatusInfo parameter".to_string(),
+                    ))
+                }
+            }
+            _ => Err(DdsError::PreconditionNotMet(
+                "Invalid data submessage data and key flag combination".to_string(),
+            )),
+        }?;
+
+        let source_timestamp = if message_receiver.have_timestamp() {
+            Some(message_receiver.timestamp())
+        } else {
+            None
+        };
+
+        let view_state = self
+            .reader_cache
+            .changes
+            .iter()
+            .find(|cc| cc.instance_handle() == instance_handle)
+            .map_or(NEW_VIEW_STATE, |_| NOT_NEW_VIEW_STATE);
+
+        Ok(RtpsReaderCacheChange::new(
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+            source_timestamp,
+            view_state,
+        ))
     }
 }
 
@@ -89,6 +201,19 @@ impl RtpsReader {
 }
 
 impl RtpsReader {
+    pub fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) {
+        let a_change = match self.try_into_reader_cache_change(message_receiver, data_submessage) {
+            Ok(a_change) => a_change,
+            Err(_) => return,
+        };
+
+        self.add_change(a_change).ok();
+    }
+
     pub fn changes(&self) -> &[RtpsReaderCacheChange] {
         self.reader_cache.changes.as_ref()
     }
@@ -208,6 +333,20 @@ mod tests {
 
     use super::*;
 
+    struct MockType;
+
+    impl DdsType for MockType {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+    }
+
+    impl<'de> DdsDeserialize<'de> for MockType {
+        fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
+            todo!()
+        }
+    }
+
     #[test]
     fn reader_no_key_add_change_keep_last_1() {
         let qos = DataReaderQos {
@@ -218,7 +357,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -228,6 +368,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -237,6 +378,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
         reader.add_change(change2.clone()).unwrap();
@@ -255,7 +397,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -265,6 +408,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -274,6 +418,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change2_instance1.clone()).unwrap();
@@ -286,6 +431,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -295,6 +441,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance2).unwrap();
         reader.add_change(change2_instance2.clone()).unwrap();
@@ -314,7 +461,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -324,6 +472,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -333,6 +482,7 @@ mod tests {
             vec![2],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change3 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -342,6 +492,7 @@ mod tests {
             vec![3],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change4 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -351,6 +502,7 @@ mod tests {
             vec![4],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
         reader.add_change(change2.clone()).unwrap();
@@ -373,7 +525,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -383,6 +536,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -392,6 +546,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change3_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -401,6 +556,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change4_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -410,6 +566,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change2_instance1.clone()).unwrap();
@@ -424,6 +581,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -433,6 +591,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change3_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -442,6 +601,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change4_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -451,6 +611,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance2).unwrap();
         reader.add_change(change2_instance2.clone()).unwrap();
@@ -481,7 +642,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -491,6 +653,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -500,6 +663,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
 
@@ -521,7 +685,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -531,6 +696,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -540,6 +706,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
 
@@ -564,7 +731,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader =
+            RtpsReader::new::<MockType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let change1_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -574,6 +742,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -583,6 +752,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -592,6 +762,7 @@ mod tests {
             vec![1],
             vec![],
             None,
+            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change1_instance2).unwrap();
