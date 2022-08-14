@@ -1,7 +1,9 @@
 use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsDeserialize;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
+use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
+use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
     EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
 };
@@ -22,7 +24,6 @@ use crate::{
         },
     },
 };
-use dds_transport::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
@@ -40,8 +41,6 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
-
-use dds_transport::TransportWrite;
 
 pub struct SubscriberImpl {
     qos: DdsRwLock<SubscriberQos>,

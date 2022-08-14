@@ -2,9 +2,12 @@ use std::sync::Mutex;
 
 use crate::{
     dcps_psm::{DomainId, InstanceHandle, StatusMask},
-    implementation::rtps::{
-        participant::RtpsParticipant,
-        types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+    implementation::{
+        rtps::{
+            participant::RtpsParticipant,
+            types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+        },
+        rtps_udp_psm::udp_transport::RtpsUdpPsm,
     },
     infrastructure::{
         entity::Entity,
@@ -25,7 +28,6 @@ use crate::{
 };
 
 use lazy_static::lazy_static;
-use rtps_udp_psm::udp_transport::RtpsUdpPsm;
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 
@@ -167,7 +169,7 @@ pub struct DomainParticipantFactory {
     participant_list: Mutex<Vec<ParticipantManager>>,
 }
 
-pub trait DdsDomainParticipantFactory<T = RtpsUdpPsm> {
+impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
@@ -176,17 +178,7 @@ pub trait DdsDomainParticipantFactory<T = RtpsUdpPsm> {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_participant(
-        &self,
-        domain_id: DomainId,
-        qos: Option<DomainParticipantQos>,
-        _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: StatusMask,
-    ) -> DdsResult<DomainParticipant>;
-}
-
-impl DdsDomainParticipantFactory for DomainParticipantFactory {
-    fn create_participant(
+    pub fn create_participant(
         &self,
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
@@ -234,9 +226,7 @@ impl DdsDomainParticipantFactory for DomainParticipantFactory {
 
         Ok(participant_proxy)
     }
-}
 
-impl DomainParticipantFactory {
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
     /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.

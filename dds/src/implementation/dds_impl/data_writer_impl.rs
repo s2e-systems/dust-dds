@@ -8,8 +8,19 @@ use crate::{
     dcps_psm::{HANDLE_NIL, TIME_INVALID},
     dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
+        messages::{
+            overall_structure::RtpsMessageHeader,
+            submessage_elements::{
+                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+                TimestampSubmessageElement, VendorIdSubmessageElement,
+            },
+            submessages::{AckNackSubmessage, InfoTimestampSubmessage},
+            types::{ParameterId, ProtocolId},
+            RtpsMessage, RtpsSubmessageType,
+        },
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
+        transport::TransportWrite,
         types::{ChangeKind, EntityId, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
         writer::RtpsWriter,
     },
@@ -52,19 +63,6 @@ use crate::{
     publication::data_writer_listener::DataWriterListener,
 };
 
-use dds_transport::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::{
-            GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-            TimestampSubmessageElement, VendorIdSubmessageElement,
-        },
-        submessages::{AckNackSubmessage, InfoTimestampSubmessage},
-        types::{ParameterId, ProtocolId},
-        RtpsMessage, RtpsSubmessageType,
-    },
-    TransportWrite,
-};
 use serde::Serialize;
 
 use crate::implementation::{
@@ -1047,9 +1045,16 @@ mod test {
         dds_type::Endianness,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
+            messages::{
+                submessage_elements::{
+                    EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+                    SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                },
+                submessages::DataSubmessage,
+            },
             types::{
-                Guid, GuidPrefix, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
-                PROTOCOLVERSION_2_4,
+                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
+                GUID_UNKNOWN, PROTOCOLVERSION_2_4,
             },
             writer::RtpsWriter,
         },
@@ -1067,18 +1072,7 @@ mod test {
             },
         },
     };
-    use dds_transport::{
-        messages::{
-            submessage_elements::Parameter,
-            submessage_elements::{
-                EntityIdSubmessageElement, ParameterListSubmessageElement,
-                ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
-                SerializedDataSubmessageElement,
-            },
-            submessages::DataSubmessage,
-        },
-        types::Locator,
-    };
+
     use mockall::mock;
 
     use crate::implementation::{

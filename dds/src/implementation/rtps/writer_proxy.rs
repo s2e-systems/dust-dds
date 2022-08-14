@@ -1,14 +1,12 @@
-use dds_transport::{
+use super::{
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
         submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
-    types::Locator,
+    types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
-
-use super::types::{Count, EntityId, Guid, SequenceNumber};
 
 #[derive(Debug, PartialEq)]
 pub struct RtpsWriterProxy {

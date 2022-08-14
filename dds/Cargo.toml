@@ -10,20 +10,19 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dds_derive = { path = "../dds_derive" }
-dds-transport = { path = "../dds_transport"}
-rtps-udp-psm = { path = "../rtps_udp_psm" }
-
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_json = "1.0.64"
 cdr = "0.2.4"
 
 derive_more = "0.99.16"
 md5 = "0.7.0"  # Chose this crate over other possibilities since it doesn't have any other dependencies
 
 byteorder = "1.4.3"
-erased-serde = "0.3"
 lazy_static = "1.4"
 
+socket2 = "0.4"
+ifcfg = "0.1"
+mac_address = "1.1"
+
 [dev-dependencies]
+dds_derive = { path = "../dds_derive" }
 mockall = { version = "0.11" }

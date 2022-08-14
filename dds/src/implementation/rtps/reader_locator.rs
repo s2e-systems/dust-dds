@@ -1,11 +1,7 @@
-use dds_transport::{
-    messages::submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
-    types::Locator,
-};
-
 use super::{
     history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl},
-    types::{Count, SequenceNumber},
+    messages::submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
+    types::{Count, Locator, SequenceNumber},
 };
 
 pub enum BestEffortStatelessWriterSendSubmessage<'a> {
@@ -173,14 +169,11 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<'a> {
 
 #[cfg(test)]
 mod tests {
-
-    use dds_transport::types::LOCATOR_INVALID;
-
     use crate::{
         dcps_psm::HANDLE_NIL,
         implementation::rtps::{
             history_cache::RtpsCacheChange,
-            types::{ChangeKind, GUID_UNKNOWN},
+            types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
     };
 

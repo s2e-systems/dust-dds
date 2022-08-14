@@ -1,7 +1,6 @@
 use std::io::Write;
 
 use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
-use dds::domain::domain_participant_factory::DdsDomainParticipantFactory;
 use dds::return_type::{DdsError, DdsResult};
 use dds::{
     domain::domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,

@@ -1,8 +1,7 @@
-use dds_transport::messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage};
-
 use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
 
 use super::{
+    messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
     reader::RtpsReader,
     types::{Count, Guid, GuidPrefix},
     writer_proxy::RtpsWriterProxy,

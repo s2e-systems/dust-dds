@@ -1,12 +1,14 @@
 use crate::implementation::dds_impl::domain_participant_impl::{
     CreateBuiltIns, DomainParticipantImpl, SendUserDefinedData,
 };
+use crate::implementation::rtps::messages::RtpsMessage;
 use crate::implementation::rtps::participant::RtpsParticipant;
-use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
+use crate::implementation::rtps::transport::TransportWrite;
+use crate::implementation::rtps::types::{
+    GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E,
+};
 use crate::infrastructure::{entity::Entity, qos::DomainParticipantQos};
-use dds_transport::messages::RtpsMessage;
-use dds_transport::types::{LOCATOR_KIND_UDPv4, Locator};
-use dds_transport::TransportWrite;
+
 use mockall::mock;
 
 mock! {

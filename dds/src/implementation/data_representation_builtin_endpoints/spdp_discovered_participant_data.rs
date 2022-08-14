@@ -1,9 +1,7 @@
-use dds_transport::types::Locator;
-
 use crate::dcps_psm::{DomainId, Duration};
 use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
 use crate::implementation::rtps::types::{
-    Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+    Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
 };
 use crate::infrastructure::qos_policy::UserDataQosPolicy;
 use crate::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
@@ -14,7 +12,7 @@ use crate::{
         parameter_list_serializer::ParameterListSerializer,
         serde_remote_rtps_pim::{
             DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
-            ExpectsInlineQosSerialize, LocatorDeserialize, LocatorSerialize,
+            ExpectsInlineQosSerialize,
         },
     },
 };
@@ -187,19 +185,19 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
                 PID_EXPECTS_INLINE_QOS,
                 &self.participant_proxy.expects_inline_qos,
             )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_METATRAFFIC_UNICAST_LOCATOR,
             &self.participant_proxy.metatraffic_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_METATRAFFIC_MULTICAST_LOCATOR,
             &self.participant_proxy.metatraffic_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_DEFAULT_UNICAST_LOCATOR,
             &self.participant_proxy.default_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_DEFAULT_MULTICAST_LOCATOR,
             &self.participant_proxy.default_multicast_locator_list,
         )?;
@@ -240,13 +238,13 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_METATRAFFIC_UNICAST_LOCATOR)?;
+            param_list.get_list::<Locator, _>(PID_METATRAFFIC_UNICAST_LOCATOR)?;
         let metatraffic_multicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
+            param_list.get_list::<Locator, _>(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
         let default_unicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_DEFAULT_UNICAST_LOCATOR)?;
+            param_list.get_list::<Locator, _>(PID_DEFAULT_UNICAST_LOCATOR)?;
         let default_multicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
+            param_list.get_list::<Locator, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
         let manual_liveliness_count =

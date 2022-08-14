@@ -1,5 +1,3 @@
-use dds_transport::types::Locator;
-
 use crate::{
     dcps_psm::DomainId,
     implementation::{
@@ -11,7 +9,9 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
-            types::{Count, Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_UNKNOWN},
+            types::{
+                Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_UNKNOWN,
+            },
             utils::clock::StdTimer,
             writer_proxy::RtpsWriterProxy,
         },
@@ -88,10 +88,7 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_publications_reader(
-        &self,
-        reader: &mut RtpsStatefulReader,
-    ) {
+    pub fn discovered_participant_add_publications_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
             .participant_data
             .available_builtin_endpoints()
@@ -143,10 +140,7 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_subscriptions_reader(
-        &self,
-        reader: &mut RtpsStatefulReader,
-    ) {
+    pub fn discovered_participant_add_subscriptions_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
             .participant_data
             .available_builtin_endpoints()

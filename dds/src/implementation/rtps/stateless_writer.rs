@@ -1,10 +1,3 @@
-use dds_transport::{
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
-    },
-    types::Locator,
-};
-
 use crate::{
     dcps_psm::InstanceHandle,
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
@@ -13,8 +6,11 @@ use crate::{
 
 use super::{
     history_cache::{RtpsCacheChange, RtpsParameter},
+    messages::submessages::{
+        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
+    },
     reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
-    types::{ChangeKind, Count, EntityId, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 

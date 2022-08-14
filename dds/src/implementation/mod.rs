@@ -3,6 +3,7 @@ pub mod data_representation_inline_qos;
 pub mod dds_impl;
 pub mod parameter_list_serde;
 pub mod rtps;
+pub mod rtps_udp_psm;
 pub mod task_manager;
 pub mod utils;
 

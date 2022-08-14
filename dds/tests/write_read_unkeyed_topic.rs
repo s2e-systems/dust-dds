@@ -1,6 +1,5 @@
 use dds::dcps_psm::{Time, DURATION_ZERO, LENGTH_UNLIMITED};
 use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
-use dds::domain::domain_participant_factory::DdsDomainParticipantFactory;
 use dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,

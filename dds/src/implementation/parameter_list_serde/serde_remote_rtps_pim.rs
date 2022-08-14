@@ -1,21 +1,6 @@
-use dds_transport::types::Locator;
-
 use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::{
     DEFAULT_DOMAIN_TAG, DEFAULT_EXPECTS_INLINE_QOS,
 };
-
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(remote = "Locator")]
-pub struct LocatorDef {
-    pub kind: i32,
-    pub port: u32,
-    pub address: [u8; 16],
-}
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
-pub struct LocatorSerialize<'a>(#[serde(with = "LocatorDef")] pub &'a Locator);
-
-#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
-pub struct LocatorDeserialize(#[serde(with = "LocatorDef")] pub Locator);
 
 #[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
 pub struct ExpectsInlineQosSerialize<'a>(pub &'a bool);

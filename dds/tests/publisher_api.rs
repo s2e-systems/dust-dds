@@ -1,6 +1,4 @@
-use dds::domain::domain_participant_factory::{
-    DdsDomainParticipantFactory, DomainParticipantFactory,
-};
+use dds::domain::domain_participant_factory::DomainParticipantFactory;
 
 #[test]
 fn get_publisher_parent_participant() {

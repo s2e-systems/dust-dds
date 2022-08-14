@@ -1,5 +1,4 @@
 use dds::dds_type::{DdsSerde, DdsType};
-use dds::domain::domain_participant_factory::DdsDomainParticipantFactory;
 use dds::return_type::DdsError;
 use dds::subscription::data_reader::DataReader;
 use dds::{

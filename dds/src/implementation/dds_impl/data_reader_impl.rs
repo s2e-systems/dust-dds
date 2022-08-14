@@ -12,10 +12,21 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessage_elements::{
+                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+                    VendorIdSubmessageElement,
+                },
+                submessages::{DataSubmessage, HeartbeatSubmessage},
+                types::ProtocolId,
+                RtpsMessage, RtpsSubmessageType,
+            },
             reader::RtpsReader,
             reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
             stateless_reader::RtpsStatelessReader,
+            transport::TransportWrite,
             types::{
                 ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN,
                 PROTOCOLVERSION, VENDOR_ID_S2E,
@@ -63,19 +74,6 @@ use crate::{
             sample_info::SampleInfo,
         },
     },
-};
-use dds_transport::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::{
-            GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-            VendorIdSubmessageElement,
-        },
-        submessages::{DataSubmessage, HeartbeatSubmessage},
-        types::ProtocolId,
-        RtpsMessage, RtpsSubmessageType,
-    },
-    TransportWrite,
 };
 
 use super::{

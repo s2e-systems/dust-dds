@@ -3,6 +3,8 @@ use std::sync::atomic::{self, AtomicU8};
 use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
+use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
+use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
     EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
 };
@@ -17,7 +19,6 @@ use crate::{
         infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
     },
 };
-use dds_transport::messages::submessages::AckNackSubmessage;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
@@ -34,8 +35,6 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
-
-use dds_transport::TransportWrite;
 
 pub struct PublisherImpl {
     qos: DdsRwLock<PublisherQos>,

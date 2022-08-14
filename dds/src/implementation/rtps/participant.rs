@@ -1,8 +1,6 @@
-use dds_transport::types::Locator;
-
 use super::{
     entity::RtpsEntity,
-    types::{Guid, GuidPrefix, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT},
+    types::{Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT},
 };
 
 pub struct RtpsParticipant {

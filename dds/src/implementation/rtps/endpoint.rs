@@ -1,8 +1,6 @@
-use dds_transport::types::Locator;
-
 use super::{
     entity::RtpsEntity,
-    types::{Guid, TopicKind},
+    types::{Guid, Locator, TopicKind},
 };
 
 pub struct RtpsEndpoint {

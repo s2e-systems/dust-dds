@@ -1,14 +1,5 @@
 use std::convert::TryFrom;
 
-use dds_transport::messages::{
-    submessage_elements::{
-        EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-        SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-    },
-    submessages::DataSubmessage,
-    types::ParameterId,
-};
-
 use crate::{
     dcps_psm::InstanceHandle,
     implementation::data_representation_inline_qos::{
@@ -18,7 +9,17 @@ use crate::{
     return_type::DdsError,
 };
 
-use super::types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN};
+use super::{
+    messages::{
+        submessage_elements::{
+            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+        },
+        submessages::DataSubmessage,
+        types::ParameterId,
+    },
+    types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RtpsParameter {

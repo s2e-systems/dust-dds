@@ -1,5 +1,3 @@
-use dds_transport::types::Locator;
-
 use crate::{
     dcps_psm::{Duration, InstanceHandle},
     infrastructure::qos::DataWriterQos,
@@ -9,7 +7,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
-    types::{ChangeKind, Guid, SequenceNumber, TopicKind},
+    types::{ChangeKind, Guid, Locator, SequenceNumber, TopicKind},
 };
 
 pub struct RtpsWriter {

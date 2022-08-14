@@ -1,8 +1,6 @@
 use std::io::Write;
 
-use dds_transport::types::Locator;
-
-use crate::implementation::rtps::types::{EntityId, Guid};
+use crate::implementation::rtps::types::{EntityId, Guid, Locator};
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
     LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
@@ -15,10 +13,7 @@ use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{
-            ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize, LocatorDeserialize,
-            LocatorSerialize,
-        },
+        serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
     },
 };
 
@@ -97,11 +92,11 @@ impl DdsSerialize for DiscoveredReaderData {
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
 
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_UNICAST_LOCATOR,
             &self.reader_proxy.unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_MULTICAST_LOCATOR,
             &self.reader_proxy.multicast_locator_list,
         )?;
@@ -195,10 +190,8 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 
         // reader_proxy
         let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
-        let unicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_UNICAST_LOCATOR)?;
-        let multicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
+        let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
+        let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
 

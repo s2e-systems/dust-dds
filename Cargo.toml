@@ -3,6 +3,4 @@
 members = [
     "dds",
     "dds_derive",
-    "dds_transport",
-    "rtps_udp_psm",
 ]

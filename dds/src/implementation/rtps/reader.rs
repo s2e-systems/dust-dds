@@ -1,10 +1,5 @@
 use std::collections::HashSet;
 
-use dds_transport::{
-    messages::{submessages::DataSubmessage, types::ParameterId},
-    types::Locator,
-};
-
 use crate::{
     dcps_psm::{Duration, InstanceHandle, LENGTH_UNLIMITED, NEW_VIEW_STATE, NOT_NEW_VIEW_STATE},
     dds_type::{DdsDeserialize, DdsType, LittleEndian},
@@ -22,8 +17,9 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::RtpsParameter,
+    messages::{submessages::DataSubmessage, types::ParameterId},
     reader_cache_change::RtpsReaderCacheChange,
-    types::{ChangeKind, Guid, SequenceNumber, TopicKind},
+    types::{ChangeKind, Guid, Locator, SequenceNumber, TopicKind},
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {

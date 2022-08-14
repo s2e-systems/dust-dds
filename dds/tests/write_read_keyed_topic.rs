@@ -4,7 +4,7 @@ use dds::{
         NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
     },
     dds_type::{DdsSerde, DdsType, Endianness},
-    domain::domain_participant_factory::{DdsDomainParticipantFactory, DomainParticipantFactory},
+    domain::domain_participant_factory::DomainParticipantFactory,
     return_type::DdsResult,
 };
 

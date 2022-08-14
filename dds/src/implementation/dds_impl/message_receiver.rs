@@ -2,16 +2,15 @@ use crate::{
     dcps_psm::{Time, TIME_INVALID},
     implementation::{
         dds_impl::{publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl},
-        rtps::types::{
-            GuidPrefix, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN, PROTOCOLVERSION,
-            VENDOR_ID_UNKNOWN,
+        rtps::{
+            messages::{submessages::InfoTimestampSubmessage, RtpsMessage, RtpsSubmessageType},
+            types::{
+                GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+                LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            },
         },
         utils::shared_object::DdsShared,
     },
-};
-use dds_transport::{
-    messages::{submessages::InfoTimestampSubmessage, RtpsMessage, RtpsSubmessageType},
-    types::{Locator, LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID},
 };
 
 pub struct MessageReceiver {
@@ -157,7 +156,9 @@ impl Default for MessageReceiver {
 #[cfg(test)]
 mod tests {
 
-    use dds_transport::messages::submessage_elements::TimestampSubmessageElement;
+    use crate::implementation::rtps::messages::{
+        submessage_elements::TimestampSubmessageElement, submessages::InfoTimestampSubmessage,
+    };
 
     use super::*;
 

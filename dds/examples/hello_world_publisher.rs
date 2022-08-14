@@ -1,7 +1,5 @@
 use dds::dds_type::{DdsSerde, DdsType};
-use dds::domain::domain_participant_factory::{
-    DdsDomainParticipantFactory, DomainParticipantFactory,
-};
+use dds::domain::domain_participant_factory::DomainParticipantFactory;
 use dds_derive::DdsType;
 use serde::{Deserialize, Serialize};
 

@@ -1,18 +1,14 @@
-use dds_transport::{
+use crate::dcps_psm::InstanceHandle;
+
+use super::{
+    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
     },
-    types::Locator,
-};
-
-use crate::dcps_psm::InstanceHandle;
-
-use super::{
-    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
-    types::{ChangeKind, Count, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 /// ChangeForReaderStatusKind

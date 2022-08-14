@@ -19,8 +19,9 @@ use crate::{
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
             stateless_reader::RtpsStatelessReader,
+            transport::{TransportRead, TransportWrite},
             types::{
-                Count, EntityId, EntityKind, Guid, ProtocolVersion, TopicKind, VendorId,
+                Count, EntityId, EntityKind, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
                 BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
             },
@@ -53,7 +54,6 @@ use crate::{
     },
     return_type::DdsError,
 };
-use dds_transport::types::Locator;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -81,8 +81,6 @@ use super::{
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
-
-use dds_transport::{TransportRead, TransportWrite};
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);

@@ -1,8 +1,6 @@
 use std::io::Write;
 
-use dds_transport::types::Locator;
-
-use crate::implementation::rtps::types::{EntityId, Guid};
+use crate::implementation::rtps::types::{EntityId, Guid, Locator};
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
@@ -17,7 +15,6 @@ use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{LocatorDeserialize, LocatorSerialize},
     },
 };
 
@@ -92,11 +89,11 @@ impl DdsSerialize for DiscoveredWriterData {
 
         // writer_proxy.remote_writer_guid omitted as of table 9.10
 
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_UNICAST_LOCATOR,
             &self.writer_proxy.unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<LocatorSerialize, _>(
+        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
             PID_MULTICAST_LOCATOR,
             &self.writer_proxy.multicast_locator_list,
         )?;
@@ -200,10 +197,8 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // writer_proxy
-        let unicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_UNICAST_LOCATOR)?;
-        let multicast_locator_list =
-            param_list.get_list::<LocatorDeserialize, _>(PID_MULTICAST_LOCATOR)?;
+        let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
+        let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
 
