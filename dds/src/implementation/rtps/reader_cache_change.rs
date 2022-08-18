@@ -1,4 +1,4 @@
-use crate::dcps_psm::{InstanceHandle, Time, ViewStateKind};
+use crate::dcps_psm::{InstanceHandle, Time};
 
 use super::{
     history_cache::RtpsParameter,
@@ -15,7 +15,6 @@ pub struct RtpsReaderCacheChange {
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
-    view_state: ViewStateKind,
 }
 
 impl PartialEq for RtpsReaderCacheChange {
@@ -37,7 +36,6 @@ impl RtpsReaderCacheChange {
         data_value: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         source_timestamp: Option<Time>,
-        view_state: ViewStateKind,
     ) -> Self {
         Self {
             kind,
@@ -47,7 +45,6 @@ impl RtpsReaderCacheChange {
             data: data_value,
             inline_qos,
             source_timestamp,
-            view_state,
         }
     }
 
@@ -77,9 +74,5 @@ impl RtpsReaderCacheChange {
 
     pub fn source_timestamp(&self) -> &Option<Time> {
         &self.source_timestamp
-    }
-
-    pub fn view_state(&self) -> ViewStateKind {
-        self.view_state
     }
 }

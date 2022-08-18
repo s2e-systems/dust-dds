@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    dcps_psm::{NEW_VIEW_STATE, NOT_NEW_VIEW_STATE},
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -206,6 +207,7 @@ pub struct DataReaderImpl<Tim> {
     sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
+    samples_viewed: DdsRwLock<HashSet<InstanceHandle>>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -267,6 +269,7 @@ where
                 current_count_change: 0,
             }),
             matched_publication_list: DdsRwLock::new(HashMap::new()),
+            samples_viewed: DdsRwLock::new(HashSet::new()),
             enabled: DdsRwLock::new(false),
         })
     }
@@ -609,6 +612,12 @@ where
             });
         }
 
+        for sample in samples.iter() {
+            self.samples_viewed
+                .write_lock()
+                .insert(sample.sample_info.instance_handle);
+        }
+
         if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
@@ -682,6 +691,12 @@ where
                     .unwrap()
                     .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
             });
+        }
+
+        for sample in samples.iter() {
+            self.samples_viewed
+                .write_lock()
+                .insert(sample.sample_info.instance_handle);
         }
 
         Ok(samples)
@@ -1066,9 +1081,19 @@ where
             _ => unimplemented!(),
         };
 
+        let view_state = if self
+            .samples_viewed
+            .read_lock()
+            .contains(&cache_change.instance_handle())
+        {
+            NOT_NEW_VIEW_STATE
+        } else {
+            NEW_VIEW_STATE
+        };
+
         let sample_info = SampleInfo {
             sample_state,
-            view_state: cache_change.view_state(),
+            view_state,
             instance_state,
             disposed_generation_count: 0,
             no_writers_generation_count: 0,
@@ -1234,7 +1259,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
 mod tests {
     use super::*;
     use crate::{
-        dcps_psm::{DURATION_ZERO, NEW_VIEW_STATE},
+        dcps_psm::DURATION_ZERO,
         dds_type::DdsSerialize,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
@@ -1306,7 +1331,6 @@ mod tests {
             vec![value],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
 
         cache_change

@@ -79,11 +79,9 @@ fn write_read_unkeyed_topic() {
 
     writer.write(&UserData(8), None).unwrap();
 
-    let mut samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    while let Err(DdsError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-    }
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+
+    let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
     assert_eq!(samples.unwrap()[0].data.as_ref().unwrap(), &UserData(8));
 }
@@ -154,14 +152,12 @@ fn data_reader_resource_limits() {
     data_writer.write(&UserData(2), None).unwrap();
     data_writer.write(&UserData(3), None).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    std::thread::sleep(std::time::Duration::from_millis(2000));
 
-    let mut samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    while let Err(DdsError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    }
-    let samples = samples.unwrap();
+    let samples = data_reader
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
     assert_eq!(samples.len(), 2);
 }
 
@@ -314,7 +310,7 @@ fn data_reader_publication_handle_sample_info() {
 
     data_writer.write(&UserData(1), None).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(1000));
+    std::thread::sleep(std::time::Duration::from_millis(2000));
 
     let samples = data_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

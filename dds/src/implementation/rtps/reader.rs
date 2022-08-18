@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    dcps_psm::{Duration, InstanceHandle, LENGTH_UNLIMITED, NEW_VIEW_STATE, NOT_NEW_VIEW_STATE},
+    dcps_psm::{Duration, InstanceHandle, LENGTH_UNLIMITED},
     dds_type::{DdsDeserialize, DdsType, LittleEndian},
     implementation::{
         data_representation_inline_qos::{
@@ -142,13 +142,6 @@ impl RtpsReader {
             None
         };
 
-        let view_state = self
-            .reader_cache
-            .changes
-            .iter()
-            .find(|cc| cc.instance_handle() == instance_handle)
-            .map_or(NEW_VIEW_STATE, |_| NOT_NEW_VIEW_STATE);
-
         Ok(RtpsReaderCacheChange::new(
             kind,
             writer_guid,
@@ -157,7 +150,6 @@ impl RtpsReader {
             data_value,
             inline_qos,
             source_timestamp,
-            view_state,
         ))
     }
 }
@@ -364,7 +356,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -374,7 +365,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
         reader.add_change(change2.clone()).unwrap();
@@ -404,7 +394,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -414,7 +403,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change2_instance1.clone()).unwrap();
@@ -427,7 +415,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -437,7 +424,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance2).unwrap();
         reader.add_change(change2_instance2.clone()).unwrap();
@@ -468,7 +454,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -478,7 +463,6 @@ mod tests {
             vec![2],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change3 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -488,7 +472,6 @@ mod tests {
             vec![3],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change4 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -498,7 +481,6 @@ mod tests {
             vec![4],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
         reader.add_change(change2.clone()).unwrap();
@@ -532,7 +514,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -542,7 +523,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change3_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -552,7 +532,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change4_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -562,7 +541,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change2_instance1.clone()).unwrap();
@@ -577,7 +555,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -587,7 +564,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change3_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -597,7 +573,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change4_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -607,7 +582,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance2).unwrap();
         reader.add_change(change2_instance2.clone()).unwrap();
@@ -649,7 +623,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -659,7 +632,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1).unwrap();
 
@@ -692,7 +664,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -702,7 +673,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
 
@@ -738,7 +708,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change1_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -748,7 +717,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -758,7 +726,6 @@ mod tests {
             vec![1],
             vec![],
             None,
-            NEW_VIEW_STATE,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change1_instance2).unwrap();
