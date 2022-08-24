@@ -1,6 +1,6 @@
-use dds::dds_type::{DdsSerde, DdsType};
-use dds::domain::domain_participant_factory::DomainParticipantFactory;
-use dds_derive::DdsType;
+use dust_dds::dds_type::{DdsSerde, DdsType};
+use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
+use dust_dds_derive::DdsType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]

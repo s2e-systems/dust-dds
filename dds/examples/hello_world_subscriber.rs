@@ -1,13 +1,13 @@
-use dds::dds_type::{DdsSerde, DdsType};
-use dds::return_type::DdsError;
-use dds::subscription::data_reader::DataReader;
-use dds::{
+use dust_dds::dds_type::{DdsSerde, DdsType};
+use dust_dds::return_type::DdsError;
+use dust_dds::subscription::data_reader::DataReader;
+use dust_dds::{
     dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     subscription::data_reader_listener::DataReaderListener,
 };
-use dds_derive::DdsType;
+use dust_dds_derive::DdsType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType)]

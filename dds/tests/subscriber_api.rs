@@ -1,4 +1,4 @@
-use dds::domain::domain_participant_factory::DomainParticipantFactory;
+use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
 
 #[test]
 fn get_subscriber_parent_participant() {

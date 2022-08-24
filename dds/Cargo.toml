@@ -1,5 +1,5 @@
 [package]
-name = "dds"
+name = "dust_dds"
 version = "0.1.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
@@ -24,5 +24,5 @@ ifcfg = "0.1"
 mac_address = "1.1"
 
 [dev-dependencies]
-dds_derive = { path = "../dds_derive" }
+dust_dds_derive = { path = "../dds_derive" }
 mockall = { version = "0.11" }

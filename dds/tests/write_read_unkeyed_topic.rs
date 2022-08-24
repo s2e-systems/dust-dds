@@ -1,14 +1,14 @@
-use dds::dcps_psm::{Time, DURATION_ZERO, LENGTH_UNLIMITED};
-use dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
-use dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
-use dds::infrastructure::qos_policy::{
+use dust_dds::dcps_psm::{Time, DURATION_ZERO, LENGTH_UNLIMITED};
+use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
+use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
 };
 
-use dds::return_type::{DdsError, DdsResult};
+use dust_dds::return_type::{DdsError, DdsResult};
 
-use dds::{
+use dust_dds::{
     dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     domain::domain_participant_factory::DomainParticipantFactory,
 };
@@ -27,7 +27,7 @@ impl DdsType for UserData {
 }
 
 impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: dds::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: dust_dds::dds_type::Endianness>(
         &self,
         mut writer: W,
     ) -> DdsResult<()> {
