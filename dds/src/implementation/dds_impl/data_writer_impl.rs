@@ -346,11 +346,11 @@ impl DdsShared<DataWriterImpl> {
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        let rtps_writer_lock = self.rtps_writer.write_lock();
+        let mut rtps_writer_lock = self.rtps_writer.write_lock();
         if rtps_writer_lock.writer().get_qos().reliability.kind
             == ReliabilityQosPolicyKind::ReliableReliabilityQos
         {
-            match &mut *self.rtps_writer.write_lock() {
+            match &mut *rtps_writer_lock {
                 RtpsWriterKind::Stateless(stateless_rtps_writer) => {
                     for reader_locator in message_receiver
                         .unicast_reply_locator_list()

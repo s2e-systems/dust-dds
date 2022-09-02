@@ -162,7 +162,7 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
         let qos = val.qos.read_lock();
         DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey { value: [1; 16] },
+                key: BuiltInTopicKey { value: val.guid.into() },
                 name: val.topic_name.to_string(),
                 type_name: val.type_name.to_string(),
                 durability: qos.durability.clone(),

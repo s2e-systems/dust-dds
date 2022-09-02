@@ -31,7 +31,10 @@ use crate::{
     infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
     publication::publisher_listener::PublisherListener,
     return_type::DdsResult,
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{
+        data_reader::DataReader, data_reader_listener::DataReaderListener,
+        subscriber_listener::SubscriberListener,
+    },
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         dcps_psm::{
@@ -139,6 +142,7 @@ pub struct DomainParticipantImpl {
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
+    discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -191,6 +195,7 @@ impl DomainParticipantImpl {
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,
             discovered_participant_list: DdsRwLock::new(HashMap::new()),
+            discovered_topic_list: DdsShared::new(DdsRwLock::new(HashMap::new())),
             enabled: DdsRwLock::new(false),
         })
     }
@@ -201,6 +206,34 @@ impl DomainParticipantImpl {
 
     pub fn is_parent(&self, other: InstanceHandle) -> bool {
         self.rtps_participant.guid().prefix.0 == <[u8; 16]>::from(other)[0..12]
+    }
+}
+
+struct RegisterDiscoveredTopicsListener {
+    discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
+}
+
+impl DataReaderListener for RegisterDiscoveredTopicsListener {
+    type Foo = DiscoveredTopicData;
+
+    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+        let topic_data = the_reader
+            .take(
+                i32::MAX,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            )
+            .unwrap()[0]
+            .data
+            .as_ref()
+            .unwrap()
+            .topic_builtin_topic_data
+            .clone();
+
+        self.discovered_topic_list
+            .write_lock()
+            .insert(topic_data.key.value.into(), topic_data);
     }
 }
 
@@ -558,24 +591,32 @@ impl DdsShared<DomainParticipantImpl> {
             .ok_or(DdsError::BadParameter)
     }
 
-    pub fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
+    pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        Ok(self
+            .discovered_topic_list
+            .read_lock()
+            .keys()
+            .cloned()
+            .collect())
     }
 
     pub fn get_discovered_topic_data(
         &self,
-        _topic_data: TopicBuiltinTopicData,
-        _topic_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+        topic_handle: InstanceHandle,
+    ) -> DdsResult<TopicBuiltinTopicData> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        self.discovered_topic_list
+            .read_lock()
+            .get(&topic_handle)
+            .cloned()
+            .ok_or(DdsError::BadParameter)
     }
 
     pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
@@ -1209,6 +1250,19 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 self.builtin_subscriber.downgrade(),
             );
             sedp_builtin_topics_data_reader.enable(self)?;
+
+            // set the topic listener
+            {
+                let topics_data_reader =
+                    DataReader::new(sedp_builtin_topics_data_reader.downgrade());
+                topics_data_reader.set_listener(
+                    Some(Box::new(RegisterDiscoveredTopicsListener {
+                        discovered_topic_list: self.discovered_topic_list.clone(),
+                    })),
+                    0,
+                )?;
+            }
+
             self.builtin_subscriber
                 .add_data_reader(sedp_builtin_topics_data_reader);
 

@@ -414,10 +414,10 @@ impl DomainParticipant {
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the DomainParticipant ignore_topic operation.
-    pub fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> DdsResult<()> {
+    pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         self.domain_participant_attributes
             .upgrade()?
-            .get_discovered_topics(topic_handles)
+            .get_discovered_topics()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -430,12 +430,11 @@ impl DomainParticipant {
     /// the operation will return UNSUPPORTED.
     pub fn get_discovered_topic_data(
         &self,
-        topic_data: TopicBuiltinTopicData,
         topic_handle: InstanceHandle,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<TopicBuiltinTopicData> {
         self.domain_participant_attributes
             .upgrade()?
-            .get_discovered_topic_data(topic_data, topic_handle)
+            .get_discovered_topic_data(topic_handle)
     }
 
     /// This operation checks whether or not the given a_handle represents an Entity that was created from the DomainParticipant.
