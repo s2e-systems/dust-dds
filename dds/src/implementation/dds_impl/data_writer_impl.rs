@@ -25,7 +25,7 @@ use crate::{
         writer::RtpsWriter,
     },
     infrastructure::qos_policy::ReliabilityQosPolicyKind,
-    publication::data_writer::DataWriterProxy,
+    publication::data_writer::DataWriter,
     return_type::{DdsError, DdsResult},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -153,7 +153,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
         the_writer: &DdsShared<DataWriterImpl>,
         status: LivelinessLostStatus,
     ) {
-        self.on_liveliness_lost(&DataWriterProxy::new(the_writer.downgrade()), status);
+        self.on_liveliness_lost(&DataWriter::new(the_writer.downgrade()), status);
     }
 
     fn trigger_on_offered_deadline_missed(
@@ -161,7 +161,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
         the_writer: &DdsShared<DataWriterImpl>,
         status: OfferedDeadlineMissedStatus,
     ) {
-        self.on_offered_deadline_missed(&DataWriterProxy::new(the_writer.downgrade()), status);
+        self.on_offered_deadline_missed(&DataWriter::new(the_writer.downgrade()), status);
     }
 
     fn trigger_on_offered_incompatible_qos(
@@ -169,7 +169,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
         the_writer: &DdsShared<DataWriterImpl>,
         status: OfferedIncompatibleQosStatus,
     ) {
-        self.on_offered_incompatible_qos(&DataWriterProxy::new(the_writer.downgrade()), status);
+        self.on_offered_incompatible_qos(&DataWriter::new(the_writer.downgrade()), status);
     }
 
     fn trigger_on_publication_matched(
@@ -177,7 +177,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
         the_writer: &DdsShared<DataWriterImpl>,
         status: PublicationMatchedStatus,
     ) {
-        self.on_publication_matched(&DataWriterProxy::new(the_writer.downgrade()), status)
+        self.on_publication_matched(&DataWriter::new(the_writer.downgrade()), status)
     }
 }
 

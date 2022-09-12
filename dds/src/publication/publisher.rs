@@ -20,7 +20,7 @@ use crate::{
 
 use crate::{
     dds_type::{DdsSerialize, DdsType},
-    publication::data_writer::DataWriterProxy,
+    publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
 };
 
@@ -77,9 +77,9 @@ impl Publisher {
         &self,
         a_topic: &Topic<Foo>,
         qos: Option<DataWriterQos>,
-        a_listener: Option<<DataWriterProxy<Foo> as Entity>::Listener>,
+        a_listener: Option<<DataWriter<Foo> as Entity>::Listener>,
         mask: StatusMask,
-    ) -> DdsResult<DataWriterProxy<Foo>>
+    ) -> DdsResult<DataWriter<Foo>>
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
@@ -94,7 +94,7 @@ impl Publisher {
                 &THE_PARTICIPANT_FACTORY
                     .lookup_participant_by_entity_handle(self.get_instance_handle()?),
             )
-            .map(|x| DataWriterProxy::new(x.downgrade()))
+            .map(|x| DataWriter::new(x.downgrade()))
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -105,7 +105,7 @@ impl Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriterProxy<Foo>) -> DdsResult<()> {
+    pub fn delete_datawriter<Foo>(&self, a_datawriter: &DataWriter<Foo>) -> DdsResult<()> {
         self.publisher_attributes
             .upgrade()?
             .delete_datawriter(&a_datawriter.as_ref().upgrade()?)
@@ -115,14 +115,14 @@ impl Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<DataWriterProxy<Foo>>
+    pub fn lookup_datawriter<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<DataWriter<Foo>>
     where
         Foo: DdsType,
     {
         self.publisher_attributes
             .upgrade()?
             .lookup_datawriter::<Foo>(&topic.as_ref().upgrade()?)
-            .map(|x| DataWriterProxy::new(x.downgrade()))
+            .map(|x| DataWriter::new(x.downgrade()))
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects

@@ -216,7 +216,7 @@ impl DomainParticipantFactory {
         };
         participant_manager.start(rtps_udp_psm);
 
-        let participant_proxy = DomainParticipant::new(participant_manager.participant.downgrade());
+        let participant = DomainParticipant::new(participant_manager.participant.downgrade());
 
         THE_PARTICIPANT_FACTORY
             .participant_list
@@ -224,7 +224,7 @@ impl DomainParticipantFactory {
             .unwrap()
             .push(participant_manager);
 
-        Ok(participant_proxy)
+        Ok(participant)
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to

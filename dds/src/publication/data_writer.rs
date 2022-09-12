@@ -28,13 +28,13 @@ use crate::{
     topic_definition::topic::Topic,
 };
 
-pub struct DataWriterProxy<Foo> {
+pub struct DataWriter<Foo> {
     data_writer_attributes: DdsWeak<DataWriterImpl>,
     phantom: PhantomData<Foo>,
 }
 
 // Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo> Clone for DataWriterProxy<Foo> {
+impl<Foo> Clone for DataWriter<Foo> {
     fn clone(&self) -> Self {
         Self {
             data_writer_attributes: self.data_writer_attributes.clone(),
@@ -43,7 +43,7 @@ impl<Foo> Clone for DataWriterProxy<Foo> {
     }
 }
 
-impl<Foo> DataWriterProxy<Foo> {
+impl<Foo> DataWriter<Foo> {
     pub fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
         Self {
             data_writer_attributes,
@@ -52,13 +52,13 @@ impl<Foo> DataWriterProxy<Foo> {
     }
 }
 
-impl<Foo> AsRef<DdsWeak<DataWriterImpl>> for DataWriterProxy<Foo> {
+impl<Foo> AsRef<DdsWeak<DataWriterImpl>> for DataWriter<Foo> {
     fn as_ref(&self) -> &DdsWeak<DataWriterImpl> {
         &self.data_writer_attributes
     }
 }
 
-impl<Foo> DataWriterProxy<Foo>
+impl<Foo> DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize,
 {
@@ -405,7 +405,7 @@ where
     }
 }
 
-impl<Foo> Entity for DataWriterProxy<Foo>
+impl<Foo> Entity for DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize + 'static,
 {
