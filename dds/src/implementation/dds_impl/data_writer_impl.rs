@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::{HANDLE_NIL, TIME_INVALID},
+    dcps_psm::{HANDLE_NIL, SUBSCRIPTION_MATCHED_STATUS, TIME_INVALID},
     dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
         messages::{
@@ -77,6 +77,7 @@ use crate::implementation::{
 };
 
 use super::{
+    data_writer_communication_status::DataWriterCommunicationStatus,
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, publisher_impl::PublisherImpl,
     topic_impl::TopicImpl,
@@ -255,7 +256,6 @@ pub struct DataWriterImpl {
     rtps_writer: DdsRwLock<RtpsWriterKind>,
     sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
-    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<PublisherImpl>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -264,6 +264,7 @@ pub struct DataWriterImpl {
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
     matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
+    communication_status: DdsRwLock<DataWriterCommunicationStatus>,
 }
 
 impl DataWriterImpl {
@@ -303,7 +304,6 @@ impl DataWriterImpl {
             rtps_writer: DdsRwLock::new(rtps_writer),
             sample_info: DdsRwLock::new(HashMap::new()),
             registered_instance_list: DdsRwLock::new(HashMap::new()),
-            listener: DdsRwLock::new(listener),
             topic,
             publisher,
             publication_matched_status: DdsRwLock::new(publication_matched_status),
@@ -312,6 +312,7 @@ impl DataWriterImpl {
             liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
             matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
+            communication_status: DdsRwLock::new(DataWriterCommunicationStatus::new(listener)),
         })
     }
 
@@ -470,11 +471,9 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                     publication_matched_status_lock.current_count_change += 1;
                 }
 
-                let mut listener_lock = self.listener.write_lock();
-                if let Some(l) = listener_lock.as_mut() {
-                    let publication_matched_status = self.get_publication_matched_status().unwrap();
-                    l.trigger_on_publication_matched(self, publication_matched_status)
-                }
+                self.communication_status
+                    .write_lock()
+                    .trigger_communication_status(SUBSCRIPTION_MATCHED_STATUS);
             } else {
                 {
                     let mut offered_incompatible_qos_status_lock =
@@ -499,13 +498,6 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                                 })
                         }
                     }
-                }
-
-                let mut listener_lock = self.listener.write_lock();
-                if let Some(l) = listener_lock.as_mut() {
-                    let offered_incompatible_qos_status =
-                        self.get_offered_incompatible_qos_status().unwrap();
-                    l.trigger_on_offered_incompatible_qos(self, offered_incompatible_qos_status)
                 }
             }
         }
@@ -841,7 +833,9 @@ impl DdsShared<DataWriterImpl> {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: StatusMask,
     ) -> DdsResult<()> {
-        *self.listener.write_lock() = a_listener;
+        self.communication_status
+            .write_lock()
+            .set_listener(a_listener);
         Ok(())
     }
 
@@ -850,7 +844,7 @@ impl DdsShared<DataWriterImpl> {
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+        Ok(self.communication_status.read_lock().get_statuscondition())
     }
 
     pub fn get_status_changes(&self) -> DdsResult<StatusMask> {

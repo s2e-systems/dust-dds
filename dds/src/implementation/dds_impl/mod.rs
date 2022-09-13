@@ -1,5 +1,6 @@
 pub mod data_reader_impl;
 pub mod data_writer_impl;
+pub mod data_writer_communication_status;
 pub mod domain_participant_impl;
 pub mod publisher_impl;
 pub mod subscriber_impl;

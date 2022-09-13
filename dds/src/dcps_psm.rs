@@ -113,6 +113,7 @@ pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
 // Status to support listeners and conditions
 // ----------------------------------------------------------------------
 pub type StatusKind = u32;
+
 pub type StatusMask = u32;
 
 pub const INCONSISTENT_TOPIC_STATUS: StatusMask = 0x0001 << 0;

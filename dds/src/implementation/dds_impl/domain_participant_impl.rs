@@ -858,47 +858,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait DataWriterDiscovery {
-    fn add_created_data_writer(&self, writer_data: &DiscoveredWriterData);
-}
-
-impl DataWriterDiscovery for DdsShared<DomainParticipantImpl> {
-    fn add_created_data_writer(&self, writer_data: &DiscoveredWriterData) {
-        if let Ok(publication_topic) =
-            self.lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
-        {
-            if let Ok(sedp_builtin_publications_announcer) =
-                self.builtin_publisher
-                    .lookup_datawriter::<DiscoveredWriterData>(&publication_topic)
-            {
-                sedp_builtin_publications_announcer
-                    .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
-                    .unwrap();
-            }
-        }
-    }
-}
-
-pub trait DataReaderDiscovery {
-    fn add_created_data_reader(&self, reader_data: &DiscoveredReaderData);
-}
-
-impl DataReaderDiscovery for DdsShared<DomainParticipantImpl> {
-    fn add_created_data_reader(&self, reader_data: &DiscoveredReaderData) {
-        if let Ok(subscription_topic) =
-            self.lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-        {
-            if let Ok(sedp_builtin_subscription_announcer) =
-                self.builtin_publisher
-                    .lookup_datawriter::<DiscoveredReaderData>(&subscription_topic)
-            {
-                sedp_builtin_subscription_announcer
-                    .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
-                    .unwrap();
-            }
-        }
-    }
-}
 
 pub trait SendBuiltInData {
     fn send_built_in_data(&self, transport: &mut impl TransportWrite);
@@ -1446,24 +1405,50 @@ impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
-        self.add_created_data_writer(&DiscoveredWriterData {
+        let writer_data = &DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
                 multicast_locator_list: self.default_multicast_locator_list().to_vec(),
                 ..sedp_discovered_writer_data.writer_proxy
             },
             ..sedp_discovered_writer_data
-        });
+        };
+
+        if let Ok(publication_topic) =
+            self.lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
+        {
+            if let Ok(sedp_builtin_publications_announcer) =
+                self.builtin_publisher
+                    .lookup_datawriter::<DiscoveredWriterData>(&publication_topic)
+            {
+                sedp_builtin_publications_announcer
+                    .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
+                    .unwrap();
+            }
+        }
     }
 
     pub fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
-        self.add_created_data_reader(&DiscoveredReaderData {
+        let reader_data = &DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
                 multicast_locator_list: self.default_multicast_locator_list().to_vec(),
                 ..sedp_discovered_reader_data.reader_proxy
             },
             ..sedp_discovered_reader_data
-        });
+        };
+
+        if let Ok(subscription_topic) =
+            self.lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+        {
+            if let Ok(sedp_builtin_subscription_announcer) =
+                self.builtin_publisher
+                    .lookup_datawriter::<DiscoveredReaderData>(&subscription_topic)
+            {
+                sedp_builtin_subscription_announcer
+                    .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
+                    .unwrap();
+            }
+        }
     }
 }
