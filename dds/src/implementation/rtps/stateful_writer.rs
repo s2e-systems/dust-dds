@@ -53,22 +53,28 @@ impl<T: TimerConstructor> RtpsStatefulWriter<T> {
 
 impl<T> RtpsStatefulWriter<T> {
     pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
-        let status = if self.writer.push_mode() {
-            ChangeForReaderStatusKind::Unsent
-        } else {
-            ChangeForReaderStatusKind::Unacknowledged
-        };
-        for change in self.writer.writer_cache().changes() {
-            a_reader_proxy
-                .changes_for_reader_mut()
-                .push(RtpsChangeForReader::new(
-                    status,
-                    true,
-                    change.sequence_number(),
-                ));
-        }
+        if !self
+            .matched_readers
+            .iter()
+            .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
+        {
+            let status = if self.writer.push_mode() {
+                ChangeForReaderStatusKind::Unsent
+            } else {
+                ChangeForReaderStatusKind::Unacknowledged
+            };
+            for change in self.writer.writer_cache().changes() {
+                a_reader_proxy
+                    .changes_for_reader_mut()
+                    .push(RtpsChangeForReader::new(
+                        status,
+                        true,
+                        change.sequence_number(),
+                    ));
+            }
 
-        self.matched_readers.push(a_reader_proxy)
+            self.matched_readers.push(a_reader_proxy)
+        }
     }
 
     pub fn matched_reader_remove<F>(&mut self, mut f: F)
@@ -84,8 +90,22 @@ impl<T> RtpsStatefulWriter<T> {
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
     }
 
-    pub fn is_acked_by_all(&self) -> bool {
-        todo!()
+    pub fn is_acked_by_all(&self, a_change: &RtpsCacheChange) -> bool {
+        for matched_reader in self.matched_readers.iter() {
+            if let Some(cc) = matched_reader
+                .changes_for_reader()
+                .iter()
+                .find(|x| x.sequence_number() == a_change.sequence_number())
+            {
+                if !(cc.is_relevant() && cc.status() == ChangeForReaderStatusKind::Acknowledged) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -104,7 +124,7 @@ impl<T> RtpsStatefulWriter<T> {
 impl<T> RtpsStatefulWriter<T> {
     pub fn add_change(&mut self, change: RtpsCacheChange) {
         let sequence_number = change.sequence_number();
-        self.writer.writer_cache().add_change(change);
+        self.writer.writer_cache_mut().add_change(change);
 
         for reader_proxy in &mut self.matched_readers {
             let status = if self.writer.push_mode() {
@@ -122,7 +142,7 @@ impl<T> RtpsStatefulWriter<T> {
     where
         F: FnMut(&RtpsCacheChange) -> bool,
     {
-        self.writer.writer_cache().remove_change(f)
+        self.writer.writer_cache_mut().remove_change(f)
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
@@ -173,25 +193,31 @@ where
                     }
                 }
                 ReliabilityQosPolicyKind::ReliableReliabilityQos => {
-                    if time_for_heartbeat {
+                    // Top part of the state machine - Figure 8.19 RTPS standard
+                    if !reader_proxy.unsent_changes().is_empty() {
+                        // Pushing
+                        while let Some(send_submessage) =
+                            reader_proxy.reliable_send_unsent_changes(&self.writer.writer_cache)
+                        {
+                            match send_submessage {
+                                ReliableStatefulWriterSendSubmessage::Data(data) => {
+                                    send_data(reader_proxy, data)
+                                }
+                                ReliableStatefulWriterSendSubmessage::Gap(gap) => {
+                                    send_gap(reader_proxy, gap)
+                                }
+                            }
+                        }
+                    } else if reader_proxy.unacked_changes().is_empty() {
+                        // Idle
+                    } else if time_for_heartbeat {
                         let mut heartbeat =
                             reader_proxy.send_heartbeat(writer_id, &self.writer.writer_cache);
                         heartbeat.count.value = heartbeat_count.0;
                         send_heartbeat(reader_proxy, heartbeat)
                     }
 
-                    while let Some(send_submessage) =
-                        reader_proxy.reliable_send_unsent_changes(&self.writer.writer_cache)
-                    {
-                        match send_submessage {
-                            ReliableStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(reader_proxy, data)
-                            }
-                            ReliableStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(reader_proxy, gap)
-                            }
-                        }
-                    }
+                    // Middle-part of the state-machine - Figure 8.19 RTPS standard
                     while let Some(send_requested_submessage) =
                         reader_proxy.send_requested_changes(&self.writer.writer_cache)
                     {

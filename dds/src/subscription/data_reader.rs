@@ -657,18 +657,22 @@ where
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
     pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_topicdescription()
-            .map(|x| Topic::new(x.downgrade()))
+        Ok(Topic::new(
+            self.data_reader_attributes
+                .upgrade()?
+                .get_topicdescription()
+                .downgrade(),
+        ))
     }
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_subscriber()
-            .map(|x| Subscriber::new(x.downgrade()))
+        Ok(Subscriber::new(
+            self.data_reader_attributes
+                .upgrade()?
+                .get_subscriber()
+                .downgrade(),
+        ))
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
@@ -760,7 +764,7 @@ where
     }
 
     fn get_status_changes(&self) -> DdsResult<StatusMask> {
-        self.data_reader_attributes.upgrade()?.get_status_changes()
+        Ok(self.data_reader_attributes.upgrade()?.get_status_changes())
     }
 
     fn enable(&self) -> DdsResult<()> {

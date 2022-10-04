@@ -257,7 +257,7 @@ impl Entity for Publisher {
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        self.publisher_attributes.upgrade()?.get_qos()
+        Ok(self.publisher_attributes.upgrade()?.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {

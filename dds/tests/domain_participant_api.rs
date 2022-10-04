@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::time::SystemTime;
+use std::time::Instant;
 
 use dust_dds::dds_type::{DdsDeserialize, DdsSerde, DdsSerialize, DdsType, Endianness};
 use dust_dds::return_type::{DdsError, DdsResult};
@@ -345,11 +345,11 @@ fn participant_records_discovered_topics() {
     }
 
     // Wait for topics to be discovered
-    let waiting_time = SystemTime::now();
+    let waiting_time = Instant::now();
     while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
         std::thread::sleep(std::time::Duration::from_millis(50));
 
-        if waiting_time.elapsed().unwrap() > std::time::Duration::from_secs(5) {
+        if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
             panic!("Topic discovery is taking too long")
         }
     }

@@ -8,7 +8,6 @@ use crate::{
     {
         dcps_psm::{DomainId, Time, TIME_INVALID},
         infrastructure::{
-            entity::Entity,
             qos::{DataWriterQos, DomainParticipantQos},
             qos_policy::ResourceLimitsQosPolicy,
         },

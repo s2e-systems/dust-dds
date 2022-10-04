@@ -13,13 +13,13 @@ pub mod submessage_elements;
 pub mod submessages;
 pub mod types;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessage<'a> {
     pub header: RtpsMessageHeader,
     pub submessages: Vec<RtpsSubmessageType<'a>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum RtpsSubmessageType<'a> {
     AckNack(AckNackSubmessage),
     Data(DataSubmessage<'a>),

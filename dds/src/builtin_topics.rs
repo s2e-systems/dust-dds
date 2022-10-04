@@ -10,13 +10,13 @@ use crate::{
     },
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub user_data: UserDataQosPolicy,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub name: String,
@@ -36,7 +36,7 @@ pub struct TopicBuiltinTopicData {
     pub topic_data: TopicDataQosPolicy,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
@@ -61,7 +61,7 @@ pub struct PublicationBuiltinTopicData {
     pub group_data: GroupDataQosPolicy,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SubscriptionBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,

@@ -643,41 +643,38 @@ impl DdsShared<DomainParticipantImpl> {
     }
 }
 
-impl Entity for DdsShared<DomainParticipantImpl> {
-    type Qos = DomainParticipantQos;
-    type Listener = Box<dyn DomainParticipantListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> DdsResult<()> {
         *self.qos.write_lock() = qos.unwrap_or_default();
 
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
-        Ok(self.qos.read_lock().clone())
+    pub fn get_qos(&self) -> DomainParticipantQos {
+        self.qos.read_lock().clone()
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DdsResult<()> {
         todo!()
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn DomainParticipantListener>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
         todo!()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
         self.builtin_subscriber.enable(self)?;
@@ -705,7 +702,7 @@ impl Entity for DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -857,7 +854,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.rtps_participant.vendor_id()
     }
 }
-
 
 pub trait SendBuiltInData {
     fn send_built_in_data(&self, transport: &mut impl TransportWrite);

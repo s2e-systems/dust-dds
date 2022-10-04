@@ -1,6 +1,6 @@
 pub type DdsResult<T> = Result<T, DdsError>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum DdsError {
     Error,
     Unsupported,

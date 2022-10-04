@@ -13,18 +13,18 @@ use super::qos_policy::{
     TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantFactoryQos {
     entity_factory: EntityFactoryQosPolicy,
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PublisherQos {
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
@@ -42,7 +42,7 @@ impl PublisherQos {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataWriterQos {
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
@@ -132,7 +132,7 @@ impl DataWriterQos {
     }
 }
 
-#[derive(Default, Debug, PartialEq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct SubscriberQos {
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
@@ -150,7 +150,7 @@ impl SubscriberQos {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataReaderQos {
     pub durability: DurabilityQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -239,7 +239,7 @@ impl DataReaderQos {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicQos {
     pub topic_data: TopicDataQosPolicy,
     pub durability: DurabilityQosPolicy,

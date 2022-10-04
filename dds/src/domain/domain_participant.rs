@@ -467,7 +467,7 @@ impl Entity for DomainParticipant {
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        self.domain_participant_attributes.upgrade()?.get_qos()
+        Ok(self.domain_participant_attributes.upgrade()?.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {

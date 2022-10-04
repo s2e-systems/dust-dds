@@ -11,7 +11,7 @@ use super::{
     types::SubmessageFlag,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
@@ -21,7 +21,7 @@ pub struct AckNackSubmessage {
     pub count: CountSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DataSubmessage<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
@@ -35,7 +35,7 @@ pub struct DataSubmessage<'a> {
     pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DataFragSubmessage<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
@@ -52,7 +52,7 @@ pub struct DataFragSubmessage<'a> {
     pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct GapSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
@@ -61,7 +61,7 @@ pub struct GapSubmessage {
     pub gap_list: SequenceNumberSetSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
@@ -73,7 +73,7 @@ pub struct HeartbeatSubmessage {
     pub count: CountSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
@@ -83,13 +83,13 @@ pub struct HeartbeatFragSubmessage {
     pub count: CountSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct InfoReplySubmessage {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
@@ -97,7 +97,7 @@ pub struct InfoReplySubmessage {
     pub multicast_locator_list: LocatorListSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub protocol_version: ProtocolVersionSubmessageElement,
@@ -105,14 +105,14 @@ pub struct InfoSourceSubmessage {
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct InfoTimestampSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
     pub timestamp: TimestampSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
@@ -122,5 +122,5 @@ pub struct NackFragSubmessage {
     pub count: CountSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct PadSubmessage {}

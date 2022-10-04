@@ -9,10 +9,7 @@ use crate::{
         },
         rtps_udp_psm::udp_transport::RtpsUdpPsm,
     },
-    infrastructure::{
-        entity::Entity,
-        qos::{DomainParticipantFactoryQos, DomainParticipantQos},
-    },
+    infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
 };
 use crate::{
     implementation::{

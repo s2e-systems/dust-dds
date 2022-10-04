@@ -5,7 +5,7 @@
 /// ProtocolId_t
 /// Enumeration used to identify the protocol.
 /// The following values are reserved by the protocol: PROTOCOL_RTPS
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[allow(non_camel_case_types)]
 pub enum ProtocolId {
     PROTOCOL_RTPS,
@@ -20,7 +20,7 @@ pub type SubmessageFlag = bool;
 /// Enumeration used to identify the kind of Submessage.
 /// The following values are reserved by this version of the protocol:
 /// DATA, GAP, HEARTBEAT, ACKNACK, PAD, INFO_TS, INFO_REPLY, INFO_DST, INFO_SRC, DATA_FRAG, NACK_FRAG, HEARTBEAT_FRAG
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum SubmessageKind {
@@ -42,5 +42,5 @@ pub enum SubmessageKind {
 /// ParameterId_t
 /// Type used to uniquely identify a parameter in a parameter list.
 /// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParameterId(pub u16);

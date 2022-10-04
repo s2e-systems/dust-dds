@@ -20,19 +20,19 @@ use super::parameter_id_values::{
     PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From, derive_more::Into)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
 impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
     fn default() -> Self {
         Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
     }
 }
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From)]
 pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
     pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
 );
 
-#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
     fn default() -> Self {
@@ -42,7 +42,7 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
 }

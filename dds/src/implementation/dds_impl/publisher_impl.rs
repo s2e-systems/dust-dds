@@ -200,7 +200,7 @@ impl DdsShared<PublisherImpl> {
         data_writer_list
             .iter()
             .find_map(|data_writer_shared| {
-                let data_writer_topic = data_writer_shared.get_topic().ok()?;
+                let data_writer_topic = data_writer_shared.get_topic();
 
                 if data_writer_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_writer_topic.get_type_name().ok()? == Foo::type_name()
@@ -291,8 +291,8 @@ impl DdsShared<PublisherImpl> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.qos.read_lock().clone())
+    pub fn get_qos(&self) -> PublisherQos {
+        self.qos.read_lock().clone()
     }
 
     pub fn set_listener(

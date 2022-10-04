@@ -1,10 +1,16 @@
 use dust_dds::{
     dcps_psm::{
-        ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NEW_VIEW_STATE,
-        NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
+        Duration, ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+        NEW_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
     },
     dds_type::{DdsSerde, DdsType, Endianness},
     domain::domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{
+        entity::Entity,
+        qos::{DataReaderQos, DataWriterQos},
+        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        wait_set::{Condition, WaitSet},
+    },
     return_type::DdsResult,
 };
 
@@ -36,48 +42,64 @@ impl DdsType for KeyedData {
 impl DdsSerde for KeyedData {}
 
 #[test]
-fn write_read_keyed_topic_keep_last_one() {
+fn each_key_sample_is_read() {
     let domain_id = 20;
-    let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
+    let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, None, None, 0)
         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
-
-    let topic = participant1
+    let topic = participant
         .create_topic::<KeyedData>("MyTopic", None, None, 0)
         .unwrap();
 
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, Some(writer_qos), None, 0)
+        .unwrap();
 
-    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
 
-    //Wait for reader to be aware of the user writer
-    while reader
-        .get_subscription_matched_status()
-        .unwrap()
-        .total_count
-        < 1
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    let mut cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set
+        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
+        .unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
-
     let data2 = KeyedData { id: 2, value: 10 };
     let data3 = KeyedData { id: 3, value: 20 };
-    writer.write(&data1, None).unwrap();
 
+    writer.write(&data1, None).unwrap();
     writer.write(&data2, None).unwrap();
     writer.write(&data3, None).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    writer
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(2, 0))
+        .unwrap();
 
     let samples = reader
         .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

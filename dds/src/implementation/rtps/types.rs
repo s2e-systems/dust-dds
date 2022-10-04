@@ -11,7 +11,7 @@ use std::ops::AddAssign;
 /// The following values are reserved by the protocol: GUID_UNKNOWN
 ///
 /// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
     pub prefix: GuidPrefix,
     pub entity_id: EntityId,
@@ -79,7 +79,7 @@ impl From<[u8; 16]> for Guid {
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GuidPrefix(pub [u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
@@ -99,7 +99,7 @@ impl From<[u8; 12]> for GuidPrefix {
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
     pub entity_key: EntityKey,
     pub entity_kind: EntityKind,
@@ -192,7 +192,7 @@ pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY
 /// WITH_KEY
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TopicKind {
     NoKey,
     WithKey,
@@ -202,7 +202,7 @@ pub enum TopicKind {
 /// Enumeration used to distinguish the kind of change that was made to a data-object. Includes changes to the data or the instance state of the data-object.
 /// It can take the values:
 /// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
@@ -215,7 +215,7 @@ pub enum ChangeKind {
 /// The following values are reserved by the protocol: PROTOCOLVERSION PROTOCOLVERSION_1_0 PROTOCOLVERSION_1_1 PROTOCOLVERSION_2_0 PROTOCOLVERSION_2_1 PROTOCOLVERSION_2_2
 /// PROTOCOLVERSION_2_4
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -259,7 +259,7 @@ pub const VENDOR_ID_S2E: VendorId = [99, 99];
 
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Count(pub i32);
 
 impl AddAssign for Count {
@@ -284,7 +284,7 @@ impl From<Count> for i32 {
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDPv4 LOCATOR_KIND_UDPv6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
-#[derive(Clone, Copy, PartialEq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
     pub kind: LocatorKind,
     pub port: LocatorPort,

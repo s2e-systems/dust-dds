@@ -8,7 +8,7 @@ use super::{
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
     remote_writer_guid: Guid,
     unicast_locator_list: Vec<Locator>,

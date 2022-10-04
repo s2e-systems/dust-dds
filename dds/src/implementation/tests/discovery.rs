@@ -7,7 +7,7 @@ use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
     GuidPrefix, LOCATOR_KIND_UDPv4, Locator, PROTOCOLVERSION, VENDOR_ID_S2E,
 };
-use crate::infrastructure::{entity::Entity, qos::DomainParticipantQos};
+use crate::infrastructure::qos::DomainParticipantQos;
 
 use mockall::mock;
 

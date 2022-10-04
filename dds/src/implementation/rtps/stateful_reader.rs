@@ -11,7 +11,7 @@ use super::{
 /// Enumeration used to indicate the status of a ChangeFromWriter. It can take the values:
 /// LOST, MISSING, RECEIVED, UNKNOWN
 #[allow(dead_code)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,
@@ -49,7 +49,13 @@ impl RtpsStatefulReader {
 
 impl RtpsStatefulReader {
     pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
-        self.matched_writers.push(a_writer_proxy);
+        if !self
+            .matched_writers
+            .iter()
+            .any(|x| x.remote_writer_guid() == a_writer_proxy.remote_writer_guid())
+        {
+            self.matched_writers.push(a_writer_proxy);
+        }
     }
 
     pub fn matched_writer_remove<F>(&mut self, mut f: F)
@@ -132,17 +138,14 @@ impl RtpsStatefulReader {
     ) {
         let entity_id = self.reader.guid().entity_id;
         for writer_proxy in self.matched_writers.iter_mut() {
-            if writer_proxy.must_send_acknacks {
-                if !writer_proxy.missing_changes().is_empty() {
-                    writer_proxy.acknack_count =
-                        Count(writer_proxy.acknack_count.0.wrapping_add(1));
+            if writer_proxy.must_send_acknacks || !writer_proxy.missing_changes().is_empty() {
+                writer_proxy.acknack_count = Count(writer_proxy.acknack_count.0.wrapping_add(1));
 
-                    writer_proxy.reliable_send_ack_nack(
-                        entity_id,
-                        writer_proxy.acknack_count,
-                        |wp, acknack| send_acknack(wp, acknack),
-                    );
-                }
+                writer_proxy.reliable_send_ack_nack(
+                    entity_id,
+                    writer_proxy.acknack_count,
+                    |wp, acknack| send_acknack(wp, acknack),
+                );
                 writer_proxy.must_send_acknacks = false;
             }
         }

@@ -25,7 +25,7 @@ use super::parameter_id_values::{
     PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 
-#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantLeaseDuration(Duration);
 
 impl Default for ParticipantLeaseDuration {
@@ -48,7 +48,7 @@ impl From<ParticipantLeaseDuration> for Duration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParticipantProxy {
     pub domain_id: DomainId,
     pub domain_tag: String,
@@ -65,7 +65,7 @@ pub struct ParticipantProxy {
     pub builtin_endpoint_qos: BuiltinEndpointQos,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,

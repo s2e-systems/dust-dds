@@ -26,17 +26,17 @@ use super::parameter_id_values::{
     PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 
-#[derive(Debug, PartialEq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct ReliabilityQosPolicyDataWriter<'a>(pub &'a ReliabilityQosPolicy);
 impl<'a> Default for ReliabilityQosPolicyDataWriter<'a> {
     fn default() -> Self {
         Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
     }
 }
-#[derive(Debug, PartialEq, serde::Serialize, derive_more::From)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From)]
 pub struct ReliabilityQosPolicyDataWriterSerialize<'a>(pub &'a ReliabilityQosPolicyDataWriter<'a>);
 
-#[derive(Debug, PartialEq, serde::Deserialize, derive_more::Into)]
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataWriterDeserialize(pub ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataWriterDeserialize {
     fn default() -> Self {
@@ -44,7 +44,7 @@ impl Default for ReliabilityQosPolicyDataWriterDeserialize {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct WriterProxy {
     pub remote_writer_guid: Guid,
     pub unicast_locator_list: Vec<Locator>,
@@ -53,7 +53,7 @@ pub struct WriterProxy {
     pub remote_group_entity_id: EntityId,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DiscoveredWriterData {
     pub writer_proxy: WriterProxy,
     pub publication_builtin_topic_data: PublicationBuiltinTopicData,

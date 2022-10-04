@@ -290,7 +290,7 @@ impl Entity for Subscriber {
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        self.subscriber_attributes.upgrade()?.get_qos()
+        Ok(self.subscriber_attributes.upgrade()?.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {

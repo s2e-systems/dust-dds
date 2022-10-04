@@ -99,14 +99,14 @@ impl<T> RtpsStatelessWriter<T> {
                 .unsent_changes_mut()
                 .push(change.sequence_number());
         }
-        self.writer.writer_cache().add_change(change);
+        self.writer.writer_cache_mut().add_change(change);
     }
 
     pub fn remove_change<F>(&mut self, f: F)
     where
         F: FnMut(&RtpsCacheChange) -> bool,
     {
-        self.writer.writer_cache().remove_change(f)
+        self.writer.writer_cache_mut().remove_change(f)
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {

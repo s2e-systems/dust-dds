@@ -91,7 +91,11 @@ impl RtpsWriter {
         self.data_max_size_serialized
     }
 
-    pub fn writer_cache(&mut self) -> &mut RtpsHistoryCacheImpl {
+    pub fn writer_cache(&self) -> &RtpsHistoryCacheImpl {
+        &self.writer_cache
+    }
+
+    pub fn writer_cache_mut(&mut self) -> &mut RtpsHistoryCacheImpl {
         &mut self.writer_cache
     }
 }

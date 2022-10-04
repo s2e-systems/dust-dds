@@ -20,9 +20,7 @@ use crate::{
     {
         builtin_topics::ParticipantBuiltinTopicData,
         dcps_psm::{BuiltInTopicKey, DomainId},
-        infrastructure::{
-            entity::Entity, qos::DomainParticipantQos, qos_policy::UserDataQosPolicy,
-        },
+        infrastructure::{qos::DomainParticipantQos, qos_policy::UserDataQosPolicy},
     },
 };
 

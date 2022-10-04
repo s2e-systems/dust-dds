@@ -5,7 +5,7 @@ use crate::implementation::rtps::messages::submessages::{DataSubmessage, Heartbe
 use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
-    EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+    EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::return_type::{DdsError, DdsResult};
@@ -102,8 +102,8 @@ impl DdsShared<SubscriberImpl> {
         // /////// Build the GUID
         let entity_id = {
             let entity_kind = match Foo::has_key() {
-                true => USER_DEFINED_WRITER_WITH_KEY,
-                false => USER_DEFINED_WRITER_NO_KEY,
+                true => USER_DEFINED_READER_WITH_KEY,
+                false => USER_DEFINED_READER_NO_KEY,
             };
 
             EntityId::new(
@@ -195,7 +195,7 @@ impl DdsShared<SubscriberImpl> {
         data_reader_list
             .iter()
             .find_map(|data_reader_shared| {
-                let data_reader_topic = data_reader_shared.get_topicdescription().unwrap();
+                let data_reader_topic = data_reader_shared.get_topicdescription();
 
                 if data_reader_topic.get_name().ok()? == topic.get_name().ok()?
                     && data_reader_topic.get_type_name().ok()? == Foo::type_name()
@@ -288,8 +288,8 @@ impl DdsShared<SubscriberImpl> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        Ok(self.qos.read_lock().clone())
+    pub fn get_qos(&self) -> SubscriberQos {
+        self.qos.read_lock().clone()
     }
 
     pub fn set_listener(

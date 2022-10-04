@@ -444,7 +444,7 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
         {
             let mut rtps_reader_lock = self.rtps_reader.write_lock();
             let reader_qos = rtps_reader_lock.reader().get_qos();
-            let parent_subscriber_qos = self.get_subscriber().unwrap().get_qos().unwrap();
+            let parent_subscriber_qos = self.get_subscriber().get_qos();
 
             let mut incompatible_qos_policy_list = Vec::new();
 
@@ -1004,15 +1004,14 @@ where
         Ok(subscription_matched_status)
     }
 
-    pub fn get_topicdescription(&self) -> DdsResult<DdsShared<TopicImpl>> {
-        Ok(self.topic.clone())
+    pub fn get_topicdescription(&self) -> DdsShared<TopicImpl> {
+        self.topic.clone()
     }
 
-    pub fn get_subscriber(&self) -> DdsResult<DdsShared<SubscriberImpl>> {
-        Ok(self
-            .parent_subscriber
+    pub fn get_subscriber(&self) -> DdsShared<SubscriberImpl> {
+        self.parent_subscriber
             .upgrade()
-            .expect("Failed to get parent subscriber of data reader"))
+            .expect("Failed to get parent subscriber of data reader")
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -1148,8 +1147,8 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         todo!()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
-        Ok(*self.status_change.read_lock())
+    pub fn get_status_changes(&self) -> StatusMask {
+        *self.status_change.read_lock()
     }
 
     pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
@@ -1182,7 +1181,7 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
         let topic_qos = val.topic.get_qos()?;
-        let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos()?;
+        let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos();
 
         Ok(DiscoveredReaderData {
             reader_proxy: ReaderProxy {

@@ -5,7 +5,7 @@ use super::{
     types::{ProtocolId, SubmessageFlag, SubmessageKind},
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RtpsMessageHeader {
     pub protocol: ProtocolId,
     pub version: ProtocolVersionSubmessageElement,
@@ -13,7 +13,7 @@ pub struct RtpsMessageHeader {
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RtpsSubmessageHeader {
     pub submessage_id: SubmessageKind,
     pub flags: [SubmessageFlag; 8],

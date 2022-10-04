@@ -21,7 +21,7 @@ use super::{
     types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsParameter {
     parameter_id: ParameterId,
     value: Vec<u8>,

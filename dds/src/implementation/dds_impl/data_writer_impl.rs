@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    time::Instant,
 };
 
 use crate::{
@@ -77,7 +78,6 @@ use crate::implementation::{
 };
 
 use super::{
-    data_writer_communication_status::DataWriterCommunicationStatus,
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, publisher_impl::PublisherImpl,
     topic_impl::TopicImpl,
@@ -264,7 +264,8 @@ pub struct DataWriterImpl {
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
     matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
-    communication_status: DdsRwLock<DataWriterCommunicationStatus>,
+    status_condition: DdsRwLock<StatusCondition>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
 }
 
 impl DataWriterImpl {
@@ -312,7 +313,8 @@ impl DataWriterImpl {
             liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
             matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
-            communication_status: DdsRwLock::new(DataWriterCommunicationStatus::new(listener)),
+            status_condition: DdsRwLock::new(StatusCondition::default()),
+            listener: DdsRwLock::new(listener),
         })
     }
 
@@ -384,7 +386,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
 
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
-            let parent_publisher_qos = self.get_publisher().unwrap().get_qos().unwrap();
+            let parent_publisher_qos = self.get_publisher().get_qos();
             let qos = rtps_writer_lock.writer().get_qos();
             let mut incompatible_qos_policy_list = Vec::new();
             if qos.durability < reader_info.durability {
@@ -454,6 +456,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                             discovered_reader_data.reader_proxy.expects_inline_qos,
                             true,
                         );
+
                         w.matched_reader_add(reader_proxy);
                     }
                 }
@@ -471,9 +474,9 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
                     publication_matched_status_lock.current_count_change += 1;
                 }
 
-                self.communication_status
+                self.status_condition
                     .write_lock()
-                    .trigger_communication_status(SUBSCRIPTION_MATCHED_STATUS);
+                    .add_communication_state(SUBSCRIPTION_MATCHED_STATUS);
             } else {
                 {
                     let mut offered_incompatible_qos_status_lock =
@@ -716,12 +719,35 @@ impl DdsShared<DataWriterImpl> {
         }
     }
 
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        let start_time = Instant::now();
+
+        let max_wait_time_std = std::time::Duration::new(max_wait.sec() as u64, max_wait.nanosec());
+
+        while start_time.elapsed() < max_wait_time_std {
+            let rtps_writer_lock = self.rtps_writer.write_lock();
+            match &*rtps_writer_lock {
+                RtpsWriterKind::Stateless(_) => return Err(DdsError::IllegalOperation),
+                RtpsWriterKind::Stateful(w) => {
+                    let changes = w.writer().writer_cache().changes();
+
+                    if changes
+                        .iter()
+                        .map(|c| w.is_acked_by_all(c))
+                        .all(|r| r)
+                    {
+                        return Ok(());
+                    } else {
+                        std::thread::sleep(std::time::Duration::from_millis(20));
+                    }
+                }
+            }
+        }
+        Err(DdsError::Timeout)
     }
 
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
@@ -760,15 +786,14 @@ impl DdsShared<DataWriterImpl> {
         Ok(publication_matched_status)
     }
 
-    pub fn get_topic(&self) -> DdsResult<DdsShared<TopicImpl>> {
-        Ok(self.topic.clone())
+    pub fn get_topic(&self) -> DdsShared<TopicImpl> {
+        self.topic.clone()
     }
 
-    pub fn get_publisher(&self) -> DdsResult<DdsShared<PublisherImpl>> {
-        Ok(self
-            .publisher
+    pub fn get_publisher(&self) -> DdsShared<PublisherImpl> {
+        self.publisher
             .upgrade()
-            .expect("Failed to get parent publisher of data writer"))
+            .expect("Failed to get parent publisher of data writer")
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
@@ -824,8 +849,8 @@ impl DdsShared<DataWriterImpl> {
         rtps_writer_lock.writer_mut().set_qos(qos)
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.rtps_writer.read_lock().writer().get_qos().clone())
+    pub fn get_qos(&self) -> DataWriterQos {
+        self.rtps_writer.read_lock().writer().get_qos().clone()
     }
 
     pub fn set_listener(
@@ -833,9 +858,7 @@ impl DdsShared<DataWriterImpl> {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: StatusMask,
     ) -> DdsResult<()> {
-        self.communication_status
-            .write_lock()
-            .set_listener(a_listener);
+        *self.listener.write_lock() = a_listener;
         Ok(())
     }
 
@@ -844,7 +867,7 @@ impl DdsShared<DataWriterImpl> {
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(self.communication_status.read_lock().get_statuscondition())
+        Ok(self.status_condition.read_lock().clone())
     }
 
     pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
@@ -881,7 +904,7 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
         let guid = val.rtps_writer.read_lock().writer().guid();
         let writer_qos = rtps_writer_lock.writer().get_qos();
         let topic_qos = val.topic.get_qos()?;
-        let publisher_qos = val.publisher.upgrade()?.get_qos()?;
+        let publisher_qos = val.publisher.upgrade()?.get_qos();
 
         Ok(DiscoveredWriterData {
             writer_proxy: WriterProxy {

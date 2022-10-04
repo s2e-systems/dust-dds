@@ -349,18 +349,22 @@ where
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_topic()
-            .map(|x| Topic::new(x.downgrade()))
+        Ok(Topic::new(
+            self.data_writer_attributes
+                .upgrade()?
+                .get_topic()
+                .downgrade(),
+        ))
     }
 
     /// This operation returns the Publisher to which the data writer object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_publisher()
-            .map(|x| Publisher::new(x.downgrade()))
+        Ok(Publisher::new(
+            self.data_writer_attributes
+                .upgrade()?
+                .get_publisher()
+                .downgrade(),
+        ))
     }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
@@ -417,7 +421,7 @@ where
     }
 
     fn get_qos(&self) -> DdsResult<Self::Qos> {
-        self.data_writer_attributes.upgrade()?.get_qos()
+        Ok(self.data_writer_attributes.upgrade()?.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {

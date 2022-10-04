@@ -14,7 +14,7 @@ use super::{
 /// ChangeForReaderStatusKind
 /// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
 /// UNSENT, UNACKNOWLEDGED, REQUESTED, ACKNOWLEDGED, UNDERWAY
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ChangeForReaderStatusKind {
     Unsent,
     Unacknowledged,
@@ -33,7 +33,7 @@ pub enum ReliableStatefulWriterSendSubmessage<'a> {
     Gap(GapSubmessage),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RtpsReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -238,7 +238,7 @@ impl From<RtpsChangeForReaderCacheChange<'_>> for SequenceNumber {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsChangeForReader {
     status: ChangeForReaderStatusKind,
     is_relevant: bool,
@@ -256,6 +256,18 @@ impl RtpsChangeForReader {
             is_relevant,
             sequence_number,
         }
+    }
+
+    pub fn status(&self) -> ChangeForReaderStatusKind {
+        self.status
+    }
+
+    pub fn is_relevant(&self) -> bool {
+        self.is_relevant
+    }
+
+    pub fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
     }
 }
 
@@ -364,6 +376,9 @@ impl RtpsReaderProxy {
         // the modification of the status is done always.
         change.status = ChangeForReaderStatusKind::Underway;
 
+        // After ackNackSuppressionDuration = 0
+        change.status = ChangeForReaderStatusKind::Unacknowledged;
+
         RtpsChangeForReaderCacheChange::new(change.clone(), writer_cache)
     }
 
@@ -389,6 +404,9 @@ impl RtpsReaderProxy {
         // Note this is the only usage in the standard of next_unsent_change() as such
         // the modification of the status is done always.
         change.status = ChangeForReaderStatusKind::Underway;
+
+        // After ackNackSuppressionDuration = 0
+        change.status = ChangeForReaderStatusKind::Unacknowledged;
 
         RtpsChangeForReaderCacheChange::new(change.clone(), writer_cache)
     }
