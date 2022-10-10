@@ -1,14 +1,12 @@
-use crate::dcps_psm::InstanceHandle;
+use crate::dcps_psm::{InstanceHandle, Time};
 
 use super::{
-    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
+    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
-        submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-        },
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessage_elements::TimestampSubmessageElement,
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
     },
-    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber},
 };
 
 /// ChangeForReaderStatusKind
@@ -22,17 +20,6 @@ pub enum ChangeForReaderStatusKind {
     Acknowledged,
     Underway,
 }
-
-pub enum BestEffortStatefulWriterSendSubmessage<'a> {
-    Data(DataSubmessage<'a>),
-    Gap(GapSubmessage),
-}
-
-pub enum ReliableStatefulWriterSendSubmessage<'a> {
-    Data(DataSubmessage<'a>),
-    Gap(GapSubmessage),
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsReaderProxy {
     remote_reader_guid: Guid,
@@ -102,132 +89,12 @@ impl RtpsReaderProxy {
         self.is_active
     }
 
-    pub fn best_effort_send_unsent_changes<'a>(
-        &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Option<BestEffortStatefulWriterSendSubmessage<'a>> {
-        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
-        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.1.4 Transition T4
-        let reader_id = self.remote_reader_guid().entity_id();
-
-        if self.unsent_changes().into_iter().next().is_some() {
-            let change = self.next_unsent_change(writer_cache);
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
-            // should be full-filled by next_unsent_change()
-            if change.is_relevant() {
-                let mut data_submessage: DataSubmessage<'a> = change.into();
-                data_submessage.reader_id.value = reader_id.into();
-                Some(BestEffortStatefulWriterSendSubmessage::Data(
-                    data_submessage,
-                ))
-            } else {
-                let mut gap_submessage: GapSubmessage = change.into();
-                gap_submessage.reader_id.value = reader_id.into();
-                Some(BestEffortStatefulWriterSendSubmessage::Gap(gap_submessage))
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn reliable_send_unsent_changes<'a>(
-        &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Option<ReliableStatefulWriterSendSubmessage<'a>> {
-        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
-        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
-        let reader_id = self.remote_reader_guid().entity_id();
-
-        if self.unsent_changes().into_iter().next().is_some() {
-            let change = self.next_unsent_change(writer_cache);
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
-            // should be full-filled by next_unsent_change()
-            if change.is_relevant() {
-                let mut data_submessage: DataSubmessage<'_> = change.into();
-                data_submessage.reader_id.value = reader_id.into();
-                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
-            } else {
-                let mut gap_submessage: GapSubmessage = change.into();
-                gap_submessage.reader_id.value = reader_id.into();
-                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn send_heartbeat(
-        &self,
-        writer_id: EntityId,
-        writer_cache: &RtpsHistoryCacheImpl,
-    ) -> HeartbeatSubmessage {
-        let endianness_flag = true;
-        let final_flag = false;
-        let liveliness_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN.into(),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: writer_id.into(),
-        };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_min().unwrap_or(1),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: writer_cache.get_seq_num_max().unwrap_or(0),
-        };
-        let count = CountSubmessageElement { value: 0 };
-        HeartbeatSubmessage {
-            endianness_flag,
-            final_flag,
-            liveliness_flag,
-            reader_id,
-            writer_id,
-            first_sn,
-            last_sn,
-            count,
-        }
-    }
-
     pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
         if acknack_submessage.count.value > self.last_received_acknack_count.0 {
             self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
             self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
 
             self.last_received_acknack_count.0 = acknack_submessage.count.value;
-        }
-    }
-
-    pub fn send_requested_changes<'a>(
-        &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Option<ReliableStatefulWriterSendSubmessage<'a>> {
-        let reader_id = self.remote_reader_guid().entity_id();
-
-        if self.requested_changes().into_iter().next().is_some() {
-            let change_for_reader = self.next_requested_change(writer_cache);
-            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-            // it's not done here to avoid the change being a mutable reference
-            // Also the post-condition:
-            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
-            // should be full-filled by next_requested_change()
-            if change_for_reader.is_relevant() {
-                let mut data_submessage: DataSubmessage<'_> = change_for_reader.into();
-                data_submessage.reader_id.value = reader_id.into();
-                Some(ReliableStatefulWriterSendSubmessage::Data(data_submessage))
-            } else {
-                let mut gap_submessage: GapSubmessage = change_for_reader.into();
-                gap_submessage.reader_id.value = reader_id.into();
-                Some(ReliableStatefulWriterSendSubmessage::Gap(gap_submessage))
-            }
-        } else {
-            None
         }
     }
 }
@@ -273,7 +140,7 @@ impl RtpsChangeForReader {
 
 pub struct RtpsChangeForReaderCacheChange<'a> {
     change_for_reader: RtpsChangeForReader,
-    cache_change: &'a RtpsCacheChange,
+    cache_change: &'a RtpsWriterCacheChange,
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
@@ -310,12 +177,16 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn inline_qos(&self) -> &[RtpsParameter] {
         self.cache_change.inline_qos()
     }
+
+    pub fn timestamp(&self) -> Time {
+        self.cache_change.timestamp()
+    }
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn new(
         change_for_reader: RtpsChangeForReader,
-        writer_cache: &'a RtpsHistoryCacheImpl,
+        writer_cache: &'a WriterHistoryCache,
     ) -> Self {
         let cache_change = writer_cache
             .changes()
@@ -335,9 +206,19 @@ impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage {
     }
 }
 
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for DataSubmessage<'a> {
+impl<'a> From<RtpsChangeForReaderCacheChange<'a>>
+    for (InfoTimestampSubmessage, DataSubmessage<'a>)
+{
     fn from(val: RtpsChangeForReaderCacheChange<'a>) -> Self {
-        val.cache_change.into()
+        let info_ts_submessage = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: false,
+            timestamp: TimestampSubmessageElement {
+                value: val.cache_change.timestamp().into(),
+            },
+        };
+        let data_submessage = val.cache_change.into();
+        (info_ts_submessage, data_submessage)
     }
 }
 
@@ -355,7 +236,7 @@ impl RtpsReaderProxy {
 
     pub fn next_requested_change<'a>(
         &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
+        writer_cache: &'a WriterHistoryCache,
     ) -> RtpsChangeForReaderCacheChange<'a> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()}
@@ -384,7 +265,7 @@ impl RtpsReaderProxy {
 
     pub fn next_unsent_change<'a>(
         &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
+        writer_cache: &'a WriterHistoryCache,
     ) -> RtpsChangeForReaderCacheChange<'a> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
@@ -479,20 +360,24 @@ mod tests {
     use super::*;
 
     use crate::{
-        dcps_psm::HANDLE_NIL,
-        implementation::rtps::{history_cache::RtpsCacheChange, types::GUID_UNKNOWN},
+        dcps_psm::{HANDLE_NIL, TIME_INVALID},
+        implementation::rtps::{
+            history_cache::RtpsWriterCacheChange,
+            types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
+        },
     };
 
     fn add_new_change_push_mode_true(
-        writer_cache: &mut RtpsHistoryCacheImpl,
+        writer_cache: &mut WriterHistoryCache,
         reader_proxy: &mut RtpsReaderProxy,
         sequence_number: SequenceNumber,
     ) {
-        writer_cache.add_change(RtpsCacheChange::new(
+        writer_cache.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             sequence_number,
+            TIME_INVALID,
             vec![],
             vec![],
         ));
@@ -504,15 +389,16 @@ mod tests {
     }
 
     fn add_new_change_push_mode_false(
-        writer_cache: &mut RtpsHistoryCacheImpl,
+        writer_cache: &mut WriterHistoryCache,
         reader_proxy: &mut RtpsReaderProxy,
         sequence_number: SequenceNumber,
     ) {
-        writer_cache.add_change(RtpsCacheChange::new(
+        writer_cache.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             sequence_number,
+            TIME_INVALID,
             vec![],
             vec![],
         ));
@@ -528,7 +414,7 @@ mod tests {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
 
-        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 1);
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 2);
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 4);
@@ -547,7 +433,7 @@ mod tests {
     fn unsent_changes() {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 1);
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 3);
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 4);
@@ -559,7 +445,7 @@ mod tests {
     fn next_unsent_change() {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 1);
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 2);
 
@@ -577,7 +463,7 @@ mod tests {
     fn unacked_changes() {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
-        let mut writer_cache = RtpsHistoryCacheImpl::new();
+        let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 1);
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 2);
         add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 4);

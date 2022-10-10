@@ -98,7 +98,7 @@ fn each_key_sample_is_read() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(2, 0))
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(0, 200_000_000))
         .unwrap();
 
     let samples = reader

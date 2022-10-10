@@ -1,23 +1,22 @@
 use std::{
-    cell::RefCell,
     collections::HashMap,
     convert::{TryFrom, TryInto},
     time::Instant,
 };
 
 use crate::{
-    dcps_psm::{HANDLE_NIL, SUBSCRIPTION_MATCHED_STATUS, TIME_INVALID},
+    dcps_psm::{HANDLE_NIL, SUBSCRIPTION_MATCHED_STATUS},
     dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
         messages::{
             overall_structure::RtpsMessageHeader,
             submessage_elements::{
                 GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                TimestampSubmessageElement, VendorIdSubmessageElement,
+                VendorIdSubmessageElement,
             },
-            submessages::{AckNackSubmessage, InfoTimestampSubmessage},
+            submessages::AckNackSubmessage,
             types::{ParameterId, ProtocolId},
-            RtpsMessage, RtpsSubmessageType,
+            RtpsMessage,
         },
         reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
@@ -55,7 +54,7 @@ use crate::{
             types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
         rtps::{
-            history_cache::{RtpsCacheChange, RtpsParameter},
+            history_cache::{RtpsParameter, RtpsWriterCacheChange},
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             utils::clock::StdTimer,
@@ -183,7 +182,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
 }
 
 pub enum RtpsWriterKind {
-    Stateless(RtpsStatelessWriter<StdTimer>),
+    Stateless(RtpsStatelessWriter),
     Stateful(RtpsStatefulWriter<StdTimer>),
 }
 
@@ -211,16 +210,21 @@ impl RtpsWriterKind {
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange {
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
         match self {
-            RtpsWriterKind::Stateless(w) => w.new_change(kind, data, inline_qos, handle),
-            RtpsWriterKind::Stateful(w) => w.new_change(kind, data, inline_qos, handle),
+            RtpsWriterKind::Stateless(w) => w
+                .writer_mut()
+                .new_change(kind, data, inline_qos, handle, timestamp),
+            RtpsWriterKind::Stateful(w) => w
+                .writer_mut()
+                .new_change(kind, data, inline_qos, handle, timestamp),
         }
     }
 }
 
 impl RtpsWriterKind {
-    pub fn add_change(&mut self, change: RtpsCacheChange) {
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         match self {
             RtpsWriterKind::Stateless(w) => w.add_change(change),
             RtpsWriterKind::Stateful(w) => w.add_change(change),
@@ -229,7 +233,7 @@ impl RtpsWriterKind {
 
     pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&RtpsCacheChange) -> bool,
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
         match self {
             RtpsWriterKind::Stateless(w) => w.remove_change(f),
@@ -254,7 +258,6 @@ impl RtpsWriterKind {
 
 pub struct DataWriterImpl {
     rtps_writer: DdsRwLock<RtpsWriterKind>,
-    sample_info: DdsRwLock<HashMap<SequenceNumber, Time>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<PublisherImpl>,
@@ -303,7 +306,6 @@ impl DataWriterImpl {
 
         DdsShared::new(DataWriterImpl {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            sample_info: DdsRwLock::new(HashMap::new()),
             registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
             publisher,
@@ -564,7 +566,6 @@ impl DdsShared<DataWriterImpl> {
             let serialized_key = instance.get_serialized_key::<LittleEndian>();
 
             let mut rtps_writer_lock = self.rtps_writer.write_lock();
-            let mut sample_info_lock = self.sample_info.write_lock();
             let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
 
             let instance_handle = retrieve_instance_handle(
@@ -593,10 +594,9 @@ impl DdsShared<DataWriterImpl> {
                 data,
                 inline_qos,
                 instance_handle,
+                timestamp,
             );
-            let sequence_number = change.sequence_number();
             rtps_writer_lock.add_change(change);
-            sample_info_lock.insert(sequence_number, timestamp);
             registered_instance_list_lock.remove(&instance_handle);
             Ok(())
         } else {
@@ -652,13 +652,14 @@ impl DdsShared<DataWriterImpl> {
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
         let handle = self.register_instance_w_timestamp(data, timestamp)?;
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let mut sample_info_lock = self.sample_info.write_lock();
-        let change =
-            rtps_writer_lock.new_change(ChangeKind::Alive, serialized_data, vec![], handle);
-        let sequence_number = change.sequence_number();
+        let change = rtps_writer_lock.new_change(
+            ChangeKind::Alive,
+            serialized_data,
+            vec![],
+            handle,
+            timestamp,
+        );
         rtps_writer_lock.add_change(change);
-
-        sample_info_lock.insert(sequence_number, timestamp);
 
         Ok(())
     }
@@ -680,7 +681,6 @@ impl DdsShared<DataWriterImpl> {
             let serialized_key = data.get_serialized_key::<LittleEndian>();
 
             let mut rtps_writer_lock = self.rtps_writer.write_lock();
-            let mut sample_info_lock = self.sample_info.write_lock();
             let registered_instance_list_lock = self.registered_instance_list.read_lock();
 
             let instance_handle = retrieve_instance_handle(
@@ -708,10 +708,9 @@ impl DdsShared<DataWriterImpl> {
                 data,
                 inline_qos,
                 instance_handle,
+                timestamp,
             );
-            let sequence_number = change.sequence_number();
             rtps_writer_lock.add_change(change);
-            sample_info_lock.insert(sequence_number, timestamp);
 
             Ok(())
         } else {
@@ -729,23 +728,17 @@ impl DdsShared<DataWriterImpl> {
         let max_wait_time_std = std::time::Duration::new(max_wait.sec() as u64, max_wait.nanosec());
 
         while start_time.elapsed() < max_wait_time_std {
-            let rtps_writer_lock = self.rtps_writer.write_lock();
-            match &*rtps_writer_lock {
+            match &*self.rtps_writer.write_lock() {
                 RtpsWriterKind::Stateless(_) => return Err(DdsError::IllegalOperation),
                 RtpsWriterKind::Stateful(w) => {
                     let changes = w.writer().writer_cache().changes();
 
-                    if changes
-                        .iter()
-                        .map(|c| w.is_acked_by_all(c))
-                        .all(|r| r)
-                    {
+                    if changes.iter().map(|c| w.is_acked_by_all(c)).all(|r| r) {
                         return Ok(());
-                    } else {
-                        std::thread::sleep(std::time::Duration::from_millis(20));
                     }
                 }
             }
+            std::thread::sleep(std::time::Duration::from_millis(20));
         }
         Err(DdsError::Timeout)
     }
@@ -942,114 +935,60 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
 
 impl DdsShared<DataWriterImpl> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let destined_submessages = RefCell::new(Vec::new());
-
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let sample_info_lock = self.sample_info.read_lock();
         let guid_prefix = rtps_writer_lock.writer().guid().prefix();
+
         match &mut *rtps_writer_lock {
             RtpsWriterKind::Stateless(stateless_rtps_writer) => {
-                stateless_rtps_writer.send_submessages(
-                    |reader_locator, data| {
-                        let info_ts =
-                            if let Some(&time) = sample_info_lock.get(&data.writer_sn.value) {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement { value: time.into() },
-                                }
-                            } else {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: true,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID.into(),
-                                    },
-                                }
-                            };
-                        destined_submessages.borrow_mut().push((
-                            vec![reader_locator.locator()],
-                            vec![
-                                RtpsSubmessageType::InfoTimestamp(info_ts),
-                                RtpsSubmessageType::Data(data),
-                            ],
-                        ));
-                    },
-                    |reader_locator, gap| {
-                        destined_submessages.borrow_mut().push((
-                            vec![reader_locator.locator()],
-                            vec![RtpsSubmessageType::Gap(gap)],
-                        ));
-                    },
-                    |_, _| (),
-                );
+                let destined_submessages = stateless_rtps_writer.produce_submessages();
+                for (reader_locator, submessages) in destined_submessages {
+                    let header = RtpsMessageHeader {
+                        protocol: ProtocolId::PROTOCOL_RTPS,
+                        version: ProtocolVersionSubmessageElement {
+                            value: PROTOCOLVERSION.into(),
+                        },
+                        vendor_id: VendorIdSubmessageElement {
+                            value: VENDOR_ID_S2E,
+                        },
+                        guid_prefix: GuidPrefixSubmessageElement {
+                            value: guid_prefix.into(),
+                        },
+                    };
+
+                    let rtps_message = RtpsMessage {
+                        header,
+                        submessages,
+                    };
+                    transport.write(&rtps_message, reader_locator.locator())
+                }
             }
             RtpsWriterKind::Stateful(stateful_rtps_writer) => {
-                stateful_rtps_writer.send_submessages(
-                    |reader_proxy, data| {
-                        let info_ts =
-                            if let Some(&time) = sample_info_lock.get(&data.writer_sn.value) {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: false,
-                                    timestamp: TimestampSubmessageElement { value: time.into() },
-                                }
-                            } else {
-                                InfoTimestampSubmessage {
-                                    endianness_flag: true,
-                                    invalidate_flag: true,
-                                    timestamp: TimestampSubmessageElement {
-                                        value: TIME_INVALID.into(),
-                                    },
-                                }
-                            };
-                        destined_submessages.borrow_mut().push((
-                            reader_proxy.unicast_locator_list().to_vec(),
-                            vec![
-                                RtpsSubmessageType::InfoTimestamp(info_ts),
-                                RtpsSubmessageType::Data(data),
-                            ],
-                        ));
-                    },
-                    |reader_proxy, gap| {
-                        destined_submessages.borrow_mut().push((
-                            reader_proxy.unicast_locator_list().to_vec(),
-                            vec![RtpsSubmessageType::Gap(gap)],
-                        ));
-                    },
-                    |reader_proxy, heartbeat| {
-                        destined_submessages.borrow_mut().push((
-                            reader_proxy.unicast_locator_list().to_vec(),
-                            vec![RtpsSubmessageType::Heartbeat(heartbeat)],
-                        ));
-                    },
-                );
-            }
-        }
-        let writer_destined_submessages = destined_submessages.take();
+                let destined_submessages = stateful_rtps_writer.produce_submessages();
 
-        for (locator_list, submessages) in writer_destined_submessages {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix.into(),
-                },
-            };
+                for (reader_proxy, submessages) in destined_submessages {
+                    let header = RtpsMessageHeader {
+                        protocol: ProtocolId::PROTOCOL_RTPS,
+                        version: ProtocolVersionSubmessageElement {
+                            value: PROTOCOLVERSION.into(),
+                        },
+                        vendor_id: VendorIdSubmessageElement {
+                            value: VENDOR_ID_S2E,
+                        },
+                        guid_prefix: GuidPrefixSubmessageElement {
+                            value: guid_prefix.into(),
+                        },
+                    };
 
-            let rtps_message = RtpsMessage {
-                header,
-                submessages,
-            };
-            for locator in locator_list {
-                transport.write(&rtps_message, locator);
+                    let rtps_message = RtpsMessage {
+                        header,
+                        submessages,
+                    };
+                    for locator in reader_proxy.unicast_locator_list() {
+                        transport.write(&rtps_message, *locator);
+                    }
+                }
             }
-        }
+        };
     }
 }
 
@@ -1066,8 +1005,10 @@ mod test {
                 submessage_elements::{
                     EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
                     SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                    TimestampSubmessageElement,
                 },
-                submessages::DataSubmessage,
+                submessages::{DataSubmessage, InfoTimestampSubmessage},
+                RtpsSubmessageType,
             },
             types::{
                 Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,

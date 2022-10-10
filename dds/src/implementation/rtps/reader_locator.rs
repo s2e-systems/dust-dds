@@ -1,13 +1,11 @@
 use super::{
-    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl},
-    messages::submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage},
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    messages::{
+        submessage_elements::TimestampSubmessageElement,
+        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
+    },
     types::{Count, Locator, SequenceNumber},
 };
-
-pub enum BestEffortStatelessWriterSendSubmessage<'a> {
-    Data(DataSubmessage<'a>),
-    Gap(GapSubmessage),
-}
 
 pub struct RtpsReaderLocator {
     requested_changes: Vec<SequenceNumber>,
@@ -48,30 +46,6 @@ impl RtpsReaderLocator {
         self.expects_inline_qos
     }
 
-    /// 8.4.8.1.4 Transition T4
-    pub fn send_unsent_changes<'a>(
-        &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
-    ) -> Option<BestEffortStatelessWriterSendSubmessage<'a>> {
-        if self.unsent_changes().into_iter().next().is_some() {
-            let change = self.next_unsent_change(writer_cache);
-            // The post-condition:
-            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-            // should be full-filled by next_unsent_change()
-            if change.is_in_cache() {
-                let data_submessage = change.into();
-                Some(BestEffortStatelessWriterSendSubmessage::Data(
-                    data_submessage,
-                ))
-            } else {
-                let gap_submessage = change.into();
-                Some(BestEffortStatelessWriterSendSubmessage::Gap(gap_submessage))
-            }
-        } else {
-            None
-        }
-    }
-
     /// 8.4.8.2.5 Transition T6
     /// Implementation does not include the part corresponding to searching the reader locator
     /// on the stateless writer
@@ -81,9 +55,10 @@ impl RtpsReaderLocator {
             self.last_received_acknack_count.0 = acknack_submessage.count.value;
         }
     }
+
     pub fn next_requested_change<'a>(
         &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
+        writer_cache: &'a WriterHistoryCache,
     ) -> RtpsReaderLocatorCacheChange<'a> {
         // "next_seq_num := MIN {change.sequenceNumber
         //     SUCH-THAT change IN this.requested_changes()};
@@ -107,7 +82,7 @@ impl RtpsReaderLocator {
 
     pub fn next_unsent_change<'a>(
         &mut self,
-        writer_cache: &'a RtpsHistoryCacheImpl,
+        writer_cache: &'a WriterHistoryCache,
     ) -> RtpsReaderLocatorCacheChange<'a> {
         // "next_seq_num := MIN { change.sequenceNumber
         //     SUCH-THAT change IN this.unsent_changes() };
@@ -143,11 +118,11 @@ impl RtpsReaderLocator {
 }
 
 pub struct RtpsReaderLocatorCacheChange<'a> {
-    cache_change: Option<&'a RtpsCacheChange>,
+    cache_change: Option<&'a RtpsWriterCacheChange>,
 }
 
 impl RtpsReaderLocatorCacheChange<'_> {
-    fn is_in_cache(&self) -> bool {
+    pub fn is_in_cache(&self) -> bool {
         self.cache_change.is_some()
     }
 }
@@ -158,21 +133,29 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage {
     }
 }
 
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for DataSubmessage<'a> {
+impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for (InfoTimestampSubmessage, DataSubmessage<'a>) {
     fn from(val: RtpsReaderLocatorCacheChange<'a>) -> Self {
         let cache_change = val
             .cache_change
             .expect("Can only convert to data if it exists in the writer cache");
-        cache_change.into()
+        let info_ts_submessage = InfoTimestampSubmessage {
+            endianness_flag: true,
+            invalidate_flag: false,
+            timestamp: TimestampSubmessageElement {
+                value: cache_change.timestamp().into(),
+            },
+        };
+        let data_submessage = cache_change.into();
+        (info_ts_submessage, data_submessage)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::HANDLE_NIL,
+        dcps_psm::{HANDLE_NIL, TIME_INVALID},
         implementation::rtps::{
-            history_cache::RtpsCacheChange,
+            history_cache::RtpsWriterCacheChange,
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
     };
@@ -181,20 +164,22 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut hc = RtpsHistoryCacheImpl::new();
-        hc.add_change(RtpsCacheChange::new(
+        let mut hc = WriterHistoryCache::new();
+        hc.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             1,
+            TIME_INVALID,
             vec![],
             vec![],
         ));
-        hc.add_change(RtpsCacheChange::new(
+        hc.add_change(RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             2,
+            TIME_INVALID,
             vec![],
             vec![],
         ));

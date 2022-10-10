@@ -1,13 +1,4 @@
-use std::convert::TryFrom;
-
-use crate::{
-    dcps_psm::InstanceHandle,
-    implementation::data_representation_inline_qos::{
-        parameter_id_values::PID_STATUS_INFO,
-        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
-    },
-    return_type::DdsError,
-};
+use crate::dcps_psm::{InstanceHandle, Time};
 
 use super::{
     messages::{
@@ -18,7 +9,7 @@ use super::{
         submessages::DataSubmessage,
         types::ParameterId,
     },
-    types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -44,16 +35,17 @@ impl RtpsParameter {
     }
 }
 
-pub struct RtpsCacheChange {
+pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
+    timestamp: Time,
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
 }
 
-impl PartialEq for RtpsCacheChange {
+impl PartialEq for RtpsWriterCacheChange {
     fn eq(&self, other: &Self) -> bool {
         self.kind == other.kind
             && self.writer_guid == other.writer_guid
@@ -62,68 +54,8 @@ impl PartialEq for RtpsCacheChange {
     }
 }
 
-impl TryFrom<(GuidPrefix, &DataSubmessage<'_>)> for RtpsCacheChange {
-    type Error = DdsError;
-
-    fn try_from(value: (GuidPrefix, &DataSubmessage<'_>)) -> Result<Self, Self::Error> {
-        let (source_guid_prefix, data) = value;
-        let writer_guid = Guid::new(source_guid_prefix, data.writer_id.value.into());
-
-        let instance_handle = [0; 16].into();
-        let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value.to_vec();
-
-        let inline_qos: Vec<RtpsParameter> = data
-            .inline_qos
-            .parameter
-            .iter()
-            .map(|p| RtpsParameter {
-                parameter_id: ParameterId(p.parameter_id),
-                value: p.value.to_vec(),
-            })
-            .collect();
-
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => Ok(ChangeKind::Alive),
-            (false, true) => {
-                if let Some(p) = inline_qos
-                    .iter()
-                    .find(|&x| x.parameter_id == ParameterId(PID_STATUS_INFO))
-                {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-                    let status_info = serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    match status_info {
-                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
-                        _ => Err(DdsError::PreconditionNotMet(
-                            "Unknown status info value".to_string(),
-                        )),
-                    }
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Missing mandatory StatusInfo parameter".to_string(),
-                    ))
-                }
-            }
-            _ => Err(DdsError::PreconditionNotMet(
-                "Invalid data submessage data and key flag combination".to_string(),
-            )),
-        }?;
-
-        Ok(RtpsCacheChange {
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data: data_value,
-            inline_qos,
-        })
-    }
-}
-
-impl<'a> From<&'a RtpsCacheChange> for DataSubmessage<'a> {
-    fn from(val: &'a RtpsCacheChange) -> Self {
+impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
+    fn from(val: &'a RtpsWriterCacheChange) -> Self {
         let endianness_flag = true;
         let inline_qos_flag = true;
         let (data_flag, key_flag) = match val.kind() {
@@ -170,12 +102,13 @@ impl<'a> From<&'a RtpsCacheChange> for DataSubmessage<'a> {
     }
 }
 
-impl RtpsCacheChange {
+impl RtpsWriterCacheChange {
     pub fn new(
         kind: ChangeKind,
         writer_guid: Guid,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
+        timestamp: Time,
         data_value: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
     ) -> Self {
@@ -184,13 +117,14 @@ impl RtpsCacheChange {
             writer_guid,
             sequence_number,
             instance_handle,
+            timestamp,
             data: data_value,
             inline_qos,
         }
     }
 }
 
-impl RtpsCacheChange {
+impl RtpsWriterCacheChange {
     pub fn kind(&self) -> ChangeKind {
         self.kind
     }
@@ -207,6 +141,10 @@ impl RtpsCacheChange {
         self.sequence_number
     }
 
+    pub fn timestamp(&self) -> Time {
+        self.timestamp
+    }
+
     pub fn data_value(&self) -> &[u8] {
         self.data.as_ref()
     }
@@ -217,11 +155,11 @@ impl RtpsCacheChange {
 }
 
 #[derive(Default)]
-pub struct RtpsHistoryCacheImpl {
-    changes: Vec<RtpsCacheChange>,
+pub struct WriterHistoryCache {
+    changes: Vec<RtpsWriterCacheChange>,
 }
 
-impl RtpsHistoryCacheImpl {
+impl WriterHistoryCache {
     pub fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -229,20 +167,20 @@ impl RtpsHistoryCacheImpl {
     }
 }
 
-impl RtpsHistoryCacheImpl {
-    pub fn changes(&self) -> &[RtpsCacheChange] {
+impl WriterHistoryCache {
+    pub fn changes(&self) -> &[RtpsWriterCacheChange] {
         &self.changes
     }
 }
 
-impl RtpsHistoryCacheImpl {
-    pub fn add_change(&mut self, change: RtpsCacheChange) {
+impl WriterHistoryCache {
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.changes.push(change);
     }
 
     pub fn remove_change<F>(&mut self, mut f: F)
     where
-        F: FnMut(&RtpsCacheChange) -> bool,
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
         self.changes.retain(|cc| !f(cc));
     }
@@ -258,18 +196,22 @@ impl RtpsHistoryCacheImpl {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dcps_psm::HANDLE_NIL, implementation::rtps::types::GUID_UNKNOWN};
+    use crate::{
+        dcps_psm::{HANDLE_NIL, TIME_INVALID},
+        implementation::rtps::types::GUID_UNKNOWN,
+    };
 
     use super::*;
 
     #[test]
     fn remove_change() {
-        let mut hc = RtpsHistoryCacheImpl::new();
-        let change = RtpsCacheChange::new(
+        let mut hc = WriterHistoryCache::new();
+        let change = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             1,
+            TIME_INVALID,
             vec![],
             vec![],
         );
@@ -280,20 +222,22 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 = RtpsCacheChange::new(
+        let mut hc = WriterHistoryCache::new();
+        let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             1,
+            TIME_INVALID,
             vec![],
             vec![],
         );
-        let change2 = RtpsCacheChange::new(
+        let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             2,
+            TIME_INVALID,
             vec![],
             vec![],
         );
@@ -304,20 +248,22 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = RtpsHistoryCacheImpl::new();
-        let change1 = RtpsCacheChange::new(
+        let mut hc = WriterHistoryCache::new();
+        let change1 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             1,
+            TIME_INVALID,
             vec![],
             vec![],
         );
-        let change2 = RtpsCacheChange::new(
+        let change2 = RtpsWriterCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
             2,
+            TIME_INVALID,
             vec![],
             vec![],
         );

@@ -1,12 +1,12 @@
 use crate::{
-    dcps_psm::{Duration, InstanceHandle},
+    dcps_psm::{Duration, InstanceHandle, Time},
     infrastructure::qos::DataWriterQos,
     return_type::DdsResult,
 };
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::{RtpsCacheChange, RtpsHistoryCacheImpl, RtpsParameter},
+    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     types::{ChangeKind, Guid, Locator, SequenceNumber, TopicKind},
 };
 
@@ -18,7 +18,7 @@ pub struct RtpsWriter {
     nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
     data_max_size_serialized: Option<i32>,
-    pub writer_cache: RtpsHistoryCacheImpl,
+    writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
 }
 
@@ -40,7 +40,7 @@ impl RtpsWriter {
             nack_suppression_duration,
             last_change_sequence_number: 0,
             data_max_size_serialized,
-            writer_cache: RtpsHistoryCacheImpl::new(),
+            writer_cache: WriterHistoryCache::new(),
             qos,
         }
     }
@@ -91,11 +91,11 @@ impl RtpsWriter {
         self.data_max_size_serialized
     }
 
-    pub fn writer_cache(&self) -> &RtpsHistoryCacheImpl {
+    pub fn writer_cache(&self) -> &WriterHistoryCache {
         &self.writer_cache
     }
 
-    pub fn writer_cache_mut(&mut self) -> &mut RtpsHistoryCacheImpl {
+    pub fn writer_cache_mut(&mut self) -> &mut WriterHistoryCache {
         &mut self.writer_cache
     }
 }
@@ -107,13 +107,15 @@ impl RtpsWriter {
         data: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         handle: InstanceHandle,
-    ) -> RtpsCacheChange {
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
         self.last_change_sequence_number += 1;
-        RtpsCacheChange::new(
+        RtpsWriterCacheChange::new(
             kind,
             self.guid(),
             handle,
             self.last_change_sequence_number,
+            timestamp,
             data,
             inline_qos,
         )

@@ -1,19 +1,19 @@
 use crate::{
-    dcps_psm::InstanceHandle,
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
     infrastructure::qos_policy::ReliabilityQosPolicyKind,
 };
 
 use super::{
-    history_cache::{RtpsCacheChange, RtpsParameter},
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
+    history_cache::RtpsWriterCacheChange,
+    messages::{
+        submessage_elements::{
+            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+        },
+        submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
+        RtpsSubmessageType,
     },
-    reader_proxy::{
-        BestEffortStatefulWriterSendSubmessage, ChangeForReaderStatusKind,
-        ReliableStatefulWriterSendSubmessage, RtpsChangeForReader, RtpsReaderProxy,
-    },
-    types::{ChangeKind, Count, Guid, GuidPrefix, SequenceNumber},
+    reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
+    types::{Count, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
@@ -90,7 +90,7 @@ impl<T> RtpsStatefulWriter<T> {
             .find(|&x| x.remote_reader_guid() == a_reader_guid)
     }
 
-    pub fn is_acked_by_all(&self, a_change: &RtpsCacheChange) -> bool {
+    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
         for matched_reader in self.matched_readers.iter() {
             if let Some(cc) = matched_reader
                 .changes_for_reader()
@@ -110,19 +110,7 @@ impl<T> RtpsStatefulWriter<T> {
 }
 
 impl<T> RtpsStatefulWriter<T> {
-    pub fn new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
-        handle: InstanceHandle,
-    ) -> RtpsCacheChange {
-        self.writer.new_change(kind, data, inline_qos, handle)
-    }
-}
-
-impl<T> RtpsStatefulWriter<T> {
-    pub fn add_change(&mut self, change: RtpsCacheChange) {
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let sequence_number = change.sequence_number();
         self.writer.writer_cache_mut().add_change(change);
 
@@ -140,30 +128,70 @@ impl<T> RtpsStatefulWriter<T> {
 
     pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&RtpsCacheChange) -> bool,
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
         self.writer.writer_cache_mut().remove_change(f)
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache.get_seq_num_min()
+        self.writer.writer_cache().get_seq_num_min()
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache.get_seq_num_max()
+        self.writer.writer_cache().get_seq_num_max()
     }
 }
 
-impl<'a, T> RtpsStatefulWriter<T>
-where
-    T: Timer,
-{
-    pub fn send_submessages(
-        &'a mut self,
-        mut send_data: impl FnMut(&RtpsReaderProxy, DataSubmessage<'a>),
-        mut send_gap: impl FnMut(&RtpsReaderProxy, GapSubmessage),
-        mut send_heartbeat: impl FnMut(&RtpsReaderProxy, HeartbeatSubmessage),
-    ) {
+impl<T: Timer> RtpsStatefulWriter<T> {
+    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+        match self.writer.get_qos().reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                self.produce_submessages_best_effort()
+            }
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => self.produce_submessages_reliable(),
+        }
+    }
+
+    fn produce_submessages_best_effort(
+        &mut self,
+    ) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+        let mut destined_submessages = Vec::new();
+        for reader_proxy in self.matched_readers.iter_mut() {
+            let mut submessages = Vec::new();
+            if !reader_proxy.unsent_changes().is_empty() {
+                // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+                // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+
+                while !reader_proxy.unsent_changes().is_empty() {
+                    let change = reader_proxy.next_unsent_change(self.writer.writer_cache());
+                    // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+                    // it's not done here to avoid the change being a mutable reference
+                    // Also the post-condition:
+                    // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+                    // should be full-filled by next_unsent_change()
+                    if change.is_relevant() {
+                        let (info_ts_submessage, mut data_submessage) = change.into();
+                        data_submessage.reader_id.value =
+                            reader_proxy.remote_reader_guid().entity_id().into();
+                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                    } else {
+                        let mut gap_submessage: GapSubmessage = change.into();
+                        gap_submessage.reader_id.value =
+                            reader_proxy.remote_reader_guid().entity_id().into();
+                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
+                    }
+                }
+            }
+            if !submessages.is_empty() {
+                destined_submessages.push((&*reader_proxy, submessages));
+            }
+        }
+        destined_submessages
+    }
+
+    fn produce_submessages_reliable(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+        let mut destined_submessages = Vec::new();
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
                 + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
@@ -171,68 +199,114 @@ where
             self.heartbeat_timer.reset();
             self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
         }
-
-        let reliability_level = &self.writer.get_qos().reliability.kind;
-        let writer_id = self.writer.guid().entity_id;
-        let heartbeat_count = self.heartbeat_count;
-
         for reader_proxy in self.matched_readers.iter_mut() {
-            match reliability_level {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
-                    while let Some(send_submessage) =
-                        reader_proxy.best_effort_send_unsent_changes(&self.writer.writer_cache)
-                    {
-                        match send_submessage {
-                            BestEffortStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(reader_proxy, data)
-                            }
-                            BestEffortStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(reader_proxy, gap)
-                            }
-                        }
+            let mut submessages = Vec::new();
+            // Top part of the state machine - Figure 8.19 RTPS standard
+            if !reader_proxy.unsent_changes().is_empty() {
+                // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+                // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+
+                while !reader_proxy.unsent_changes().is_empty() {
+                    let change = reader_proxy.next_unsent_change(self.writer.writer_cache());
+                    // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+                    // it's not done here to avoid the change being a mutable reference
+                    // Also the post-condition:
+                    // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+                    // should be full-filled by next_unsent_change()
+                    if change.is_relevant() {
+                        let (info_ts_submessage, mut data_submessage) = change.into();
+                        data_submessage.reader_id.value =
+                            reader_proxy.remote_reader_guid().entity_id().into();
+                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                    } else {
+                        let mut gap_submessage: GapSubmessage = change.into();
+                        gap_submessage.reader_id.value =
+                            reader_proxy.remote_reader_guid().entity_id().into();
+                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
-                    // Top part of the state machine - Figure 8.19 RTPS standard
-                    if !reader_proxy.unsent_changes().is_empty() {
-                        // Pushing
-                        while let Some(send_submessage) =
-                            reader_proxy.reliable_send_unsent_changes(&self.writer.writer_cache)
-                        {
-                            match send_submessage {
-                                ReliableStatefulWriterSendSubmessage::Data(data) => {
-                                    send_data(reader_proxy, data)
-                                }
-                                ReliableStatefulWriterSendSubmessage::Gap(gap) => {
-                                    send_gap(reader_proxy, gap)
-                                }
-                            }
-                        }
-                    } else if reader_proxy.unacked_changes().is_empty() {
-                        // Idle
-                    } else if time_for_heartbeat {
-                        let mut heartbeat =
-                            reader_proxy.send_heartbeat(writer_id, &self.writer.writer_cache);
-                        heartbeat.count.value = heartbeat_count.0;
-                        send_heartbeat(reader_proxy, heartbeat)
-                    }
 
-                    // Middle-part of the state-machine - Figure 8.19 RTPS standard
-                    while let Some(send_requested_submessage) =
-                        reader_proxy.send_requested_changes(&self.writer.writer_cache)
-                    {
-                        match send_requested_submessage {
-                            ReliableStatefulWriterSendSubmessage::Data(data) => {
-                                send_data(reader_proxy, data)
-                            }
-                            ReliableStatefulWriterSendSubmessage::Gap(gap) => {
-                                send_gap(reader_proxy, gap)
-                            }
-                        }
+                self.heartbeat_timer.reset();
+                self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+                let heartbeat = HeartbeatSubmessage {
+                    endianness_flag: true,
+                    final_flag: false,
+                    liveliness_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN.into(),
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: self.writer.guid().entity_id().into(),
+                    },
+                    first_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                    },
+                    last_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                    },
+                    count: CountSubmessageElement {
+                        value: self.heartbeat_count.into(),
+                    },
+                };
+
+                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
+            } else if reader_proxy.unacked_changes().is_empty() {
+                // Idle
+            } else if time_for_heartbeat {
+                let heartbeat = HeartbeatSubmessage {
+                    endianness_flag: true,
+                    final_flag: false,
+                    liveliness_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN.into(),
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: self.writer.guid().entity_id().into(),
+                    },
+                    first_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                    },
+                    last_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                    },
+                    count: CountSubmessageElement {
+                        value: self.heartbeat_count.into(),
+                    },
+                };
+
+                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
+            }
+
+            // Middle-part of the state-machine - Figure 8.19 RTPS standard
+            if !reader_proxy.requested_changes().is_empty() {
+                let reader_id = reader_proxy.remote_reader_guid().entity_id();
+
+                while !reader_proxy.requested_changes().is_empty() {
+                    let change_for_reader =
+                        reader_proxy.next_requested_change(self.writer.writer_cache());
+                    // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+                    // it's not done here to avoid the change being a mutable reference
+                    // Also the post-condition:
+                    // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
+                    // should be full-filled by next_requested_change()
+                    if change_for_reader.is_relevant() {
+                        let (info_ts_submessage, mut data_submessage) = change_for_reader.into();
+                        data_submessage.reader_id.value = reader_id.into();
+                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                    } else {
+                        let mut gap_submessage: GapSubmessage = change_for_reader.into();
+                        gap_submessage.reader_id.value = reader_id.into();
+                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
             }
+            if !submessages.is_empty() {
+                destined_submessages.push((&*reader_proxy, submessages));
+            }
         }
+        destined_submessages
     }
 }
 

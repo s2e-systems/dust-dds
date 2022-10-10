@@ -1,27 +1,20 @@
-use crate::{
-    dcps_psm::InstanceHandle,
-    implementation::rtps::utils::clock::{Timer, TimerConstructor},
-    infrastructure::qos_policy::ReliabilityQosPolicyKind,
-};
+use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
 
 use super::{
-    history_cache::{RtpsCacheChange, RtpsParameter},
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, HeartbeatSubmessage,
-    },
-    reader_locator::{BestEffortStatelessWriterSendSubmessage, RtpsReaderLocator},
-    types::{ChangeKind, Count, EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    history_cache::RtpsWriterCacheChange,
+    messages::{submessages::AckNackSubmessage, RtpsSubmessageType},
+    reader_locator::RtpsReaderLocator,
+    types::{Count, EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
-pub struct RtpsStatelessWriter<T> {
+pub struct RtpsStatelessWriter {
     writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
-    heartbeat_timer: T,
     _heartbeat_count: Count,
 }
 
-impl<T> RtpsStatelessWriter<T> {
+impl RtpsStatelessWriter {
     pub fn writer(&self) -> &RtpsWriter {
         &self.writer
     }
@@ -31,24 +24,23 @@ impl<T> RtpsStatelessWriter<T> {
     }
 }
 
-impl<T> RtpsStatelessWriter<T> {
+impl RtpsStatelessWriter {
     pub fn reader_locators(&'_ mut self) -> &mut Vec<RtpsReaderLocator> {
         &mut self.reader_locators
     }
 }
 
-impl<T: TimerConstructor> RtpsStatelessWriter<T> {
+impl RtpsStatelessWriter {
     pub fn new(writer: RtpsWriter) -> Self {
         Self {
             writer,
             reader_locators: Vec::new(),
-            heartbeat_timer: T::new(),
             _heartbeat_count: Count(0),
         }
     }
 }
 
-impl<T> RtpsStatelessWriter<T> {
+impl RtpsStatelessWriter {
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
             .writer
@@ -80,20 +72,8 @@ impl<T> RtpsStatelessWriter<T> {
     }
 }
 
-impl<T> RtpsStatelessWriter<T> {
-    pub fn new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
-        handle: InstanceHandle,
-    ) -> RtpsCacheChange {
-        self.writer.new_change(kind, data, inline_qos, handle)
-    }
-}
-
-impl<T> RtpsStatelessWriter<T> {
-    pub fn add_change(&mut self, change: RtpsCacheChange) {
+impl RtpsStatelessWriter {
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         for reader_locator in &mut self.reader_locators {
             reader_locator
                 .unsent_changes_mut()
@@ -104,60 +84,56 @@ impl<T> RtpsStatelessWriter<T> {
 
     pub fn remove_change<F>(&mut self, f: F)
     where
-        F: FnMut(&RtpsCacheChange) -> bool,
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
         self.writer.writer_cache_mut().remove_change(f)
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache.get_seq_num_min()
+        self.writer.writer_cache().get_seq_num_min()
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache.get_seq_num_max()
+        self.writer.writer_cache().get_seq_num_max()
     }
 }
 
-impl<'a, T> RtpsStatelessWriter<T>
-where
-    T: Timer,
-{
-    pub fn send_submessages(
-        &'a mut self,
-        mut send_data: impl FnMut(&RtpsReaderLocator, DataSubmessage<'a>),
-        mut send_gap: impl FnMut(&RtpsReaderLocator, GapSubmessage),
-        _send_heartbeat: impl FnMut(&RtpsReaderLocator, HeartbeatSubmessage),
-    ) {
-        let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
-                + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
-        if time_for_heartbeat {
-            self.heartbeat_timer.reset();
-        }
+impl RtpsStatelessWriter {
+    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageType>)> {
+        let mut destined_submessages = Vec::new();
         let reliability_kind = &self.writer.get_qos().reliability.kind;
-        for reader_locator in &mut self.reader_locators {
-            match reliability_kind {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
-                    while let Some(send_submessage) =
-                        reader_locator.send_unsent_changes(&self.writer.writer_cache)
-                    {
-                        match send_submessage {
-                            BestEffortStatelessWriterSendSubmessage::Data(data) => {
-                                send_data(reader_locator, data)
-                            }
-                            BestEffortStatelessWriterSendSubmessage::Gap(gap) => {
-                                send_gap(reader_locator, gap)
-                            }
+        let writer_cache = self.writer.writer_cache();
+        match reliability_kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                for rl in self.reader_locators.iter_mut() {
+                    let mut submessages = Vec::new();
+                    while !rl.unsent_changes().is_empty() {
+                        let change = rl.next_unsent_change(writer_cache);
+                        // The post-condition:
+                        // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+                        // should be full-filled by next_unsent_change()
+                        if change.is_in_cache() {
+                            let (info_ts_submessage, data_submessage) = change.into();
+                            submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
+                            submessages.push(RtpsSubmessageType::Data(data_submessage));
+                        } else {
+                            let gap_submessage = change.into();
+                            submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                         }
                     }
+                    if !submessages.is_empty() {
+                        destined_submessages.push((&*rl, submessages));
+                    }
                 }
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => todo!(),
             }
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => todo!(),
         }
+
+        destined_submessages
     }
 }
 
-impl<T> RtpsStatelessWriter<T> {
+impl RtpsStatelessWriter {
     pub fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage) {
         let acknack_reader_id: EntityId = acknack_submessage.reader_id.value.into();
         let message_is_for_me = acknack_reader_id == ENTITYID_UNKNOWN

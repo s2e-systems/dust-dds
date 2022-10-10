@@ -78,6 +78,9 @@ impl RtpsWriterProxy {
     }
 
     pub fn reliable_receive_heartbeat(&mut self, heartbeat: &HeartbeatSubmessage) {
+        if !heartbeat.final_flag {
+            self.must_send_acknacks = true;
+        }
         self.missing_changes_update(heartbeat.last_sn.value);
         self.lost_changes_update(heartbeat.first_sn.value);
     }
