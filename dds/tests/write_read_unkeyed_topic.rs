@@ -1,11 +1,13 @@
-use dust_dds::dcps_psm::{Time, DURATION_ZERO, LENGTH_UNLIMITED};
+use dust_dds::dcps_psm::{Time, LENGTH_UNLIMITED};
 use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
+use dust_dds::infrastructure::entity::Entity;
 use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
 };
 
+use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
 use dust_dds::return_type::{DdsError, DdsResult};
 
 use dust_dds::{
@@ -49,37 +51,55 @@ fn write_read_unkeyed_topic() {
     let domain_id = 8;
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
+    let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
-
-    let topic = participant1
+    let topic = participant
         .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
 
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, Some(writer_qos), None, 0)
+        .unwrap();
 
-    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let reader = subscriber.create_datareader(&topic, None, None, 0).unwrap();
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
 
-    //Wait for reader to be aware of the user writer
-    while reader
-        .get_subscription_matched_status()
-        .unwrap()
-        .total_count
-        < 1
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    let mut cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set
+        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
+        .unwrap();
 
     writer.write(&UserData(8), None).unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
+    writer
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .unwrap();
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
@@ -108,8 +128,8 @@ fn data_reader_resource_limits() {
     let publisher = participant1.create_publisher(None, None, 0).unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-            max_blocking_time: DURATION_ZERO,
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -117,12 +137,16 @@ fn data_reader_resource_limits() {
         },
         ..Default::default()
     };
-    let data_writer = publisher
+    let writer = publisher
         .create_datawriter(&topic1, Some(data_writer_qos), None, 0)
         .unwrap();
 
     let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let data_reader_qos = DataReaderQos {
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
             depth: LENGTH_UNLIMITED,
@@ -134,27 +158,31 @@ fn data_reader_resource_limits() {
         },
         ..Default::default()
     };
-    let data_reader = subscriber
-        .create_datareader(&topic2, Some(data_reader_qos), None, 0)
+    let reader = subscriber
+        .create_datareader(&topic2, Some(reader_qos), None, 0)
         .unwrap();
 
-    //Wait for reader to be aware of the user writer
-    while data_reader
-        .get_subscription_matched_status()
-        .unwrap()
-        .total_count
-        < 1
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    let mut cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+        .unwrap();
 
-    data_writer.write(&UserData(1), None).unwrap();
-    data_writer.write(&UserData(2), None).unwrap();
-    data_writer.write(&UserData(3), None).unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set
+        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
+        .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
+    writer.write(&UserData(1), None).unwrap();
+    writer.write(&UserData(2), None).unwrap();
+    writer.write(&UserData(3), None).unwrap();
 
-    let samples = data_reader
+    writer
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .unwrap();
+
+    let samples = reader
         .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
@@ -166,25 +194,18 @@ fn data_reader_order_by_source_timestamp() {
     let domain_id = 11;
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
+    let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
         .unwrap();
-    let topic1 = participant1
+    let topic = participant
         .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
-    let topic2 = participant2
-        .create_topic::<UserData>("MyTopic", None, None, 0)
-        .unwrap();
-
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-            max_blocking_time: DURATION_ZERO,
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
         },
         destination_order: DestinationOrderQosPolicy {
             kind: DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS,
@@ -195,12 +216,16 @@ fn data_reader_order_by_source_timestamp() {
         },
         ..Default::default()
     };
-    let data_writer = publisher
-        .create_datawriter(&topic1, Some(data_writer_qos), None, 0)
+    let writer = publisher
+        .create_datawriter(&topic, Some(data_writer_qos), None, 0)
         .unwrap();
 
-    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-    let data_reader_qos = DataReaderQos {
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
             depth: 1,
@@ -210,21 +235,23 @@ fn data_reader_order_by_source_timestamp() {
         },
         ..Default::default()
     };
-    let data_reader = subscriber
-        .create_datareader(&topic2, Some(data_reader_qos), None, 0)
+    let reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
         .unwrap();
 
-    //Wait for reader to be aware of the user writer
-    while data_reader
-        .get_subscription_matched_status()
-        .unwrap()
-        .total_count
-        < 1
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    let mut cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+        .unwrap();
 
-    data_writer
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set
+        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
+        .unwrap();
+
+    writer
         .write_w_timestamp(
             &UserData(1),
             None,
@@ -234,7 +261,7 @@ fn data_reader_order_by_source_timestamp() {
             },
         )
         .unwrap();
-    data_writer
+    writer
         .write_w_timestamp(
             &UserData(2),
             None,
@@ -244,7 +271,7 @@ fn data_reader_order_by_source_timestamp() {
             },
         )
         .unwrap();
-    data_writer
+    writer
         .write_w_timestamp(
             &UserData(3),
             None,
@@ -255,14 +282,14 @@ fn data_reader_order_by_source_timestamp() {
         )
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    writer
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .unwrap();
 
-    let mut samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    while let Err(DdsError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = data_reader.read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    }
-    let samples = samples.unwrap();
+    let samples = reader
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
     assert_eq!(samples.len(), 3);
     assert_eq!(&samples[0].data, &Some(UserData(3)));
     assert_eq!(&samples[1].data, &Some(UserData(2)));
@@ -271,53 +298,67 @@ fn data_reader_order_by_source_timestamp() {
 
 #[test]
 fn data_reader_publication_handle_sample_info() {
-    let domain_id = 11;
+    let domain_id = 12;
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
+    let participant = participant_factory
         .create_participant(domain_id, None, None, 0)
         .unwrap();
-    let topic1 = participant1
+
+    let topic = participant
         .create_topic::<UserData>("MyTopic", None, None, 0)
         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, None, None, 0)
-        .unwrap();
-    let topic2 = participant2
-        .create_topic::<UserData>("MyTopic", None, None, 0)
-        .unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
 
-    let publisher = participant1.create_publisher(None, None, 0).unwrap();
-
-    let data_writer = publisher.create_datawriter(&topic1, None, None, 0).unwrap();
-
-    let subscriber = participant2.create_subscriber(None, None, 0).unwrap();
-
-    let data_reader = subscriber
-        .create_datareader(&topic2, None, None, 0)
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, Some(writer_qos), None, 0)
         .unwrap();
 
-    //Wait for reader to be aware of the user writer
-    while data_reader
-        .get_subscription_matched_status()
-        .unwrap()
-        .total_count
-        < 1
-    {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
+    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
 
-    data_writer.write(&UserData(1), None).unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, Some(reader_qos), None, 0)
+        .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
+    let mut cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+        .unwrap();
 
-    let samples = data_reader
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set
+        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
+        .unwrap();
+
+    writer.write(&UserData(1), None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .unwrap();
+
+    let samples = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
     assert_eq!(samples.len(), 1);
-    assert!(data_reader
+    assert!(reader
         .get_matched_publication_data(samples[0].sample_info.publication_handle)
         .is_ok());
 }

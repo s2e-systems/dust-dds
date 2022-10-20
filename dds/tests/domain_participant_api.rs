@@ -1,7 +1,6 @@
 use std::io::Write;
-use std::time::Instant;
 
-use dust_dds::dds_type::{DdsDeserialize, DdsSerde, DdsSerialize, DdsType, Endianness};
+use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dust_dds::return_type::{DdsError, DdsResult};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
@@ -313,54 +312,4 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .delete_datareader(&a_datareader)
         .expect("Failed to delete datareader");
     assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct UserData(u8);
-
-impl DdsType for UserData {
-    fn type_name() -> &'static str {
-        "UserData"
-    }
-}
-
-impl DdsSerde for UserData {}
-
-#[test]
-fn participant_records_discovered_topics() {
-    let domain_participant_factory = DomainParticipantFactory::get_instance();
-
-    let participant1 = domain_participant_factory
-        .create_participant(8, None, None, 0)
-        .unwrap();
-    let participant2 = domain_participant_factory
-        .create_participant(8, None, None, 0)
-        .unwrap();
-
-    let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
-    for name in topic_names {
-        participant1
-            .create_topic::<UserData>(name, None, None, 0)
-            .unwrap();
-    }
-
-    // Wait for topics to be discovered
-    let waiting_time = Instant::now();
-    while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-
-        if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
-            panic!("Topic discovery is taking too long")
-        }
-    }
-
-    let mut discovered_topic_names: Vec<String> = participant2
-        .get_discovered_topics()
-        .unwrap()
-        .iter()
-        .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
-        .collect();
-    discovered_topic_names.sort();
-
-    assert_eq!(topic_names, discovered_topic_names.as_slice());
 }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -46,4 +48,45 @@ fn discovery_of_reader_and_writer_in_same_participant() {
         .unwrap();
 
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
+}
+
+#[test]
+fn participant_records_discovered_topics() {
+    let domain_id = 7;
+
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, None, None, 0)
+        .unwrap();
+
+    let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
+    for name in topic_names {
+        participant1
+            .create_topic::<UserType>(name, None, None, 0)
+            .unwrap();
+    }
+
+    // Wait for topics to be discovered
+    let waiting_time = Instant::now();
+    while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
+            panic!("Topic discovery is taking too long")
+        }
+    }
+
+    let mut discovered_topic_names: Vec<String> = participant2
+        .get_discovered_topics()
+        .unwrap()
+        .iter()
+        .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
+        .collect();
+    discovered_topic_names.sort();
+
+    assert_eq!(topic_names, discovered_topic_names.as_slice());
 }
