@@ -1,6 +1,5 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsType;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
@@ -11,13 +10,13 @@ use crate::implementation::rtps::types::{
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
 use crate::infrastructure::entity::StatusCondition;
-use crate::return_type::{DdsError, DdsResult};
+use crate::infrastructure::error::{DdsError, DdsResult};
+use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::status::StatusMask;
+use crate::infrastructure::time::{Duration, DURATION_ZERO};
 use crate::{
+    infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
     publication::publisher_listener::PublisherListener,
-    {
-        dcps_psm::{Duration, InstanceHandle, StatusMask},
-        infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
-    },
 };
 
 use crate::implementation::{

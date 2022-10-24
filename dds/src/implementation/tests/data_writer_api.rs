@@ -1,16 +1,14 @@
+use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
-use crate::return_type::DdsError;
 use crate::{
     dds_type::{DdsSerialize, DdsType, Endianness},
-    return_type::DdsResult,
-    {
-        dcps_psm::{DomainId, Time, TIME_INVALID},
-        infrastructure::{
-            qos::{DataWriterQos, DomainParticipantQos},
-            qos_policy::ResourceLimitsQosPolicy,
-        },
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        qos::{DataWriterQos, DomainParticipantQos},
+        qos_policy::ResourceLimitsQosPolicy,
+        time::{Time, TIME_INVALID},
     },
 };
 

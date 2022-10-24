@@ -57,9 +57,9 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     }
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dust_dds::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
                     let mut buf = key.to_owned();
-                    *self = cdr::deserialize(&mut buf).map_err(|e| dust_dds::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
+                    *self = cdr::deserialize(&mut buf).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
                     Ok(())
                 }
             }
@@ -88,7 +88,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     #build_key
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dust_dds::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
                     #set_key
                     Ok(())
                 }
@@ -110,7 +110,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     vec![]
                 }
 
-                fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> dust_dds::return_type::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
                     Ok(())
                 }
             }
@@ -165,7 +165,7 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
 
     let mut token_stream = quote! {
         let mut __buf = key.to_owned();
-        let (#identifier_list_ts) = cdr::deserialize(&mut __buf).map_err(|e| dust_dds::return_type::DdsError::PreconditionNotMet(e.to_string()))?;
+        let (#identifier_list_ts) = cdr::deserialize(&mut __buf).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
     };
 
     for (&(i, field), ident) in indexed_key_fields.iter().zip(identifiers.iter()) {

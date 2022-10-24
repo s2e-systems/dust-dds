@@ -4,6 +4,8 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         entity::Entity,
+        status::SUBSCRIPTION_MATCHED_STATUS,
+        time::Duration,
         wait_set::{Condition, WaitSet},
     },
 };
@@ -36,16 +38,14 @@ fn discovery_of_reader_and_writer_in_same_participant() {
         .create_datareader::<UserType>(&topic, None, None, 0)
         .unwrap();
     let mut cond = data_writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 1);
 }

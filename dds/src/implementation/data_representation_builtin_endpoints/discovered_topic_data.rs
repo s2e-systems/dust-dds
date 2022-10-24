@@ -1,5 +1,5 @@
-use crate::builtin_topics::TopicBuiltinTopicData;
-use crate::dcps_psm::BuiltInTopicKey;
+use crate::builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData};
+use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
@@ -60,10 +60,7 @@ impl DdsType for DiscoveredTopicData {
         self.topic_builtin_topic_data.key.value.to_vec()
     }
 
-    fn set_key_fields_from_serialized_key(
-        &mut self,
-        _key: &[u8],
-    ) -> crate::return_type::DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -72,10 +69,7 @@ impl DdsType for DiscoveredTopicData {
 }
 
 impl DdsSerialize for DiscoveredTopicData {
-    fn serialize<W: std::io::Write, E: Endianness>(
-        &self,
-        writer: W,
-    ) -> crate::return_type::DdsResult<()> {
+    fn serialize<W: std::io::Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -154,7 +148,7 @@ impl DdsSerialize for DiscoveredTopicData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredTopicData {
-    fn deserialize(buf: &mut &'_ [u8]) -> crate::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
@@ -207,15 +201,11 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        dcps_psm::BuiltInTopicKey,
-        infrastructure::qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-            DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy,
-            TopicDataQosPolicy, TransportPriorityQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+    use crate::infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+        DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+        TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
     use crate::dds_type::LittleEndian;

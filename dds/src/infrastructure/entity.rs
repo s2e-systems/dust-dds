@@ -1,9 +1,13 @@
 use std::sync::{Arc, Condvar};
 
 use crate::{
-    dcps_psm::{InstanceHandle, StatusKind, StatusMask},
     implementation::utils::shared_object::{DdsRwLock, DdsShared},
-    return_type::DdsResult,
+    infrastructure::error::DdsResult,
+};
+
+use super::{
+    instance::InstanceHandle,
+    status::{StatusKind, StatusMask},
 };
 
 struct StatusConditionImpl {

@@ -1,4 +1,4 @@
-use crate::dcps_psm::{InstanceHandle, Time};
+use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
@@ -360,11 +360,11 @@ mod tests {
     use super::*;
 
     use crate::{
-        dcps_psm::{HANDLE_NIL, TIME_INVALID},
         implementation::rtps::{
             history_cache::RtpsWriterCacheChange,
             types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
+        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
     };
 
     fn add_new_change_push_mode_true(

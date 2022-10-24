@@ -5,8 +5,6 @@ pub mod subscription;
 pub mod topic_definition;
 
 pub mod builtin_topics;
-pub mod dcps_psm;
 pub mod dds_type;
-pub mod return_type;
 
 mod implementation;

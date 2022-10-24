@@ -1,4 +1,4 @@
-use crate::dcps_psm::{
+use crate::infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
     PublicationMatchedStatus,
 };

@@ -1,9 +1,10 @@
 use crate::dds_type::DdsType;
+use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
-use crate::return_type::DdsError;
-use crate::{dcps_psm::DomainId, infrastructure::qos::DomainParticipantQos};
+use crate::infrastructure::error::DdsError;
+use crate::infrastructure::qos::DomainParticipantQos;
 
 struct Foo;
 

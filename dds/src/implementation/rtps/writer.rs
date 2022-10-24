@@ -1,7 +1,8 @@
-use crate::{
-    dcps_psm::{Duration, InstanceHandle, Time},
-    infrastructure::qos::DataWriterQos,
-    return_type::DdsResult,
+use crate::infrastructure::{
+    error::DdsResult,
+    instance::InstanceHandle,
+    qos::DataWriterQos,
+    time::{Duration, Time},
 };
 
 use super::{

@@ -1,4 +1,4 @@
-use crate::dcps_psm::{
+use crate::infrastructure::status::{
     LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
     SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
 };

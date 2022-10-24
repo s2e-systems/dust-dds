@@ -1,10 +1,12 @@
-use crate::dcps_psm::{DomainId, Duration};
+use crate::builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData};
+
+use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
 use crate::implementation::rtps::types::{
     Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
 };
+use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::UserDataQosPolicy;
-use crate::{builtin_topics::ParticipantBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
@@ -15,6 +17,7 @@ use crate::{
             ExpectsInlineQosSerialize,
         },
     },
+    infrastructure::time::Duration,
 };
 
 use super::parameter_id_values::{
@@ -143,10 +146,7 @@ impl DdsType for SpdpDiscoveredParticipantData {
         self.dds_participant_data.key.value.to_vec()
     }
 
-    fn set_key_fields_from_serialized_key(
-        &mut self,
-        _key: &[u8],
-    ) -> crate::return_type::DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -155,10 +155,7 @@ impl DdsType for SpdpDiscoveredParticipantData {
 }
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
-    fn serialize<W: std::io::Write, E: Endianness>(
-        &self,
-        writer: W,
-    ) -> crate::return_type::DdsResult<()> {
+    fn serialize<W: std::io::Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let guid = Guid {
             prefix: self.participant_proxy.guid_prefix,
             entity_id: ENTITYID_PARTICIPANT,
@@ -226,7 +223,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize(buf: &mut &'de [u8]) -> crate::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let guid = param_list.get::<Guid, Guid>(PID_PARTICIPANT_GUID)?;

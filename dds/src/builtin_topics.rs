@@ -1,14 +1,17 @@
-use crate::{
-    dcps_psm::BuiltInTopicKey,
-    infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-        DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
-        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-        PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
-        TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-        UserDataQosPolicy,
-    },
+use crate::infrastructure::qos_policy::{
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
+    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
 };
+
+type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BuiltInTopicKey {
+    pub value: [BuiltInTopicKeyTypeNative; 16], // Originally in the DDS idl [i32;3]
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ParticipantBuiltinTopicData {

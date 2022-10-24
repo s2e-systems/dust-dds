@@ -1,4 +1,4 @@
-use crate::dcps_psm::{InstanceHandle, Time};
+use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     history_cache::RtpsParameter,

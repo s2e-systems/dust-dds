@@ -1,6 +1,6 @@
-use crate::{
-    dcps_psm::{Duration, LENGTH_UNLIMITED},
-    return_type::{DdsError, DdsResult},
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    time::Duration,
 };
 
 use super::qos_policy::{
@@ -10,7 +10,7 @@ use super::qos_policy::{
     OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
     ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
     ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-    TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
+    TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy, LENGTH_UNLIMITED,
 };
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]

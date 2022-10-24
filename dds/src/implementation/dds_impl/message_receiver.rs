@@ -1,5 +1,4 @@
 use crate::{
-    dcps_psm::{Time, TIME_INVALID},
     implementation::{
         dds_impl::{publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl},
         rtps::{
@@ -11,6 +10,7 @@ use crate::{
         },
         utils::shared_object::DdsShared,
     },
+    infrastructure::time::{Time, TIME_INVALID},
 };
 
 pub struct MessageReceiver {

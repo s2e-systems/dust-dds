@@ -1,4 +1,4 @@
-use crate::{dcps_psm::InconsistentTopicStatus, topic_definition::topic::Topic};
+use crate::{infrastructure::status::InconsistentTopicStatus, topic_definition::topic::Topic};
 
 pub trait TopicListener {
     type Foo;

@@ -1,6 +1,6 @@
 use crate::{
-    dcps_psm::Duration,
     implementation::rtps::types::{EntityId, ENTITYID_UNKNOWN},
+    infrastructure::time::Duration,
 };
 
 // Constant value from Table 9.13 - ParameterId Values

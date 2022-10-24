@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     dds_type::Endianness,
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    return_type::{DdsError, DdsResult},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 use serde::Serialize;

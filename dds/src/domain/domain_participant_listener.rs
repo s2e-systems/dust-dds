@@ -1,5 +1,5 @@
 use crate::{
-    dcps_psm::{
+    infrastructure::status::{
         InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
         OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
         RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,

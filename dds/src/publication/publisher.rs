@@ -2,12 +2,12 @@ use crate::{
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
-    {
-        dcps_psm::{Duration, InstanceHandle, StatusMask},
-        infrastructure::{
-            entity::{Entity, StatusCondition},
-            qos::{DataWriterQos, PublisherQos, TopicQos},
-        },
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos, TopicQos},
+        time::Duration,
     },
 };
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
         dds_impl::{data_writer_impl::AnyDataWriterListener, publisher_impl::PublisherImpl},
         utils::shared_object::DdsWeak,
     },
-    return_type::DdsResult,
+    infrastructure::status::StatusMask,
 };
 
 use crate::{

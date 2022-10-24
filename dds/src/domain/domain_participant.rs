@@ -2,18 +2,20 @@ use crate::dds_type::DdsType;
 use crate::implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
 };
+use crate::infrastructure::error::DdsResult;
+use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::status::StatusMask;
 use crate::publication::publisher_listener::PublisherListener;
-use crate::return_type::DdsResult;
 use crate::subscription::subscriber::Subscriber;
 use crate::{
     implementation::dds_impl::topic_impl::AnyTopicListener,
     topic_definition::topic_listener::TopicListener,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-        dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
         infrastructure::{
             entity::{Entity, StatusCondition},
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+            time::{Duration, Time},
         },
     },
 };
@@ -22,6 +24,8 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     publication::publisher::Publisher, topic_definition::topic::Topic,
 };
+
+use super::domain_participant_factory::DomainId;
 
 #[derive(Debug)]
 pub struct DomainParticipant {

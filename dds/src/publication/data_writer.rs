@@ -1,25 +1,25 @@
 use std::marker::PhantomData;
 
 use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::DataWriterQos,
+        status::{
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, StatusMask,
+        },
+        time::{Duration, Time},
+    },
+};
+use crate::{
     dds_type::{DdsSerialize, DdsType},
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
         utils::shared_object::DdsWeak,
-    },
-};
-use crate::{
-    return_type::DdsResult,
-    {
-        builtin_topics::SubscriptionBuiltinTopicData,
-        dcps_psm::{
-            Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-        },
-        infrastructure::{
-            entity::{Entity, StatusCondition},
-            qos::DataWriterQos,
-        },
     },
 };
 

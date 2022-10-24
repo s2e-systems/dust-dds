@@ -1,17 +1,19 @@
 use dust_dds::{
-    dcps_psm::{
-        Duration, ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-        NEW_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
-    },
     dds_type::{DdsSerde, DdsType, Endianness},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         entity::Entity,
+        error::DdsResult,
         qos::{DataReaderQos, DataWriterQos},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        status::SUBSCRIPTION_MATCHED_STATUS,
+        time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    return_type::DdsResult,
+    subscription::sample_info::{
+        ALIVE_INSTANCE_STATE, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE, NEW_VIEW_STATE,
+        NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
+    },
 };
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -78,16 +80,14 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -98,7 +98,7 @@ fn each_key_sample_is_read() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader
@@ -164,16 +164,14 @@ fn write_read_disposed_samples() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
 
@@ -181,7 +179,7 @@ fn write_read_disposed_samples() {
     writer.dispose(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader
@@ -234,23 +232,21 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
 
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     reader
@@ -264,7 +260,7 @@ fn write_read_sample_view_state() {
     writer.write(&data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader

@@ -1,5 +1,15 @@
 use crate::{
-    dcps_psm::Duration,
+    builtin_topics::BuiltInTopicKey,
+    dds_type::DdsType,
+    domain::domain_participant_factory::DomainId,
+    {
+        builtin_topics::ParticipantBuiltinTopicData,
+        infrastructure::{
+            error::DdsError, qos::DomainParticipantQos, qos_policy::UserDataQosPolicy,
+        },
+    },
+};
+use crate::{
     implementation::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::{
             ParticipantLeaseDuration, ParticipantProxy, SpdpDiscoveredParticipantData,
@@ -13,15 +23,7 @@ use crate::{
             types::{Count, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
     },
-};
-use crate::{
-    dds_type::DdsType,
-    return_type::DdsError,
-    {
-        builtin_topics::ParticipantBuiltinTopicData,
-        dcps_psm::{BuiltInTopicKey, DomainId},
-        infrastructure::{qos::DomainParticipantQos, qos_policy::UserDataQosPolicy},
-    },
+    infrastructure::time::Duration,
 };
 
 struct Foo;

@@ -1,13 +1,14 @@
 use std::io::Write;
 
+use crate::builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData};
 use crate::implementation::rtps::types::{EntityId, Guid, Locator};
+use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
     LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
     PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
     UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
 };
-use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
@@ -75,10 +76,7 @@ impl DdsType for DiscoveredReaderData {
         self.subscription_builtin_topic_data.key.value.to_vec()
     }
 
-    fn set_key_fields_from_serialized_key(
-        &mut self,
-        _key: &[u8],
-    ) -> crate::return_type::DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -87,7 +85,7 @@ impl DdsType for DiscoveredReaderData {
 }
 
 impl DdsSerialize for DiscoveredReaderData {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> crate::return_type::DdsResult<()> {
+    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
@@ -185,7 +183,7 @@ impl DdsSerialize for DiscoveredReaderData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> crate::return_type::DdsResult<Self> {
+    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf).unwrap();
 
         // reader_proxy
@@ -259,14 +257,11 @@ mod tests {
     use super::*;
     use crate::dds_type::LittleEndian;
     use crate::implementation::rtps::types::GuidPrefix;
-    use crate::{
-        dcps_psm::BuiltInTopicKey,
-        infrastructure::qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+    use crate::infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+        LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {

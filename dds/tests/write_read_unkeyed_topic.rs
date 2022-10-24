@@ -1,19 +1,19 @@
-use dust_dds::dcps_psm::{Time, LENGTH_UNLIMITED};
 use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use dust_dds::infrastructure::entity::Entity;
 use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
+    LENGTH_UNLIMITED,
 };
 
+use dust_dds::infrastructure::error::{DdsError, DdsResult};
+use dust_dds::infrastructure::status::SUBSCRIPTION_MATCHED_STATUS;
+use dust_dds::infrastructure::time::{Duration, Time};
 use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
-use dust_dds::return_type::{DdsError, DdsResult};
 
-use dust_dds::{
-    dcps_psm::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-    domain::domain_participant_factory::DomainParticipantFactory,
-};
+use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
+use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
 
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
@@ -63,7 +63,7 @@ fn write_read_unkeyed_topic() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
@@ -75,7 +75,7 @@ fn write_read_unkeyed_topic() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
@@ -84,21 +84,19 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     writer.write(&UserData(8), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
@@ -129,7 +127,7 @@ fn data_reader_resource_limits() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -145,7 +143,7 @@ fn data_reader_resource_limits() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -163,23 +161,21 @@ fn data_reader_resource_limits() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     writer.write(&UserData(1), None).unwrap();
     writer.write(&UserData(2), None).unwrap();
     writer.write(&UserData(3), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader
@@ -205,7 +201,7 @@ fn data_reader_order_by_source_timestamp() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         destination_order: DestinationOrderQosPolicy {
             kind: DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS,
@@ -224,7 +220,7 @@ fn data_reader_order_by_source_timestamp() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAllHistoryQos,
@@ -240,16 +236,14 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     writer
         .write_w_timestamp(
@@ -283,7 +277,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader
@@ -314,7 +308,7 @@ fn data_reader_publication_handle_sample_info() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
@@ -327,7 +321,7 @@ fn data_reader_publication_handle_sample_info() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-            max_blocking_time: dust_dds::dcps_psm::Duration::new(1, 0),
+            max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
@@ -336,21 +330,19 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     let mut cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(dust_dds::dcps_psm::SUBSCRIPTION_MATCHED_STATUS)
+    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
         .unwrap();
 
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set
-        .wait(dust_dds::dcps_psm::Duration::new(5, 0))
-        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     writer.write(&UserData(1), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(dust_dds::dcps_psm::Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader

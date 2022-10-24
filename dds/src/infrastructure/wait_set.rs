@@ -1,8 +1,8 @@
 use std::sync::{Arc, Condvar, Mutex};
 
-use crate::{
-    dcps_psm::Duration,
-    return_type::{DdsError, DdsResult},
+use crate::infrastructure::{
+    error::{DdsError, DdsResult},
+    time::Duration,
 };
 
 use super::entity::StatusCondition;

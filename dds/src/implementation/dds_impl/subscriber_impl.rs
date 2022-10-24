@@ -1,4 +1,3 @@
-use crate::dcps_psm::DURATION_ZERO;
 use crate::dds_type::DdsDeserialize;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
@@ -8,20 +7,18 @@ use crate::implementation::rtps::types::{
     EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
-use crate::return_type::{DdsError, DdsResult};
+use crate::infrastructure::error::{DdsError, DdsResult};
+use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::status::{SampleLostStatus, StatusMask};
+use crate::infrastructure::time::DURATION_ZERO;
 use crate::subscription::data_reader::AnyDataReader;
+use crate::subscription::sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask};
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::{
     dds_type::DdsType,
-    {
-        dcps_psm::{
-            InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
-            ViewStateMask,
-        },
-        infrastructure::{
-            entity::StatusCondition,
-            qos::{DataReaderQos, SubscriberQos, TopicQos},
-        },
+    infrastructure::{
+        entity::StatusCondition,
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
 };
 

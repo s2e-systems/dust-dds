@@ -1,4 +1,4 @@
-use crate::dcps_psm::{InstanceHandle, Time};
+use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     messages::{
@@ -197,8 +197,8 @@ impl WriterHistoryCache {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::{HANDLE_NIL, TIME_INVALID},
         implementation::rtps::types::GUID_UNKNOWN,
+        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
     };
 
     use super::*;

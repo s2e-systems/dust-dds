@@ -1,6 +1,8 @@
 use std::io::Write;
 
+use crate::builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData};
 use crate::implementation::rtps::types::{EntityId, Guid, Locator};
+use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
@@ -8,8 +10,6 @@ use crate::infrastructure::qos_policy::{
     ReliabilityQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
-use crate::return_type::DdsResult;
-use crate::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::BuiltInTopicKey};
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
@@ -267,15 +267,12 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 mod tests {
     use crate::dds_type::LittleEndian;
     use crate::implementation::rtps::types::GuidPrefix;
-    use crate::{
-        dcps_psm::BuiltInTopicKey,
-        infrastructure::qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-            DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy,
-            LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
+    use crate::infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+        DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+        LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
 
     use super::*;

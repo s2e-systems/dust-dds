@@ -5,8 +5,9 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::{Duration, DURATION_ZERO},
+    builtin_topics::BuiltInTopicKey,
     dds_type::DdsType,
+    domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
@@ -28,26 +29,29 @@ use crate::{
             writer::RtpsWriter,
         },
     },
-    infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        status::StatusMask,
+    },
     publication::publisher_listener::PublisherListener,
-    return_type::DdsResult,
     subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener,
+        data_reader::DataReader,
+        data_reader_listener::DataReaderListener,
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-        dcps_psm::{
-            BuiltInTopicKey, DomainId, InstanceHandle, StatusMask, Time, ANY_INSTANCE_STATE,
-            ANY_SAMPLE_STATE, ANY_VIEW_STATE,
-        },
         infrastructure::{
             entity::Entity,
+            error::{DdsError, DdsResult},
             qos::{
                 DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
                 TopicQos,
             },
             qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+            time::{Duration, Time},
         },
     },
 };
@@ -55,7 +59,7 @@ use crate::{
     implementation::rtps::{
         group::RtpsGroupImpl, participant::RtpsParticipant, stateless_writer::RtpsStatelessWriter,
     },
-    return_type::DdsError,
+    infrastructure::time::DURATION_ZERO,
 };
 
 use crate::implementation::{
@@ -436,7 +440,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn find_topic<Foo>(
         &self,
         topic_name: &str,
-        _timeout: crate::dcps_psm::Duration,
+        _timeout: Duration,
     ) -> DdsResult<DdsShared<TopicImpl>>
     where
         Foo: DdsType,
@@ -627,7 +631,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_current_time(&self) -> DdsResult<crate::dcps_psm::Time> {
+    pub fn get_current_time(&self) -> DdsResult<Time> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

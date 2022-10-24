@@ -1,17 +1,6 @@
 use std::sync::Mutex;
 
 use crate::{
-    dcps_psm::{DomainId, InstanceHandle, StatusMask},
-    implementation::{
-        rtps::{
-            participant::RtpsParticipant,
-            types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
-        },
-        rtps_udp_psm::udp_transport::RtpsUdpPsm,
-    },
-    infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
-};
-use crate::{
     implementation::{
         dds_impl::domain_participant_impl::{
             AnnounceParticipant, CreateBuiltIns, DomainParticipantImpl, ReceiveBuiltInData,
@@ -21,7 +10,21 @@ use crate::{
         task_manager::TaskManager,
         utils::shared_object::DdsShared,
     },
-    return_type::{DdsError, DdsResult},
+    infrastructure::error::{DdsError, DdsResult},
+};
+use crate::{
+    implementation::{
+        rtps::{
+            participant::RtpsParticipant,
+            types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+        },
+        rtps_udp_psm::udp_transport::RtpsUdpPsm,
+    },
+    infrastructure::{
+        instance::InstanceHandle,
+        qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+        status::StatusMask,
+    },
 };
 
 use lazy_static::lazy_static;
@@ -29,6 +32,9 @@ use lazy_static::lazy_static;
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 
 use super::domain_participant::DomainParticipant;
+
+type DomainIdTypeNative = i32;
+pub type DomainId = DomainIdTypeNative;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use crate::{
-    dcps_psm::{Duration, InstanceHandle, LENGTH_UNLIMITED},
     dds_type::{DdsDeserialize, DdsType, LittleEndian},
     implementation::{
         data_representation_inline_qos::{
@@ -10,8 +9,13 @@ use crate::{
         },
         dds_impl::message_receiver::MessageReceiver,
     },
-    infrastructure::{qos::DataReaderQos, qos_policy::HistoryQosPolicyKind},
-    return_type::{DdsError, DdsResult},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::DataReaderQos,
+        qos_policy::{HistoryQosPolicyKind, LENGTH_UNLIMITED},
+        time::Duration,
+    },
 };
 
 use super::{
@@ -314,9 +318,12 @@ impl RtpsReader {
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::{DURATION_ZERO, HANDLE_NIL},
         implementation::rtps::types::{ChangeKind, GUID_UNKNOWN},
-        infrastructure::qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
+        infrastructure::{
+            instance::HANDLE_NIL,
+            qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
+            time::DURATION_ZERO,
+        },
     };
 
     use super::*;

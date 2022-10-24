@@ -5,23 +5,22 @@ use crate::{
         dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
     },
+    infrastructure::instance::InstanceHandle,
 };
 use crate::{
-    return_type::DdsResult,
     subscription::data_reader_listener::DataReaderListener,
     {
         builtin_topics::PublicationBuiltinTopicData,
-        dcps_psm::{
-            InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, SampleStateMask, StatusMask, SubscriptionMatchedStatus,
-            ViewStateMask,
-        },
         infrastructure::{
             entity::{Entity, StatusCondition},
+            error::DdsResult,
             qos::DataReaderQos,
             read_condition::ReadCondition,
-            sample_info::SampleInfo,
+            status::{
+                LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+                RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusMask,
+                SubscriptionMatchedStatus,
+            },
         },
     },
 };
@@ -30,7 +29,11 @@ use std::marker::PhantomData;
 
 use crate::topic_definition::topic::Topic;
 
-use super::{query_condition::QueryCondition, subscriber::Subscriber};
+use super::{
+    query_condition::QueryCondition,
+    sample_info::{InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask},
+    subscriber::Subscriber,
+};
 
 pub struct Sample<Foo> {
     pub data: Option<Foo>,

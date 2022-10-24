@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, Weak},
 };
 
-use crate::return_type::{DdsError, DdsResult};
+use crate::infrastructure::error::{DdsError, DdsResult};
 
 pub struct DdsShared<T: ?Sized>(Arc<T>);
 

@@ -1,8 +1,9 @@
 use core::cmp::Ordering;
 
-use crate::dcps_psm::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
+use crate::infrastructure::time::{Duration, DURATION_INFINITE, DURATION_ZERO};
 
 pub type QosPolicyId = i32;
+pub const LENGTH_UNLIMITED: i32 = -1;
 
 /// This class is the abstract root for all the QoS policies.
 /// It provides the basic mechanism for an application to specify quality of service parameters. It has an attribute name that is used

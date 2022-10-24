@@ -1,5 +1,5 @@
 use crate::{
-    dcps_psm::DomainId,
+    domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::{
             ParticipantLeaseDuration, SpdpDiscoveredParticipantData,

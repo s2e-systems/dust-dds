@@ -1,15 +1,14 @@
+use crate::builtin_topics::BuiltInTopicKey;
 use crate::implementation::rtps::types::Guid;
-use crate::return_type::DdsError;
+use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::status::{InconsistentTopicStatus, StatusMask};
 use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
-    return_type::DdsResult,
-    {
-        builtin_topics::TopicBuiltinTopicData,
-        dcps_psm::{BuiltInTopicKey, InconsistentTopicStatus, InstanceHandle, StatusMask},
-        infrastructure::{
-            entity::{Entity, StatusCondition},
-            qos::TopicQos,
-        },
+    builtin_topics::TopicBuiltinTopicData,
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        error::{DdsError, DdsResult},
+        qos::TopicQos,
     },
 };
 
@@ -162,7 +161,9 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
         let qos = val.qos.read_lock();
         DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey { value: val.guid.into() },
+                key: BuiltInTopicKey {
+                    value: val.guid.into(),
+                },
                 name: val.topic_name.to_string(),
                 type_name: val.type_name.to_string(),
                 durability: qos.durability.clone(),

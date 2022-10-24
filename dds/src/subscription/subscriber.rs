@@ -3,15 +3,11 @@ use crate::{
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
-    {
-        dcps_psm::{
-            InstanceHandle, InstanceStateMask, SampleLostStatus, SampleStateMask, StatusMask,
-            ViewStateMask,
-        },
-        infrastructure::{
-            entity::{Entity, StatusCondition},
-            qos::{DataReaderQos, SubscriberQos, TopicQos},
-        },
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        error::DdsResult,
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        status::{SampleLostStatus, StatusMask},
     },
 };
 use crate::{
@@ -19,13 +15,14 @@ use crate::{
         dds_impl::{data_reader_impl::AnyDataReaderListener, subscriber_impl::SubscriberImpl},
         utils::shared_object::DdsWeak,
     },
-    return_type::DdsResult,
+    infrastructure::instance::InstanceHandle,
 };
 
 use crate::topic_definition::topic::Topic;
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
+    sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
     subscriber_listener::SubscriberListener,
 };
 

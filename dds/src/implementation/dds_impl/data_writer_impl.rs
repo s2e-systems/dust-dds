@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::{HANDLE_NIL, SUBSCRIPTION_MATCHED_STATUS},
+    builtin_topics::BuiltInTopicKey,
     dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
         messages::{
@@ -24,18 +24,20 @@ use crate::{
         types::{ChangeKind, EntityId, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
         writer::RtpsWriter,
     },
-    infrastructure::qos_policy::ReliabilityQosPolicyKind,
+    infrastructure::{
+        instance::{InstanceHandle, HANDLE_NIL},
+        qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
+        status::{
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, QosPolicyCount, StatusMask, SUBSCRIPTION_MATCHED_STATUS,
+        },
+    },
     publication::data_writer::DataWriter,
-    return_type::{DdsError, DdsResult},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-        dcps_psm::{
-            BuiltInTopicKey, Duration, InstanceHandle, LivelinessLostStatus,
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            QosPolicyCount, StatusMask, Time, LENGTH_UNLIMITED,
-        },
         infrastructure::{
             entity::{Entity, StatusCondition},
+            error::{DdsError, DdsResult},
             qos::DataWriterQos,
             qos_policy::{
                 DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
@@ -43,6 +45,7 @@ use crate::{
                 OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
                 RELIABILITY_QOS_POLICY_ID,
             },
+            time::{Duration, Time},
         },
     },
 };
@@ -997,7 +1000,6 @@ mod test {
     use std::io::Write;
 
     use crate::{
-        dcps_psm::DURATION_ZERO,
         dds_type::Endianness,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
@@ -1016,17 +1018,15 @@ mod test {
             },
             writer::RtpsWriter,
         },
-        {
-            dcps_psm::{BuiltInTopicKey, QosPolicyCount},
-            infrastructure::{
-                qos::{PublisherQos, TopicQos},
-                qos_policy::{
-                    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                    GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-                    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-                    ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
-                    TopicDataQosPolicy, UserDataQosPolicy,
-                },
+        infrastructure::time::DURATION_ZERO,
+        infrastructure::{
+            qos::{PublisherQos, TopicQos},
+            qos_policy::{
+                DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+                GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
+                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
+                TopicDataQosPolicy, UserDataQosPolicy,
             },
         },
     };

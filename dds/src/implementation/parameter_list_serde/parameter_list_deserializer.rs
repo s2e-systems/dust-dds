@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, ReadBytesExt};
 use crate::{
     dds_type::{BigEndian, Endianness, LittleEndian},
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
-    return_type::{DdsError, DdsResult},
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 #[derive(Debug, PartialEq)]

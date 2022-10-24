@@ -2,17 +2,16 @@ use std::marker::PhantomData;
 
 use crate::implementation::dds_impl::topic_impl::AnyTopicListener;
 use crate::implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsWeak};
-use crate::return_type::DdsResult;
+use crate::infrastructure::error::DdsResult;
+use crate::infrastructure::instance::InstanceHandle;
 use crate::{
     domain::domain_participant::DomainParticipant,
-    topic_definition::topic_listener::TopicListener,
-    {
-        dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
-        infrastructure::{
-            entity::{Entity, StatusCondition},
-            qos::TopicQos,
-        },
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::TopicQos,
+        status::{InconsistentTopicStatus, StatusMask},
     },
+    topic_definition::topic_listener::TopicListener,
 };
 
 /// TopicDescription represents the fact that both publications and subscriptions are tied to a single data-type. Its attribute

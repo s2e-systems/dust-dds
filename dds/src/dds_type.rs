@@ -2,7 +2,7 @@ use std::io::Write;
 
 use byteorder::ByteOrder;
 
-use crate::return_type::{DdsError, DdsResult};
+use crate::infrastructure::error::{DdsError, DdsResult};
 
 type RepresentationType = [u8; 2];
 pub trait Endianness {

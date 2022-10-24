@@ -153,11 +153,11 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for (InfoTimestampSubmessage, Da
 #[cfg(test)]
 mod tests {
     use crate::{
-        dcps_psm::{HANDLE_NIL, TIME_INVALID},
         implementation::rtps::{
             history_cache::RtpsWriterCacheChange,
             types::{ChangeKind, GUID_UNKNOWN, LOCATOR_INVALID},
         },
+        infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
     };
 
     use super::*;

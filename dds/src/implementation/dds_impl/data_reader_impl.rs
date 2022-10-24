@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    dcps_psm::{NEW_VIEW_STATE, NOT_NEW_VIEW_STATE},
+    builtin_topics::BuiltInTopicKey,
     dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -40,12 +40,26 @@ use crate::{
             timer::Timer,
         },
     },
-    infrastructure::qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::{InstanceHandle, HANDLE_NIL},
+        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        status::{
+            LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
+            SampleRejectedStatusKind, StatusMask, SubscriptionMatchedStatus, DATA_AVAILABLE_STATUS,
+            REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
+        },
+    },
+    subscription::sample_info::{
+        InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask, ALIVE_INSTANCE_STATE,
+        NEW_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
+        NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
+    },
 };
 use crate::{
     dds_type::DdsType,
     implementation::utils::timer::ThreadTimer,
-    return_type::{DdsError, DdsResult},
     subscription::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
@@ -53,15 +67,6 @@ use crate::{
     },
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-        dcps_psm::{
-            BuiltInTopicKey, InstanceHandle, InstanceStateMask, LivelinessChangedStatus,
-            QosPolicyCount, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, SampleStateMask,
-            StatusMask, SubscriptionMatchedStatus, ViewStateMask, ALIVE_INSTANCE_STATE,
-            DATA_AVAILABLE_STATUS, HANDLE_NIL, NOT_ALIVE_DISPOSED_INSTANCE_STATE,
-            NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE, REQUESTED_DEADLINE_MISSED_STATUS,
-            SUBSCRIPTION_MATCHED_STATUS,
-        },
         infrastructure::{
             entity::{Entity, StatusCondition},
             qos::DataReaderQos,
@@ -72,7 +77,6 @@ use crate::{
                 RELIABILITY_QOS_POLICY_ID,
             },
             read_condition::ReadCondition,
-            sample_info::SampleInfo,
         },
     },
 };
@@ -1258,28 +1262,25 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
 mod tests {
     use super::*;
     use crate::{
-        dcps_psm::DURATION_ZERO,
         dds_type::DdsSerialize,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
             types::{EntityId, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
-        infrastructure::qos_policy::HistoryQosPolicyKind,
-        {
-            dcps_psm::{BuiltInTopicKey, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-            infrastructure::{
-                qos::{SubscriberQos, TopicQos},
-                qos_policy::{
-                    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                    DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
-                    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-                    OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-                    PresentationQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-                    TopicDataQosPolicy, UserDataQosPolicy,
-                },
+        infrastructure::{
+            qos::{SubscriberQos, TopicQos},
+            qos_policy::{
+                DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+                DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
+                LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+                OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+                UserDataQosPolicy,
             },
         },
+        infrastructure::{qos_policy::HistoryQosPolicyKind, time::DURATION_ZERO},
+        subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     };
     use crate::{
         dds_type::{DdsType, Endianness},
@@ -1534,7 +1535,7 @@ mod tests {
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
-                max_blocking_time: crate::dcps_psm::Duration::new(0, 0),
+                max_blocking_time: crate::infrastructure::time::Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),
             destination_order: DestinationOrderQosPolicy::default(),
@@ -1623,7 +1624,7 @@ mod tests {
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-                max_blocking_time: crate::dcps_psm::Duration::new(0, 0),
+                max_blocking_time: crate::infrastructure::time::Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),
             destination_order: DestinationOrderQosPolicy::default(),
