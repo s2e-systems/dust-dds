@@ -36,26 +36,6 @@ use super::domain_participant::DomainParticipant;
 type DomainIdTypeNative = i32;
 pub type DomainId = DomainIdTypeNative;
 
-/// The DomainParticipant object plays several roles:
-/// - It acts as a container for all other Entity objects.
-/// - It acts as factory for the Publisher, Subscriber, Topic, and MultiTopic Entity objects.
-/// - It represents the participation of the application on a communication plane that isolates applications running on the
-/// same set of physical computers from each other. A domain establishes a “virtual network” linking all applications that
-/// share the same domainId and isolating them from applications running on different domains. In this way, several
-/// independent distributed applications can coexist in the same physical network without interfering, or even being aware
-/// of each other.
-/// - It provides administration services in the domain, offering operations that allow the application to ‘ignore’ locally any
-/// information about a given participant (ignore_participant), publication (ignore_publication), subscription
-/// (ignore_subscription), or topic (ignore_topic).
-///
-/// The following sub clauses explain all the operations in detail.
-/// The following operations may be called even if the DomainParticipant is not enabled. Other operations will have the value
-/// NOT_ENABLED if called on a disabled DomainParticipant:
-/// - Operations defined at the base-class level namely, set_qos, get_qos, set_listener, get_listener, and enable.
-/// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
-/// delete_subscriber
-/// - Operations that access the status: get_statuscondition
-
 struct ParticipantManager {
     participant: DdsShared<DomainParticipantImpl>,
     task_manager: TaskManager,
@@ -163,24 +143,28 @@ impl ParticipantManager {
 }
 
 lazy_static! {
+    /// This value can be used as an alias for the singleton factory returned by the operation
+    /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
         participant_list: Mutex::new(vec![])
     };
 }
 
+/// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
+/// DomainParticipantFactory itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
+/// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
     participant_list: Mutex<Vec<ParticipantManager>>,
 }
 
 impl DomainParticipantFactory {
-    /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
+    /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
-    /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
+    /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
     /// The special value PARTICIPANT_QOS_DEFAULT can be used to indicate that the DomainParticipant should be created
     /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
-    /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
-    /// QoS to create the DomainParticipant.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    /// default DomainParticipant QoS by means of the operation [`Self::get_default_participant_qos`] and using the resulting
+    /// QoS to create the [`DomainParticipant`].
     pub fn create_participant(
         &self,
         domain_id: DomainId,
@@ -230,9 +214,9 @@ impl DomainParticipantFactory {
         Ok(participant)
     }
 
-    /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
-    /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    /// This operation deletes an existing [`DomainParticipant`]. This operation can only be invoked if all domain entities belonging to
+    /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
+    /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
         let mut participant_list = THE_PARTICIPANT_FACTORY
             .participant_list
@@ -249,53 +233,49 @@ impl DomainParticipantFactory {
         Ok(())
     }
 
-    /// This operation returns the DomainParticipantFactory singleton. The operation is idempotent, that is, it can be called multiple
-    /// times without side-effects and it will return the same DomainParticipantFactory instance.
-    /// The get_instance operation is a static operation implemented using the syntax of the native language and can therefore not be
-    /// expressed in the IDL PSM.
-    /// The pre-defined value TheParticipantFactory can also be used as an alias for the singleton factory returned by the operation
-    /// get_instance.
+    /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple
+    /// times without side-effects and it will return the same [`DomainParticipantFactory`] instance.
+    /// The pre-defined value [`struct@THE_PARTICIPANT_FACTORY`] can also be used as an alias for the singleton factory returned by this operation.
     pub fn get_instance() -> &'static Self {
         &THE_PARTICIPANT_FACTORY
     }
 
-    /// This operation retrieves a previously created DomainParticipant belonging to specified domain_id. If no such
-    /// DomainParticipant exists, the operation will return a ‘nil’ value.
-    /// If multiple DomainParticipant entities belonging to that domain_id exist, then the operation will return one of them. It is not
+    /// This operation retrieves a previously created [`DomainParticipant`] belonging to the specified domain_id. If no such
+    /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
+    /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, _domain_id: DomainId) -> DdsResult<DomainParticipant> {
+    pub fn lookup_participant(&self, _domain_id: DomainId) -> Option<DomainParticipant> {
         todo!()
     }
 
-    /// This operation sets a default value of the DomainParticipant QoS policies which will be used for newly created
-    /// DomainParticipant entities in the case where the QoS policies are defaulted in the create_participant operation.
+    /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
+    /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`Self::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return INCONSISTENT_POLICY.
-    pub fn set_default_participant_qos(&self, _qos: Option<DomainParticipantQos>) {
+    /// return a [`DdsError::InconsistentPolicy`].
+    pub fn set_default_participant_qos(&self, _qos: Option<DomainParticipantQos>) -> DdsResult<()> {
         todo!()
     }
 
-    /// This operation retrieves the default value of the DomainParticipant QoS, that is, the QoS policies which will be used for
-    /// newly created DomainParticipant entities in the case where the QoS policies are defaulted in the create_participant
+    /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
+    /// newly created [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`Self::create_participant`]
     /// operation.
-    /// The values retrieved get_default_participant_qos will match the set of values specified on the last successful call to
-    /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
-    /// Supported QoS.
-    pub fn get_default_participant_qos(&self) -> DdsResult<DomainParticipantQos> {
+    /// The values retrieved by [`Self::get_default_participant_qos`] will match the set of values specified on the last successful call to
+    /// [`Self::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
+    pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
         todo!()
     }
 
-    /// This operation sets the value of the DomainParticipantFactory QoS policies. These policies control the behavior of the object
+    /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
     /// a factory for entities.
-    /// Note that despite having QoS, the DomainParticipantFactory is not an Entity.
+    /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return INCONSISTENT_POLICY.
-    pub fn get_qos(&self) -> DdsResult<DomainParticipantFactoryQos> {
+    /// return a [`DdsError::InconsistentPolicy`].
+    pub fn set_qos(&self, _qos: Option<DomainParticipantFactoryQos>) -> DdsResult<()> {
         todo!()
     }
 
-    /// This operation returns the value of the DomainParticipantFactory QoS policies.
-    pub fn set_qos(&self, _qos: Option<DomainParticipantFactoryQos>) {
+    /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
+    pub fn get_qos(&self) -> DomainParticipantFactoryQos {
         todo!()
     }
 }

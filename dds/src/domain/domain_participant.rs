@@ -25,6 +25,24 @@ use crate::{
     publication::publisher::Publisher, topic_definition::topic::Topic,
 };
 
+/// The DomainParticipant object plays several roles:
+/// - It acts as a container for all other Entity objects
+/// - It acts as factory for the Publisher, Subscriber and Topic Entity objects
+/// - It represents the participation of the application on a communication plane that isolates applications running on the
+/// same set of physical computers from each other. A domain establishes a “virtual network” linking all applications that
+/// share the same domain_id and isolating them from applications running on different domains. In this way, several
+/// independent distributed applications can coexist in the same physical network without interfering, or even being aware
+/// of each other.
+/// - It provides administration services in the domain, offering operations that allow the application to ‘ignore’ locally any
+/// information about a given participant (ignore_participant), publication (ignore_publication), subscription
+/// (ignore_subscription), or topic (ignore_topic).
+///
+/// The following operations may be called even if the DomainParticipant is not enabled. Other operations will have the value
+/// NOT_ENABLED if called on a disabled DomainParticipant:
+/// - Operations defined at the base-class level namely, set_qos, get_qos, set_listener, get_listener, and enable.
+/// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
+/// delete_subscriber
+/// - Operations that access the status: get_statuscondition
 use super::domain_participant_factory::DomainId;
 
 #[derive(Debug)]
@@ -41,7 +59,7 @@ impl Clone for DomainParticipant {
 }
 
 impl DomainParticipant {
-    pub fn new(domain_participant_attributes: DdsWeak<DomainParticipantImpl>) -> Self {
+    pub(crate) fn new(domain_participant_attributes: DdsWeak<DomainParticipantImpl>) -> Self {
         Self {
             domain_participant_attributes,
         }
