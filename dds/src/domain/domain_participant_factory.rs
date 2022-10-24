@@ -31,7 +31,7 @@ use lazy_static::lazy_static;
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 
-use super::domain_participant::DomainParticipant;
+use super::{configuration::DustDdsConfiguration, domain_participant::DomainParticipant};
 
 type DomainIdTypeNative = i32;
 pub type DomainId = DomainIdTypeNative;
@@ -172,6 +172,8 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
     ) -> DdsResult<DomainParticipant> {
+        let configuration = DustDdsConfiguration::try_from_environment_variable()?;
+
         let qos = qos.unwrap_or_default();
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
@@ -185,7 +187,7 @@ impl DomainParticipantFactory {
         let domain_participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
-            "".to_string(),
+            configuration.domain_tag,
             qos.clone(),
             rtps_udp_psm.metatraffic_unicast_locator_list(),
             rtps_udp_psm.metatraffic_multicast_locator_list(),
