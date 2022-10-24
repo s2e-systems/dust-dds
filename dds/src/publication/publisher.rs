@@ -15,7 +15,7 @@ use crate::{
         dds_impl::{data_writer_impl::AnyDataWriterListener, publisher_impl::PublisherImpl},
         utils::shared_object::DdsWeak,
     },
-    infrastructure::status::StatusMask,
+    infrastructure::status::StatusKind,
 };
 
 use crate::{
@@ -78,7 +78,7 @@ impl Publisher {
         a_topic: &Topic<Foo>,
         qos: Option<DataWriterQos>,
         a_listener: Option<<DataWriter<Foo> as Entity>::Listener>,
-        mask: StatusMask,
+        mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
         Foo: DdsType + DdsSerialize + 'static,
@@ -260,7 +260,11 @@ impl Entity for Publisher {
         Ok(self.publisher_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         self.publisher_attributes
             .upgrade()?
             .set_listener(a_listener, mask)
@@ -274,7 +278,7 @@ impl Entity for Publisher {
         self.publisher_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.publisher_attributes.upgrade()?.get_status_changes()
     }
 

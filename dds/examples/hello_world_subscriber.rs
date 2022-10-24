@@ -38,21 +38,21 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, 0)
+        .create_participant(domain_id, None, None, &[])
         .unwrap();
     println!("{:?} [S] Created participant", std::time::SystemTime::now());
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, &[])
         .unwrap();
 
     let mut qos = DataReaderQos::default();
     qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
-    let subscriber = participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
 
     let reader = subscriber
-        .create_datareader(&topic, Some(qos), Some(Box::new(ExampleListener)), 0)
+        .create_datareader(&topic, Some(qos), Some(Box::new(ExampleListener)), &[])
         .unwrap();
     println!("{:?} [S] Created reader", std::time::SystemTime::now());
 

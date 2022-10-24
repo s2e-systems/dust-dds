@@ -34,3 +34,22 @@ pub const RETCODE_ALREADY_DELETED: ReturnCode = 9;
 pub const RETCODE_TIMEOUT: ReturnCode = 10;
 pub const RETCODE_NO_DATA: ReturnCode = 11;
 pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
+
+impl From<DdsError> for ReturnCode {
+    fn from(e: DdsError) -> Self {
+        match e {
+            DdsError::Error => RETCODE_ERROR,
+            DdsError::Unsupported => RETCODE_UNSUPPORTED,
+            DdsError::BadParameter => RETCODE_BAD_PARAMETER,
+            DdsError::PreconditionNotMet(_) => RETCODE_PRECONDITION_NOT_MET,
+            DdsError::OutOfResources => RETCODE_OUT_OF_RESOURCES,
+            DdsError::NotEnabled => RETCODE_NOT_ENABLED,
+            DdsError::ImmutablePolicy => RETCODE_IMMUTABLE_POLICY,
+            DdsError::InconsistentPolicy => RETCODE_INCONSISTENT_POLICY,
+            DdsError::AlreadyDeleted => RETCODE_ALREADY_DELETED,
+            DdsError::Timeout => RETCODE_TIMEOUT,
+            DdsError::NoData => RETCODE_NO_DATA,
+            DdsError::IllegalOperation => RETCODE_ILLEGAL_OPERATION,
+        }
+    }
+}

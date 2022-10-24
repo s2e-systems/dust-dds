@@ -1,7 +1,7 @@
 use crate::builtin_topics::BuiltInTopicKey;
 use crate::implementation::rtps::types::Guid;
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::status::{InconsistentTopicStatus, StatusMask};
+use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
 use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
@@ -111,7 +111,7 @@ impl Entity for DdsShared<TopicImpl> {
     fn set_listener(
         &self,
         _a_listener: Option<Self::Listener>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
         todo!()
@@ -127,7 +127,7 @@ impl Entity for DdsShared<TopicImpl> {
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
         todo!()
     }

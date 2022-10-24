@@ -47,15 +47,10 @@ use crate::{
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusMask, SubscriptionMatchedStatus, DATA_AVAILABLE_STATUS,
-            REQUESTED_DEADLINE_MISSED_STATUS, SUBSCRIPTION_MATCHED_STATUS,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
     },
-    subscription::sample_info::{
-        InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask, ALIVE_INSTANCE_STATE,
-        NEW_VIEW_STATE, NOT_ALIVE_DISPOSED_INSTANCE_STATE, NOT_NEW_VIEW_STATE,
-        NOT_READ_SAMPLE_STATE, READ_SAMPLE_STATE,
-    },
+    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
 };
 use crate::{
     dds_type::DdsType,
@@ -203,7 +198,7 @@ pub struct DataReaderImpl<Tim> {
     parent_subscriber: DdsWeak<SubscriberImpl>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
-    status_change: DdsRwLock<StatusMask>,
+    status_change: DdsRwLock<Vec<StatusKind>>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -236,7 +231,7 @@ where
             parent_subscriber,
             samples_read: DdsRwLock::new(HashSet::new()),
             deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
-            status_change: DdsRwLock::new(0),
+            status_change: DdsRwLock::new(Vec::new()),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
                 not_alive_count: 0,
@@ -402,9 +397,15 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                     .write_lock()
                     .total_count_change += 1;
 
-                *reader_shared.status_change.write_lock() |= REQUESTED_DEADLINE_MISSED_STATUS;
+                reader_shared
+                    .status_change
+                    .write_lock()
+                    .push(StatusKind::RequestedDeadlineMissedStatus);
                 if let Some(l) = reader_shared.listener.write_lock().as_mut() {
-                    *reader_shared.status_change.write_lock() &= !REQUESTED_DEADLINE_MISSED_STATUS;
+                    reader_shared
+                        .status_change
+                        .write_lock()
+                        .retain(|x| x != &StatusKind::RequestedDeadlineMissedStatus);
                     l.trigger_on_requested_deadline_missed(
                         &reader_shared,
                         reader_shared
@@ -415,9 +416,13 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                 };
             });
 
-            *self.status_change.write_lock() |= DATA_AVAILABLE_STATUS;
+            self.status_change
+                .write_lock()
+                .push(StatusKind::DataAvailableStatus);
             if let Some(l) = self.listener.write_lock().as_mut() {
-                *self.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
+                self.status_change
+                    .write_lock()
+                    .retain(|x| x != &StatusKind::DataAvailableStatus);
                 l.trigger_on_data_available(self)
             };
         }
@@ -520,7 +525,9 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
                 }
 
                 if let Some(l) = self.listener.write_lock().as_mut() {
-                    *self.status_change.write_lock() &= !SUBSCRIPTION_MATCHED_STATUS;
+                    self.status_change
+                        .write_lock()
+                        .push(StatusKind::SubscriptionMatchedStatus);
                     let subscription_matched_status =
                         self.get_subscription_matched_status().unwrap();
                     l.trigger_on_subscription_matched(self, subscription_matched_status)
@@ -569,9 +576,9 @@ where
     pub fn read<Foo>(
         &self,
         max_samples: i32,
-        sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -596,7 +603,7 @@ where
             })
             .filter(|result| {
                 if let Ok(sample) = result {
-                    sample.sample_info.sample_state & sample_states != 0
+                    sample_states.contains(&sample.sample_info.sample_state)
                 } else {
                     true
                 }
@@ -632,9 +639,9 @@ where
     pub fn take<Foo>(
         &self,
         _max_samples: i32,
-        sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -672,7 +679,7 @@ where
             })
             .filter(|result| {
                 if let Ok((sample, _)) = result {
-                    sample.sample_info.sample_state & sample_states != 0
+                    sample_states.contains(&sample.sample_info.sample_state)
                 } else {
                     true
                 }
@@ -765,9 +772,9 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -783,9 +790,9 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -801,9 +808,9 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -819,9 +826,9 @@ where
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -890,9 +897,9 @@ where
 
     pub fn create_readcondition(
         &self,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<ReadCondition> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -903,9 +910,9 @@ where
 
     pub fn create_querycondition(
         &self,
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
         _query_expression: &'static str,
         _query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition> {
@@ -1063,7 +1070,9 @@ where
     }
 
     fn read_sample<'a>(&self, cache_change: &'a RtpsReaderCacheChange) -> (&'a [u8], SampleInfo) {
-        *self.status_change.write_lock() &= !DATA_AVAILABLE_STATUS;
+        self.status_change
+            .write_lock()
+            .retain(|x| x != &StatusKind::DataAvailableStatus);
 
         let mut samples_read = self.samples_read.write_lock();
         let data_value = cache_change.data_value();
@@ -1071,16 +1080,16 @@ where
         let sample_state = {
             let sn = cache_change.sequence_number();
             if samples_read.contains(&sn) {
-                READ_SAMPLE_STATE
+                SampleStateKind::Read
             } else {
                 samples_read.insert(sn);
-                NOT_READ_SAMPLE_STATE
+                SampleStateKind::NotRead
             }
         };
 
         let (instance_state, valid_data) = match cache_change.kind() {
-            ChangeKind::Alive => (ALIVE_INSTANCE_STATE, true),
-            ChangeKind::NotAliveDisposed => (NOT_ALIVE_DISPOSED_INSTANCE_STATE, false),
+            ChangeKind::Alive => (InstanceStateKind::Alive, true),
+            ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
             _ => unimplemented!(),
         };
 
@@ -1089,9 +1098,9 @@ where
             .read_lock()
             .contains(&cache_change.instance_handle())
         {
-            NOT_NEW_VIEW_STATE
+            ViewStateKind::NotNew
         } else {
-            NEW_VIEW_STATE
+            ViewStateKind::New
         };
 
         let sample_info = SampleInfo {
@@ -1137,7 +1146,7 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
     pub fn set_listener(
         &self,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         *self.listener.write_lock() = a_listener;
         Ok(())
@@ -1151,8 +1160,8 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         todo!()
     }
 
-    pub fn get_status_changes(&self) -> StatusMask {
-        *self.status_change.read_lock()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_change.read_lock().to_vec()
     }
 
     pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
@@ -1408,7 +1417,7 @@ mod tests {
         let unread_samples = reader
             .read::<UserData>(
                 i32::MAX,
-                NOT_READ_SAMPLE_STATE,
+                &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
                 ANY_INSTANCE_STATE,
             )
@@ -1419,7 +1428,7 @@ mod tests {
         assert!(reader
             .read::<UserData>(
                 i32::MAX,
-                NOT_READ_SAMPLE_STATE,
+                &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
                 ANY_INSTANCE_STATE,
             )

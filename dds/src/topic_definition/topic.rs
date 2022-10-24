@@ -4,12 +4,13 @@ use crate::implementation::dds_impl::topic_impl::AnyTopicListener;
 use crate::implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsWeak};
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::status::StatusKind;
 use crate::{
     domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
-        status::{InconsistentTopicStatus, StatusMask},
+        status::InconsistentTopicStatus,
     },
     topic_definition::topic_listener::TopicListener,
 };
@@ -94,7 +95,11 @@ where
         self.topic_attributes.upgrade()?.get_qos()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
         self.topic_attributes.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyTopicListener>, _>(|l| Box::new(l)),
@@ -110,7 +115,7 @@ where
         self.topic_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.topic_attributes.upgrade()?.get_status_changes()
     }
 

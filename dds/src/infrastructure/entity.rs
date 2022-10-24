@@ -1,43 +1,28 @@
 use std::sync::{Arc, Condvar};
 
 use crate::{
-    implementation::utils::shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        dds_impl::status_condition_impl::StatusConditionImpl,
+        utils::shared_object::{DdsRwLock, DdsShared},
+    },
     infrastructure::error::DdsResult,
 };
 
-use super::{
-    instance::InstanceHandle,
-    status::{StatusKind, StatusMask},
-};
-
-struct StatusConditionImpl {
-    enabled_statuses: DdsRwLock<StatusMask>,
-    communication_status: DdsRwLock<StatusMask>,
-    cvar_list: DdsRwLock<Vec<Arc<Condvar>>>,
-}
-
-impl Default for StatusConditionImpl {
-    fn default() -> Self {
-        Self {
-            enabled_statuses: DdsRwLock::new(0xFFFF),
-            communication_status: DdsRwLock::new(0),
-            cvar_list: DdsRwLock::new(Vec::new()),
-        }
-    }
-}
+use super::{instance::InstanceHandle, status::StatusKind};
 
 #[derive(Clone)]
-pub struct StatusCondition(DdsShared<StatusConditionImpl>);
-
-impl Default for StatusCondition {
-    fn default() -> Self {
-        Self(DdsShared::new(Default::default()))
-    }
-}
+pub struct StatusCondition(DdsShared<DdsRwLock<StatusConditionImpl>>);
 
 impl StatusCondition {
-    pub fn get_enabled_statuses(&self) -> StatusMask {
-        *self.0.enabled_statuses.read_lock()
+    pub(crate) fn new(status_condition_impl: DdsShared<DdsRwLock<StatusConditionImpl>>) -> Self {
+        Self(status_condition_impl)
+    }
+
+    /// This operation retrieves the list of communication statuses that are taken into account to determine the trigger_value of the
+    /// [`StatusCondition`]. This operation returns the statuses that were explicitly set on the last call to [`set_enabled_statuses`] or, if
+    /// [`set_enabled_statuses`] was never called, the default list of enabled statuses which includes all the statuses.
+    pub fn get_enabled_statuses(&self) -> Vec<StatusKind> {
+        self.0.read_lock().get_enabled_statuses()
     }
 
     /// This operation defines the list of communication statuses that are taken into account to determine the trigger_value of the
@@ -45,31 +30,23 @@ impl StatusCondition {
     /// WaitSet objects behavior depend on the changes of the trigger_value of their attached conditions. Therefore, any WaitSet to
     /// which the StatusCondition is attached is potentially affected by this operation.
     /// If this function is not invoked, the default list of enabled statuses includes all the statuses.
-    pub fn set_enabled_statuses(&mut self, mask: StatusMask) -> DdsResult<()> {
-        *self.0.enabled_statuses.write_lock() = mask;
-        Ok(())
+    pub fn set_enabled_statuses(&self, mask: &[StatusKind]) -> DdsResult<()> {
+        self.0.write_lock().set_enabled_statuses(mask)
     }
 
+    /// This operation returns the Entity associated with the StatusCondition. Note that there is exactly one Entity associated with
+    /// each StatusCondition.
     pub fn get_entity(&self) {
         todo!()
     }
 
+    /// This operation retrieves the trigger_value of the Condition.
     pub fn get_trigger_value(&self) -> bool {
-        *self.0.enabled_statuses.read_lock() & *self.0.communication_status.read_lock() != 0
-    }
-
-    pub(crate) fn add_communication_state(&mut self, state: StatusKind) {
-        *self.0.communication_status.write_lock() |= state;
-
-        if self.get_trigger_value() {
-            for cvar in self.0.cvar_list.read_lock().iter() {
-                cvar.notify_all();
-            }
-        }
+        self.0.read_lock().get_trigger_value()
     }
 
     pub(crate) fn push_cvar(&self, cvar: Arc<Condvar>) {
-        self.0.cvar_list.write_lock().push(cvar)
+        self.0.write_lock().push_cvar(cvar)
     }
 }
 
@@ -83,13 +60,17 @@ pub trait Entity {
 
     fn get_qos(&self) -> DdsResult<Self::Qos>;
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()>;
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()>;
 
     fn get_listener(&self) -> DdsResult<Option<Self::Listener>>;
 
     fn get_statuscondition(&self) -> DdsResult<StatusCondition>;
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask>;
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>>;
 
     fn enable(&self) -> DdsResult<()>;
 

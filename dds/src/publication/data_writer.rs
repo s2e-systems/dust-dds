@@ -9,7 +9,7 @@ use crate::{
         qos::DataWriterQos,
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, StatusMask,
+            PublicationMatchedStatus, StatusKind,
         },
         time::{Duration, Time},
     },
@@ -424,7 +424,11 @@ where
         Ok(self.data_writer_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
         self.data_writer_attributes.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
@@ -437,10 +441,12 @@ where
     }
 
     fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.data_writer_attributes.upgrade()?.get_statuscondition()
+        Ok(StatusCondition::new(
+            self.data_writer_attributes.upgrade()?.get_statuscondition(),
+        ))
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.data_writer_attributes.upgrade()?.get_status_changes()
     }
 

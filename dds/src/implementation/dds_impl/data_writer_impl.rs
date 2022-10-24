@@ -29,14 +29,14 @@ use crate::{
         qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount, StatusMask, SUBSCRIPTION_MATCHED_STATUS,
+            PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     publication::data_writer::DataWriter,
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
-            entity::{Entity, StatusCondition},
+            entity::Entity,
             error::{DdsError, DdsResult},
             qos::DataWriterQos,
             qos_policy::{
@@ -82,7 +82,7 @@ use crate::implementation::{
 use super::{
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, publisher_impl::PublisherImpl,
-    topic_impl::TopicImpl,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
@@ -270,7 +270,7 @@ pub struct DataWriterImpl {
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
     matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
-    status_condition: DdsRwLock<StatusCondition>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
 }
 
@@ -318,7 +318,7 @@ impl DataWriterImpl {
             liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
             matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
-            status_condition: DdsRwLock::new(StatusCondition::default()),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             listener: DdsRwLock::new(listener),
         })
     }
@@ -481,7 +481,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
 
                 self.status_condition
                     .write_lock()
-                    .add_communication_state(SUBSCRIPTION_MATCHED_STATUS);
+                    .add_communication_state(StatusKind::SubscriptionMatchedStatus);
             } else {
                 {
                     let mut offered_incompatible_qos_status_lock =
@@ -852,7 +852,7 @@ impl DdsShared<DataWriterImpl> {
     pub fn set_listener(
         &self,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         *self.listener.write_lock() = a_listener;
         Ok(())
@@ -862,11 +862,11 @@ impl DdsShared<DataWriterImpl> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(self.status_condition.read_lock().clone())
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 

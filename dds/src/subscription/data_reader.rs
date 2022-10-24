@@ -5,7 +5,7 @@ use crate::{
         dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
     },
-    infrastructure::instance::InstanceHandle,
+    infrastructure::{instance::InstanceHandle, status::StatusKind},
 };
 use crate::{
     subscription::data_reader_listener::DataReaderListener,
@@ -18,7 +18,7 @@ use crate::{
             read_condition::ReadCondition,
             status::{
                 LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-                RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, StatusMask,
+                RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
                 SubscriptionMatchedStatus,
             },
         },
@@ -31,7 +31,7 @@ use crate::topic_definition::topic::Topic;
 
 use super::{
     query_condition::QueryCondition,
-    sample_info::{InstanceStateMask, SampleInfo, SampleStateMask, ViewStateMask},
+    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
 
@@ -164,9 +164,9 @@ where
     pub fn read(
         &self,
         max_samples: i32,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         self.data_reader_attributes.upgrade()?.read(
             max_samples,
@@ -192,9 +192,9 @@ where
     pub fn take(
         &self,
         max_samples: i32,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         self.data_reader_attributes.upgrade()?.take(
             max_samples,
@@ -313,9 +313,9 @@ where
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.read_instance(
             data_values,
@@ -348,9 +348,9 @@ where
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.take_instance(
             data_values,
@@ -400,9 +400,9 @@ where
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.read_next_instance(
             data_values,
@@ -433,9 +433,9 @@ where
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.take_next_instance(
             data_values,
@@ -565,9 +565,9 @@ where
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_readcondition(
         &self,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<ReadCondition> {
         self.data_reader_attributes.upgrade()?.create_readcondition(
             sample_states,
@@ -581,9 +581,9 @@ where
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_querycondition(
         &self,
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
         query_expression: &'static str,
         query_parameters: &[&'static str],
     ) -> DdsResult<QueryCondition> {
@@ -750,7 +750,11 @@ where
         self.data_reader_attributes.upgrade()?.get_qos()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
         self.data_reader_attributes.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
@@ -766,7 +770,7 @@ where
         self.data_reader_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         Ok(self.data_reader_attributes.upgrade()?.get_status_changes())
     }
 

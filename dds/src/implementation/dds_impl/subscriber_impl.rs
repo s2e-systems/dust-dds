@@ -9,10 +9,10 @@ use crate::implementation::rtps::types::{
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::status::{SampleLostStatus, StatusMask};
+use crate::infrastructure::status::{SampleLostStatus, StatusKind};
 use crate::infrastructure::time::DURATION_ZERO;
 use crate::subscription::data_reader::AnyDataReader;
-use crate::subscription::sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask};
+use crate::subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::{
     dds_type::DdsType,
@@ -90,7 +90,7 @@ impl DdsShared<SubscriberImpl> {
         a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<DataReaderImpl<ThreadTimer>>>
     where
@@ -224,9 +224,9 @@ impl DdsShared<SubscriberImpl> {
     pub fn get_datareaders(
         &self,
         _readers: &mut [&mut dyn AnyDataReader],
-        _sample_states: SampleStateMask,
-        _view_states: ViewStateMask,
-        _instance_states: InstanceStateMask,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -292,7 +292,7 @@ impl DdsShared<SubscriberImpl> {
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
@@ -305,7 +305,7 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 

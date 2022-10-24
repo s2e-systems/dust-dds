@@ -52,13 +52,15 @@ fn create_and_delete_datareader_succeeds() {
         vec![],
     );
 
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, 0)
+        .create_topic::<Foo>("topic", None, None, &[])
         .unwrap();
 
     let data_reader = subscriber
-        .create_datareader::<Foo>(&topic, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic, None, None, &[], &domain_participant)
         .unwrap();
 
     subscriber.delete_datareader(&data_reader).unwrap();
@@ -82,14 +84,18 @@ fn delete_datareader_from_other_subscriber_returns_error() {
         vec![],
     );
 
-    let subscriber1 = domain_participant.create_subscriber(None, None, 0).unwrap();
-    let subscriber2 = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber1 = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
+    let subscriber2 = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, 0)
+        .create_topic::<Foo>("topic", None, None, &[])
         .unwrap();
 
     let data_reader = subscriber1
-        .create_datareader::<Foo>(&topic, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(matches!(
@@ -115,9 +121,11 @@ fn lookup_datareader_without_readers_created() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, 0)
+        .create_topic::<Foo>("topic", None, None, &[])
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic).is_err());
@@ -140,13 +148,15 @@ fn lookup_datareader_with_one_datareader_created() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, 0)
+        .create_topic::<Foo>("topic", None, None, &[])
         .unwrap();
 
     let data_reader = subscriber
-        .create_datareader::<Foo>(&topic, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic).unwrap() == data_reader);
@@ -169,16 +179,18 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let _topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, 0)
+        .create_topic::<Foo>("topic_foo", None, None, &[])
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, 0)
+        .create_topic::<Bar>("topic_bar", None, None, &[])
         .unwrap();
 
     subscriber
-        .create_datareader::<Bar>(&topic_bar, None, None, 0, &domain_participant)
+        .create_datareader::<Bar>(&topic_bar, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic_bar).is_err());
@@ -201,16 +213,18 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, 0)
+        .create_topic::<Foo>("topic_foo", None, None, &[])
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, 0)
+        .create_topic::<Bar>("topic_bar", None, None, &[])
         .unwrap();
 
     subscriber
-        .create_datareader::<Bar>(&topic_bar, None, None, 0, &domain_participant)
+        .create_datareader::<Bar>(&topic_bar, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Bar>(&topic_foo).is_err());
@@ -233,19 +247,21 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, 0)
+        .create_topic::<Foo>("topic_foo", None, None, &[])
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, 0)
+        .create_topic::<Bar>("topic_bar", None, None, &[])
         .unwrap();
 
     let data_reader_foo = subscriber
-        .create_datareader::<Foo>(&topic_foo, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic_foo, None, None, &[], &domain_participant)
         .unwrap();
     let data_reader_bar = subscriber
-        .create_datareader::<Bar>(&topic_bar, None, None, 0, &domain_participant)
+        .create_datareader::<Bar>(&topic_bar, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic_foo).unwrap() == data_reader_foo);
@@ -270,19 +286,21 @@ fn lookup_datareader_with_two_datareaders_with_different_topics() {
         vec![],
         vec![],
     );
-    let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+    let subscriber = domain_participant
+        .create_subscriber(None, None, &[])
+        .unwrap();
     let topic1 = domain_participant
-        .create_topic::<Foo>("topic1", None, None, 0)
+        .create_topic::<Foo>("topic1", None, None, &[])
         .unwrap();
     let topic2 = domain_participant
-        .create_topic::<Foo>("topic2", None, None, 0)
+        .create_topic::<Foo>("topic2", None, None, &[])
         .unwrap();
 
     let data_reader1 = subscriber
-        .create_datareader::<Foo>(&topic1, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic1, None, None, &[], &domain_participant)
         .unwrap();
     let data_reader2 = subscriber
-        .create_datareader::<Foo>(&topic2, None, None, 0, &domain_participant)
+        .create_datareader::<Foo>(&topic2, None, None, &[], &domain_participant)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic1).unwrap() == data_reader1);

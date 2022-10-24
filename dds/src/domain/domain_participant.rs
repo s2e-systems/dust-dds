@@ -4,7 +4,7 @@ use crate::implementation::{
 };
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::status::StatusMask;
+use crate::infrastructure::status::StatusKind;
 use crate::publication::publisher_listener::PublisherListener;
 use crate::subscription::subscriber::Subscriber;
 use crate::{
@@ -85,7 +85,7 @@ impl DomainParticipant {
         &self,
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
-        mask: StatusMask,
+        mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         self.domain_participant_attributes
             .upgrade()?
@@ -118,7 +118,7 @@ impl DomainParticipant {
         &self,
         qos: Option<SubscriberQos>,
         a_listener: Option<<Subscriber as Entity>::Listener>,
-        mask: StatusMask,
+        mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         self.domain_participant_attributes
             .upgrade()?
@@ -154,7 +154,7 @@ impl DomainParticipant {
         topic_name: &str,
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
-        mask: StatusMask,
+        mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType + 'static,
@@ -492,7 +492,11 @@ impl Entity for DomainParticipant {
         Ok(self.domain_participant_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_listener(a_listener, mask)
@@ -508,7 +512,7 @@ impl Entity for DomainParticipant {
             .get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.domain_participant_attributes
             .upgrade()?
             .get_status_changes()

@@ -12,7 +12,7 @@ use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsSta
 use crate::infrastructure::entity::StatusCondition;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::status::StatusMask;
+use crate::infrastructure::status::StatusKind;
 use crate::infrastructure::time::{Duration, DURATION_ZERO};
 use crate::{
     infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -87,7 +87,7 @@ impl DdsShared<PublisherImpl> {
         a_topic: &DdsShared<TopicImpl>,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<DataWriterImpl>>
     where
@@ -297,7 +297,7 @@ impl DdsShared<PublisherImpl> {
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn PublisherListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
@@ -310,7 +310,7 @@ impl DdsShared<PublisherImpl> {
         todo!()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 

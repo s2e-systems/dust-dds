@@ -4,7 +4,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         entity::Entity,
-        status::SUBSCRIPTION_MATCHED_STATUS,
+        status::StatusKind,
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
@@ -23,22 +23,22 @@ impl dust_dds::dds_type::DdsType for UserType {
 #[test]
 fn discovery_of_reader_and_writer_in_same_participant() {
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(0, None, None, 0)
+        .create_participant(0, None, None, &[])
         .unwrap();
 
     let topic = dp
-        .create_topic::<UserType>("topic_name", None, None, 0)
+        .create_topic::<UserType>("topic_name", None, None, &[])
         .unwrap();
-    let publisher = dp.create_publisher(None, None, 0).unwrap();
+    let publisher = dp.create_publisher(None, None, &[]).unwrap();
     let data_writer = publisher
-        .create_datawriter::<UserType>(&topic, None, None, 0)
+        .create_datawriter::<UserType>(&topic, None, None, &[])
         .unwrap();
-    let subscriber = dp.create_subscriber(None, None, 0).unwrap();
+    let subscriber = dp.create_subscriber(None, None, &[]).unwrap();
     let _data_reader = subscriber
-        .create_datareader::<UserType>(&topic, None, None, 0)
+        .create_datareader::<UserType>(&topic, None, None, &[])
         .unwrap();
-    let mut cond = data_writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(SUBSCRIPTION_MATCHED_STATUS)
+    let cond = data_writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -57,16 +57,16 @@ fn participant_records_discovered_topics() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, None, None, 0)
+        .create_participant(domain_id, None, None, &[])
         .unwrap();
     let participant2 = domain_participant_factory
-        .create_participant(domain_id, None, None, 0)
+        .create_participant(domain_id, None, None, &[])
         .unwrap();
 
     let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
     for name in topic_names {
         participant1
-            .create_topic::<UserType>(name, None, None, 0)
+            .create_topic::<UserType>(name, None, None, &[])
             .unwrap();
     }
 

@@ -1,22 +1,21 @@
 use super::{instance::InstanceHandle, qos_policy::QosPolicyId};
 
-pub type StatusKind = u32;
-
-pub type StatusMask = u32;
-
-pub const INCONSISTENT_TOPIC_STATUS: StatusMask = 0x0001 << 0;
-pub const OFFERED_DEADLINE_MISSED_STATUS: StatusMask = 0x0001 << 1;
-pub const REQUESTED_DEADLINE_MISSED_STATUS: StatusMask = 0x0001 << 2;
-pub const OFFERED_INCOMPATIBLE_QOS_STATUS: StatusMask = 0x0001 << 5;
-pub const REQUESTED_INCOMPATIBLE_QOS_STATUS: StatusMask = 0x0001 << 6;
-pub const SAMPLE_LOST_STATUS: StatusMask = 0x0001 << 7;
-pub const SAMPLE_REJECTED_STATUS: StatusMask = 0x0001 << 8;
-pub const DATA_ON_READERS_STATUS: StatusMask = 0x0001 << 9;
-pub const DATA_AVAILABLE_STATUS: StatusMask = 0x0001 << 10;
-pub const LIVELINESS_LOST_STATUS: StatusMask = 0x0001 << 11;
-pub const LIVELINESS_CHANGED_STATUS: StatusMask = 0x0001 << 12;
-pub const PUBLICATION_MATCHED_STATUS: StatusMask = 0x0001 << 13;
-pub const SUBSCRIPTION_MATCHED_STATUS: StatusMask = 0x0001 << 14;
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum StatusKind {
+    InconsistentTopicStatus,
+    OfferedDeadlineMissedStatus,
+    RequestedDeadlineMissedStatus,
+    OfferedIncompatibleQosStatus,
+    RequestedIncompatibleQosStatus,
+    SampleLostStatus,
+    SampleRejectedStatus,
+    DataOnReadersStatus,
+    DataAvailableStatus,
+    LivelinessLostStatus,
+    LivelinessChangedStatus,
+    PublicationMatchedStatus,
+    SubscriptionMatchedStatus,
+}
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InconsistentTopicStatus {

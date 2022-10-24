@@ -7,7 +7,7 @@ use crate::{
         entity::{Entity, StatusCondition},
         error::DdsResult,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        status::{SampleLostStatus, StatusMask},
+        status::{SampleLostStatus, StatusKind},
     },
 };
 use crate::{
@@ -22,7 +22,7 @@ use crate::topic_definition::topic::Topic;
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
-    sample_info::{InstanceStateMask, SampleStateMask, ViewStateMask},
+    sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     subscriber_listener::SubscriberListener,
 };
 
@@ -86,7 +86,7 @@ impl Subscriber {
         a_topic: &Topic<Foo>,
         qos: Option<DataReaderQos>,
         a_listener: Option<<DataReader<Foo> as Entity>::Listener>,
-        mask: StatusMask,
+        mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
@@ -185,9 +185,9 @@ impl Subscriber {
     pub fn get_datareaders(
         &self,
         readers: &mut [&mut dyn AnyDataReader],
-        sample_states: SampleStateMask,
-        view_states: ViewStateMask,
-        instance_states: InstanceStateMask,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.get_datareaders(
             readers,
@@ -290,7 +290,11 @@ impl Entity for Subscriber {
         Ok(self.subscriber_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DdsResult<()> {
+    fn set_listener(
+        &self,
+        a_listener: Option<Self::Listener>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
         self.subscriber_attributes
             .upgrade()?
             .set_listener(a_listener, mask)
@@ -304,7 +308,7 @@ impl Entity for Subscriber {
         self.subscriber_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.subscriber_attributes.upgrade()?.get_status_changes()
     }
 

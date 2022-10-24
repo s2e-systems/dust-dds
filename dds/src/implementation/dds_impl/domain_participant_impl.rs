@@ -32,7 +32,7 @@ use crate::{
     infrastructure::{
         instance::InstanceHandle,
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        status::StatusMask,
+        status::StatusKind,
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
@@ -271,7 +271,7 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         qos: Option<PublisherQos>,
         _a_listener: Option<Box<dyn PublisherListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<PublisherImpl>> {
         let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
         let publisher_counter = self
@@ -322,7 +322,7 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         qos: Option<SubscriberQos>,
         _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<SubscriberImpl>> {
         let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
         let subcriber_counter = self
@@ -373,7 +373,7 @@ impl DdsShared<DomainParticipantImpl> {
         topic_name: &str,
         qos: Option<TopicQos>,
         _a_listener: Option<<DdsShared<TopicImpl> as Entity>::Listener>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<TopicImpl>>
     where
         Foo: DdsType,
@@ -661,7 +661,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn set_listener(
         &self,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
@@ -674,7 +674,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<StatusMask> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         todo!()
     }
 
@@ -904,7 +904,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DCPS_PARTICIPANT,
                 Some(self.get_default_topic_qos()?),
                 None,
-                0,
+                &[],
             )?;
             spdp_topic_participant.enable()?;
 
@@ -997,7 +997,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DCPS_PUBLICATION,
                 Some(self.get_default_topic_qos()?),
                 None,
-                0,
+                &[],
             )?;
             sedp_topic_publication.enable()?;
 
@@ -1082,7 +1082,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DCPS_SUBSCRIPTION,
                 Some(self.get_default_topic_qos()?),
                 None,
-                0,
+                &[],
             )?;
             sedp_topic_subscription.enable()?;
 
@@ -1167,7 +1167,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                 DCPS_TOPIC,
                 Some(self.get_default_topic_qos()?),
                 None,
-                0,
+                &[],
             )?;
             sedp_topic_topic.enable()?;
 
@@ -1218,7 +1218,7 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
                     Some(Box::new(RegisterDiscoveredTopicsListener {
                         discovered_topic_list: self.discovered_topic_list.clone(),
                     })),
-                    0,
+                    &[],
                 )?;
             }
 

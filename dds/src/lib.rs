@@ -1,9 +1,5 @@
 //! Native Rust implementation of the OMG Data Distribution Services standard
 
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
 pub mod domain;
 pub mod infrastructure;
 pub mod publication;

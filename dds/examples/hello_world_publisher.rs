@@ -16,16 +16,18 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, 0)
+        .create_participant(domain_id, None, None, &[])
         .unwrap();
     println!("{:?} [P] Created participant", std::time::SystemTime::now());
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, &[])
         .unwrap();
 
-    let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let writer = publisher.create_datawriter(&topic, None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, None, &[]).unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, None, None, &[])
+        .unwrap();
     println!("{:?} [P] Created writer", std::time::SystemTime::now());
 
     while writer.get_matched_subscriptions().unwrap().len() == 0 {

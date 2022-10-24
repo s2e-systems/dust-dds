@@ -10,7 +10,10 @@ use crate::{
         task_manager::TaskManager,
         utils::shared_object::DdsShared,
     },
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        status::StatusKind,
+    },
 };
 use crate::{
     implementation::{
@@ -23,7 +26,6 @@ use crate::{
     infrastructure::{
         instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos},
-        status::StatusMask,
     },
 };
 
@@ -170,7 +172,7 @@ impl DomainParticipantFactory {
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: StatusMask,
+        _mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let configuration = DustDdsConfiguration::try_from_environment_variable()?;
 
