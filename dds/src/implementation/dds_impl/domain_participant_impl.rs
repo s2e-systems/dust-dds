@@ -41,10 +41,10 @@ use crate::{
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
+    topic_definition::topic_listener::TopicListener,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
-            entity::Entity,
             error::{DdsError, DdsResult},
             qos::{
                 DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
@@ -372,7 +372,7 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        _a_listener: Option<<DdsShared<TopicImpl> as Entity>::Listener>,
+        _a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<TopicImpl>>
     where

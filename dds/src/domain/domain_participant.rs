@@ -7,13 +7,13 @@ use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::status::StatusKind;
 use crate::publication::publisher_listener::PublisherListener;
 use crate::subscription::subscriber::Subscriber;
+use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::{
-    implementation::dds_impl::topic_impl::AnyTopicListener,
     topic_definition::topic_listener::TopicListener,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
-            entity::{Entity, StatusCondition},
+            entity::StatusCondition,
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             time::{Duration, Time},
         },
@@ -117,7 +117,7 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        a_listener: Option<<Subscriber as Entity>::Listener>,
+        a_listener: Option<Box<dyn SubscriberListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         self.domain_participant_attributes
@@ -162,12 +162,7 @@ impl DomainParticipant {
         #[allow(clippy::redundant_closure)]
         self.domain_participant_attributes
             .upgrade()?
-            .create_topic::<Foo>(
-                topic_name,
-                qos,
-                a_listener.map::<Box<dyn AnyTopicListener>, _>(|l| Box::new(l)),
-                mask,
-            )
+            .create_topic::<Foo>(topic_name, qos, a_listener, mask)
             .map(|x| Topic::new(x.downgrade()))
     }
 
@@ -480,21 +475,18 @@ impl DomainParticipant {
     }
 }
 
-impl Entity for DomainParticipant {
-    type Qos = DomainParticipantQos;
-    type Listener = Box<dyn DomainParticipantListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DomainParticipant {
+    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> DdsResult<()> {
         self.domain_participant_attributes.upgrade()?.set_qos(qos)
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self.domain_participant_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
+        a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.domain_participant_attributes
@@ -502,27 +494,27 @@ impl Entity for DomainParticipant {
             .set_listener(a_listener, mask)
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn DomainParticipantListener>>> {
         self.domain_participant_attributes.upgrade()?.get_listener()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.domain_participant_attributes
             .upgrade()?
             .get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.domain_participant_attributes
             .upgrade()?
             .get_status_changes()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         self.domain_participant_attributes.upgrade()?.enable()
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.domain_participant_attributes
             .upgrade()?
             .get_instance_handle()

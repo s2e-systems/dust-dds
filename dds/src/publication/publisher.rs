@@ -3,7 +3,7 @@ use crate::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -24,7 +24,7 @@ use crate::{
     topic_definition::topic::Topic,
 };
 
-use super::publisher_listener::PublisherListener;
+use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -77,7 +77,7 @@ impl Publisher {
         &self,
         a_topic: &Topic<Foo>,
         qos: Option<DataWriterQos>,
-        a_listener: Option<<DataWriter<Foo> as Entity>::Listener>,
+        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
     where
@@ -248,21 +248,18 @@ impl Publisher {
     }
 }
 
-impl Entity for Publisher {
-    type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl Publisher {
+    pub fn set_qos(&self, qos: Option<PublisherQos>) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.set_qos(qos)
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<PublisherQos> {
         Ok(self.publisher_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
+        a_listener: Option<Box<dyn PublisherListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.publisher_attributes
@@ -270,26 +267,26 @@ impl Entity for Publisher {
             .set_listener(a_listener, mask)
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener>>> {
         self.publisher_attributes.upgrade()?.get_listener()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.publisher_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.publisher_attributes.upgrade()?.get_status_changes()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.publisher_attributes.upgrade()?.get_instance_handle()
     }
 }

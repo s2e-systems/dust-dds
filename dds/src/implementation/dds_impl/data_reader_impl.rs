@@ -62,7 +62,6 @@ use crate::{
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
-            entity::Entity,
             qos::DataReaderQos,
             qos_policy::{
                 DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,

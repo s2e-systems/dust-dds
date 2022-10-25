@@ -3,10 +3,7 @@ use std::io::Write;
 use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{
-        entity::Entity,
-        error::{DdsError, DdsResult},
-    },
+    infrastructure::error::{DdsError, DdsResult},
 };
 
 struct TestType;

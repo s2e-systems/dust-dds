@@ -3,7 +3,6 @@ use std::time::Instant;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        entity::Entity,
         status::StatusKind,
         time::Duration,
         wait_set::{Condition, WaitSet},

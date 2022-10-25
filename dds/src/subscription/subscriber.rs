@@ -4,7 +4,7 @@ use crate::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         error::DdsResult,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
@@ -22,6 +22,7 @@ use crate::topic_definition::topic::Topic;
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
+    data_reader_listener::DataReaderListener,
     sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     subscriber_listener::SubscriberListener,
 };
@@ -85,7 +86,7 @@ impl Subscriber {
         &self,
         a_topic: &Topic<Foo>,
         qos: Option<DataReaderQos>,
-        a_listener: Option<<DataReader<Foo> as Entity>::Listener>,
+        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
     where
@@ -278,21 +279,18 @@ impl Subscriber {
     }
 }
 
-impl Entity for Subscriber {
-    type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl Subscriber {
+    pub fn set_qos(&self, qos: Option<SubscriberQos>) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.set_qos(qos)
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         Ok(self.subscriber_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
+        a_listener: Option<Box<dyn SubscriberListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         self.subscriber_attributes
@@ -300,26 +298,26 @@ impl Entity for Subscriber {
             .set_listener(a_listener, mask)
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
         self.subscriber_attributes.upgrade()?.get_listener()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.subscriber_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.subscriber_attributes.upgrade()?.get_status_changes()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.subscriber_attributes.upgrade()?.get_instance_handle()
     }
 }

@@ -1,5 +1,4 @@
 use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
-use dust_dds::infrastructure::entity::Entity;
 use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,

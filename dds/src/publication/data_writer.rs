@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::DataWriterQos,
@@ -409,24 +409,21 @@ where
     }
 }
 
-impl<Foo> Entity for DataWriter<Foo>
+impl<Foo> DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize + 'static,
 {
-    type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.set_qos(qos)
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         Ok(self.data_writer_attributes.upgrade()?.get_qos())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
+        a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
@@ -436,28 +433,30 @@ where
         )
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(
+        &self,
+    ) -> DdsResult<Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         Ok(StatusCondition::new(
             self.data_writer_attributes.upgrade()?.get_statuscondition(),
         ))
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.data_writer_attributes.upgrade()?.get_status_changes()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.data_writer_attributes.upgrade()?.get_instance_handle()
     }
 }

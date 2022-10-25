@@ -2,7 +2,6 @@ use dust_dds::{
     dds_type::{DdsSerde, DdsType, Endianness},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        entity::Entity,
         error::DdsResult,
         qos::{DataReaderQos, DataWriterQos},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},

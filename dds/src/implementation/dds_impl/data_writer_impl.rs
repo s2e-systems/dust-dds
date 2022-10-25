@@ -36,7 +36,6 @@ use crate::{
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
-            entity::Entity,
             error::{DdsError, DdsResult},
             qos::DataWriterQos,
             qos_policy::{

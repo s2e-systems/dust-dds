@@ -7,11 +7,7 @@ use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::status::StatusKind;
 use crate::{
     domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::TopicQos,
-        status::InconsistentTopicStatus,
-    },
+    infrastructure::{entity::StatusCondition, qos::TopicQos, status::InconsistentTopicStatus},
     topic_definition::topic_listener::TopicListener,
 };
 
@@ -80,24 +76,21 @@ impl<Foo> Topic<Foo> {
     }
 }
 
-impl<Foo> Entity for Topic<Foo>
+impl<Foo> Topic<Foo>
 where
     Foo: 'static,
 {
-    type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener<Foo = Foo>>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Option<TopicQos>) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.set_qos(qos)
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<TopicQos> {
         self.topic_attributes.upgrade()?.get_qos()
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        a_listener: Option<Self::Listener>,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
@@ -107,23 +100,23 @@ where
         )
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo>>>> {
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         self.topic_attributes.upgrade()?.get_statuscondition()
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         self.topic_attributes.upgrade()?.get_status_changes()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.enable()
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.topic_attributes.upgrade()?.get_instance_handle()
     }
 }

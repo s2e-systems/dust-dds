@@ -6,7 +6,7 @@ use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         error::{DdsError, DdsResult},
         qos::TopicQos,
     },
@@ -87,11 +87,8 @@ impl DdsShared<TopicImpl> {
     }
 }
 
-impl Entity for DdsShared<TopicImpl> {
-    type Qos = TopicQos;
-    type Listener = Box<dyn AnyTopicListener>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()> {
+impl DdsShared<TopicImpl> {
+    pub fn set_qos(&self, qos: Option<TopicQos>) -> DdsResult<()> {
         let qos = qos.unwrap_or_default();
 
         qos.is_consistent()?;
@@ -104,35 +101,35 @@ impl Entity for DdsShared<TopicImpl> {
         Ok(())
     }
 
-    fn get_qos(&self) -> DdsResult<Self::Qos> {
+    pub fn get_qos(&self) -> DdsResult<TopicQos> {
         Ok(self.qos.read_lock().clone())
     }
 
-    fn set_listener(
+    pub fn set_listener(
         &self,
-        _a_listener: Option<Self::Listener>,
+        _a_listener: Option<Box<dyn AnyTopicListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<()> {
         // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
         todo!()
     }
 
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyTopicListener>>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_listener()
         todo!()
     }
 
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_statuscondition()
         todo!()
     }
 
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
         todo!()
     }
 
-    fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) -> DdsResult<()> {
         if !self.parent_participant.upgrade()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
@@ -147,7 +144,7 @@ impl Entity for DdsShared<TopicImpl> {
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

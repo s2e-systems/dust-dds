@@ -8,7 +8,7 @@ use crate::{
     infrastructure::error::DdsResult,
 };
 
-use super::{instance::InstanceHandle, status::StatusKind};
+use super::status::StatusKind;
 
 #[derive(Clone)]
 pub struct StatusCondition(DdsShared<DdsRwLock<StatusConditionImpl>>);
@@ -48,31 +48,4 @@ impl StatusCondition {
     pub(crate) fn push_cvar(&self, cvar: Arc<Condvar>) {
         self.0.write_lock().push_cvar(cvar)
     }
-}
-
-pub trait DomainEntity {}
-
-pub trait Entity {
-    type Qos;
-    type Listener;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DdsResult<()>;
-
-    fn get_qos(&self) -> DdsResult<Self::Qos>;
-
-    fn set_listener(
-        &self,
-        a_listener: Option<Self::Listener>,
-        mask: &[StatusKind],
-    ) -> DdsResult<()>;
-
-    fn get_listener(&self) -> DdsResult<Option<Self::Listener>>;
-
-    fn get_statuscondition(&self) -> DdsResult<StatusCondition>;
-
-    fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>>;
-
-    fn enable(&self) -> DdsResult<()>;
-
-    fn get_instance_handle(&self) -> DdsResult<InstanceHandle>;
 }
