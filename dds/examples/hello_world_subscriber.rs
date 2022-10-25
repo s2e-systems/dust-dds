@@ -5,16 +5,14 @@ use dust_dds::{
     infrastructure::{error::DdsError, qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
     subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
 };
-use dust_dds_derive::DdsType;
+use dust_dds_derive::{DdsType, DdsSerde};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType)]
+#[derive(Deserialize, Serialize, DdsType, DdsSerde)]
 struct HelloWorldType {
     id: u8,
     msg: String,
 }
-
-impl DdsSerde for HelloWorldType {}
 
 struct ExampleListener;
 

@@ -1,9 +1,9 @@
 use cdr::{CdrBe, CdrLe};
-use dust_dds::dds_type::{BigEndian, DdsType, LittleEndian};
-use dust_dds_derive::DdsType;
+use dust_dds::dds_type::{BigEndian, DdsType, DdsSerde, LittleEndian};
+use dust_dds_derive::{DdsType, DdsSerde};
 use serde::{Deserialize, Serialize};
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct StructNoKey {
     a: i32,
     b: i32,
@@ -29,7 +29,7 @@ fn test_struct_no_key_set() {
     assert_eq!(snk2.b, 4);
 }
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct StructWithKey {
     a: i32,
     #[key]
@@ -60,7 +60,7 @@ fn test_struct_with_key_set() {
     assert_eq!(swk.b, 42)
 }
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct StructManyKeys {
     #[key]
     a: i32,
@@ -112,7 +112,7 @@ fn test_struct_many_keys_set() {
     assert_eq!(smk.d, true);
 }
 
-#[derive(Serialize, Deserialize, DdsType)]
+#[derive(Serialize, Deserialize, DdsType, DdsSerde)]
 #[key]
 struct StructAllKey {
     a: i32,
@@ -159,7 +159,7 @@ fn test_struct_all_key_set() {
  * See: https://naftuli.wtf/2019/01/02/rust-derive-macros/
  */
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct TypeWithGeneric<T> {
     a: T,
     #[key]
@@ -196,7 +196,7 @@ fn test_dds_type_derive_with_generic_set() {
     assert_eq!(twg.b, 42);
 }
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct TupleNoKey(i32, i32);
 
 #[test]
@@ -219,7 +219,7 @@ fn test_tuple_no_key_set() {
     assert_eq!(twk.1, 2);
 }
 
-#[derive(DdsType)]
+#[derive(DdsType, DdsSerde)]
 struct TupleWithKeys(i32, #[key] i32, #[key] bool, char);
 
 #[test]
@@ -248,7 +248,7 @@ fn test_tuple_with_keys_set() {
     assert_eq!(twk.3, '\0');
 }
 
-#[derive(DdsType, PartialEq, Eq, Debug)]
+#[derive(DdsType, DdsSerde, PartialEq, Eq, Debug)]
 enum EnumNoKey {
     _One,
     _Two,
@@ -274,7 +274,7 @@ fn test_enum_no_key_set() {
     assert_eq!(enk, EnumNoKey::_Two);
 }
 
-#[derive(Serialize, Deserialize, DdsType, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, DdsType, DdsSerde, PartialEq, Eq, Debug)]
 #[key]
 enum EnumKey {
     _One,

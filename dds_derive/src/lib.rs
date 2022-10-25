@@ -192,3 +192,16 @@ fn has_key_attribute(attr_list: &[Attribute]) -> bool {
             .unwrap_or(false)
     })
 }
+
+#[proc_macro_derive(DdsSerde)]
+pub fn derive_dds_serde(input: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(input);
+    let (impl_generics, type_generics, where_clause) = input.generics.split_for_impl();
+    let ident = input.ident;
+
+    let output = quote! {
+        impl #impl_generics DdsSerde for #ident #type_generics #where_clause  {}
+    };
+
+    output.into()
+}
