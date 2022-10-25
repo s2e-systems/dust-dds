@@ -477,7 +477,7 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
 
                 self.status_condition
                     .write_lock()
-                    .add_communication_state(StatusKind::SubscriptionMatchedStatus);
+                    .add_communication_state(StatusKind::PublicationMatchedStatus);
             } else {
                 {
                     let mut offered_incompatible_qos_status_lock =

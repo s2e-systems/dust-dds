@@ -62,7 +62,7 @@ use crate::{
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
-            entity::{Entity, StatusCondition},
+            entity::Entity,
             qos::DataReaderQos,
             qos_policy::{
                 DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
@@ -75,8 +75,8 @@ use crate::{
 
 use super::{
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, subscriber_impl::SubscriberImpl,
-    topic_impl::TopicImpl,
+    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
+    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
 pub trait AnyDataReaderListener {
@@ -195,7 +195,6 @@ pub struct DataReaderImpl<Tim> {
     parent_subscriber: DdsWeak<SubscriberImpl>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
-    status_change: DdsRwLock<Vec<StatusKind>>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -205,6 +204,7 @@ pub struct DataReaderImpl<Tim> {
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     samples_viewed: DdsRwLock<HashSet<InstanceHandle>>,
     enabled: DdsRwLock<bool>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl<Tim> DataReaderImpl<Tim>
@@ -228,7 +228,6 @@ where
             parent_subscriber,
             samples_read: DdsRwLock::new(HashSet::new()),
             deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
-            status_change: DdsRwLock::new(Vec::new()),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
                 not_alive_count: 0,
@@ -267,6 +266,7 @@ where
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             samples_viewed: DdsRwLock::new(HashSet::new()),
             enabled: DdsRwLock::new(false),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -395,14 +395,14 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                     .total_count_change += 1;
 
                 reader_shared
-                    .status_change
+                    .status_condition
                     .write_lock()
-                    .push(StatusKind::RequestedDeadlineMissedStatus);
+                    .add_communication_state(StatusKind::RequestedDeadlineMissedStatus);
                 if let Some(l) = reader_shared.listener.write_lock().as_mut() {
                     reader_shared
-                        .status_change
+                        .status_condition
                         .write_lock()
-                        .retain(|x| x != &StatusKind::RequestedDeadlineMissedStatus);
+                        .remove_communication_state(StatusKind::RequestedDeadlineMissedStatus);
                     l.trigger_on_requested_deadline_missed(
                         &reader_shared,
                         reader_shared
@@ -413,13 +413,13 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                 };
             });
 
-            self.status_change
+            self.status_condition
                 .write_lock()
-                .push(StatusKind::DataAvailableStatus);
+                .add_communication_state(StatusKind::DataAvailableStatus);
             if let Some(l) = self.listener.write_lock().as_mut() {
-                self.status_change
+                self.status_condition
                     .write_lock()
-                    .retain(|x| x != &StatusKind::DataAvailableStatus);
+                    .remove_communication_state(StatusKind::DataAvailableStatus);
                 l.trigger_on_data_available(self)
             };
         }
@@ -518,10 +518,14 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
                     subscription_matched_status_lock.current_count_change += 1;
                 }
 
+                self.status_condition
+                    .write_lock()
+                    .add_communication_state(StatusKind::SubscriptionMatchedStatus);
+
                 if let Some(l) = self.listener.write_lock().as_mut() {
-                    self.status_change
+                    self.status_condition
                         .write_lock()
-                        .push(StatusKind::SubscriptionMatchedStatus);
+                        .remove_communication_state(StatusKind::SubscriptionMatchedStatus);
                     let subscription_matched_status =
                         self.get_subscription_matched_status().unwrap();
                     l.trigger_on_subscription_matched(self, subscription_matched_status)
@@ -970,9 +974,9 @@ where
     }
 
     fn read_sample<'a>(&self, cache_change: &'a RtpsReaderCacheChange) -> (&'a [u8], SampleInfo) {
-        self.status_change
+        self.status_condition
             .write_lock()
-            .retain(|x| x != &StatusKind::DataAvailableStatus);
+            .remove_communication_state(StatusKind::DataAvailableStatus);
 
         let mut samples_read = self.samples_read.write_lock();
         let data_value = cache_change.data_value();
@@ -1056,12 +1060,12 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
     pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_change.read_lock().to_vec()
+        self.status_condition.write_lock().get_enabled_statuses()
     }
 
     pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {

@@ -51,7 +51,7 @@ impl StatusConditionImpl {
         false
     }
 
-    pub(crate) fn add_communication_state(&mut self, state: StatusKind) {
+    pub fn add_communication_state(&mut self, state: StatusKind) {
         self.communication_status.push(state);
 
         if self.get_trigger_value() {
@@ -62,7 +62,11 @@ impl StatusConditionImpl {
         }
     }
 
-    pub(crate) fn push_cvar(&mut self, cvar: Arc<Condvar>) {
+    pub fn remove_communication_state(&mut self, state: StatusKind) {
+        self.communication_status.retain(|x| x != &state);
+    }
+
+    pub fn push_cvar(&mut self, cvar: Arc<Condvar>) {
         self.cvar_list.push(cvar)
     }
 }

@@ -79,7 +79,7 @@ fn each_key_sample_is_read() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -163,7 +163,7 @@ fn write_read_disposed_samples() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -234,7 +234,7 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();

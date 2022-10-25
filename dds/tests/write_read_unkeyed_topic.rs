@@ -84,7 +84,7 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -161,7 +161,7 @@ fn data_reader_resource_limits() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -236,7 +236,7 @@ fn data_reader_order_by_source_timestamp() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -330,7 +330,7 @@ fn data_reader_publication_handle_sample_info() {
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
         .unwrap();
 
     let mut wait_set = WaitSet::new();

@@ -605,7 +605,9 @@ where
     }
 
     fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.data_reader_attributes.upgrade()?.get_statuscondition()
+        Ok(StatusCondition::new(
+            self.data_reader_attributes.upgrade()?.get_statuscondition(),
+        ))
     }
 
     fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
