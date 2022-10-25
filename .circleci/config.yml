@@ -4,6 +4,7 @@ jobs:
   build:
     docker:
       - image: cimg/rust:1.61.0
+    resource_class: large
     steps:
       - checkout
       - run: rustup component add llvm-tools-preview
@@ -11,12 +12,12 @@ jobs:
       - run:
           name: Run clippy
           command: cargo clippy -- -D warnings
-      - run: 
+      - run:
           name: Run Tests
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test
+            cargo test --jobs 8
       - run:
           name: Hello world publisher
           background: true
