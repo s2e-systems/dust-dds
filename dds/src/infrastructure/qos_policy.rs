@@ -32,7 +32,6 @@ const PRESENTATION_QOS_POLICY_NAME: &str = "Presentation";
 const DEADLINE_QOS_POLICY_NAME: &str = "Deadline";
 const LATENCYBUDGET_QOS_POLICY_NAME: &str = "LatencyBudget";
 const OWNERSHIP_QOS_POLICY_NAME: &str = "Ownership";
-const OWNERSHIPSTRENGTH_QOS_POLICY_NAME: &str = "OwnershipStrength";
 const LIVELINESS_QOS_POLICY_NAME: &str = "Liveliness";
 const TIMEBASEDFILTER_QOS_POLICY_NAME: &str = "TimeBasedFilter";
 const PARTITION_QOS_POLICY_NAME: &str = "Partition";
@@ -56,7 +55,6 @@ pub const PRESENTATION_QOS_POLICY_ID: QosPolicyId = 3;
 pub const DEADLINE_QOS_POLICY_ID: QosPolicyId = 4;
 pub const LATENCYBUDGET_QOS_POLICY_ID: QosPolicyId = 5;
 pub const OWNERSHIP_QOS_POLICY_ID: QosPolicyId = 6;
-pub const OWNERSHIPSTRENGTH_QOS_POLICY_ID: QosPolicyId = 7;
 pub const LIVELINESS_QOS_POLICY_ID: QosPolicyId = 8;
 pub const TIMEBASEDFILTER_QOS_POLICY_ID: QosPolicyId = 9;
 pub const PARTITION_QOS_POLICY_ID: QosPolicyId = 10;
@@ -176,8 +174,6 @@ impl Default for LifespanQosPolicy {
 pub enum DurabilityQosPolicyKind {
     VolatileDurabilityQoS,
     TransientLocalDurabilityQoS,
-    TransientDurabilityQoS,
-    PersistentDurabilityQoS,
 }
 
 impl PartialOrd for DurabilityQosPolicyKind {
@@ -186,26 +182,10 @@ impl PartialOrd for DurabilityQosPolicyKind {
             DurabilityQosPolicyKind::VolatileDurabilityQoS => match other {
                 DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Equal),
                 DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Less),
-                DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Less),
-                DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
             },
             DurabilityQosPolicyKind::TransientLocalDurabilityQoS => match other {
                 DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
                 DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Equal),
-                DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Less),
-                DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
-            },
-            DurabilityQosPolicyKind::TransientDurabilityQoS => match other {
-                DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Equal),
-                DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
-            },
-            DurabilityQosPolicyKind::PersistentDurabilityQoS => match other {
-                DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Equal),
             },
         }
     }
@@ -275,7 +255,6 @@ impl Default for DurabilityQosPolicy {
 pub enum PresentationQosPolicyAccessScopeKind {
     InstancePresentationQoS,
     TopicPresentationQoS,
-    GroupPresentationQoS,
 }
 
 impl PartialOrd for PresentationQosPolicyAccessScopeKind {
@@ -286,23 +265,12 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
                     Some(Ordering::Equal)
                 }
                 PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Less),
-                PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Less),
             },
             PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => match other {
                 PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => {
                     Some(Ordering::Greater)
                 }
                 PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Equal),
-                PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Less),
-            },
-            PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => match other {
-                PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => {
-                    Some(Ordering::Greater)
-                }
-                PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => {
-                    Some(Ordering::Greater)
-                }
-                PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Equal),
             },
         }
     }
@@ -427,7 +395,6 @@ impl Default for LatencyBudgetQosPolicy {
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum OwnershipQosPolicyKind {
     SharedOwnershipQoS,
-    ExclusiveOwnershipQoS,
 }
 
 /// This policy controls whether the Service allows multiple DataWriter objects to update the same instance (identified by Topic +
@@ -482,22 +449,6 @@ impl Default for OwnershipQosPolicy {
         Self {
             kind: OwnershipQosPolicyKind::SharedOwnershipQoS,
         }
-    }
-}
-
-/// This QoS policy should be used in combination with the OWNERSHIP policy. It only applies to the situation case where
-/// OWNERSHIP kind is set to EXCLUSIVE.
-/// The value of the OWNERSHIP_STRENGTH is used to determine the ownership of a data-instance (identified by the key).
-/// The arbitration is performed by the DataReader. The rules used to perform the arbitration are described in 2.2.3.9.2,
-/// EXCLUSIVE kind.
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct OwnershipStrengthQosPolicy {
-    pub value: i32,
-}
-
-impl QosPolicy for OwnershipStrengthQosPolicy {
-    fn name(&self) -> &str {
-        OWNERSHIPSTRENGTH_QOS_POLICY_NAME
     }
 }
 
@@ -1071,14 +1022,6 @@ mod tests {
             DurabilityQosPolicyKind::VolatileDurabilityQoS
                 < DurabilityQosPolicyKind::TransientLocalDurabilityQoS
         );
-        assert!(
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-                < DurabilityQosPolicyKind::TransientDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientDurabilityQoS
-                < DurabilityQosPolicyKind::PersistentDurabilityQoS
-        );
 
         assert!(
             DurabilityQosPolicyKind::VolatileDurabilityQoS
@@ -1087,14 +1030,6 @@ mod tests {
         assert!(
             DurabilityQosPolicyKind::VolatileDurabilityQoS
                 < DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::VolatileDurabilityQoS
-                < DurabilityQosPolicyKind::TransientDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::VolatileDurabilityQoS
-                < DurabilityQosPolicyKind::PersistentDurabilityQoS
         );
 
         assert!(
@@ -1105,48 +1040,6 @@ mod tests {
             DurabilityQosPolicyKind::TransientLocalDurabilityQoS
                 == DurabilityQosPolicyKind::TransientLocalDurabilityQoS
         );
-        assert!(
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-                < DurabilityQosPolicyKind::TransientDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-                < DurabilityQosPolicyKind::PersistentDurabilityQoS
-        );
-
-        assert!(
-            DurabilityQosPolicyKind::TransientDurabilityQoS
-                > DurabilityQosPolicyKind::VolatileDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientDurabilityQoS
-                > DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientDurabilityQoS
-                == DurabilityQosPolicyKind::TransientDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientDurabilityQoS
-                < DurabilityQosPolicyKind::PersistentDurabilityQoS
-        );
-
-        assert!(
-            DurabilityQosPolicyKind::PersistentDurabilityQoS
-                > DurabilityQosPolicyKind::VolatileDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::PersistentDurabilityQoS
-                > DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::PersistentDurabilityQoS
-                > DurabilityQosPolicyKind::TransientDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::PersistentDurabilityQoS
-                == DurabilityQosPolicyKind::PersistentDurabilityQoS
-        );
     }
 
     #[test]
@@ -1154,10 +1047,6 @@ mod tests {
         assert!(
             PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
                 < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-        );
-        assert!(
-            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-                < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
         );
 
         assert!(
@@ -1168,10 +1057,6 @@ mod tests {
             PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
                 < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
         );
-        assert!(
-            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
-                < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
-        );
 
         assert!(
             PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
@@ -1180,23 +1065,6 @@ mod tests {
         assert!(
             PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
                 == PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-        );
-        assert!(
-            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-                < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
-        );
-
-        assert!(
-            PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
-                > PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
-        );
-        assert!(
-            PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
-                > PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-        );
-        assert!(
-            PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
-                == PresentationQosPolicyAccessScopeKind::GroupPresentationQoS
         );
     }
 

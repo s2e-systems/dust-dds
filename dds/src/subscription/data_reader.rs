@@ -15,7 +15,6 @@ use crate::{
             entity::{Entity, StatusCondition},
             error::DdsResult,
             qos::DataReaderQos,
-            read_condition::ReadCondition,
             status::{
                 LivelinessChangedStatus, RequestedDeadlineMissedStatus,
                 RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
@@ -30,7 +29,6 @@ use std::marker::PhantomData;
 use crate::topic_definition::topic::Topic;
 
 use super::{
-    query_condition::QueryCondition,
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     subscriber::Subscriber,
 };
@@ -201,56 +199,6 @@ where
             sample_states,
             view_states,
             instance_states,
-        )
-    }
-
-    /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
-    /// especially useful in combination with QueryCondition to filter data samples based on the content.
-    /// The specified ReadCondition must be attached to the DataReader; otherwise the operation will fail and return
-    /// PRECONDITION_NOT_MET.
-    /// In case the ReadCondition is a ‘plain’ ReadCondition and not the specialized QueryCondition, the operation is equivalent to
-    /// calling read and passing as sample_states, view_states and instance_states the value of the corresponding attributes in the
-    /// read_condition. Using this operation the application can avoid repeating the same parameters specified when creating the
-    /// ReadCondition.
-    /// The samples are accessed with the same semantics as the read operation.
-    /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
-    /// that is being read.
-    /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    pub fn read_w_condition(
-        &self,
-        data_values: &mut [Foo],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        self.data_reader_attributes.upgrade()?.read_w_condition(
-            data_values,
-            sample_infos,
-            max_samples,
-            a_condition,
-        )
-    }
-
-    /// This operation is analogous to read_w_condition except it accesses samples via the ‘take’ operation.
-    /// The specified ReadCondition must be attached to the DataReader; otherwise the operation will fail and return
-    /// PRECONDITION_NOT_MET.
-    /// The samples are accessed with the same semantics as the take operation.
-    /// This operation is especially useful in combination with QueryCondition to filter data samples based on the content.
-    /// Similar to take, this operation must be provided on the specialized class that is generated for the particular application datatype
-    /// that is being taken.
-    /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    pub fn take_w_condition(
-        &self,
-        data_values: &mut [Foo],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        self.data_reader_attributes.upgrade()?.take_w_condition(
-            data_values,
-            sample_infos,
-            max_samples,
-            a_condition,
         )
     }
 
@@ -448,69 +396,6 @@ where
         )
     }
 
-    /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read_next_instance
-    /// except that all samples returned satisfy the specified condition. In other words, on success all returned samples belong to the
-    /// same instance, and the instance is the instance with ‘smallest’ instance_handle among the ones that verify (a)
-    /// instance_handle >= previous_handle and (b) have samples for which the specified ReadCondition evaluates to TRUE.
-    /// Similar to the operation read_next_instance (see 2.2.2.5.3.16) it is possible to call read_next_instance_w_condition with a
-    /// previous_handle that does not correspond to an instance currently managed by the DataReader.
-    /// The behavior of the read_next_instance_w_condition operation follows the same rules than the read operation regarding the
-    /// pre-conditions and post-conditions for the data_values and sample_infos collections. Similar to read, the
-    /// read_next_instance_w_condition operation may ‘loan’ elements to the output collections which must then be returned by
-    /// means of return_loan.
-    /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
-    /// that is being taken.
-    /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    pub fn read_next_instance_w_condition(
-        &self,
-        data_values: &mut [Foo],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        self.data_reader_attributes
-            .upgrade()?
-            .read_next_instance_w_condition(
-                data_values,
-                sample_infos,
-                max_samples,
-                previous_handle,
-                a_condition,
-            )
-    }
-
-    /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
-    /// This operation has the same behavior as read_next_instance_w_condition except that the samples are ‘taken’ from the
-    /// DataReader such that they are no longer accessible via subsequent ‘read’ or ‘take’ operations.
-    /// Similar to the operation read_next_instance (see 2.2.2.5.3.16) it is possible to call take_next_instance_w_condition with a
-    /// previous_handle that does not correspond to an instance currently managed by the DataReader.
-    /// The behavior of the take_next_instance_w_condition operation follows the same rules as the read operation regarding the
-    /// pre-conditions and post-conditions for the data_values and sample_infos collections. Similar to read, the
-    /// take_next_instance_w_condition operation may ‘loan’ elements to the output collections which must then be returned by
-    /// means of return_loan.
-    /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
-    /// that is being taken.
-    /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
-    pub fn take_next_instance_w_condition(
-        &self,
-        data_values: &mut [Foo],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        self.data_reader_attributes
-            .upgrade()?
-            .take_next_instance_w_condition(
-                data_values,
-                sample_infos,
-                max_samples,
-                previous_handle,
-                a_condition,
-            )
-    }
-
     /// This operation indicates to the DataReader that the application is done accessing the collection of data_values and
     /// sample_infos obtained by some earlier invocation of read or take on the DataReader.
     /// The data_values and sample_infos must belong to a single related ‘pair;’ that is, they should correspond to a pair returned from
@@ -559,53 +444,6 @@ where
         self.data_reader_attributes
             .upgrade()?
             .lookup_instance(instance)
-    }
-
-    /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_readcondition(
-        &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<ReadCondition> {
-        self.data_reader_attributes.upgrade()?.create_readcondition(
-            sample_states,
-            view_states,
-            instance_states,
-        )
-    }
-
-    /// This operation creates a QueryCondition. The returned QueryCondition will be attached and belong to the DataReader.
-    /// The syntax of the query_expression and query_parameters parameters is described in Annex B.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_querycondition(
-        &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        query_expression: &'static str,
-        query_parameters: &[&'static str],
-    ) -> DdsResult<QueryCondition> {
-        self.data_reader_attributes
-            .upgrade()?
-            .create_querycondition(
-                sample_states,
-                view_states,
-                instance_states,
-                query_expression,
-                query_parameters,
-            )
-    }
-
-    /// This operation deletes a ReadCondition attached to the DataReader. Since QueryCondition specializes ReadCondition it can
-    /// also be used to delete a QueryCondition. If the ReadCondition is not attached to the DataReader, the operation will return the
-    /// error PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    pub fn delete_readcondition(&self, a_condition: ReadCondition) -> DdsResult<()> {
-        self.data_reader_attributes
-            .upgrade()?
-            .delete_readcondition(a_condition)
     }
 
     /// This operation allows access to the LIVELINESS_CHANGED communication status. Communication statuses are described

@@ -1,9 +1,9 @@
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+    ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
 type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
@@ -55,7 +55,6 @@ pub struct PublicationBuiltinTopicData {
     pub lifespan: LifespanQosPolicy,
     pub user_data: UserDataQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub ownership_strength: OwnershipStrengthQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
 
     pub presentation: PresentationQosPolicy,

@@ -58,7 +58,6 @@ use crate::{
     subscription::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
-        query_condition::QueryCondition,
     },
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -67,11 +66,9 @@ use crate::{
             qos::DataReaderQos,
             qos_policy::{
                 DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-                OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
                 RELIABILITY_QOS_POLICY_ID,
             },
-            read_condition::ReadCondition,
         },
     },
 };
@@ -475,9 +472,6 @@ impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
             if reader_qos.latency_budget > writer_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
             }
-            if reader_qos.ownership != writer_info.ownership {
-                incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
-            }
             if reader_qos.liveliness > writer_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
             }
@@ -713,34 +707,6 @@ where
         Ok(samples)
     }
 
-    pub fn read_w_condition<Foo>(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
-        _max_samples: i32,
-        _a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn take_w_condition<Foo>(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
-        _max_samples: i32,
-        _a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
     pub fn read_next_sample<Foo>(
         &self,
         _data_value: &mut [Foo],
@@ -837,36 +803,6 @@ where
         todo!()
     }
 
-    pub fn read_next_instance_w_condition<Foo>(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
-        _max_samples: i32,
-        _previous_handle: InstanceHandle,
-        _a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn take_next_instance_w_condition<Foo>(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
-        _max_samples: i32,
-        _previous_handle: InstanceHandle,
-        _a_condition: ReadCondition,
-    ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
     pub fn return_loan<Foo>(
         &self,
         _data_values: &mut [Foo],
@@ -892,42 +828,6 @@ where
     }
 
     pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<InstanceHandle> {
-        todo!()
-    }
-
-    pub fn create_readcondition(
-        &self,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<ReadCondition> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn create_querycondition(
-        &self,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-        _query_expression: &'static str,
-        _query_parameters: &[&'static str],
-    ) -> DdsResult<QueryCondition> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn delete_readcondition(&self, _a_condition: ReadCondition) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         todo!()
     }
 
@@ -1283,9 +1183,8 @@ mod tests {
                 DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
                 DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
                 LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-                OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
-                UserDataQosPolicy,
+                PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+                ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
             },
         },
         infrastructure::{qos_policy::HistoryQosPolicyKind, time::DURATION_ZERO},
@@ -1555,7 +1454,6 @@ mod tests {
             group_data: GroupDataQosPolicy::default(),
             durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
-            ownership_strength: OwnershipStrengthQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -1644,7 +1542,6 @@ mod tests {
             group_data: GroupDataQosPolicy::default(),
             durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
-            ownership_strength: OwnershipStrengthQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {

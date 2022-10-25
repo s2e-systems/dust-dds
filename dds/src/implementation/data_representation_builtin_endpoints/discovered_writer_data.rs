@@ -6,9 +6,8 @@ use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-    OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-    ReliabilityQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-    DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+    TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
 use crate::{
     dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
@@ -22,8 +21,8 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
     PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID,
     PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
-    PID_OWNERSHIP_STRENGTH, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-    PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
+    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 
 #[derive(Debug, PartialEq, Eq, serde::Serialize)]
@@ -163,11 +162,6 @@ impl DdsSerialize for DiscoveredWriterData {
             &self.publication_builtin_topic_data.ownership,
         )?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<&OwnershipStrengthQosPolicy, _>(
-                PID_OWNERSHIP_STRENGTH,
-                &self.publication_builtin_topic_data.ownership_strength,
-            )?;
-        parameter_list_serializer
             .serialize_parameter_if_not_default::<&DestinationOrderQosPolicy, _>(
                 PID_DESTINATION_ORDER,
                 &self.publication_builtin_topic_data.destination_order,
@@ -219,8 +213,6 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let lifespan = param_list.get_or_default::<LifespanQosPolicy, _>(PID_LIFESPAN)?;
         let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
         let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
-        let ownership_strength =
-            param_list.get_or_default::<OwnershipStrengthQosPolicy, _>(PID_OWNERSHIP_STRENGTH)?;
         let destination_order =
             param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
         let presentation =
@@ -252,7 +244,6 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
                 lifespan,
                 user_data,
                 ownership,
-                ownership_strength,
                 destination_order,
                 presentation,
                 partition,
@@ -270,9 +261,8 @@ mod tests {
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
         DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-        PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
-        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+        TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
 
     use super::*;
@@ -319,7 +309,6 @@ mod tests {
                 lifespan: LifespanQosPolicy::default(),
                 user_data: UserDataQosPolicy::default(),
                 ownership: OwnershipQosPolicy::default(),
-                ownership_strength: OwnershipStrengthQosPolicy::default(),
                 destination_order: DestinationOrderQosPolicy::default(),
                 presentation: PresentationQosPolicy::default(),
                 partition: PartitionQosPolicy::default(),
@@ -391,7 +380,6 @@ mod tests {
                 lifespan: LifespanQosPolicy::default(),
                 user_data: UserDataQosPolicy::default(),
                 ownership: OwnershipQosPolicy::default(),
-                ownership_strength: OwnershipStrengthQosPolicy::default(),
                 destination_order: DestinationOrderQosPolicy::default(),
                 presentation: PresentationQosPolicy::default(),
                 partition: PartitionQosPolicy::default(),

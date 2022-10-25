@@ -41,8 +41,7 @@ use crate::{
             qos::DataWriterQos,
             qos_policy::{
                 DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-                OWNERSHIPSTRENGTH_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
                 RELIABILITY_QOS_POLICY_ID,
             },
             time::{Duration, Time},
@@ -411,9 +410,6 @@ impl AddMatchedReader for DdsShared<DataWriterImpl> {
             }
             if qos.latency_budget < reader_info.latency_budget {
                 incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-            }
-            if qos.ownership != reader_info.ownership {
-                incompatible_qos_policy_list.push(OWNERSHIPSTRENGTH_QOS_POLICY_ID);
             }
             if qos.liveliness < reader_info.liveliness {
                 incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
@@ -925,7 +921,6 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
                 lifespan: writer_qos.lifespan.clone(),
                 user_data: writer_qos.user_data.clone(),
                 ownership: writer_qos.ownership.clone(),
-                ownership_strength: writer_qos.ownership_strength.clone(),
                 destination_order: writer_qos.destination_order.clone(),
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),

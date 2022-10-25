@@ -7,10 +7,10 @@ use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind,
     LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-    OwnershipStrengthQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-    ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
-    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-    TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy, LENGTH_UNLIMITED,
+    PartitionQosPolicy, PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+    ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+    WriterDataLifecycleQosPolicy, LENGTH_UNLIMITED,
 };
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
@@ -57,7 +57,6 @@ pub struct DataWriterQos {
     pub lifespan: LifespanQosPolicy,
     pub user_data: UserDataQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub ownership_strength: OwnershipStrengthQosPolicy,
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
 }
 
@@ -79,7 +78,6 @@ impl Default for DataWriterQos {
             ownership: OwnershipQosPolicy::default(),
             durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
-            ownership_strength: OwnershipStrengthQosPolicy::default(),
             transport_priority: TransportPriorityQosPolicy::default(),
             writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
         }
