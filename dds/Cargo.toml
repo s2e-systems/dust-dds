@@ -10,6 +10,8 @@ license = "Apache-2.0"
 edition = "2018"
 
 [dependencies]
+dust_dds_derive = { path = "../dds_derive" }
+
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "0.2.4"
 

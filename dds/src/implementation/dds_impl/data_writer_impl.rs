@@ -6,7 +6,6 @@ use std::{
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    dds_type::{DdsSerialize, DdsType, LittleEndian},
     implementation::rtps::{
         messages::{
             overall_structure::RtpsMessageHeader,
@@ -33,6 +32,7 @@ use crate::{
         },
     },
     publication::data_writer::DataWriter,
+    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -994,7 +994,6 @@ mod test {
     use std::io::Write;
 
     use crate::{
-        dds_type::Endianness,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             messages::{
@@ -1023,6 +1022,7 @@ mod test {
                 TopicDataQosPolicy, UserDataQosPolicy,
             },
         },
+        topic_definition::type_support::Endianness,
     };
 
     use mockall::mock;

@@ -10,11 +10,11 @@ use crate::infrastructure::qos_policy::{
     TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
 use crate::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
     },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::parameter_id_values::{
@@ -256,7 +256,6 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use crate::dds_type::LittleEndian;
     use crate::implementation::rtps::types::GuidPrefix;
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
@@ -264,6 +263,7 @@ mod tests {
         LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
         TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
+    use crate::topic_definition::type_support::LittleEndian;
 
     use super::*;
 

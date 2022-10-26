@@ -1,4 +1,3 @@
-use crate::dds_type::DdsType;
 use crate::implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
 };
@@ -8,6 +7,7 @@ use crate::infrastructure::status::StatusKind;
 use crate::publication::publisher_listener::PublisherListener;
 use crate::subscription::subscriber::Subscriber;
 use crate::subscription::subscriber_listener::SubscriberListener;
+use crate::topic_definition::type_support::DdsType;
 use crate::{
     topic_definition::topic_listener::TopicListener,
     {

@@ -1,5 +1,4 @@
 use dust_dds::{
-    dds_type::{DdsSerde, DdsType},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::DataReaderQos,
@@ -9,9 +8,9 @@ use dust_dds::{
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    topic_definition::type_support::{DdsSerde, DdsType},
 };
 
-use dust_dds_derive::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, DdsType, DdsSerde)]

@@ -1,5 +1,4 @@
 use crate::{
-    dds_type::{DdsDeserialize, DdsType},
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
@@ -9,6 +8,7 @@ use crate::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
     implementation::{

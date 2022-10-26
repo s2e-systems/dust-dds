@@ -1,6 +1,5 @@
 use cdr::{CdrBe, CdrLe};
-use dust_dds::dds_type::{BigEndian, DdsType, DdsSerde, LittleEndian};
-use dust_dds_derive::{DdsType, DdsSerde};
+use dust_dds::topic_definition::type_support::{BigEndian, DdsSerde, DdsType, LittleEndian};
 use serde::{Deserialize, Serialize};
 
 #[derive(DdsType, DdsSerde)]

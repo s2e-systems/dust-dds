@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
+use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::error::{DdsError, DdsResult},

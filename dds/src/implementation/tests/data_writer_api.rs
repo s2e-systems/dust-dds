@@ -3,13 +3,13 @@ use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantI
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::{
-    dds_type::{DdsSerialize, DdsType, Endianness},
     infrastructure::{
         error::{DdsError, DdsResult},
         qos::{DataWriterQos, DomainParticipantQos},
         qos_policy::ResourceLimitsQosPolicy,
         time::{Time, TIME_INVALID},
     },
+    topic_definition::type_support::{DdsSerialize, DdsType, Endianness},
 };
 
 struct Foo;

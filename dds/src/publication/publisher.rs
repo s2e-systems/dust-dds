@@ -19,9 +19,9 @@ use crate::{
 };
 
 use crate::{
-    dds_type::{DdsSerialize, DdsType},
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use super::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};

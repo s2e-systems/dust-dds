@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    dds_type::DdsType,
     domain::domain_participant_factory::DomainId,
+    topic_definition::type_support::DdsType,
     {
         builtin_topics::ParticipantBuiltinTopicData,
         infrastructure::{

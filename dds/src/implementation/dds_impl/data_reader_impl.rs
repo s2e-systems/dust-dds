@@ -5,7 +5,6 @@ use std::{
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    dds_type::DdsDeserialize,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -51,14 +50,15 @@ use crate::{
         },
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    topic_definition::type_support::DdsDeserialize,
 };
 use crate::{
-    dds_type::DdsType,
     implementation::utils::timer::ThreadTimer,
     subscription::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
     },
+    topic_definition::type_support::DdsType,
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -1174,7 +1174,6 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
 mod tests {
     use super::*;
     use crate::{
-        dds_type::DdsSerialize,
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
@@ -1192,15 +1191,16 @@ mod tests {
         },
         infrastructure::{qos_policy::HistoryQosPolicyKind, time::DURATION_ZERO},
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        topic_definition::type_support::DdsSerialize,
     };
     use crate::{
-        dds_type::{DdsType, Endianness},
         implementation::{
             data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
             dds_impl::{data_reader_impl::RtpsReaderKind, topic_impl::TopicImpl},
             rtps::group::RtpsGroupImpl,
             utils::shared_object::DdsShared,
         },
+        topic_definition::type_support::{DdsType, Endianness},
     };
 
     use mockall::mock;

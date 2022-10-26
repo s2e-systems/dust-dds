@@ -1,5 +1,4 @@
 use dust_dds::{
-    dds_type::{DdsSerde, DdsType, Endianness},
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsResult,
@@ -12,6 +11,7 @@ use dust_dds::{
     subscription::sample_info::{
         InstanceStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
+    topic_definition::type_support::{DdsSerde, DdsType, Endianness},
 };
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]

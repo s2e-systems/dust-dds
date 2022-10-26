@@ -8,7 +8,6 @@ use crate::implementation::rtps::types::{
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::UserDataQosPolicy;
 use crate::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
@@ -18,6 +17,7 @@ use crate::{
         },
     },
     infrastructure::time::Duration,
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::parameter_id_values::{
@@ -279,9 +279,9 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dds_type::LittleEndian;
     use crate::implementation::rtps::types::EntityId;
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
+    use crate::topic_definition::type_support::LittleEndian;
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();

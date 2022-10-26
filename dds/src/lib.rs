@@ -7,6 +7,5 @@ pub mod subscription;
 pub mod topic_definition;
 
 pub mod builtin_topics;
-pub mod dds_type;
 
 mod implementation;

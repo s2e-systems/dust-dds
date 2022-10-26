@@ -1,6 +1,5 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use crate::dds_type::DdsType;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
 use crate::implementation::rtps::transport::TransportWrite;
@@ -14,6 +13,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::status::StatusKind;
 use crate::infrastructure::time::{Duration, DURATION_ZERO};
+use crate::topic_definition::type_support::DdsType;
 use crate::{
     infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
     publication::publisher_listener::PublisherListener,

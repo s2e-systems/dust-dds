@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use crate::{
-    dds_type::{DdsDeserialize, DdsType, LittleEndian},
     implementation::{
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
@@ -16,6 +15,7 @@ use crate::{
         qos_policy::{HistoryQosPolicyKind, LENGTH_UNLIMITED},
         time::Duration,
     },
+    topic_definition::type_support::{DdsDeserialize, DdsType, LittleEndian},
 };
 
 use super::{

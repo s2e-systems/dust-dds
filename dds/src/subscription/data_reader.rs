@@ -1,11 +1,11 @@
 use crate::{
-    dds_type::{DdsDeserialize, DdsType},
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
     },
     infrastructure::{instance::InstanceHandle, status::StatusKind},
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
     subscription::data_reader_listener::DataReaderListener,

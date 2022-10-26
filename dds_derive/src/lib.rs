@@ -49,8 +49,8 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dust_dds::dds_type::Endianness>(&self) -> Vec<u8> {
-                    if E::REPRESENTATION_IDENTIFIER == dust_dds::dds_type::PL_CDR_BE {
+                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
+                    if E::REPRESENTATION_IDENTIFIER == dust_dds::topic_definition::type_support::PL_CDR_BE {
                         cdr::serialize::<_, _, cdr::CdrBe>(self, cdr::Infinite).unwrap()
                     } else {
                         cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite).unwrap()
@@ -84,7 +84,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dust_dds::dds_type::Endianness>(&self) -> Vec<u8> {
+                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
                     #build_key
                 }
 
@@ -106,7 +106,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     false
                 }
 
-                fn get_serialized_key<E: dust_dds::dds_type::Endianness>(&self) -> Vec<u8> {
+                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
                     vec![]
                 }
 
@@ -138,7 +138,7 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
     }
 
     quote! {
-        if E::REPRESENTATION_IDENTIFIER == dust_dds::dds_type::PL_CDR_BE {
+        if E::REPRESENTATION_IDENTIFIER == dust_dds::topic_definition::type_support::PL_CDR_BE {
             cdr::serialize::<_, _, cdr::CdrBe>(&(#field_list_ts), cdr::Infinite).unwrap()
         } else {
             cdr::serialize::<_, _, cdr::CdrLe>(&(#field_list_ts), cdr::Infinite).unwrap()

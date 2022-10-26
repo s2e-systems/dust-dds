@@ -6,7 +6,6 @@ use std::{
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    dds_type::DdsType,
     domain::domain_participant_factory::DomainId,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -42,6 +41,7 @@ use crate::{
         subscriber_listener::SubscriberListener,
     },
     topic_definition::topic_listener::TopicListener,
+    topic_definition::type_support::DdsType,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{

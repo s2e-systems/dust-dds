@@ -3,9 +3,9 @@ use std::io::Read;
 use byteorder::{ByteOrder, ReadBytesExt};
 
 use crate::{
-    dds_type::{BigEndian, Endianness, LittleEndian},
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
+    topic_definition::type_support::{BigEndian, Endianness, LittleEndian},
 };
 
 #[derive(Debug, PartialEq)]

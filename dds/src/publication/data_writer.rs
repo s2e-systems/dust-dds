@@ -15,12 +15,12 @@ use crate::{
     },
 };
 use crate::{
-    dds_type::{DdsSerialize, DdsType},
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
         utils::shared_object::DdsWeak,
     },
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use crate::{

@@ -1,10 +1,10 @@
-use dust_dds::dds_type::{DdsDeserialize, DdsSerialize, DdsType};
 use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
 use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
     LENGTH_UNLIMITED,
 };
+use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType};
 
 use dust_dds::infrastructure::error::{DdsError, DdsResult};
 use dust_dds::infrastructure::status::StatusKind;
@@ -28,7 +28,7 @@ impl DdsType for UserData {
 }
 
 impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: dust_dds::dds_type::Endianness>(
+    fn serialize<W: std::io::Write, E: dust_dds::topic_definition::type_support::Endianness>(
         &self,
         mut writer: W,
     ) -> DdsResult<()> {

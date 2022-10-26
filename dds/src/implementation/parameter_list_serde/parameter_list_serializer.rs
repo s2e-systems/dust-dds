@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
 use crate::{
-    dds_type::Endianness,
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
+    topic_definition::type_support::Endianness,
 };
 
 use serde::Serialize;

@@ -12,8 +12,8 @@ use dust_dds::{
 #[derive(serde::Serialize, serde::Deserialize)]
 struct UserType(i32);
 
-impl dust_dds::dds_type::DdsSerde for UserType {}
-impl dust_dds::dds_type::DdsType for UserType {
+impl dust_dds::topic_definition::type_support::DdsSerde for UserType {}
+impl dust_dds::topic_definition::type_support::DdsType for UserType {
     fn type_name() -> &'static str {
         "UserType"
     }

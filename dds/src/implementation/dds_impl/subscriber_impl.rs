@@ -1,4 +1,3 @@
-use crate::dds_type::DdsDeserialize;
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
@@ -14,12 +13,13 @@ use crate::infrastructure::time::DURATION_ZERO;
 use crate::subscription::data_reader::AnyDataReader;
 use crate::subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind};
 use crate::subscription::subscriber_listener::SubscriberListener;
+use crate::topic_definition::type_support::DdsDeserialize;
 use crate::{
-    dds_type::DdsType,
     infrastructure::{
         entity::StatusCondition,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
+    topic_definition::type_support::DdsType,
 };
 
 use crate::implementation::{

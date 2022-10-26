@@ -7,11 +7,11 @@ use crate::infrastructure::qos_policy::{
     TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
 };
 use crate::{
-    dds_type::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
     },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 use super::parameter_id_values::{
@@ -208,7 +208,7 @@ mod tests {
         TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
-    use crate::dds_type::LittleEndian;
+    use crate::topic_definition::type_support::LittleEndian;
 
     use super::*;
 
