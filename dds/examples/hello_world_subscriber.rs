@@ -1,34 +1,23 @@
-use dust_dds::dds_type::{DdsSerde, DdsType};
-use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
 use dust_dds::{
+    dds_type::{DdsSerde, DdsType},
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::{error::DdsError, qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
-    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    infrastructure::{
+        qos::DataReaderQos,
+        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        status::StatusKind,
+        time::Duration,
+        wait_set::{Condition, WaitSet},
+    },
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
 };
-use dust_dds_derive::{DdsType, DdsSerde};
+
+use dust_dds_derive::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, DdsType, DdsSerde)]
+#[derive(Debug, Deserialize, Serialize, DdsType, DdsSerde)]
 struct HelloWorldType {
     id: u8,
     msg: String,
-}
-
-struct ExampleListener;
-
-impl DataReaderListener for ExampleListener {
-    type Foo = HelloWorldType;
-
-    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
-        let sample = the_reader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap();
-        println!(
-            "Data id: {:?} Msg: {:?}",
-            sample[0].data.as_ref().unwrap().id,
-            sample[0].data.as_ref().unwrap().msg
-        )
-    }
 }
 
 fn main() {
@@ -38,35 +27,48 @@ fn main() {
     let participant = participant_factory
         .create_participant(domain_id, None, None, &[])
         .unwrap();
-    println!("{:?} [S] Created participant", std::time::SystemTime::now());
 
     let topic = participant
         .create_topic::<HelloWorldType>("HelloWorld", None, None, &[])
         .unwrap();
 
-    let mut qos = DataReaderQos::default();
-    qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
-
     let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
 
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
     let reader = subscriber
-        .create_datareader(&topic, Some(qos), Some(Box::new(ExampleListener)), &[])
+        .create_datareader(&topic, Some(reader_qos), None, &[])
         .unwrap();
-    println!("{:?} [S] Created reader", std::time::SystemTime::now());
 
-    while reader.get_matched_publications().unwrap().len() == 0 {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-    }
-    println!("{:?} [S] Matched with writer", std::time::SystemTime::now());
+    let reader_cond = reader.get_statuscondition().unwrap();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond.clone()))
+        .unwrap();
 
-    let mut samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
-    while let Err(DdsError::NoData) = samples {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-        samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-    }
-    println!("{:?} [S] Received data", std::time::SystemTime::now());
-    let hello_world_sample = samples.unwrap();
-    let hello_world = hello_world_sample[0].data.as_ref().unwrap();
-    assert_eq!(8, hello_world.id);
-    assert_eq!("Hello world!", hello_world.msg);
+    wait_set.wait(Duration::new(60, 0)).unwrap();
+
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailableStatus])
+        .unwrap();
+    wait_set.wait(Duration::new(30, 0)).unwrap();
+
+    let samples = reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    let hello_world = samples[0].data.as_ref().unwrap();
+    println!("Received: {:?}", hello_world);
+
+    // Wait a moment before finishing the program so that there is enough time to send the
+    // reception acknowledgments.
+    std::thread::sleep(std::time::Duration::from_secs(1));
 }
