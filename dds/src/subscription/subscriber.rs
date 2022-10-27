@@ -35,7 +35,7 @@ use super::{
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-#[derive(Clone)]
+#[derive(PartialEq, Debug)]
 pub struct Subscriber {
     subscriber_attributes: DdsWeak<SubscriberImpl>,
 }

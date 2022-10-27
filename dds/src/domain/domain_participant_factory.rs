@@ -2,12 +2,10 @@ use std::sync::Mutex;
 
 use crate::{
     implementation::{
-        dds_impl::domain_participant_impl::{
-            AnnounceParticipant, CreateBuiltIns, DomainParticipantImpl, ReceiveBuiltInData,
-            ReceiveUserDefinedData, SedpReaderDiscovery, SedpWriterDiscovery, SendBuiltInData,
-            SendUserDefinedData, SpdpParticipantDiscovery,
+        dds_impl::{
+            configuration::DustDdsConfiguration, dcps_service::DcpsService,
+            domain_participant_impl::DomainParticipantImpl,
         },
-        task_manager::TaskManager,
         utils::shared_object::DdsShared,
     },
     infrastructure::{
@@ -33,122 +31,17 @@ use lazy_static::lazy_static;
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 
-use super::{configuration::DustDdsConfiguration, domain_participant::DomainParticipant};
+use super::domain_participant::DomainParticipant;
 
 type DomainIdTypeNative = i32;
 pub type DomainId = DomainIdTypeNative;
-
-struct ParticipantManager {
-    participant: DdsShared<DomainParticipantImpl>,
-    task_manager: TaskManager,
-}
-
-impl ParticipantManager {
-    fn start(&mut self, mut transport: RtpsUdpPsm) {
-        //     let mut metatraffic_multicast_communication = communications.metatraffic_multicast;
-        //     let mut metatraffic_unicast_communication = communications.metatraffic_unicast;
-        //     let mut default_unicast_communication = communications.default_unicast;
-
-        // //////////// SPDP Communication
-
-        // ////////////// SPDP participant discovery
-        {
-            let domain_participant = self.participant.clone();
-            let mut metatraffic_multicast_transport =
-                transport.metatraffic_multicast_transport().unwrap();
-            self.task_manager.spawn_enabled_periodic_task(
-                "builtin multicast communication",
-                move || {
-                    domain_participant.receive_built_in_data(&mut metatraffic_multicast_transport);
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        // ////////////// SPDP builtin endpoint configuration
-        {
-            let domain_participant = self.participant.clone();
-
-            self.task_manager.spawn_enabled_periodic_task(
-                "spdp endpoint configuration",
-                move || match domain_participant.discover_matched_participants() {
-                    Ok(()) => (),
-                    Err(e) => println!("spdp discovery failed: {:?}", e),
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        // //////////// Unicast Communication
-        {
-            let domain_participant = self.participant.clone();
-            let mut metatraffic_unicast_transport =
-                transport.metatraffic_unicast_transport().unwrap();
-            self.task_manager.spawn_enabled_periodic_task(
-                "builtin unicast communication",
-                move || {
-                    domain_participant.send_built_in_data(&mut metatraffic_unicast_transport);
-                    domain_participant.receive_built_in_data(&mut metatraffic_unicast_transport);
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        // ////////////// SEDP user-defined endpoint configuration
-        {
-            let domain_participant = self.participant.clone();
-
-            self.task_manager.spawn_enabled_periodic_task(
-                "sedp user endpoint configuration",
-                move || {
-                    match domain_participant.discover_matched_writers() {
-                        Ok(()) => (),
-                        Err(e) => println!("sedp writer discovery failed: {:?}", e),
-                    }
-                    match domain_participant.discover_matched_readers() {
-                        Ok(()) => (),
-                        Err(e) => println!("sedp reader discovery failed: {:?}", e),
-                    }
-                },
-                std::time::Duration::from_millis(500),
-            );
-        }
-
-        // //////////// User-defined Communication
-        {
-            let domain_participant = self.participant.clone();
-            let mut default_unicast_transport = transport.default_unicast_transport().unwrap();
-            self.task_manager.spawn_enabled_periodic_task(
-                "user-defined communication",
-                move || {
-                    domain_participant.send_user_defined_data(&mut default_unicast_transport);
-                    domain_participant.receive_user_defined_data(&mut default_unicast_transport);
-                },
-                std::time::Duration::from_millis(50),
-            );
-        }
-
-        // //////////// Announce participant
-        let domain_participant = self.participant.clone();
-        self.task_manager.spawn_enabled_periodic_task(
-            "participant announcement",
-            move || match domain_participant.announce_participant() {
-                Ok(_) => (),
-                Err(e) => println!("participant announcement failed: {:?}", e),
-            },
-            std::time::Duration::from_millis(5000),
-        );
-
-        // //////////// Start running tasks
-        self.task_manager.enable_tasks();
-    }
-}
 
 lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
     /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
-        participant_list: Mutex::new(vec![])
+        participant_list: Mutex::new(vec![]),
+        qos: DomainParticipantFactoryQos::default(),
     };
 }
 
@@ -156,7 +49,8 @@ lazy_static! {
 /// DomainParticipantFactory itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<ParticipantManager>>,
+    participant_list: Mutex<Vec<DcpsService>>,
+    qos: DomainParticipantFactoryQos,
 }
 
 impl DomainParticipantFactory {
@@ -186,34 +80,28 @@ impl DomainParticipantFactory {
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
-        let domain_participant = DomainParticipantImpl::new(
+
+        let dcps_service = DcpsService::new(
             rtps_participant,
             domain_id,
-            configuration.domain_tag,
-            qos.clone(),
-            rtps_udp_psm.metatraffic_unicast_locator_list(),
-            rtps_udp_psm.metatraffic_multicast_locator_list(),
-        );
+            configuration,
+            qos,
+            rtps_udp_psm,
+        )?;
 
-        if qos.entity_factory.autoenable_created_entities {
-            domain_participant.enable()?;
+        let participant = DomainParticipant::new(dcps_service.participant().downgrade());
+
+        if self.qos.entity_factory.autoenable_created_entities {
+            participant.enable()?;
         }
 
-        domain_participant.create_builtins()?;
-
-        let mut participant_manager = ParticipantManager {
-            participant: domain_participant,
-            task_manager: TaskManager::new(),
-        };
-        participant_manager.start(rtps_udp_psm);
-
-        let participant = DomainParticipant::new(participant_manager.participant.downgrade());
+        participant.create_builtins()?;
 
         THE_PARTICIPANT_FACTORY
             .participant_list
             .lock()
             .unwrap()
-            .push(participant_manager);
+            .push(dcps_service);
 
         Ok(participant)
     }
@@ -229,9 +117,10 @@ impl DomainParticipantFactory {
 
         let index = participant_list
             .iter()
-            .position(|pm| DomainParticipant::new(pm.participant.downgrade()).eq(participant))
+            .position(|pm| DomainParticipant::new(pm.participant().downgrade()).eq(participant))
             .ok_or(DdsError::AlreadyDeleted)?;
 
+        participant_list[index].shutdown_tasks();
         participant_list.remove(index);
 
         Ok(())
@@ -295,13 +184,13 @@ impl DomainParticipantFactory {
         participant_list_lock
             .iter()
             .find(|x| {
-                if let Ok(handle) = x.participant.get_instance_handle() {
+                if let Ok(handle) = x.participant().get_instance_handle() {
                     <[u8; 16]>::from(handle)[0..12] == <[u8; 16]>::from(instance_handle)[0..12]
                 } else {
                     false
                 }
             })
-            .map(|x| x.participant.clone())
+            .map(|x| x.participant().clone())
             // This function is only used internally and only for valid handles
             // so it should never fail to find an existing participant
             .expect("Failed to find participant in factory")

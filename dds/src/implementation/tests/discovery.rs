@@ -1,3 +1,5 @@
+use std::sync::{Arc, Condvar};
+
 use crate::implementation::dds_impl::domain_participant_impl::{
     CreateBuiltIns, DomainParticipantImpl, SendUserDefinedData,
 };
@@ -35,6 +37,7 @@ fn participant_sends_spdp_discovery() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     dp.enable().unwrap();

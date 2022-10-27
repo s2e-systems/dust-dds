@@ -67,7 +67,5 @@ fn main() {
     let hello_world = samples[0].data.as_ref().unwrap();
     println!("Received: {:?}", hello_world);
 
-    // Wait a moment before finishing the program so that there is enough time to send the
-    // reception acknowledgments.
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }

@@ -1,3 +1,4 @@
+use crate::implementation::dds_impl::domain_participant_impl::CreateBuiltIns;
 use crate::implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
 };
@@ -43,19 +44,11 @@ use crate::{
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-use super::domain_participant_factory::DomainId;
+use super::domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY};
 
 #[derive(Debug)]
 pub struct DomainParticipant {
     domain_participant_attributes: DdsWeak<DomainParticipantImpl>,
-}
-
-impl Clone for DomainParticipant {
-    fn clone(&self) -> Self {
-        Self {
-            domain_participant_attributes: self.domain_participant_attributes.clone(),
-        }
-    }
 }
 
 impl DomainParticipant {
@@ -64,12 +57,26 @@ impl DomainParticipant {
             domain_participant_attributes,
         }
     }
+
+    pub(crate) fn create_builtins(&self) -> DdsResult<()> {
+        self.domain_participant_attributes
+            .upgrade()?
+            .create_builtins()
+    }
 }
 
 impl PartialEq for DomainParticipant {
     fn eq(&self, other: &Self) -> bool {
         self.domain_participant_attributes
             .ptr_eq(&other.domain_participant_attributes)
+    }
+}
+
+impl Drop for DomainParticipant {
+    fn drop(&mut self) {
+        if self.domain_participant_attributes.weak_count() == 1 {
+            THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
+        }
     }
 }
 

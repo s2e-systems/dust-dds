@@ -1,3 +1,5 @@
+use std::sync::{Arc, Condvar};
+
 use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
@@ -50,6 +52,7 @@ fn create_and_delete_datareader_succeeds() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let subscriber = domain_participant
@@ -82,6 +85,7 @@ fn delete_datareader_from_other_subscriber_returns_error() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let subscriber1 = domain_participant
@@ -120,6 +124,7 @@ fn lookup_datareader_without_readers_created() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])
@@ -147,6 +152,7 @@ fn lookup_datareader_with_one_datareader_created() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])
@@ -178,6 +184,7 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])
@@ -212,6 +219,7 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])
@@ -246,6 +254,7 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])
@@ -285,6 +294,7 @@ fn lookup_datareader_with_two_datareaders_with_different_topics() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
         .create_subscriber(None, None, &[])

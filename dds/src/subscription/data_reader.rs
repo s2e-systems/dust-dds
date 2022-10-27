@@ -54,18 +54,8 @@ pub struct DataReader<Foo> {
     phantom: PhantomData<Foo>,
 }
 
-// Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo> Clone for DataReader<Foo> {
-    fn clone(&self) -> Self {
-        Self {
-            data_reader_attributes: self.data_reader_attributes.clone(),
-            phantom: self.phantom,
-        }
-    }
-}
-
 impl<Foo> DataReader<Foo> {
-    pub fn new(data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>) -> Self {
+    pub(crate) fn new(data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>) -> Self {
         Self {
             data_reader_attributes,
             phantom: PhantomData,

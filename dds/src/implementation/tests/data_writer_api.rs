@@ -1,3 +1,5 @@
+use std::sync::{Arc, Condvar};
+
 use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
@@ -71,6 +73,7 @@ fn register_instance_w_timestamp_different_keys() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -140,6 +143,7 @@ fn register_instance_w_timestamp_no_key() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -176,6 +180,7 @@ fn register_instance_w_timestamp_out_of_resources() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -234,6 +239,7 @@ fn lookup_instance() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -278,6 +284,7 @@ fn unregister_registered_instance() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -317,6 +324,7 @@ fn unregister_instance_not_registered() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -356,6 +364,7 @@ fn unregister_instance_non_registered_handle() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -397,6 +406,7 @@ fn unregister_instance_not_matching_handle() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -447,6 +457,7 @@ fn dispose_not_registered() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -486,6 +497,7 @@ fn dispose_non_registered_handle() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -527,6 +539,7 @@ fn dispose_not_matching_handle() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -577,6 +590,7 @@ fn get_key_value_known_instance() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -618,6 +632,7 @@ fn get_key_value_unknown_instance() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 

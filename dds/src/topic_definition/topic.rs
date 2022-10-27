@@ -20,18 +20,8 @@ pub struct Topic<Foo> {
     phantom: PhantomData<Foo>,
 }
 
-// Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo> Clone for Topic<Foo> {
-    fn clone(&self) -> Self {
-        Self {
-            topic_attributes: self.topic_attributes.clone(),
-            phantom: self.phantom,
-        }
-    }
-}
-
 impl<Foo> Topic<Foo> {
-    pub fn new(topic_attributes: DdsWeak<TopicImpl>) -> Self {
+    pub(crate) fn new(topic_attributes: DdsWeak<TopicImpl>) -> Self {
         Self {
             topic_attributes,
             phantom: PhantomData,

@@ -33,18 +33,8 @@ pub struct DataWriter<Foo> {
     phantom: PhantomData<Foo>,
 }
 
-// Not automatically derived because in that case it is only available if Foo: Clone
-impl<Foo> Clone for DataWriter<Foo> {
-    fn clone(&self) -> Self {
-        Self {
-            data_writer_attributes: self.data_writer_attributes.clone(),
-            phantom: self.phantom,
-        }
-    }
-}
-
 impl<Foo> DataWriter<Foo> {
-    pub fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
+    pub(crate) fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
         Self {
             data_writer_attributes,
             phantom: PhantomData,

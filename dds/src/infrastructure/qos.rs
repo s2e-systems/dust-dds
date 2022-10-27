@@ -15,7 +15,7 @@ use super::qos_policy::{
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantFactoryQos {
-    entity_factory: EntityFactoryQosPolicy,
+    pub entity_factory: EntityFactoryQosPolicy,
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]

@@ -8,10 +8,13 @@ use mac_address::MacAddress;
 
 use socket2::Socket;
 
-use crate::implementation::rtps::{
-    messages::RtpsMessage,
-    transport::{TransportRead, TransportWrite},
-    types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+use crate::{
+    domain::domain_participant_factory::DomainId,
+    implementation::rtps::{
+        messages::RtpsMessage,
+        transport::{TransportRead, TransportWrite},
+        types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+    },
 };
 
 use super::mapping_traits::{from_bytes, to_bytes};
@@ -84,8 +87,6 @@ fn locator_from_ipv4(address: Ipv4Addr) -> [u8; 16] {
      0, 0, 0, 0,
      address.octets()[0], address.octets()[1], address.octets()[2], address.octets()[3]]
 }
-
-type DomainId = i32;
 
 pub struct RtpsUdpPsm {
     domain_id: DomainId,

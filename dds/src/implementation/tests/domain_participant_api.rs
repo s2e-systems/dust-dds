@@ -1,3 +1,5 @@
+use std::sync::{Arc, Condvar};
+
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::domain_participant_factory::DomainId,
@@ -62,6 +64,7 @@ fn domain_participant_create_and_delete_topic() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let topic = domain_participant
@@ -87,6 +90,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let rtps_participant = RtpsParticipant::new(
@@ -103,6 +107,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let topic = domain_participant
@@ -131,6 +136,7 @@ fn domain_participant_lookup_topic_without_creating_any_topic() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     assert!(domain_participant
@@ -154,6 +160,7 @@ fn domain_participant_lookup_single_existing_topic() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let topic = domain_participant
@@ -184,6 +191,7 @@ fn domain_participant_lookup_topic_with_wrong_type() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     domain_participant
@@ -211,6 +219,7 @@ fn domain_participant_lookup_topic_with_wrong_name() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     domain_participant
@@ -238,6 +247,7 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let topic_foo = domain_participant
@@ -278,6 +288,7 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
 
     let topic1 = domain_participant
@@ -314,6 +325,7 @@ fn get_instance_handle() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
 
@@ -339,6 +351,7 @@ fn domain_participant_get_discovered_participant_data() {
         DomainParticipantQos::default(),
         vec![],
         vec![],
+        Arc::new(Condvar::new()),
     );
     domain_participant.enable().unwrap();
     domain_participant.create_builtins().unwrap();

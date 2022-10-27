@@ -11,7 +11,7 @@ fn default_domain_tag() -> String {
     "".to_string()
 }
 
-#[derive(Deserialize, JsonSchema, Debug, PartialEq)]
+#[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 pub struct DustDdsConfiguration {
     #[serde(default = "default_domain_tag")]
     pub domain_tag: String,

@@ -1,6 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicU8, Ordering},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc, Condvar,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -148,6 +151,7 @@ pub struct DomainParticipantImpl {
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
+    announce_condvar: Arc<Condvar>,
 }
 
 impl DomainParticipantImpl {
@@ -158,6 +162,7 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
+        announce_condvar: Arc<Condvar>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix;
@@ -201,6 +206,7 @@ impl DomainParticipantImpl {
             discovered_participant_list: DdsRwLock::new(HashMap::new()),
             discovered_topic_list: DdsShared::new(DdsRwLock::new(HashMap::new())),
             enabled: DdsRwLock::new(false),
+            announce_condvar,
         })
     }
 
@@ -650,6 +656,7 @@ impl DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> DdsResult<()> {
         *self.qos.write_lock() = qos.unwrap_or_default();
+        self.announce_condvar.notify_all();
 
         Ok(())
     }
@@ -679,30 +686,31 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
+        if !*self.enabled.read_lock() {
+            *self.enabled.write_lock() = true;
 
-        self.builtin_subscriber.enable(self)?;
-        self.builtin_publisher.enable(self)?;
+            self.builtin_subscriber.enable(self)?;
+            self.builtin_publisher.enable(self)?;
 
-        if self
-            .qos
-            .read_lock()
-            .entity_factory
-            .autoenable_created_entities
-        {
-            for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                publisher.enable(self)?;
-            }
+            if self
+                .qos
+                .read_lock()
+                .entity_factory
+                .autoenable_created_entities
+            {
+                for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                    publisher.enable(self)?;
+                }
 
-            for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                subscriber.enable(self)?;
-            }
+                for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                    subscriber.enable(self)?;
+                }
 
-            for topic in self.topic_list.read_lock().iter() {
-                topic.enable()?;
+                for topic in self.topic_list.read_lock().iter() {
+                    topic.enable()?;
+                }
             }
         }
-
         Ok(())
     }
 

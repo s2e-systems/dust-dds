@@ -32,13 +32,13 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Publisher {
     publisher_attributes: DdsWeak<PublisherImpl>,
 }
 
 impl Publisher {
-    pub fn new(publisher_attributes: DdsWeak<PublisherImpl>) -> Self {
+    pub(crate) fn new(publisher_attributes: DdsWeak<PublisherImpl>) -> Self {
         Self {
             publisher_attributes,
         }
