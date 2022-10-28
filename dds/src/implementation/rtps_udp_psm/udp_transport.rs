@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind},
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
     str::FromStr,
 };
 
@@ -12,7 +12,7 @@ use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::rtps::{
         messages::RtpsMessage,
-        transport::{TransportRead, TransportWrite},
+        transport::TransportWrite,
         types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
     },
 };
@@ -94,9 +94,9 @@ pub struct RtpsUdpPsm {
     guid_prefix: [u8; 12],
     unicast_address_list: Vec<Ipv4Addr>,
     multicast_address: Ipv4Addr,
-    metatraffic_multicast: Option<UdpMulticastTransport>,
-    metatraffic_unicast: Option<UdpUnicastTransport>,
-    default_unicast: Option<UdpUnicastTransport>,
+    metatraffic_multicast: Option<UdpTransport>,
+    metatraffic_unicast: Option<UdpTransport>,
+    default_unicast: Option<UdpTransport>,
 }
 
 impl RtpsUdpPsm {
@@ -166,9 +166,9 @@ impl RtpsUdpPsm {
             guid_prefix,
             unicast_address_list,
             multicast_address,
-            metatraffic_multicast: Some(UdpMulticastTransport::new(metatraffic_multicast_socket)),
-            metatraffic_unicast: Some(UdpUnicastTransport::new(metatraffic_unicast_socket)),
-            default_unicast: Some(UdpUnicastTransport::new(default_unicast_socket)),
+            metatraffic_multicast: Some(UdpTransport::new(metatraffic_multicast_socket)),
+            metatraffic_unicast: Some(UdpTransport::new(metatraffic_unicast_socket)),
+            default_unicast: Some(UdpTransport::new(default_unicast_socket)),
         })
     }
 
@@ -214,45 +214,36 @@ impl RtpsUdpPsm {
         self.guid_prefix
     }
 
-    pub fn metatraffic_multicast_transport(&mut self) -> Option<UdpMulticastTransport> {
+    pub fn metatraffic_multicast_transport(&mut self) -> Option<UdpTransport> {
         self.metatraffic_multicast.take()
     }
 
-    pub fn metatraffic_unicast_transport(&mut self) -> Option<UdpUnicastTransport> {
+    pub fn metatraffic_unicast_transport(&mut self) -> Option<UdpTransport> {
         self.metatraffic_unicast.take()
     }
 
-    pub fn default_unicast_transport(&mut self) -> Option<UdpUnicastTransport> {
+    pub fn default_unicast_transport(&mut self) -> Option<UdpTransport> {
         self.default_unicast.take()
     }
 }
 
 const BUFFER_SIZE: usize = 32000;
-pub struct UdpUnicastTransport {
+pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: Box<[u8; BUFFER_SIZE]>,
 }
 
-impl UdpUnicastTransport {
+impl UdpTransport {
     pub fn new(socket: UdpSocket) -> Self {
         Self {
             socket,
             receive_buffer: Box::new([0; BUFFER_SIZE]),
         }
     }
-}
 
-impl TransportWrite for UdpUnicastTransport {
-    fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
-        let buf = to_bytes(message).unwrap();
-        self.socket
-            .send_to(buf.as_slice(), UdpLocator(destination_locator))
-            .ok();
-    }
-}
-
-impl<'a> TransportRead<'a> for UdpUnicastTransport {
-    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
+    pub fn read(&mut self, dur: Option<std::time::Duration>) -> Option<(Locator, RtpsMessage<'_>)> {
+        self.socket.set_nonblocking(false).ok()?;
+        self.socket.set_read_timeout(dur).ok()?;
         match self.socket.recv_from(self.receive_buffer.as_mut()) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
@@ -269,58 +260,32 @@ impl<'a> TransportRead<'a> for UdpUnicastTransport {
     }
 }
 
-pub struct UdpMulticastTransport {
-    socket: UdpSocket,
-    receive_buffer: [u8; BUFFER_SIZE],
-}
-
-impl UdpMulticastTransport {
-    pub fn new(socket: UdpSocket) -> Self {
-        Self {
-            socket,
-            receive_buffer: [0; BUFFER_SIZE],
-        }
-    }
-}
-
-impl TransportWrite for UdpMulticastTransport {
+impl TransportWrite for UdpTransport {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
         let buf = to_bytes(message).unwrap();
-        let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
-        let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .flat_map(|i| {
-                i.addresses.into_iter().filter_map(|a| match a.address? {
-                    SocketAddr::V4(v4) => Some(*v4.ip()),
-                    _ => None,
+        if UdpLocator(destination_locator).is_multicast() {
+            let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
+            let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
+                .expect("Could not scan interfaces")
+                .into_iter()
+                .flat_map(|i| {
+                    i.addresses.into_iter().filter_map(|a| match a.address? {
+                        SocketAddr::V4(v4) => Some(*v4.ip()),
+                        _ => None,
+                    })
                 })
-            })
-            .collect();
-
-        for address in interface_addresses {
-            socket2.set_multicast_if_v4(&address).unwrap();
+                .collect();
+            for address in interface_addresses {
+                if socket2.set_multicast_if_v4(&address).is_ok() {
+                    self.socket
+                        .send_to(buf.as_slice(), UdpLocator(destination_locator))
+                        .ok();
+                }
+            }
+        } else {
             self.socket
                 .send_to(buf.as_slice(), UdpLocator(destination_locator))
                 .ok();
-        }
-    }
-}
-
-impl<'a> TransportRead<'a> for UdpMulticastTransport {
-    fn read(&'a mut self) -> Option<(Locator, RtpsMessage<'a>)> {
-        match self.socket.recv_from(&mut self.receive_buffer) {
-            Ok((bytes, source_address)) => {
-                if bytes > 0 {
-                    let message =
-                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
-                    let udp_locator: UdpLocator = source_address.into();
-                    Some((udp_locator.0, message))
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
         }
     }
 }
@@ -369,6 +334,29 @@ impl From<SocketAddr> for UdpLocator {
                 UdpLocator(locator)
             }
             SocketAddr::V6(_) => todo!(),
+        }
+    }
+}
+
+impl UdpLocator {
+    fn is_multicast(&self) -> bool {
+        #[allow(non_upper_case_globals)]
+        match *self.0.kind() {
+            LOCATOR_KIND_UDPv4 => {
+                let locator_address = self.0.address();
+                Ipv4Addr::new(
+                    locator_address[12],
+                    locator_address[13],
+                    locator_address[14],
+                    locator_address[15],
+                )
+                .is_multicast()
+            }
+            LOCATOR_KIND_UDPv6 => {
+                let locator_address = self.0.address();
+                Ipv6Addr::from(*locator_address).is_multicast()
+            }
+            _ => false,
         }
     }
 }

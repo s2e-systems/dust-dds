@@ -17,12 +17,13 @@ use crate::{
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             endpoint::RtpsEndpoint,
+            messages::RtpsMessage,
             reader::RtpsReader,
             reader_locator::RtpsReaderLocator,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
             stateless_reader::RtpsStatelessReader,
-            transport::{TransportRead, TransportWrite},
+            transport::TransportWrite,
             types::{
                 Count, EntityId, EntityKind, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
                 BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
@@ -718,6 +719,7 @@ impl DdsShared<DomainParticipantImpl> {
                     topic.enable()?;
                 }
             }
+            self.announce_condvar.notify_all();
         }
         Ok(())
     }
@@ -872,16 +874,14 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
-        while let Some((source_locator, message)) = transport.read() {
-            MessageReceiver::new().process_message(
-                self.rtps_participant.guid().prefix,
-                core::slice::from_ref(&self.builtin_publisher),
-                core::slice::from_ref(&self.builtin_subscriber),
-                source_locator,
-                &message,
-            );
-        }
+    pub fn receive_built_in_data(&self, source_locator: Locator, message: RtpsMessage) {
+        MessageReceiver::new().process_message(
+            self.rtps_participant.guid().prefix,
+            core::slice::from_ref(&self.builtin_publisher),
+            core::slice::from_ref(&self.builtin_subscriber),
+            source_locator,
+            &message,
+        );
     }
 }
 
@@ -1273,18 +1273,14 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
-        let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
-        let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
-        while let Some((source_locator, message)) = transport.read() {
-            MessageReceiver::new().process_message(
-                self.rtps_participant.guid().prefix,
-                user_defined_publisher_list.as_slice(),
-                user_defined_subscriber_list.as_slice(),
-                source_locator,
-                &message,
-            );
-        }
+    pub fn receive_user_defined_data(&self, source_locator: Locator, message: RtpsMessage) {
+        MessageReceiver::new().process_message(
+            self.rtps_participant.guid().prefix,
+            self.user_defined_publisher_list.read_lock().as_slice(),
+            self.user_defined_subscriber_list.read_lock().as_slice(),
+            source_locator,
+            &message,
+        );
     }
 }
 

@@ -1,4 +1,5 @@
 use std::{
+    net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
         Arc, Condvar, Mutex,
@@ -9,7 +10,8 @@ use std::{
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        rtps::participant::RtpsParticipant, rtps_udp_psm::udp_transport::RtpsUdpPsm,
+        rtps::participant::RtpsParticipant,
+        rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
         utils::shared_object::DdsShared,
     },
     infrastructure::{error::DdsResult, qos::DomainParticipantQos},
@@ -62,9 +64,11 @@ impl DcpsService {
                     break;
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                domain_participant.receive_built_in_data(&mut metatraffic_multicast_transport);
+                if let Some((locator, message)) = metatraffic_multicast_transport
+                    .read(Some(std::time::Duration::from_millis(1000)))
+                {
+                    domain_participant.receive_built_in_data(locator, message);
+                }
             }));
         }
 
@@ -88,7 +92,7 @@ impl DcpsService {
             }));
         }
 
-        // //////////// Unicast Communication
+        // //////////// Unicast metatraffic Communication receive
         {
             let domain_participant = participant.clone();
             let mut metatraffic_unicast_transport =
@@ -99,10 +103,29 @@ impl DcpsService {
                     break;
                 }
 
+                if let Some((locator, message)) =
+                    metatraffic_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
+                {
+                    domain_participant.receive_built_in_data(locator, message);
+                }
+            }));
+        }
+
+        // //////////// Unicast metatraffic Communication send
+        {
+            let domain_participant = participant.clone();
+            let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
+
+            let mut metatraffic_unicast_transport_send = UdpTransport::new(socket);
+            let task_quit = quit.clone();
+            threads.push(std::thread::spawn(move || loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
                 std::thread::sleep(std::time::Duration::from_millis(500));
 
-                domain_participant.send_built_in_data(&mut metatraffic_unicast_transport);
-                domain_participant.receive_built_in_data(&mut metatraffic_unicast_transport);
+                domain_participant.send_built_in_data(&mut metatraffic_unicast_transport_send);
             }));
         }
 
@@ -129,7 +152,7 @@ impl DcpsService {
             }));
         }
 
-        // //////////// User-defined Communication
+        // //////////// User-defined Communication receive
         {
             let domain_participant = participant.clone();
             let mut default_unicast_transport = transport.default_unicast_transport().unwrap();
@@ -139,10 +162,29 @@ impl DcpsService {
                     break;
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(50));
-
                 domain_participant.send_user_defined_data(&mut default_unicast_transport);
-                domain_participant.receive_user_defined_data(&mut default_unicast_transport);
+                if let Some((locator, message)) =
+                    default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
+                {
+                    domain_participant.receive_user_defined_data(locator, message);
+                }
+            }));
+        }
+
+        // //////////// User-defined Communication send
+        {
+            let domain_participant = participant.clone();
+            let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
+            let mut default_unicast_transport_send = UdpTransport::new(socket);
+            let task_quit = quit.clone();
+            threads.push(std::thread::spawn(move || loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(500));
+
+                domain_participant.send_user_defined_data(&mut default_unicast_transport_send);
             }));
         }
 
