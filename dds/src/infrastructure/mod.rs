@@ -1,4 +1,4 @@
-pub mod entity;
+pub mod condition;
 pub mod error;
 pub mod instance;
 pub mod qos;

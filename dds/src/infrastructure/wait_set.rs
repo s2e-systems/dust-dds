@@ -5,7 +5,7 @@ use crate::infrastructure::{
     time::Duration,
 };
 
-use super::entity::StatusCondition;
+use super::condition::StatusCondition;
 
 #[derive(Clone)]
 pub struct ConditionSeq(Vec<Condition>);

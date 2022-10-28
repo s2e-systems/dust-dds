@@ -72,11 +72,7 @@ pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 
 /// The purpose of this QoS is to allow the application to attach additional information to the created Entity objects such that when
-/// a remote application discovers their existence it can access that information and use it for its own purposes. One possible use
-/// of this QoS is to attach security credentials or some other information that can be used by the remote application to
-/// authenticate the source. In combination with operations such as ignore_participant, ignore_publication, ignore_subscription,
-/// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
-/// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
+/// a remote application discovers their existence it can access that information and use it for its own purposes.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UserDataQosPolicy {
     pub value: Vec<u8>,
@@ -89,9 +85,7 @@ impl QosPolicy for UserDataQosPolicy {
 }
 
 /// The purpose of this QoS is to allow the application to attach additional information to the created Topic such that when a
-/// remote application discovers their existence it can examine the information and use it in an application-defined way. In
-/// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
-/// these QoS can assist an application to extend the provided QoS.
+/// remote application discovers their existence it can examine the information and use it in an application-defined way.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicDataQosPolicy {
     pub value: Vec<u8>,
@@ -104,11 +98,8 @@ impl QosPolicy for TopicDataQosPolicy {
 }
 
 /// The purpose of this QoS is to allow the application to attach additional information to the created Publisher or Subscriber. The
-/// value of the GROUP_DATA is available to the application on the DataReader and DataWriter entities and is propagated by
+/// value is available to the application on the DataReader and DataWriter entities and is propagated by
 /// means of the built-in topics.
-/// This QoS can be used by an application combination with the DataReaderListener and DataWriterListener to implement
-/// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
-/// policy.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GroupDataQosPolicy {
     pub value: Vec<u8>,
@@ -127,8 +118,8 @@ impl QosPolicy for GroupDataQosPolicy {
 /// However, any further interpretation of this policy is specific to a particular transport and a particular implementation of the
 /// Service. For example, a particular transport is permitted to treat a range of priority values as equivalent to one another. It is
 /// expected that during transport configuration the application would provide a mapping between the values of the
-/// TRANSPORT_PRIORITY set on DataWriter and the values meaningful to each transport. This mapping would then be used
-/// by the infrastructure when propagating the data written by the DataWriter.
+/// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport. This mapping would then be used
+/// by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TransportPriorityQosPolicy {
     pub value: i32,
@@ -141,15 +132,16 @@ impl QosPolicy for TransportPriorityQosPolicy {
 }
 
 /// The purpose of this QoS is to avoid delivering “stale” data to the application.
-/// Each data sample written by the DataWriter has an associated ‘expiration time’ beyond which the data should not be delivered
-/// to any application. Once the sample expires, the data will be removed from the DataReader caches as well as from the
+/// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated ‘expiration time’ beyond which the data should not be delivered
+/// to any application. Once the sample expires, the data will be removed from the [`DataReader`](crate::subscription::data_reader::DataReader) caches as well as from the
 /// transient and persistent information caches.
-/// The ‘expiration time’ of each sample is computed by adding the duration specified by the LIFESPAN QoS to the source
-/// timestamp. As described in 2.2.2.4.2.11 and 2.2.2.4.2.12 the source timestamp is either automatically computed by the Service
-/// each time the DataWriter write operation is called, or else supplied by the application by means of the write_w_timestamp
+/// The ‘expiration time’ of each sample is computed by adding the duration specified by the [`LifespanQosPolicy`] to the source
+/// timestamp. The source timestamp is either automatically computed by the Service
+/// each time the [`DataWriter::write()`](crate::publication::data_writer::DataWriter) operation is called, or else supplied by the application by means
+/// of the  [`DataWriter::write_w_timestamp()`](crate::publication::data_writer::DataWriter)
 /// operation.
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
-/// and the Service can detect it, the DataReader is allowed to use the reception timestamp instead of the source timestamp in its
+/// and the Service can detect it, the [`DataReader`](crate::subscription::data_reader::DataReader) is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the ‘expiration time.’
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LifespanQosPolicy {

@@ -71,10 +71,7 @@ use crate::implementation::{
         discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
         discovered_writer_data::DiscoveredWriterData,
     },
-    utils::{
-        discovery_traits::AddMatchedReader,
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
-    },
+    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
 };
 
 use super::{
@@ -380,8 +377,8 @@ impl DdsShared<DataWriterImpl> {
     }
 }
 
-impl AddMatchedReader for DdsShared<DataWriterImpl> {
-    fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
+impl DdsShared<DataWriterImpl> {
+    pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
         let writer_topic_name = self.topic.get_name().unwrap();
         let writer_type_name = self.topic.get_type_name().unwrap();

@@ -16,9 +16,7 @@ use crate::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::{
             ParticipantLeaseDuration, ParticipantProxy, SpdpDiscoveredParticipantData,
         },
-        dds_impl::domain_participant_impl::{
-            AddDiscoveredParticipant, CreateBuiltIns, DomainParticipantImpl,
-        },
+        dds_impl::domain_participant_impl::DomainParticipantImpl,
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             participant::RtpsParticipant,

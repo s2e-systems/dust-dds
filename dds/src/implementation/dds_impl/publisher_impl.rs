@@ -8,7 +8,7 @@ use crate::implementation::rtps::types::{
 };
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
-use crate::infrastructure::entity::StatusCondition;
+use crate::infrastructure::condition::StatusCondition;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::status::StatusKind;
@@ -21,10 +21,7 @@ use crate::{
 
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-    utils::{
-        discovery_traits::AddMatchedReader,
-        shared_object::{DdsRwLock, DdsShared},
-    },
+    utils::shared_object::{DdsRwLock, DdsShared},
 };
 
 use super::data_writer_impl::AnyDataWriterListener;
@@ -61,22 +58,14 @@ impl PublisherImpl {
     }
 }
 
-pub trait PublisherEmpty {
-    fn is_empty(&self) -> bool;
-}
-
-impl PublisherEmpty for DdsShared<PublisherImpl> {
-    fn is_empty(&self) -> bool {
+impl DdsShared<PublisherImpl> {
+    pub fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
 }
 
-pub trait AddDataWriter {
-    fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>);
-}
-
-impl AddDataWriter for DdsShared<PublisherImpl> {
-    fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>) {
+impl DdsShared<PublisherImpl> {
+    pub fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>) {
         self.data_writer_list.write_lock().push(writer);
     }
 }
@@ -346,8 +335,8 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl AddMatchedReader for DdsShared<PublisherImpl> {
-    fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
+impl DdsShared<PublisherImpl> {
+    pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.add_matched_reader(discovered_reader_data)
         }

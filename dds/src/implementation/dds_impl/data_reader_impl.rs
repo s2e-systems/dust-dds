@@ -34,7 +34,6 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
-            discovery_traits::AddMatchedWriter,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
             timer::Timer,
         },
@@ -439,8 +438,8 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
     }
 }
 
-impl AddMatchedWriter for DdsShared<DataReaderImpl<ThreadTimer>> {
-    fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+impl DdsShared<DataReaderImpl<ThreadTimer>> {
+    pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_topic_name = self.topic.get_name().unwrap();
         let reader_type_name = self.topic.get_type_name().unwrap();

@@ -74,10 +74,7 @@ use crate::implementation::{
             ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
         },
     },
-    utils::{
-        discovery_traits::{AddMatchedReader, AddMatchedWriter},
-        shared_object::{DdsRwLock, DdsShared},
-    },
+    utils::shared_object::{DdsRwLock, DdsShared},
 };
 
 use super::{
@@ -85,8 +82,8 @@ use super::{
     data_writer_impl::{DataWriterImpl, RtpsWriterKind},
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
-    publisher_impl::{AddDataWriter, PublisherEmpty, PublisherImpl},
-    subscriber_impl::{AddDataReader, SubscriberEmpty, SubscriberImpl},
+    publisher_impl::PublisherImpl,
+    subscriber_impl::SubscriberImpl,
     topic_impl::TopicImpl,
 };
 
@@ -247,12 +244,8 @@ impl DataReaderListener for RegisterDiscoveredTopicsListener {
     }
 }
 
-pub trait AnnounceTopic {
-    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData);
-}
-
-impl AnnounceTopic for DdsShared<DomainParticipantImpl> {
-    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
         if let Ok(topic_creation_topic) =
             self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
         {
@@ -677,7 +670,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::entity::StatusCondition> {
+    pub fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::condition::StatusCondition> {
         todo!()
     }
 
@@ -723,12 +716,8 @@ impl DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait AnnounceParticipant {
-    fn announce_participant(&self) -> DdsResult<()>;
-}
-
-impl AnnounceParticipant for DdsShared<DomainParticipantImpl> {
-    fn announce_participant(&self) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn announce_participant(&self) -> DdsResult<()> {
         let dcps_topic_participant =
             self.lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
 
@@ -774,15 +763,8 @@ impl AnnounceParticipant for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait AddDiscoveredParticipant {
-    fn add_discovered_participant(
-        &self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
-    );
-}
-
-impl AddDiscoveredParticipant for DdsShared<DomainParticipantImpl> {
-    fn add_discovered_participant(
+impl DdsShared<DomainParticipantImpl> {
+    pub fn add_discovered_participant(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
@@ -867,23 +849,15 @@ impl DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait SendBuiltInData {
-    fn send_built_in_data(&self, transport: &mut impl TransportWrite);
-}
-
-impl SendBuiltInData for DdsShared<DomainParticipantImpl> {
-    fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
         self.builtin_publisher.send_message(transport);
         self.builtin_subscriber.send_message(transport);
     }
 }
 
-pub trait ReceiveBuiltInData {
-    fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>);
-}
-
-impl ReceiveBuiltInData for DdsShared<DomainParticipantImpl> {
-    fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn receive_built_in_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
         while let Some((source_locator, message)) = transport.read() {
             MessageReceiver::new().process_message(
                 self.rtps_participant.guid().prefix,
@@ -896,12 +870,8 @@ impl ReceiveBuiltInData for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait CreateBuiltIns {
-    fn create_builtins(&self) -> DdsResult<()>;
-}
-
-impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
-    fn create_builtins(&self) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn create_builtins(&self) -> DdsResult<()> {
         let guid_prefix = self.rtps_participant.guid().prefix;
 
         ///////// Create built-in DDS data readers and data writers
@@ -1272,12 +1242,8 @@ impl CreateBuiltIns for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait SendUserDefinedData {
-    fn send_user_defined_data(&self, transport: &mut impl TransportWrite);
-}
-
-impl SendUserDefinedData for DdsShared<DomainParticipantImpl> {
-    fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
         let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
         let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
 
@@ -1291,12 +1257,8 @@ impl SendUserDefinedData for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait ReceiveUserDefinedData {
-    fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>);
-}
-
-impl ReceiveUserDefinedData for DdsShared<DomainParticipantImpl> {
-    fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn receive_user_defined_data(&self, transport: &mut impl for<'a> TransportRead<'a>) {
         let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
         let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
         while let Some((source_locator, message)) = transport.read() {
@@ -1311,12 +1273,8 @@ impl ReceiveUserDefinedData for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait SpdpParticipantDiscovery {
-    fn discover_matched_participants(&self) -> DdsResult<()>;
-}
-
-impl SpdpParticipantDiscovery for DdsShared<DomainParticipantImpl> {
-    fn discover_matched_participants(&self) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn discover_matched_participants(&self) -> DdsResult<()> {
         let dcps_participant_topic =
             self.lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
 
@@ -1341,12 +1299,8 @@ impl SpdpParticipantDiscovery for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait SedpWriterDiscovery {
-    fn discover_matched_writers(&self) -> DdsResult<()>;
-}
-
-impl SedpWriterDiscovery for DdsShared<DomainParticipantImpl> {
-    fn discover_matched_writers(&self) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn discover_matched_writers(&self) -> DdsResult<()> {
         let user_defined_subscribers = self.user_defined_subscriber_list.read_lock();
 
         if user_defined_subscribers.is_empty() {
@@ -1376,12 +1330,8 @@ impl SedpWriterDiscovery for DdsShared<DomainParticipantImpl> {
     }
 }
 
-pub trait SedpReaderDiscovery {
-    fn discover_matched_readers(&self) -> DdsResult<()>;
-}
-
-impl SedpReaderDiscovery for DdsShared<DomainParticipantImpl> {
-    fn discover_matched_readers(&self) -> DdsResult<()> {
+impl DdsShared<DomainParticipantImpl> {
+    pub fn discover_matched_readers(&self) -> DdsResult<()> {
         let user_defined_publishers = self.user_defined_publisher_list.read_lock();
 
         if user_defined_publishers.is_empty() {

@@ -12,7 +12,7 @@ use crate::{
     {
         builtin_topics::PublicationBuiltinTopicData,
         infrastructure::{
-            entity::StatusCondition,
+            condition::StatusCondition,
             error::DdsResult,
             qos::DataReaderQos,
             status::{

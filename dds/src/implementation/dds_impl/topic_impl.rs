@@ -6,7 +6,7 @@ use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
     builtin_topics::TopicBuiltinTopicData,
     infrastructure::{
-        entity::StatusCondition,
+        condition::StatusCondition,
         error::{DdsError, DdsResult},
         qos::TopicQos,
     },
@@ -17,7 +17,7 @@ use crate::implementation::{
     utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
 };
 
-use super::domain_participant_impl::{AnnounceTopic, DomainParticipantImpl};
+use super::domain_participant_impl::DomainParticipantImpl;
 
 pub trait AnyTopicListener {
     fn trigger_on_inconsistent_topic(

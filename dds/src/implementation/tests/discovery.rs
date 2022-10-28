@@ -1,8 +1,6 @@
 use std::sync::{Arc, Condvar};
 
-use crate::implementation::dds_impl::domain_participant_impl::{
-    CreateBuiltIns, DomainParticipantImpl, SendUserDefinedData,
-};
+use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::messages::RtpsMessage;
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::transport::TransportWrite;

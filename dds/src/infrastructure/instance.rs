@@ -1,6 +1,7 @@
 type HandleTypeNative = [u8; 16]; // Originally in the DDS idl i32
 const HANDLE_NIL_NATIVE: HandleTypeNative = [0; 16];
 
+/// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct InstanceHandle(HandleTypeNative);
 
@@ -16,4 +17,5 @@ impl From<InstanceHandle> for [u8; 16] {
     }
 }
 
+/// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle(HANDLE_NIL_NATIVE);

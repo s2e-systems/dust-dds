@@ -16,7 +16,7 @@ use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::topic_definition::type_support::DdsDeserialize;
 use crate::{
     infrastructure::{
-        entity::StatusCondition,
+        condition::StatusCondition,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     topic_definition::type_support::DdsType,
@@ -25,7 +25,6 @@ use crate::{
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
     utils::{
-        discovery_traits::AddMatchedWriter,
         shared_object::{DdsRwLock, DdsShared},
         timer::ThreadTimer,
     },
@@ -65,21 +64,14 @@ impl SubscriberImpl {
     }
 }
 
-pub trait SubscriberEmpty {
-    fn is_empty(&self) -> bool;
-}
-
-impl SubscriberEmpty for DdsShared<SubscriberImpl> {
-    fn is_empty(&self) -> bool {
+impl DdsShared<SubscriberImpl> {
+    pub fn is_empty(&self) -> bool {
         self.data_reader_list.read_lock().is_empty()
     }
 }
-pub trait AddDataReader {
-    fn add_data_reader(&self, reader: DdsShared<DataReaderImpl<ThreadTimer>>);
-}
 
-impl AddDataReader for DdsShared<SubscriberImpl> {
-    fn add_data_reader(&self, reader: DdsShared<DataReaderImpl<ThreadTimer>>) {
+impl DdsShared<SubscriberImpl> {
+    pub fn add_data_reader(&self, reader: DdsShared<DataReaderImpl<ThreadTimer>>) {
         self.data_reader_list.write_lock().push(reader);
     }
 }
@@ -341,8 +333,8 @@ impl DdsShared<SubscriberImpl> {
     }
 }
 
-impl AddMatchedWriter for DdsShared<SubscriberImpl> {
-    fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+impl DdsShared<SubscriberImpl> {
+    pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.add_matched_writer(discovered_writer_data)
         }

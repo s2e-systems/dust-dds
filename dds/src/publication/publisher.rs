@@ -3,7 +3,7 @@ use crate::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
     infrastructure::{
-        entity::StatusCondition,
+        condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, TopicQos},
