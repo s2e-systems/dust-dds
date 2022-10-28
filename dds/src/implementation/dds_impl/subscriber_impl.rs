@@ -8,6 +8,7 @@ use crate::implementation::rtps::types::{
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::qos::Qos;
 use crate::infrastructure::status::{SampleLostStatus, StatusKind};
 use crate::infrastructure::time::DURATION_ZERO;
 use crate::subscription::data_reader::AnyDataReader;
@@ -80,7 +81,7 @@ impl DdsShared<SubscriberImpl> {
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
-        qos: Option<DataReaderQos>,
+        qos: Qos<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
@@ -109,7 +110,10 @@ impl DdsShared<SubscriberImpl> {
 
         // /////// Create data reader
         let data_reader_shared = {
-            let qos = qos.unwrap_or_else(|| self.default_data_reader_qos.clone());
+            let qos = match qos {
+                Qos::Default => self.default_data_reader_qos.clone(),
+                Qos::Specific(q) => q,
+            };
             qos.is_consistent()?;
 
             let topic_kind = match Foo::has_key() {
@@ -247,7 +251,7 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&self, _qos: Qos<DataReaderQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -265,8 +269,11 @@ impl DdsShared<SubscriberImpl> {
 }
 
 impl DdsShared<SubscriberImpl> {
-    pub fn set_qos(&self, qos: Option<SubscriberQos>) -> DdsResult<()> {
-        let qos = qos.unwrap_or_default();
+    pub fn set_qos(&self, qos: Qos<SubscriberQos>) -> DdsResult<()> {
+        let qos = match qos {
+            Qos::Default => Default::default(),
+            Qos::Specific(q) => q,
+        };
 
         if *self.enabled.read_lock() {
             self.qos.read_lock().check_immutability(&qos)?;

@@ -41,6 +41,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
+        qos::Qos,
         qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
@@ -395,12 +396,12 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                 reader_shared
                     .status_condition
                     .write_lock()
-                    .add_communication_state(StatusKind::RequestedDeadlineMissedStatus);
+                    .add_communication_state(StatusKind::RequestedDeadlineMissed);
                 if let Some(l) = reader_shared.listener.write_lock().as_mut() {
                     reader_shared
                         .status_condition
                         .write_lock()
-                        .remove_communication_state(StatusKind::RequestedDeadlineMissedStatus);
+                        .remove_communication_state(StatusKind::RequestedDeadlineMissed);
                     l.trigger_on_requested_deadline_missed(
                         &reader_shared,
                         reader_shared
@@ -413,11 +414,11 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
 
             self.status_condition
                 .write_lock()
-                .add_communication_state(StatusKind::DataAvailableStatus);
+                .add_communication_state(StatusKind::DataAvailable);
             if let Some(l) = self.listener.write_lock().as_mut() {
                 self.status_condition
                     .write_lock()
-                    .remove_communication_state(StatusKind::DataAvailableStatus);
+                    .remove_communication_state(StatusKind::DataAvailable);
                 l.trigger_on_data_available(self)
             };
         }
@@ -518,12 +519,12 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
 
                 self.status_condition
                     .write_lock()
-                    .add_communication_state(StatusKind::SubscriptionMatchedStatus);
+                    .add_communication_state(StatusKind::SubscriptionMatched);
 
                 if let Some(l) = self.listener.write_lock().as_mut() {
                     self.status_condition
                         .write_lock()
-                        .remove_communication_state(StatusKind::SubscriptionMatchedStatus);
+                        .remove_communication_state(StatusKind::SubscriptionMatched);
                     let subscription_matched_status =
                         self.get_subscription_matched_status().unwrap();
                     l.trigger_on_subscription_matched(self, subscription_matched_status)
@@ -974,7 +975,7 @@ where
     fn read_sample<'a>(&self, cache_change: &'a RtpsReaderCacheChange) -> (&'a [u8], SampleInfo) {
         self.status_condition
             .write_lock()
-            .remove_communication_state(StatusKind::DataAvailableStatus);
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let mut samples_read = self.samples_read.write_lock();
         let data_value = cache_change.data_value();
@@ -1025,8 +1026,11 @@ where
 }
 
 impl<Tim> DdsShared<DataReaderImpl<Tim>> {
-    pub fn set_qos(&self, qos: Option<DataReaderQos>) -> DdsResult<()> {
-        let qos = qos.unwrap_or_default();
+    pub fn set_qos(&self, qos: Qos<DataReaderQos>) -> DdsResult<()> {
+        let qos = match qos {
+            Qos::Default => Default::default(),
+            Qos::Specific(q) => q,
+        };
 
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
         if *self.enabled.read_lock() {

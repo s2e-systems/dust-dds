@@ -18,6 +18,11 @@ pub struct DomainParticipantFactoryQos {
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
+pub enum Qos<T> {
+    Default,
+    Specific(T),
+}
+
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,

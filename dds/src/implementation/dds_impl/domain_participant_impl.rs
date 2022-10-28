@@ -33,8 +33,9 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
+        qos::Qos,
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        status::StatusKind,
+        status::{StatusKind, NO_STATUS},
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
@@ -268,11 +269,14 @@ impl DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
-        qos: Option<PublisherQos>,
+        qos: Qos<PublisherQos>,
         _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<PublisherImpl>> {
-        let publisher_qos = qos.unwrap_or_else(|| self.default_publisher_qos.clone());
+        let publisher_qos = match qos {
+            Qos::Default => self.default_publisher_qos.clone(),
+            Qos::Specific(q) => q,
+        };
         let publisher_counter = self
             .user_defined_publisher_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -319,11 +323,14 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn create_subscriber(
         &self,
-        qos: Option<SubscriberQos>,
+        qos: Qos<SubscriberQos>,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<SubscriberImpl>> {
-        let subscriber_qos = qos.unwrap_or_else(|| self.default_subscriber_qos.clone());
+        let subscriber_qos = match qos {
+            Qos::Default => self.default_subscriber_qos.clone(),
+            Qos::Specific(q) => q,
+        };
         let subcriber_counter = self
             .user_defined_subscriber_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -370,7 +377,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
-        qos: Option<TopicQos>,
+        qos: Qos<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<TopicImpl>>
@@ -387,7 +394,10 @@ impl DdsShared<DomainParticipantImpl> {
                 entity_kind: USER_DEFINED_TOPIC,
             },
         );
-        let qos = qos.unwrap_or_else(|| self.default_topic_qos.clone());
+        let qos = match qos {
+            Qos::Default => self.default_topic_qos.clone(),
+            Qos::Specific(q) => q,
+        };
 
         // /////// Create topic
         let topic_shared = TopicImpl::new(
@@ -542,7 +552,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DdsResult<()> {
+    pub fn set_default_publisher_qos(&self, _qos: Qos<PublisherQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -550,7 +560,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_default_subscriber_qos(&self, _qos: Qos<SubscriberQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -558,7 +568,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DdsResult<()> {
+    pub fn set_default_topic_qos(&self, _qos: Qos<TopicQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -647,8 +657,11 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> DdsResult<()> {
-        *self.qos.write_lock() = qos.unwrap_or_default();
+    pub fn set_qos(&self, qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
+        *self.qos.write_lock() = match qos {
+            Qos::Default => DomainParticipantQos::default(),
+            Qos::Specific(q) => q,
+        };
         self.announce_condvar.notify_all();
 
         Ok(())
@@ -670,7 +683,9 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<crate::infrastructure::condition::StatusCondition> {
+    pub fn get_statuscondition(
+        &self,
+    ) -> DdsResult<crate::infrastructure::condition::StatusCondition> {
         todo!()
     }
 
@@ -880,9 +895,9 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let spdp_topic_participant = self.create_topic::<SpdpDiscoveredParticipantData>(
                 DCPS_PARTICIPANT,
-                Some(self.get_default_topic_qos()?),
+                Qos::Specific(self.get_default_topic_qos()?),
                 None,
-                &[],
+                NO_STATUS,
             )?;
             spdp_topic_participant.enable()?;
 
@@ -973,9 +988,9 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_publication = self.create_topic::<DiscoveredWriterData>(
                 DCPS_PUBLICATION,
-                Some(self.get_default_topic_qos()?),
+                Qos::Specific(self.get_default_topic_qos()?),
                 None,
-                &[],
+                NO_STATUS,
             )?;
             sedp_topic_publication.enable()?;
 
@@ -1058,9 +1073,9 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_subscription = self.create_topic::<DiscoveredReaderData>(
                 DCPS_SUBSCRIPTION,
-                Some(self.get_default_topic_qos()?),
+                Qos::Specific(self.get_default_topic_qos()?),
                 None,
-                &[],
+                NO_STATUS,
             )?;
             sedp_topic_subscription.enable()?;
 
@@ -1143,9 +1158,9 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_topic = self.create_topic::<DiscoveredTopicData>(
                 DCPS_TOPIC,
-                Some(self.get_default_topic_qos()?),
+                Qos::Specific(self.get_default_topic_qos()?),
                 None,
-                &[],
+                NO_STATUS,
             )?;
             sedp_topic_topic.enable()?;
 
@@ -1196,7 +1211,7 @@ impl DdsShared<DomainParticipantImpl> {
                     Some(Box::new(RegisterDiscoveredTopicsListener {
                         discovered_topic_list: self.discovered_topic_list.clone(),
                     })),
-                    &[],
+                    NO_STATUS,
                 )?;
             }
 

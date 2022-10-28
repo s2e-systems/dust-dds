@@ -3,6 +3,7 @@ use std::sync::{Arc, Condvar};
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::domain_participant_factory::DomainId,
+    infrastructure::{qos::Qos, status::NO_STATUS},
     topic_definition::type_support::DdsType,
     {
         builtin_topics::ParticipantBuiltinTopicData,
@@ -66,7 +67,7 @@ fn domain_participant_create_and_delete_topic() {
     );
 
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     domain_participant.delete_topic::<Foo>(&topic).unwrap();
@@ -109,7 +110,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
     );
 
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(matches!(
@@ -162,7 +163,7 @@ fn domain_participant_lookup_single_existing_topic() {
     );
 
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(
@@ -193,7 +194,7 @@ fn domain_participant_lookup_topic_with_wrong_type() {
     );
 
     domain_participant
-        .create_topic::<Bar>("topic", None, None, &[])
+        .create_topic::<Bar>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(domain_participant
@@ -221,7 +222,7 @@ fn domain_participant_lookup_topic_with_wrong_name() {
     );
 
     domain_participant
-        .create_topic::<Foo>("other_topic", None, None, &[])
+        .create_topic::<Foo>("other_topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(domain_participant
@@ -249,10 +250,10 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
     );
 
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic", None, None, &[])
+        .create_topic::<Bar>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(
@@ -290,10 +291,10 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
     );
 
     let topic1 = domain_participant
-        .create_topic::<Foo>("topic1", None, None, &[])
+        .create_topic::<Foo>("topic1", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = domain_participant
-        .create_topic::<Foo>("topic2", None, None, &[])
+        .create_topic::<Foo>("topic2", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(

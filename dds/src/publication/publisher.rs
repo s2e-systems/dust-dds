@@ -6,7 +6,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, TopicQos},
+        qos::{DataWriterQos, PublisherQos, Qos, TopicQos},
         time::Duration,
     },
 };
@@ -76,7 +76,7 @@ impl Publisher {
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &Topic<Foo>,
-        qos: Option<DataWriterQos>,
+        qos: Qos<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataWriter<Foo>>
@@ -213,7 +213,7 @@ impl Publisher {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_default_datawriter_qos(&self, qos: Qos<DataWriterQos>) -> DdsResult<()> {
         self.publisher_attributes
             .upgrade()?
             .set_default_datawriter_qos(qos)
@@ -249,7 +249,7 @@ impl Publisher {
 }
 
 impl Publisher {
-    pub fn set_qos(&self, qos: Option<PublisherQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<PublisherQos>) -> DdsResult<()> {
         self.publisher_attributes.upgrade()?.set_qos(qos)
     }
 

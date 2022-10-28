@@ -10,7 +10,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::TopicQos,
+        qos::{Qos, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
 };
@@ -89,7 +89,7 @@ where
     /// to the [`Self::set_qos()`] operation to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: Option<TopicQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.set_qos(qos)
     }
 

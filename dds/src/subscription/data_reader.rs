@@ -4,7 +4,7 @@ use crate::{
         dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
     },
-    infrastructure::{instance::InstanceHandle, status::StatusKind},
+    infrastructure::{instance::InstanceHandle, qos::Qos, status::StatusKind},
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
@@ -567,7 +567,7 @@ impl<Foo> DataReader<Foo>
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    pub fn set_qos(&self, qos: Option<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<DataReaderQos>) -> DdsResult<()> {
         self.data_reader_attributes.upgrade()?.set_qos(qos)
     }
 

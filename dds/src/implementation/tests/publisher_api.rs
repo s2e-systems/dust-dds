@@ -5,7 +5,8 @@ use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantI
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::infrastructure::error::DdsError;
-use crate::infrastructure::qos::DomainParticipantQos;
+use crate::infrastructure::qos::{DomainParticipantQos, Qos};
+use crate::infrastructure::status::NO_STATUS;
 use crate::topic_definition::type_support::DdsType;
 
 struct Foo;
@@ -44,14 +45,20 @@ fn create_and_delete_datawriter_succeeds() {
     );
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<Foo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     publisher.delete_datawriter(&data_writer).unwrap();
@@ -77,17 +84,23 @@ fn delete_datawriter_from_other_publisher_returns_error() {
     );
 
     let publisher1 = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let publisher2 = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher1
-        .create_datawriter::<Foo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(matches!(
@@ -115,10 +128,10 @@ fn lookup_datawriter_without_writers_created() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic).is_err());
@@ -143,14 +156,20 @@ fn lookup_datawriter_with_one_datawriter_created() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", None, None, &[])
+        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<Foo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic).unwrap() == data_writer);
@@ -175,17 +194,23 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_type() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let _topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, &[])
+        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, &[])
+        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, &[], &domain_participant)
+        .create_datawriter::<Bar>(
+            &topic_bar,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic_bar).is_err());
@@ -210,17 +235,23 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_topic() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, &[])
+        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, &[])
+        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, &[], &domain_participant)
+        .create_datawriter::<Bar>(
+            &topic_bar,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Bar>(&topic_foo).is_err());
@@ -245,20 +276,32 @@ fn lookup_datawriter_with_two_datawriters_with_different_types() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", None, None, &[])
+        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", None, None, &[])
+        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer_foo = publisher
-        .create_datawriter::<Foo>(&topic_foo, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic_foo,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
     let data_writer_bar = publisher
-        .create_datawriter::<Bar>(&topic_bar, None, None, &[], &domain_participant)
+        .create_datawriter::<Bar>(
+            &topic_bar,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic_foo).unwrap() == data_writer_foo);
@@ -285,20 +328,32 @@ fn lookup_datawriter_with_two_datawriters_with_different_topics() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic1 = domain_participant
-        .create_topic::<Foo>("topic1", None, None, &[])
+        .create_topic::<Foo>("topic1", Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = domain_participant
-        .create_topic::<Foo>("topic2", None, None, &[])
+        .create_topic::<Foo>("topic2", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer1 = publisher
-        .create_datawriter::<Foo>(&topic1, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic1,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
     let data_writer2 = publisher
-        .create_datawriter::<Foo>(&topic2, None, None, &[], &domain_participant)
+        .create_datawriter::<Foo>(
+            &topic2,
+            Qos::Default,
+            None,
+            NO_STATUS,
+            &domain_participant,
+        )
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic1).unwrap() == data_writer1);

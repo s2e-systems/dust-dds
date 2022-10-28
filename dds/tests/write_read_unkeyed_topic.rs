@@ -1,4 +1,4 @@
-use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos};
+use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos, Qos};
 use dust_dds::infrastructure::qos_policy::{
     DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
@@ -7,7 +7,7 @@ use dust_dds::infrastructure::qos_policy::{
 use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType};
 
 use dust_dds::infrastructure::error::{DdsError, DdsResult};
-use dust_dds::infrastructure::status::StatusKind;
+use dust_dds::infrastructure::status::{StatusKind, NO_STATUS};
 use dust_dds::infrastructure::time::{Duration, Time};
 use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
 
@@ -51,14 +51,16 @@ fn write_read_unkeyed_topic() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>("MyTopic", None, None, &[])
+        .create_topic::<UserData>("MyTopic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
-    let publisher = participant.create_publisher(None, None, &[]).unwrap();
+    let publisher = participant
+        .create_publisher(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -67,10 +69,12 @@ fn write_read_unkeyed_topic() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, Some(writer_qos), None, &[])
+        .create_datawriter(&topic, Qos::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
+    let subscriber = participant
+        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -79,11 +83,11 @@ fn write_read_unkeyed_topic() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, &[])
+        .create_datareader(&topic, Qos::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -109,20 +113,22 @@ fn data_reader_resource_limits() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic1 = participant1
-        .create_topic::<UserData>("MyTopic", None, None, &[])
+        .create_topic::<UserData>("MyTopic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let participant2 = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = participant2
-        .create_topic::<UserData>("MyTopic", None, None, &[])
+        .create_topic::<UserData>("MyTopic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
-    let publisher = participant1.create_publisher(None, None, &[]).unwrap();
+    let publisher = participant1
+        .create_publisher(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -135,10 +141,12 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic1, Some(data_writer_qos), None, &[])
+        .create_datawriter(&topic1, Qos::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant2.create_subscriber(None, None, &[]).unwrap();
+    let subscriber = participant2
+        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -156,11 +164,11 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic2, Some(reader_qos), None, &[])
+        .create_datareader(&topic2, Qos::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -190,13 +198,15 @@ fn data_reader_order_by_source_timestamp() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<UserData>("MyTopic", None, None, &[])
+        .create_topic::<UserData>("MyTopic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
-    let publisher = participant.create_publisher(None, None, &[]).unwrap();
+    let publisher = participant
+        .create_publisher(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -212,10 +222,12 @@ fn data_reader_order_by_source_timestamp() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, Some(data_writer_qos), None, &[])
+        .create_datawriter(&topic, Qos::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
+    let subscriber = participant
+        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
@@ -231,11 +243,11 @@ fn data_reader_order_by_source_timestamp() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, &[])
+        .create_datareader(&topic, Qos::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
@@ -295,14 +307,16 @@ fn data_reader_publication_handle_sample_info() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>("MyTopic", None, None, &[])
+        .create_topic::<UserData>("MyTopic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
-    let publisher = participant.create_publisher(None, None, &[]).unwrap();
+    let publisher = participant
+        .create_publisher(Qos::Default, None, NO_STATUS)
+        .unwrap();
 
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
@@ -312,10 +326,12 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, Some(writer_qos), None, &[])
+        .create_datawriter(&topic, Qos::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
+    let subscriber = participant
+        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .unwrap();
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -325,11 +341,11 @@ fn data_reader_publication_handle_sample_info() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, &[])
+        .create_datareader(&topic, Qos::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatchedStatus])
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();

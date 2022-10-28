@@ -1,6 +1,7 @@
 use crate::builtin_topics::BuiltInTopicKey;
 use crate::implementation::rtps::types::Guid;
 use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::qos::Qos;
 use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
 use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
@@ -88,8 +89,11 @@ impl DdsShared<TopicImpl> {
 }
 
 impl DdsShared<TopicImpl> {
-    pub fn set_qos(&self, qos: Option<TopicQos>) -> DdsResult<()> {
-        let qos = qos.unwrap_or_default();
+    pub fn set_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
+        let qos = match qos {
+            Qos::Default => Default::default(),
+            Qos::Specific(q) => q,
+        };
 
         qos.is_consistent()?;
         if *self.enabled.read_lock() {

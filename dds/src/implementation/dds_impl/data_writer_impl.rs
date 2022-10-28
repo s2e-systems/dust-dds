@@ -25,6 +25,7 @@ use crate::{
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
+        qos::Qos,
         qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -473,7 +474,7 @@ impl DdsShared<DataWriterImpl> {
 
                 self.status_condition
                     .write_lock()
-                    .add_communication_state(StatusKind::PublicationMatchedStatus);
+                    .add_communication_state(StatusKind::PublicationMatched);
             } else {
                 {
                     let mut offered_incompatible_qos_status_lock =
@@ -822,8 +823,11 @@ impl DdsShared<DataWriterImpl> {
 }
 
 impl DdsShared<DataWriterImpl> {
-    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
-        let qos = qos.unwrap_or_default();
+    pub fn set_qos(&self, qos: Qos<DataWriterQos>) -> DdsResult<()> {
+        let qos = match qos {
+            Qos::Default => Default::default(),
+            Qos::Specific(q) => q,
+        };
 
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
 

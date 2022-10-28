@@ -1,9 +1,9 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::DataReaderQos,
+        qos::{DataReaderQos, Qos},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        status::StatusKind,
+        status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
@@ -24,14 +24,16 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, None, None, &[])
+        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None, None, &[])
+        .create_topic::<HelloWorldType>("HelloWorld", Qos::Default, None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant.create_subscriber(None, None, &[]).unwrap();
+    let subscriber = participant
+        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .unwrap();
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
@@ -41,12 +43,12 @@ fn main() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, Some(reader_qos), None, &[])
+        .create_datareader(&topic, Qos::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();
     reader_cond
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatchedStatus])
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
@@ -56,7 +58,7 @@ fn main() {
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
     reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailableStatus])
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
     wait_set.wait(Duration::new(30, 0)).unwrap();
 

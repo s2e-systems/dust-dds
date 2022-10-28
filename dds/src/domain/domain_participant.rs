@@ -7,7 +7,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DomainParticipantQos, PublisherQos, Qos, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -83,7 +83,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return an error and no [`Publisher`] will be created.
     pub fn create_publisher(
         &self,
-        qos: Option<PublisherQos>,
+        qos: Qos<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
@@ -115,7 +115,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return an error and no [`Subscriber`] will be created.
     pub fn create_subscriber(
         &self,
-        qos: Option<SubscriberQos>,
+        qos: Qos<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
@@ -149,7 +149,7 @@ impl DomainParticipant {
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
-        qos: Option<TopicQos>,
+        qos: Qos<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
@@ -323,7 +323,7 @@ impl DomainParticipant {
     /// return INCONSISTENT_POLICY.
     /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
-    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DdsResult<()> {
+    pub fn set_default_publisher_qos(&self, qos: Qos<PublisherQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_publisher_qos(qos)
@@ -345,7 +345,7 @@ impl DomainParticipant {
     /// return INCONSISTENT_POLICY.
     /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
-    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_default_subscriber_qos(&self, qos: Qos<SubscriberQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_subscriber_qos(qos)
@@ -367,7 +367,7 @@ impl DomainParticipant {
     /// return INCONSISTENT_POLICY.
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
-    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DdsResult<()> {
+    pub fn set_default_topic_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_topic_qos(qos)
@@ -466,7 +466,7 @@ impl DomainParticipant {
     /// to the [`Self::set_qos()`] operation to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
         self.domain_participant_attributes.upgrade()?.set_qos(qos)
     }
 

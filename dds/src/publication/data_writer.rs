@@ -6,7 +6,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::DataWriterQos,
+        qos::{DataWriterQos, Qos},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
@@ -403,7 +403,7 @@ impl<Foo> DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize + 'static,
 {
-    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<DataWriterQos>) -> DdsResult<()> {
         self.data_writer_attributes.upgrade()?.set_qos(qos)
     }
 

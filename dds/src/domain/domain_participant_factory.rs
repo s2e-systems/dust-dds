@@ -10,6 +10,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        qos::Qos,
         status::StatusKind,
     },
 };
@@ -64,13 +65,16 @@ impl DomainParticipantFactory {
     pub fn create_participant(
         &self,
         domain_id: DomainId,
-        qos: Option<DomainParticipantQos>,
+        qos: Qos<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let configuration = DustDdsConfiguration::try_from_environment_variable()?;
 
-        let qos = qos.unwrap_or_default();
+        let qos = match qos {
+            Qos::Default => Default::default(),
+            Qos::Specific(q) => q,
+        };
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
         let rtps_participant = RtpsParticipant::new(
@@ -145,7 +149,7 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_default_participant_qos(&self, _qos: Option<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_default_participant_qos(&self, _qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -163,7 +167,7 @@ impl DomainParticipantFactory {
     /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_qos(&self, _qos: Option<DomainParticipantFactoryQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: Qos<DomainParticipantFactoryQos>) -> DdsResult<()> {
         todo!()
     }
 

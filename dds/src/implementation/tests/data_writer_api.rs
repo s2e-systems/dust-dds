@@ -4,6 +4,8 @@ use crate::domain::domain_participant_factory::DomainId;
 use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
+use crate::infrastructure::qos::Qos;
+use crate::infrastructure::status::NO_STATUS;
 use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -78,14 +80,14 @@ fn register_instance_w_timestamp_different_keys() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, NO_STATUS, &domain_participant)
         .unwrap();
 
     let instance_handle = data_writer
@@ -148,14 +150,14 @@ fn register_instance_w_timestamp_no_key() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, NO_STATUS, &domain_participant)
         .unwrap();
 
     let instance_handle = data_writer
@@ -185,16 +187,16 @@ fn register_instance_w_timestamp_out_of_resources() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
         .create_datawriter::<KeyedFoo>(
             &topic,
-            Some(DataWriterQos {
+            Qos::Specific(DataWriterQos {
                 resource_limits: ResourceLimitsQosPolicy {
                     max_instances: 2,
                     ..Default::default()
@@ -244,14 +246,14 @@ fn lookup_instance() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, NO_STATUS, &domain_participant)
         .unwrap();
 
     let instance1 = KeyedFoo { key: vec![1] };
@@ -289,14 +291,14 @@ fn unregister_registered_instance() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance = KeyedFoo { key: vec![1] };
     data_writer
@@ -329,14 +331,14 @@ fn unregister_instance_not_registered() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance = KeyedFoo { key: vec![1] };
     let result = data_writer.unregister_instance_w_timestamp(&instance, None, TIME_INVALID);
@@ -369,14 +371,14 @@ fn unregister_instance_non_registered_handle() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance = KeyedFoo { key: vec![1] };
     data_writer
@@ -411,14 +413,14 @@ fn unregister_instance_not_matching_handle() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance1 = KeyedFoo { key: vec![1] };
     let instance2 = KeyedFoo { key: vec![2] };
@@ -462,14 +464,14 @@ fn dispose_not_registered() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance = KeyedFoo { key: vec![1] };
     let result = data_writer.dispose_w_timestamp(&instance, None, TIME_INVALID);
@@ -502,14 +504,14 @@ fn dispose_non_registered_handle() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance = KeyedFoo { key: vec![1] };
     data_writer
@@ -544,14 +546,14 @@ fn dispose_not_matching_handle() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
     let instance1 = KeyedFoo { key: vec![1] };
     let instance2 = KeyedFoo { key: vec![2] };
@@ -595,14 +597,14 @@ fn get_key_value_known_instance() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
 
     let instance_handle = data_writer
@@ -637,14 +639,14 @@ fn get_key_value_unknown_instance() {
     domain_participant.enable().unwrap();
 
     let publisher = domain_participant
-        .create_publisher(None, None, &[])
+        .create_publisher(Qos::Default, None, &[])
         .unwrap();
     let topic = domain_participant
-        .create_topic::<KeyedFoo>("topic", None, None, &[])
+        .create_topic::<KeyedFoo>("topic", Qos::Default, None, &[])
         .unwrap();
 
     let data_writer = publisher
-        .create_datawriter::<KeyedFoo>(&topic, None, None, &[], &domain_participant)
+        .create_datawriter::<KeyedFoo>(&topic, Qos::Default, None, &[], &domain_participant)
         .unwrap();
 
     data_writer

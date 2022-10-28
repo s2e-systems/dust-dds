@@ -5,7 +5,7 @@ use crate::{
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        qos::{DataReaderQos, Qos, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
     },
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -85,7 +85,7 @@ impl Subscriber {
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &Topic<Foo>,
-        qos: Option<DataReaderQos>,
+        qos: Qos<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<DataReader<Foo>>
@@ -244,7 +244,7 @@ impl Subscriber {
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&self, qos: Qos<DataReaderQos>) -> DdsResult<()> {
         self.subscriber_attributes
             .upgrade()?
             .set_default_datareader_qos(qos)
@@ -280,7 +280,7 @@ impl Subscriber {
 }
 
 impl Subscriber {
-    pub fn set_qos(&self, qos: Option<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: Qos<SubscriberQos>) -> DdsResult<()> {
         self.subscriber_attributes.upgrade()?.set_qos(qos)
     }
 

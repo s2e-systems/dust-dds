@@ -2,20 +2,22 @@ use super::{instance::InstanceHandle, qos_policy::QosPolicyId};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StatusKind {
-    InconsistentTopicStatus,
-    OfferedDeadlineMissedStatus,
-    RequestedDeadlineMissedStatus,
-    OfferedIncompatibleQosStatus,
-    RequestedIncompatibleQosStatus,
-    SampleLostStatus,
-    SampleRejectedStatus,
-    DataOnReadersStatus,
-    DataAvailableStatus,
-    LivelinessLostStatus,
-    LivelinessChangedStatus,
-    PublicationMatchedStatus,
-    SubscriptionMatchedStatus,
+    InconsistentTopic,
+    OfferedDeadlineMissed,
+    RequestedDeadlineMissed,
+    OfferedIncompatibleQos,
+    RequestedIncompatibleQos,
+    SampleLost,
+    SampleRejected,
+    DataOnReaders,
+    DataAvailable,
+    LivelinessLost,
+    LivelinessChanged,
+    PublicationMatched,
+    SubscriptionMatched,
 }
+
+pub const NO_STATUS: &[StatusKind] = &[];
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InconsistentTopicStatus {
