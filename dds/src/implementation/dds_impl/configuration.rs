@@ -26,7 +26,7 @@ impl Default for DustDdsConfiguration {
 }
 
 impl DustDdsConfiguration {
-    pub fn try_from_environment_variable() -> DdsResult<Self> {
+    pub fn try_from_str(configuration_json: &str) -> DdsResult<Self> {
         let root_schema = schema_for!(DustDdsConfiguration);
         let json_schema_str =
             serde_json::to_string(&root_schema).expect("Json schema could not be created");
@@ -36,18 +36,12 @@ impl DustDdsConfiguration {
         let compiled_schema =
             JSONSchema::compile(&schema).expect("Json schema could not be compiled");
 
-        let configuration = if let Ok(instance_json_str) = std::env::var("DUST_DDS_CONFIGURATION") {
-            let instance = serde_json::value::Value::from_str(instance_json_str.as_str())
-                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-            compiled_schema.validate(&instance).map_err(|errors| {
-                DdsError::PreconditionNotMet(errors.map(|e| e.to_string()).collect())
-            })?;
-            serde_json::from_value(instance)
-                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?
-        } else {
-            Default::default()
-        };
-        Ok(configuration)
+        let instance = serde_json::value::Value::from_str(configuration_json)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        compiled_schema.validate(&instance).map_err(|errors| {
+            DdsError::PreconditionNotMet(errors.map(|e| e.to_string()).collect())
+        })?;
+        serde_json::from_value(instance).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
     }
 
     pub fn _write_schema_file() -> DdsResult<()> {
@@ -62,50 +56,24 @@ impl DustDdsConfiguration {
 
 #[cfg(test)]
 mod tests {
-    use lazy_static::lazy_static;
-    use std::sync::Mutex;
-
     use super::*;
 
-    lazy_static! {
-        static ref ENV_VAR_MUTEX: Mutex<()> = Mutex::new(());
-    }
-
     #[test]
-    fn from_empty_environment_variable() {
-        let configuration = {
-            let _guard = ENV_VAR_MUTEX.lock().unwrap();
-            std::env::set_var("DUST_DDS_CONFIGURATION", r#"{}"#);
-            DustDdsConfiguration::try_from_environment_variable().unwrap()
-        };
+    fn from_empty_configuration_json() {
+        let configuration = DustDdsConfiguration::try_from_str("{}").unwrap();
         assert_eq!(configuration, DustDdsConfiguration::default())
     }
 
     #[test]
-    fn from_environment_variable() {
-        let configuration = {
-            let _guard = ENV_VAR_MUTEX.lock().unwrap();
-            std::env::set_var(
-                "DUST_DDS_CONFIGURATION",
-                r#"{"domain_tag" : "from_environment_variable" }"#,
-            );
-            DustDdsConfiguration::try_from_environment_variable().unwrap()
-        };
+    fn from_configuration_json() {
+        let configuration =
+            DustDdsConfiguration::try_from_str(r#"{"domain_tag" : "from_configuration_json" }"#)
+                .unwrap();
         assert_eq!(
             configuration,
             DustDdsConfiguration {
-                domain_tag: "from_environment_variable".to_string()
+                domain_tag: "from_configuration_json".to_string()
             }
         );
-    }
-
-    #[test]
-    fn environment_variable_is_unset() {
-        let configuration = {
-            let _guard = ENV_VAR_MUTEX.lock().unwrap();
-            std::env::remove_var("DUST_DDS_CONFIGURATION");
-            DustDdsConfiguration::try_from_environment_variable().unwrap()
-        };
-        assert_eq!(configuration, DustDdsConfiguration::default());
     }
 }

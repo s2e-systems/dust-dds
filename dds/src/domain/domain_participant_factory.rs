@@ -69,7 +69,11 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let configuration = DustDdsConfiguration::try_from_environment_variable()?;
+        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
+            DustDdsConfiguration::try_from_str(configuration_json.as_str())?
+        } else {
+            Default::default()
+        };
 
         let qos = match qos {
             Qos::Default => Default::default(),
