@@ -5,7 +5,7 @@ use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantI
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::infrastructure::error::DdsError;
-use crate::infrastructure::qos::{DomainParticipantQos, Qos};
+use crate::infrastructure::qos::{DomainParticipantQos, QosKind};
 use crate::infrastructure::status::NO_STATUS;
 use crate::topic_definition::type_support::DdsType;
 
@@ -45,16 +45,16 @@ fn create_and_delete_datawriter_succeeds() {
     );
 
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
         .create_datawriter::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -84,19 +84,19 @@ fn delete_datawriter_from_other_publisher_returns_error() {
     );
 
     let publisher1 = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher2 = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher1
         .create_datawriter::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -128,10 +128,10 @@ fn lookup_datawriter_without_writers_created() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(publisher.lookup_datawriter::<Foo>(&topic).is_err());
@@ -156,16 +156,16 @@ fn lookup_datawriter_with_one_datawriter_created() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer = publisher
         .create_datawriter::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -194,19 +194,19 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_type() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     publisher
         .create_datawriter::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -235,19 +235,19 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_topic() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     publisher
         .create_datawriter::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -276,19 +276,19 @@ fn lookup_datawriter_with_two_datawriters_with_different_types() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer_foo = publisher
         .create_datawriter::<Foo>(
             &topic_foo,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -297,7 +297,7 @@ fn lookup_datawriter_with_two_datawriters_with_different_types() {
     let data_writer_bar = publisher
         .create_datawriter::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -328,19 +328,19 @@ fn lookup_datawriter_with_two_datawriters_with_different_topics() {
         Arc::new(Condvar::new()),
     );
     let publisher = domain_participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic1 = domain_participant
-        .create_topic::<Foo>("topic1", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic1", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = domain_participant
-        .create_topic::<Foo>("topic2", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic2", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_writer1 = publisher
         .create_datawriter::<Foo>(
             &topic1,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -349,7 +349,7 @@ fn lookup_datawriter_with_two_datawriters_with_different_topics() {
     let data_writer2 = publisher
         .create_datawriter::<Foo>(
             &topic2,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,

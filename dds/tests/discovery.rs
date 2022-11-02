@@ -3,7 +3,7 @@ use std::time::Instant;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::Qos,
+        qos::QosKind,
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -24,23 +24,23 @@ impl dust_dds::topic_definition::type_support::DdsType for UserType {
 fn writer_discovers_reader_in_same_participant() {
     let domain_id = 0;
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = dp
-        .create_topic::<UserType>("topic_name", Qos::Default, None, NO_STATUS)
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let data_writer = publisher
-        .create_datawriter::<UserType>(&topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _data_reader = subscriber
-        .create_datareader::<UserType>(&topic, Qos::Default, None, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let cond = data_writer.get_statuscondition().unwrap();
     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
@@ -59,23 +59,23 @@ fn writer_discovers_reader_in_same_participant() {
 fn reader_discovers_writer_in_same_participant() {
     let domain_id = 6;
     let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = dp
-        .create_topic::<UserType>("topic_name", Qos::Default, None, NO_STATUS)
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let publisher = dp
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _data_writer = publisher
-        .create_datawriter::<UserType>(&topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber = dp
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let data_reader = subscriber
-        .create_datareader::<UserType>(&topic, Qos::Default, None, NO_STATUS)
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let cond = data_reader.get_statuscondition().unwrap();
     cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
@@ -97,16 +97,16 @@ fn participant_records_discovered_topics() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let participant2 = domain_participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
     for name in topic_names {
         participant1
-            .create_topic::<UserType>(name, Qos::Default, None, NO_STATUS)
+            .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
             .unwrap();
     }
 
@@ -142,7 +142,7 @@ fn participant_announces_updated_qos() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     // let participant2 = domain_participant_factory
     // .create_participant(domain_id, None, None, EMPTY_STATUS)
@@ -152,13 +152,13 @@ fn participant_announces_updated_qos() {
     qos.user_data.value = vec![1, 2, 3];
 
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(Qos::Specific(qos.clone())).unwrap();
+    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
     qos.user_data.value = vec![4, 5, 6];
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(Qos::Specific(qos.clone())).unwrap();
+    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
     qos.user_data.value = vec![7, 8, 9];
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(Qos::Specific(qos.clone())).unwrap();
+    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 }

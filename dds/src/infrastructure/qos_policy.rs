@@ -46,7 +46,6 @@ const TOPICDATA_QOS_POLICY_NAME: &str = "TopicData";
 const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
 const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
-const DURABILITYSERVICE_POLICY_NAME: &str = "DurabilityService";
 
 pub const INVALID_QOS_POLICY_ID: QosPolicyId = 0;
 pub const USERDATA_QOS_POLICY_ID: QosPolicyId = 1;
@@ -71,7 +70,7 @@ pub const TRANSPORTPRIORITY_QOS_POLICY_ID: QosPolicyId = 20;
 pub const LIFESPAN_QOS_POLICY_ID: QosPolicyId = 21;
 pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 
-/// The purpose of this QoS is to allow the application to attach additional information to the created Entity objects such that when
+/// This policy allows the application to attach additional information to the created Entity objects such that when
 /// a remote application discovers their existence it can access that information and use it for its own purposes.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct UserDataQosPolicy {
@@ -84,7 +83,7 @@ impl QosPolicy for UserDataQosPolicy {
     }
 }
 
-/// The purpose of this QoS is to allow the application to attach additional information to the created Topic such that when a
+/// This policy allows the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicDataQosPolicy {
@@ -97,8 +96,11 @@ impl QosPolicy for TopicDataQosPolicy {
     }
 }
 
-/// The purpose of this QoS is to allow the application to attach additional information to the created Publisher or Subscriber. The
-/// value is available to the application on the DataReader and DataWriter entities and is propagated by
+/// This policy allows the application to attach additional information to the created
+/// [`Publisher`](crate::publication::publisher::Publisher) or [`Subscriber`](crate::subscription::subscriber::Subscriber).
+///
+/// The value is available to the application on the
+/// [`DataReader`](crate::subscription::data_reader::DataReader) and [`DataWriter`](crate::publication::data_writer::DataWriter) entities and is propagated by
 /// means of the built-in topics.
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GroupDataQosPolicy {
@@ -111,15 +113,15 @@ impl QosPolicy for GroupDataQosPolicy {
     }
 }
 
-/// The purpose of this QoS is to allow the application to take advantage of transports capable of sending messages with different
-/// priorities.
+/// This policy allows the application to take advantage of transports capable of sending messages with different priorities.
+///
 /// This policy is considered a hint. The policy depends on the ability of the underlying transports to set a priority on the messages
 /// they send. Any value within the range of a 32-bit signed integer may be chosen; higher values indicate higher priority.
 /// However, any further interpretation of this policy is specific to a particular transport and a particular implementation of the
 /// Service. For example, a particular transport is permitted to treat a range of priority values as equivalent to one another. It is
 /// expected that during transport configuration the application would provide a mapping between the values of the
-/// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport. This mapping would then be used
-/// by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
+/// [`TransportPriorityQosPolicy`] set on [`DataWriter`](crate::publication::data_writer::DataWriter) and the values meaningful to each transport.
+/// This mapping would then be used by the infrastructure when propagating the data written by the [`DataWriter`](crate::publication::data_writer::DataWriter).
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TransportPriorityQosPolicy {
     pub value: i32,
@@ -131,7 +133,8 @@ impl QosPolicy for TransportPriorityQosPolicy {
     }
 }
 
-/// The purpose of this QoS is to avoid delivering “stale” data to the application.
+/// This policy is used to avoid delivering “stale” data to the application.
+///
 /// Each data sample written by the [`DataWriter`](crate::publication::data_writer::DataWriter) has an associated ‘expiration time’ beyond which the data should not be delivered
 /// to any application. Once the sample expires, the data will be removed from the [`DataReader`](crate::subscription::data_reader::DataReader) caches as well as from the
 /// transient and persistent information caches.
@@ -164,66 +167,38 @@ impl Default for LifespanQosPolicy {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum DurabilityQosPolicyKind {
-    VolatileDurabilityQoS,
-    TransientLocalDurabilityQoS,
+    Volatile,
+    TransientLocal,
 }
 
 impl PartialOrd for DurabilityQosPolicyKind {
     fn partial_cmp(&self, other: &DurabilityQosPolicyKind) -> Option<Ordering> {
         match self {
-            DurabilityQosPolicyKind::VolatileDurabilityQoS => match other {
-                DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Equal),
-                DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Less),
+            DurabilityQosPolicyKind::Volatile => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Equal),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Less),
             },
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS => match other {
-                DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
-                DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Equal),
+            DurabilityQosPolicyKind::TransientLocal => match other {
+                DurabilityQosPolicyKind::Volatile => Some(Ordering::Greater),
+                DurabilityQosPolicyKind::TransientLocal => Some(Ordering::Equal),
             },
         }
     }
 }
 
-/// The decoupling between DataReader and DataWriter offered by the Publish/Subscribe paradigm allows an application to
-/// write data even if there are no current readers on the network. Moreover, a DataReader that joins the network after some data
+/// This policy controls whether the Service will actually make data available to late-joining readers.
+///
+/// The decoupling between [`DataReader`](crate::subscription::data_reader::DataReader) and [`DataWriter`](crate::publication::data_writer::DataWriter)
+/// offered by the Publish/Subscribe paradigm allows an application to write data even if there are
+/// no current readers on the network. Moreover, a [`DataReader`](crate::subscription::data_reader::DataReader) that joins the network after some data
 /// has been written could potentially be interested in accessing the most current values of the data as well as potentially some
-/// history. This QoS policy controls whether the Service will actually make data available to late-joining readers. Note that
-/// although related, this does not strictly control what data the Service will maintain internally. That is, the Service may choose to
-/// maintain some data for its own purposes (e.g., flow control) and yet not make it available to late-joining readers if the
-/// DURABILITY QoS policy is set to VOLATILE.
-/// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
-/// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of DURABILITY kind are considered ordered such
-/// that VOLATILE < TRANSIENT_LOCAL < TRANSIENT < PERSISTENT.
-/// For the purpose of implementing the DURABILITY QoS kind TRANSIENT or PERSISTENT, the service behaves “as if” for
-/// each Topic that has TRANSIENT or PERSISTENT DURABILITY kind there was a corresponding “built-in” DataReader and
-/// DataWriter configured to have the same DURABILITY kind. In other words, it is “as if” somewhere in the system (possibly
-/// on a remote node) there was a “built-in durability DataReader” that subscribed to that Topic and a “built-in durability
-/// DataWriter” that published that Topic as needed for the new subscribers that join the system.
-/// For each Topic, the built-in fictitious “persistence service” DataReader and DataWriter has its QoS configured from the Topic
-/// QoS of the corresponding Topic. In other words, it is “as-if” the service first did find_topic to access the Topic, and then used
-/// the QoS from the Topic to configure the fictitious built-in entities.
-/// A consequence of this model is that the transient or persistence serviced can be configured by means of setting the proper QoS
-/// on the Topic.
-/// For a given Topic, the usual request/offered semantics apply to the matching between any DataWriter in the system that writes
-/// the Topic and the built-in transient/persistent DataReader for that Topic; similarly for the built-in transient/persistent
-/// DataWriter for a Topic and any DataReader for the Topic. As a consequence, a DataWriter that has an incompatible QoS with
-/// respect to what the Topic specified will not send its data to the transient/persistent service, and a DataReader that has an
-/// incompatible QoS with respect to the specified in the Topic will not get data from it.
-/// Incompatibilities between local DataReader/DataWriter entities and the corresponding fictitious “built-in transient/persistent
-/// entities” cause the REQUESTED_INCOMPATIBLE_QOS/OFFERED_INCOMPATIBLE_QOS status to change and the
-/// corresponding Listener invocations and/or signaling of Condition and WaitSet objects as they would with non-fictitious
-/// entities.
-/// The setting of the service_cleanup_delay controls when the TRANSIENT or PERSISTENT service is able to remove all
-/// information regarding a data-instances. Information on a data-instances is maintained until the following conditions are met:
-/// 1. the instance has been explicitly disposed (instance_state = NOT_ALIVE_DISPOSED), and
-/// 2. while in the NOT_ALIVE_DISPOSED state the system detects that there are no more “live” DataWriter entities
-/// writing the instance, that is, all existing writers either unregister the instance (call unregister) or lose their liveliness,
-/// and
-/// 3. a time interval longer that service_cleanup_delay has elapsed since the moment the service detected that the previous
-/// two conditions were met.
-/// The utility of the service_cleanup_delay is apparent in the situation where an application disposes an instance and it crashes
-/// before it has a chance to complete additional tasks related to the disposition. Upon re-start the application may ask for initial
-/// data to regain its state and the delay introduced by the service_cleanup_delay will allow the restarted application to receive
-/// the information on the disposed instance and complete the interrupted tasks.
+/// history.
+/// Note that although related, this does not strictly control what data the Service will maintain internally.
+/// That is, the Service may choose to maintain some data for its own purposes (e.g., flow control)
+/// and yet not make it available to late-joining readers if the [`DurabilityQosPolicy`] is set to [`DurabilityQosPolicyKind::Volatile`].
+/// The value offered is considered compatible with the value requested if and only if the *offered kind >= requested
+/// kind* is true. For the purposes of this inequality, the values of [`DurabilityQosPolicyKind`] kind are considered ordered such
+/// that *Volatile < TransientLocal*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DurabilityQosPolicy {
     pub kind: DurabilityQosPolicyKind,
@@ -238,70 +213,64 @@ impl QosPolicy for DurabilityQosPolicy {
 impl Default for DurabilityQosPolicy {
     fn default() -> Self {
         Self {
-            kind: DurabilityQosPolicyKind::VolatileDurabilityQoS,
+            kind: DurabilityQosPolicyKind::Volatile,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum PresentationQosPolicyAccessScopeKind {
-    InstancePresentationQoS,
-    TopicPresentationQoS,
+    Instance,
+    Topic,
 }
 
 impl PartialOrd for PresentationQosPolicyAccessScopeKind {
     fn partial_cmp(&self, other: &PresentationQosPolicyAccessScopeKind) -> Option<Ordering> {
         match self {
-            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => match other {
-                PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => {
-                    Some(Ordering::Equal)
-                }
-                PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Less),
+            PresentationQosPolicyAccessScopeKind::Instance => match other {
+                PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Equal),
+                PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Less),
             },
-            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => match other {
-                PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => {
-                    Some(Ordering::Greater)
-                }
-                PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Equal),
+            PresentationQosPolicyAccessScopeKind::Topic => match other {
+                PresentationQosPolicyAccessScopeKind::Instance => Some(Ordering::Greater),
+                PresentationQosPolicyAccessScopeKind::Topic => Some(Ordering::Equal),
             },
         }
     }
 }
 
-/// This QoS policy controls the extent to which changes to data-instances can be made dependent on each other and also the kind
+/// This policy controls the extent to which changes to data-instances can be made dependent on each other and also the kind
 /// of dependencies that can be propagated and maintained by the Service.
-/// The setting of coherent_access controls whether the Service will preserve the groupings of changes made by the publishing
-/// application by means of the operations begin_coherent_change and end_coherent_change.
-/// The setting of ordered_access controls whether the Service will preserve the order of changes.
-/// The granularity is controlled by the setting of the access_scope.
-/// If coherent_access is set, then the access_scope controls the maximum extent of coherent changes. The behavior is as follows:
-/// • If access_scope is set to INSTANCE, the use of begin_coherent_change and end_coherent_change has no effect on
+///
+/// The setting of [`PresentationQosPolicy::coherent_access`] controls whether the Service will preserve the groupings of changes made by the publishing
+/// application by means of the operations `begin_coherent_change()` and `end_coherent_change()`.
+/// The setting of  [`PresentationQosPolicy::ordered_access`] controls whether the Service will preserve the order of changes.
+/// The granularity is controlled by the setting of the  [`PresentationQosPolicy::access_scope`].
+/// If [`PresentationQosPolicy::coherent_access`] is set, then the [`PresentationQosPolicy::access_scope`] controls the maximum extent of coherent changes.
+/// The behavior is as follows:
+/// - If access_scope is set to INSTANCE, the use of begin_coherent_change and end_coherent_change has no effect on
 /// how the subscriber can access the data because with the scope limited to each instance, changes to separate instances
 /// are considered independent and thus cannot be grouped by a coherent change.
-/// • If access_scope is set to TOPIC, then coherent changes (indicated by their enclosure within calls to
+/// - If access_scope is set to TOPIC, then coherent changes (indicated by their enclosure within calls to
 /// begin_coherent_change and end_coherent_change) will be made available as such to each remote DataReader
 /// independently. That is, changes made to instances within each individual DataWriter will be available as coherent with
 /// respect to other changes to instances in that same DataWriter, but will not be grouped with changes made to instances
 /// belonging to a different DataWriter.
-/// • If access_scope is set to GROUP, then coherent changes made to instances through a DataWriter attached to a common
-/// Publisher are made available as a unit to remote subscribers.
 /// If ordered_access is set, then the access_scope controls the maximum extent for which order will be preserved by the Service.
-/// • If access_scope is set to INSTANCE (the lowest level), then changes to each instance are considered unordered relative
+/// - If access_scope is set to INSTANCE (the lowest level), then changes to each instance are considered unordered relative
 /// to changes to any other instance. That means that changes (creations, deletions, modifications) made to two instances
 /// are not necessarily seen in the order they occur. This is the case even if it is the same application thread making the
 /// changes using the same DataWriter.
-/// • If access_scope is set to TOPIC, changes (creations, deletions, modifications) made by a single DataWriter are made
+/// - If access_scope is set to TOPIC, changes (creations, deletions, modifications) made by a single DataWriter are made
 /// available to subscribers in the same order they occur. Changes made to instances through different DataWriter entities
 /// are not necessarily seen in the order they occur. This is the case, even if the changes are made by a single application
 /// thread using DataWriter objects attached to the same Publisher.
-/// • Finally, if access_scope is set to GROUP, changes made to instances via DataWriter entities attached to the same
-/// Publisher object are made available to subscribers on the same order they occur.
 /// Note that this QoS policy controls the scope at which related changes are made available to the subscriber. This means the
 /// subscriber can access the changes in a coherent manner and in the proper order; however, it does not necessarily imply that the
 /// Subscriber will indeed access the changes in the correct order. For that to occur, the application at the subscriber end must use
-/// the proper logic in reading the DataReader objects, as described in 2.2.2.5.1, Access to the data.
+/// the proper logic in reading the DataReader objects.
 /// The value offered is considered compatible with the value requested if and only if the following conditions are met:
-/// 1. The inequality “offered access_scope >= requested access_scope” evaluates to ‘TRUE.’ For the purposes of this
+/// 1. The inequality “offered access_scope >= requested access_scope” is true. For the purposes of this
 /// inequality, the values of PRESENTATION access_scope are considered ordered such that INSTANCE < TOPIC <
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
@@ -322,25 +291,27 @@ impl QosPolicy for PresentationQosPolicy {
 impl Default for PresentationQosPolicy {
     fn default() -> Self {
         Self {
-            access_scope: PresentationQosPolicyAccessScopeKind::InstancePresentationQoS,
+            access_scope: PresentationQosPolicyAccessScopeKind::Instance,
             coherent_access: false,
             ordered_access: false,
         }
     }
 }
 
-/// This policy is useful for cases where a Topic is expected to have each instance updated periodically. On the publishing side this
-/// setting establishes a contract that the application must meet. On the subscribing side the setting establishes a minimum
+/// This policy is useful for cases where a [`Topic`](crate::topic_definition::topic::Topic) is expected to have each instance updated periodically. On the publishing side this
+/// setting establishes a contract that the application must meet.
+///
+/// On the subscribing side the setting establishes a minimum
 /// requirement for the remote publishers that are expected to supply the data values.
-/// When the Service ‘matches’ a DataWriter and a DataReader it checks whether the settings are compatible (i.e., offered
-/// deadline period<= requested deadline period) if they are not, the two entities are informed (via the listener or condition
+/// When the Service ‘matches’ a [`DataWriter`](crate::publication::data_writer::DataWriter) and a [`DataReader`](crate::subscription::data_reader::DataReader) it checks whether the settings are compatible (i.e., *offered
+/// deadline period <= requested deadline period*) if they are not, the two entities are informed (via the listener or condition
 /// mechanism) of the incompatibility of the QoS settings and communication will not occur.
 /// Assuming that the reader and writer ends have compatible settings, the fulfillment of this contract is monitored by the Service
 /// and the application is informed of any violations by means of the proper listener or condition.
-/// The value offered is considered compatible with the value requested if and only if the inequality “offered deadline period <=
-/// requested deadline period” evaluates to ‘TRUE.’
-/// The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
-/// to be consistent the settings must be such that “deadline period>= minimum_separation.”
+/// The value offered is considered compatible with the value requested if and only if the *offered deadline period <=
+/// requested deadline period* is true.
+/// The setting of the [`DeadlineQosPolicy`] policy must be set consistently with that of the [`TimeBasedFilterQosPolicy`]. For these two policies
+/// to be consistent the settings must be such that *deadline period >= minimum_separation*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DeadlineQosPolicy {
     pub period: Duration,
@@ -360,11 +331,12 @@ impl Default for DeadlineQosPolicy {
     }
 }
 
-/// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication. By
-/// having a non-zero duration the Service can optimize its internal operation.
+/// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication.
+///
+/// By having a non-zero duration the Service can optimize its internal operation.
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
-/// The value offered is considered compatible with the value requested if and only if the inequality “offered duration <=
-/// requested duration” evaluates to ‘TRUE.’
+/// The value offered is considered compatible with the value requested if and only if the *offered duration <=
+/// requested duration* is true.
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LatencyBudgetQosPolicy {
     pub duration: Duration,
@@ -386,45 +358,18 @@ impl Default for LatencyBudgetQosPolicy {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum OwnershipQosPolicyKind {
-    SharedOwnershipQoS,
+    Shared,
 }
 
-/// This policy controls whether the Service allows multiple DataWriter objects to update the same instance (identified by Topic +
-/// key) of a data-object.
-/// There are two kinds of OWNERSHIP selected by the setting of the kind: SHARED and EXCLUSIVE.
-/// SHARED kind
-/// This setting indicates that the Service does not enforce unique ownership for each instance. In this case, multiple writers can
-/// update the same data-object instance. The subscriber to the Topic will be able to access modifications from all DataWriter
-/// objects, subject to the settings of other QoS that may filter particular samples (e.g., the TIME_BASED_FILTER or HISTORY
-/// QoS policy). In any case there is no “filtering” of modifications made based on the identity of the DataWriter that causes the
+/// This policy controls whether the Service allows multiple [`DataWriter`](crate::publication::data_writer::DataWriter)
+/// objects to update the same instance (identified by Topic + key) of a data-object.
+///
+/// Only [`OwnershipQosPolicyKind::Shared`] can be selected. This setting indicates that the Service does not enforce unique ownership for each instance.
+/// In this case, multiple writers can update the same data-object instance. The subscriber to the Topic will be able to access modifications from all DataWriter
+/// objects, subject to the settings of other QoS that may filter particular samples (e.g., the [`TimeBasedFilterQosPolicy`] or [`HistoryQosPolicy`]).
+/// In any case there is no “filtering” of modifications made based on the identity of the DataWriter that causes the
 /// modification.
-/// EXCLUSIVE kind
-/// This setting indicates that each instance of a data-object can only be modified by one DataWriter. In other words, at any point
-/// in time a single DataWriter “owns” each instance and is the only one whose modifications will be visible to the DataReader
-/// objects. The owner is determined by selecting the DataWriter with the highest value of the strength that is both “alive” as
-/// defined by the LIVELINESS QoS policy and has not violated its DEADLINE contract with regards to the data-instance.
-/// Ownership can therefore change as a result of (a) a DataWriter in the system with a higher value of the strength that modifies
-/// the instance, (b) a change in the strength value of the DataWriter that owns the instance, (c) a change in the liveliness of the
-/// DataWriter that owns the instance, and (d) a deadline with regards to the instance that is missed by the DataWriter that owns
-/// the instance.
-/// The behavior of the system is as if the determination was made independently by each DataReader. Each DataReader may
-/// detect the change of ownership at a different time. It is not a requirement that at a particular point in time all the DataReader
-/// objects for that Topic have a consistent picture of who owns each instance.
-/// It is also not a requirement that the DataWriter objects are aware of whether they own a particular instance. There is no error or
-/// notification given to a DataWriter that modifies an instance it does not currently own.
-/// The requirements are chosen to (a) preserve the decoupling of publishers and subscriber, and (b) allow the policy to be
-/// implemented efficiently.
-/// It is possible that multiple DataWriter objects with the same strength modify the same instance. If this occurs the Service will
-/// pick one of the DataWriter objects as the “owner.” It is not specified how the owner is selected. However, it is required that the
-/// policy used to select the owner is such that all DataReader objects will make the same choice of the particular DataWriter that
-/// is the owner. It is also required that the owner remains the same until there is a change in strength, liveliness, the owner misses
-/// a deadline on the instance, a new DataWriter with higher strength modifies the instance, or another DataWriter with the same
-/// strength that is deemed by the Service to be the new owner modifies the instance
-/// Exclusive ownership is on an instance-by-instance basis. That is, a subscriber can receive values written by a lower
-/// strength DataWriter as long as they affect instances whose values have not been set by the higher-strength
-/// DataWriter.
-/// The value of the OWNERSHIP kind offered must exactly match the one requested or else they are considered
-/// incompatible.
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OwnershipQosPolicy {
     pub kind: OwnershipQosPolicyKind,
@@ -439,68 +384,65 @@ impl QosPolicy for OwnershipQosPolicy {
 impl Default for OwnershipQosPolicy {
     fn default() -> Self {
         Self {
-            kind: OwnershipQosPolicyKind::SharedOwnershipQoS,
+            kind: OwnershipQosPolicyKind::Shared,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum LivelinessQosPolicyKind {
-    AutomaticLivelinessQoS,
-    ManualByParticipantLivelinessQoS,
-    ManualByTopicLivelinessQoS,
+    Automatic,
+    ManualByParticipant,
+    ManualByTopic,
 }
 
 impl PartialOrd for LivelinessQosPolicyKind {
     fn partial_cmp(&self, other: &LivelinessQosPolicyKind) -> Option<Ordering> {
         match self {
-            LivelinessQosPolicyKind::AutomaticLivelinessQoS => match other {
-                LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Equal),
-                LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => Some(Ordering::Less),
-                LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Less),
+            LivelinessQosPolicyKind::Automatic => match other {
+                LivelinessQosPolicyKind::Automatic => Some(Ordering::Equal),
+                LivelinessQosPolicyKind::ManualByParticipant => Some(Ordering::Less),
+                LivelinessQosPolicyKind::ManualByTopic => Some(Ordering::Less),
             },
-            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => match other {
-                LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Greater),
-                LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => Some(Ordering::Equal),
-                LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Less),
+            LivelinessQosPolicyKind::ManualByParticipant => match other {
+                LivelinessQosPolicyKind::Automatic => Some(Ordering::Greater),
+                LivelinessQosPolicyKind::ManualByParticipant => Some(Ordering::Equal),
+                LivelinessQosPolicyKind::ManualByTopic => Some(Ordering::Less),
             },
-            LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => match other {
-                LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Greater),
-                LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => {
-                    Some(Ordering::Greater)
-                }
-                LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Equal),
+            LivelinessQosPolicyKind::ManualByTopic => match other {
+                LivelinessQosPolicyKind::Automatic => Some(Ordering::Greater),
+                LivelinessQosPolicyKind::ManualByParticipant => Some(Ordering::Greater),
+                LivelinessQosPolicyKind::ManualByTopic => Some(Ordering::Equal),
             },
         }
     }
 }
 
 /// This policy controls the mechanism and parameters used by the Service to ensure that particular entities on the network are
-/// still “alive.” The liveliness can also affect the ownership of a particular instance, as determined by the OWNERSHIP QoS
-/// policy.
+/// still “alive”.
+///
+/// The liveliness can also affect the ownership of a particular instance, as determined by the [`OwnershipQosPolicy`].
 /// This policy has several settings to support both data-objects that are updated periodically as well as those that are changed
 /// sporadically. It also allows customizing for different application requirements in terms of the kinds of failures that will be
 /// detected by the liveliness mechanism.
-/// The AUTOMATIC liveliness setting is most appropriate for applications that only need to detect failures at the processlevel27,
+/// The [`LivelinessQosPolicyKind::Automatic`] liveliness setting is most appropriate for applications that only need to detect failures at the process level,
 /// but not application-logic failures within a process. The Service takes responsibility for renewing the leases at the
-/// required rates and thus, as long as the local process where a DomainParticipant is running and the link connecting it to remote
-/// participants remains connected, the entities within the DomainParticipant will be considered alive. This requires the lowest
+/// required rates and thus, as long as the local process where a [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) is running and the link connecting it to remote
+/// participants remains connected, the entities within the [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) will be considered alive. This requires the lowest
 /// overhead.
-/// The MANUAL settings (MANUAL_BY_PARTICIPANT, MANUAL_BY_TOPIC), require the application on the publishing
+/// The manual settings ([`LivelinessQosPolicyKind::ManualByParticipant`], [`LivelinessQosPolicyKind::ManualByTopic`]), require the application on the publishing
 /// side to periodically assert the liveliness before the lease expires to indicate the corresponding Entity is still alive. The action
-/// can be explicit by calling the assert_liveliness operations, or implicit by writing some data.
+/// can be explicit by calling the `assert_liveliness()` operations, or implicit by writing some data.
 /// The two possible manual settings control the granularity at which the application must assert liveliness.
-/// • The setting MANUAL_BY_PARTICIPANT requires only that one Entity within the publisher is asserted to be alive to
-/// deduce all other Entity objects within the same DomainParticipant are also alive.
-/// • The setting MANUAL_BY_TOPIC requires that at least one instance within the DataWriter is asserted.
-/// The value offered is considered compatible with the value requested if and only if the following conditions are met:
-/// 1. the inequality “offered kind >= requested kind” evaluates to ‘TRUE’. For the purposes of this inequality, the values
-/// of LIVELINESS kind are considered ordered such that:
-/// AUTOMATIC < MANUAL_BY_PARTICIPANT < MANUAL_BY_TOPIC.
-/// 2. the inequality “offered lease_duration <= requested lease_duration” evaluates to TRUE.
-/// Changes in LIVELINESS must be detected by the Service with a time-granularity greater or equal to the lease_duration. This
-/// ensures that the value of the LivelinessChangedStatus is updated at least once during each lease_duration and the related
-/// Listeners and WaitSets are notified within a lease_duration from the time the LIVELINESS changed.
+/// The setting [`LivelinessQosPolicyKind::ManualByParticipant`] requires only that one Entity within the publisher is asserted to be alive to
+/// deduce all other Entity objects within the same [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) are also alive.
+/// The setting [`LivelinessQosPolicyKind::ManualByTopic`] requires that at least one instance within the [`DataWriter`](crate::publication::data_writer::DataWriter) is asserted.
+/// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested kind* is true. For the purposes of this inequality, the values
+/// of [`LivelinessQosPolicyKind`] kind are considered ordered such that *Automatic < ManualByParticipant < ManualByTopic*.
+/// and the inequality *offered lease_duration <= requested lease_duration* is true.
+/// Changes in liveliness must be detected by the Service with a time-granularity greater or equal to the [`LivelinessQosPolicy::lease_duration`]. This
+/// ensures that the value of the LivelinessChangedStatus is updated at least once during each [`LivelinessQosPolicy::lease_duration`] and the related
+/// Listeners and WaitSets are notified within a [`LivelinessQosPolicy::lease_duration`] from the time the liveliness changed.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LivelinessQosPolicy {
     pub kind: LivelinessQosPolicyKind,
@@ -516,31 +458,34 @@ impl QosPolicy for LivelinessQosPolicy {
 impl Default for LivelinessQosPolicy {
     fn default() -> Self {
         Self {
-            kind: LivelinessQosPolicyKind::AutomaticLivelinessQoS,
+            kind: LivelinessQosPolicyKind::Automatic,
             lease_duration: DURATION_INFINITE,
         }
     }
 }
 
-/// This policy allows a DataReader to indicate that it does not necessarily want to see all values of each instance published under
-/// the Topic. Rather, it wants to see at most one change every minimum_separation period.
-/// The TIME_BASED_FILTER applies to each instance separately, that is, the constraint is that the DataReader does not want to
-/// see more than one sample of each instance per minimum_separation period.
-/// This setting allows a DataReader to further decouple itself from the DataWriter objects. It can be used to protect applications
+/// This policy allows a [`DataReader`](crate::subscription::data_reader::DataReader) to indicate that it does not necessarily want to
+/// see all values of each instance published under the [`Topic`](crate::topic_definition::topic::Topic).
+/// Rather, it wants to see at most one change every [`TimeBasedFilterQosPolicy::minimum_separation`] period.
+///
+/// The [`TimeBasedFilterQosPolicy`] applies to each instance separately, that is, the constraint is that the [`DataReader`](crate::subscription::data_reader::DataReader)
+/// does not want to see more than one sample of each instance per [`TimeBasedFilterQosPolicy::minimum_separation`] period.
+/// This setting allows a [`DataReader`](crate::subscription::data_reader::DataReader) to further decouple itself from the
+/// [`DataWriter`](crate::publication::data_writer::DataWriter) objects. It can be used to protect applications
 /// that are running on a heterogeneous network where some nodes are capable of generating data much faster than others can
 /// consume it. It also accommodates the fact that for fast-changing data different subscribers may have different requirements as
 /// to how frequently they need to be notified of the most current values.
-/// The setting of a TIME_BASED_FILTER, that is, the selection of a minimum_separation with a value greater than zero is
-/// compatible with all settings of the HISTORY and RELIABILITY QoS. The TIME_BASED_FILTER specifies the samples
-/// that are of interest to the DataReader. The HISTORY and RELIABILITY QoS affect the behavior of the middleware with
-/// respect to the samples that have been determined to be of interest to the DataReader, that is, they apply after the
-/// TIME_BASED_FILTER has been applied.
-/// In the case where the reliability QoS kind is RELIABLE then in steady-state, defined as the situation where the DataWriter
-/// does not write new samples for a period “long” compared to the minimum_separation, the system should guarantee delivery
-/// the last sample to the DataReader.
-/// The setting of the TIME_BASED_FILTER minimum_separation must be consistent with the DEADLINE period. For these
-/// two QoS policies to be consistent they must verify that "period >= minimum_separation." An attempt to set these policies in
-/// an inconsistent manner when an entity is created of via a set_qos operation will cause the operation to fail.
+/// The setting of a [`TimeBasedFilterQosPolicy`], that is, the selection of a  [`TimeBasedFilterQosPolicy::minimum_separation`] with a value greater
+/// than zero is compatible with all settings of the [`HistoryQosPolicy`] and [`ReliabilityQosPolicy`].
+/// The [`TimeBasedFilterQosPolicy`] specifies the samples that are of interest to the [`DataReader`](crate::subscription::data_reader::DataReader).
+/// The [`HistoryQosPolicy`] and [`ReliabilityQosPolicy`] affect the behavior of the middleware with
+/// respect to the samples that have been determined to be of interest to the [`DataReader`](crate::subscription::data_reader::DataReader),
+/// that is, they apply after the [`TimeBasedFilterQosPolicy`] has been applied.
+/// In the case where the reliability [`ReliabilityQosPolicyKind::Reliable`]  then in steady-state, defined as the situation where
+/// the [`DataWriter`](crate::publication::data_writer::DataWriter) does not write new samples for a period “long” compared to
+/// the [`TimeBasedFilterQosPolicy::minimum_separation`], the system should guarantee delivery the last sample to the [`DataReader`](crate::subscription::data_reader::DataReader).
+/// The setting of the  [`TimeBasedFilterQosPolicy::minimum_separation`] minimum_separation must be consistent with the [`DeadlineQosPolicy::period`]. For these
+/// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TimeBasedFilterQosPolicy {
     pub minimum_separation: Duration,
@@ -561,14 +506,17 @@ impl Default for TimeBasedFilterQosPolicy {
 }
 
 /// This policy allows the introduction of a logical partition concept inside the ‘physical’ partition induced by a domain.
-/// For a DataReader to see the changes made to an instance by a DataWriter, not only the Topic must match, but also they must
-/// share a common partition. Each string in the list that defines this QoS policy defines a partition name. A partition name may
+///
+/// For a [`DataReader`](crate::subscription::data_reader::DataReader) to see the changes made to an instance by a [`DataWriter`](crate::publication::data_writer::DataWriter),
+/// not only the [`Topic`](crate::topic_definition::topic::Topic) must match, but also they must share a common partition.
+/// Each string in the list that defines this QoS policy defines a partition name. A partition name may
 /// contain wildcards. Sharing a common partition means that one of the partition names matches.
 /// Failure to match partitions is not considered an “incompatible” QoS and does not trigger any listeners nor conditions.
-/// This policy is changeable. A change of this policy can potentially modify the “match” of existing DataReader and DataWriter
-/// entities. It may establish new “matchs” that did not exist before, or break existing matchs.
-/// PARTITION names can be regular expressions and include wildcards as defined by the POSIX fnmatch API (1003.2-1992
-/// section B.6). Either Publisher or Subscriber may include regular expressions in partition names, but no two names that both
+/// This policy is changeable. A change of this policy can potentially modify the “match” of existing [`DataReader`](crate::subscription::data_reader::DataReader)
+/// and [`DataWriter`](crate::publication::data_writer::DataWriter) entities. It may establish new “matchs” that did not exist before, or break existing matchs.
+/// Partition names can be regular expressions and include wildcards as defined by the POSIX fnmatch API (1003.2-1992
+/// section B.6). Either [`Publisher`](crate::publication::publisher::Publisher) or [`Subscriber`](crate::subscription::subscriber::Subscriber)
+/// may include regular expressions in partition names, but no two names that both
 /// contain wildcards will ever be considered to match. This means that although regular expressions may be used both at
 /// publisher as well as subscriber side, the service will not try to match two regular expressions (between publishers and
 /// subscribers).
@@ -599,8 +547,8 @@ impl Default for PartitionQosPolicy {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ReliabilityQosPolicyKind {
-    BestEffortReliabilityQos,
-    ReliableReliabilityQos,
+    BestEffort,
+    Reliable,
 }
 
 const BEST_EFFORT: i32 = 1;
@@ -613,8 +561,8 @@ impl serde::Serialize for ReliabilityQosPolicyKind {
     {
         serde::Serialize::serialize(
             &match self {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => BEST_EFFORT,
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => RELIABLE,
+                ReliabilityQosPolicyKind::BestEffort => BEST_EFFORT,
+                ReliabilityQosPolicyKind::Reliable => RELIABLE,
             },
             serializer,
         )
@@ -634,8 +582,8 @@ impl<'de> serde::de::Visitor<'de> for ReliabilityQosPolicyKindVisitor {
         E: serde::de::Error,
     {
         Ok(match value {
-            BEST_EFFORT => ReliabilityQosPolicyKind::BestEffortReliabilityQos,
-            RELIABLE => ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            BEST_EFFORT => ReliabilityQosPolicyKind::BestEffort,
+            RELIABLE => ReliabilityQosPolicyKind::Reliable,
             _ => {
                 return Err(serde::de::Error::invalid_value(
                     serde::de::Unexpected::Unsigned(value as u64),
@@ -658,35 +606,43 @@ impl<'de> serde::Deserialize<'de> for ReliabilityQosPolicyKind {
 impl PartialOrd for ReliabilityQosPolicyKind {
     fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
         match self {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => match other {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => Some(Ordering::Equal),
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => Some(Ordering::Less),
+            ReliabilityQosPolicyKind::BestEffort => match other {
+                ReliabilityQosPolicyKind::BestEffort => Some(Ordering::Equal),
+                ReliabilityQosPolicyKind::Reliable => Some(Ordering::Less),
             },
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => match other {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => Some(Ordering::Greater),
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => Some(Ordering::Equal),
+            ReliabilityQosPolicyKind::Reliable => match other {
+                ReliabilityQosPolicyKind::BestEffort => Some(Ordering::Greater),
+                ReliabilityQosPolicyKind::Reliable => Some(Ordering::Equal),
             },
         }
     }
 }
 
-/// This policy indicates the level of reliability requested by a DataReader or offered by a DataWriter. These levels are ordered,
-/// BEST_EFFORT being lower than RELIABLE. A DataWriter offering a level is implicitly offering all levels below.
-/// The setting of this policy has a dependency on the setting of the RESOURCE_LIMITS policy. In case the RELIABILITY kind
-/// is set to RELIABLE the write operation on the DataWriter may block if the modification would cause data to be lost or else
-/// cause one of the limits in specified in the RESOURCE_LIMITS to be exceeded. Under these circumstances, the
-/// RELIABILITY max_blocking_time configures the maximum duration the write operation may block.
-/// If the RELIABILITY kind is set to RELIABLE, data-samples originating from a single DataWriter cannot be made available
-/// to the DataReader if there are previous data-samples that have not been received yet due to a communication error. In other
-/// words, the service will repair the error and re-transmit data-samples as needed in order to re-construct a correct snapshot of the
-/// DataWriter history before it is accessible by the DataReader.
-/// If the RELIABILITY kind is set to BEST_EFFORT, the service will not re-transmit missing data-samples. However for datasamples
-/// originating from any one DataWriter the service will ensure they are stored in the DataReader history in the same
-/// order they originated in the DataWriter. In other words, the DataReader may miss some data-samples but it will never see the
-/// value of a data-object change from a newer value to an order value.
-/// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
-/// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of RELIABILITY kind are considered ordered such
-/// that BEST_EFFORT < RELIABLE.
+/// This policy indicates the level of reliability requested by a [`DataReader`](crate::subscription::data_reader::DataReader)
+/// or offered by a [`DataWriter`](crate::publication::data_writer::DataWriter).
+///
+/// These levels are ordered, [`ReliabilityQosPolicyKind::BestEffort`] being lower than [`ReliabilityQosPolicyKind::Reliable`].
+/// A [`DataWriter`](crate::publication::data_writer::DataWriter) offering a level is implicitly offering all levels below.
+/// The setting of this policy has a dependency on the setting of the [`ResourceLimitsQosPolicy`] policy.
+/// In case the [`ReliabilityQosPolicyKind`] kind is set to [`ReliabilityQosPolicyKind::Reliable`] the write operation
+/// on the [`DataWriter`](crate::publication::data_writer::DataWriter) may block if the modification would cause data to be lost or else
+/// cause one of the limits in specified in the [`ResourceLimitsQosPolicy`] to be exceeded. Under these circumstances, the
+///  [`ReliabilityQosPolicy::max_blocking_time`] configures the maximum duration the write operation may block.
+/// If the [`ReliabilityQosPolicyKind`] kind is set to [`ReliabilityQosPolicyKind::Reliable`], data-samples originating from a
+/// single [`DataWriter`](crate::publication::data_writer::DataWriter) cannot be made available
+/// to the [`DataReader`](crate::subscription::data_reader::DataReader) if there are previous data-samples that have not been received
+/// yet due to a communication error. In other words, the service will repair the error and re-transmit data-samples as needed
+/// in order to re-construct a correct snapshot of the [`DataWriter`](crate::publication::data_writer::DataWriter) history before
+/// it is accessible by the [`DataReader`](crate::subscription::data_reader::DataReader).
+/// If the [`ReliabilityQosPolicyKind`] is set to [`ReliabilityQosPolicyKind::BestEffort`], the service will not re-transmit missing data samples.
+/// However for data samples originating from any one [`DataWriter`](crate::publication::data_writer::DataWriter) the service will ensure
+/// they are stored in the [`DataReader`](crate::subscription::data_reader::DataReader) history in the same
+/// order they originated in the [`DataWriter`](crate::publication::data_writer::DataWriter).
+/// In other words, the [`DataReader`](crate::subscription::data_reader::DataReader) may miss some data samples but it will never see the
+/// value of a data-object change from a newer value to an older value.
+/// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
+/// kind* is true. For the purposes of this inequality, the values of [`ReliabilityQosPolicyKind`] are considered ordered such
+/// that *BestEffort < Reliable*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReliabilityQosPolicy {
     pub kind: ReliabilityQosPolicyKind,
@@ -710,54 +666,47 @@ impl PartialOrd for ReliabilityQosPolicy {
 const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100);
 pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
     ReliabilityQosPolicy {
-        kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+        kind: ReliabilityQosPolicyKind::BestEffort,
         max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
     };
 pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy = ReliabilityQosPolicy {
-    kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+    kind: ReliabilityQosPolicyKind::Reliable,
     max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum DestinationOrderQosPolicyKind {
-    ByReceptionTimestampDestinationOrderQoS,
-    BySourceTimestampDestinationOrderQoS,
+    ByReceptionTimestamp,
+    BySourceTimestamp,
 }
 
 impl PartialOrd for DestinationOrderQosPolicyKind {
     fn partial_cmp(&self, other: &DestinationOrderQosPolicyKind) -> Option<Ordering> {
         match self {
-            DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => match other {
-                DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => {
-                    Some(Ordering::Equal)
-                }
-                DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => {
-                    Some(Ordering::Less)
-                }
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp => match other {
+                DestinationOrderQosPolicyKind::ByReceptionTimestamp => Some(Ordering::Equal),
+                DestinationOrderQosPolicyKind::BySourceTimestamp => Some(Ordering::Less),
             },
-            DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => match other {
-                DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => {
-                    Some(Ordering::Greater)
-                }
-                DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => {
-                    Some(Ordering::Equal)
-                }
+            DestinationOrderQosPolicyKind::BySourceTimestamp => match other {
+                DestinationOrderQosPolicyKind::ByReceptionTimestamp => Some(Ordering::Greater),
+                DestinationOrderQosPolicyKind::BySourceTimestamp => Some(Ordering::Equal),
             },
         }
     }
 }
 
-/// This policy controls how each subscriber resolves the final value of a data instance that is written by multiple DataWriter
-/// objects (which may be associated with different Publisher objects) running on different nodes.
-/// The setting BY_RECEPTION_TIMESTAMP indicates that, assuming the OWNERSHIP policy allows it, the latest received
+/// This policy controls how each subscriber resolves the final value of a data instance that is written by multiple [`DataWriter`](crate::publication::data_writer::DataWriter)
+/// objects (which may be associated with different [`Publisher`](crate::publication::publisher::Publisher) objects) running on different nodes.
+///
+/// The setting [`DestinationOrderQosPolicyKind::ByReceptionTimestamp`] indicates that, assuming the [`OwnershipQosPolicy`] policy allows it, the latest received
 /// value for the instance should be the one whose value is kept. This is the default value.
-/// The setting BY_SOURCE_TIMESTAMP indicates that, assuming the OWNERSHIP policy allows it, a timestamp placed at
-/// the source should be used. This is the only setting that, in the case of concurrent same-strength DataWriter objects updating the
+/// The setting [`DestinationOrderQosPolicyKind::BySourceTimestamp`] indicates that, assuming the [`OwnershipQosPolicy`] policy allows it, a timestamp placed at
+/// the source should be used. This is the only setting that, in the case of concurrent same-strength [`DataWriter`](crate::publication::data_writer::DataWriter) objects updating the
 /// same instance, ensures all subscribers will end up with the same final value for the instance. The mechanism to set the source
 /// timestamp is middleware dependent.
-/// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
-/// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of DESTINATION_ORDER kind are considered
-/// ordered such that BY_RECEPTION_TIMESTAMP < BY_SOURCE_TIMESTAMP.
+/// The value offered is considered compatible with the value requested if and only if the inequality *offered kind >= requested
+/// kind* is true. For the purposes of this inequality, the values of [`DestinationOrderQosPolicyKind`] kind are considered
+/// ordered such that *DestinationOrderQosPolicyKind::ByReceptionTimestamp < DestinationOrderQosPolicyKind::BySourceTimestamp*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DestinationOrderQosPolicy {
     pub kind: DestinationOrderQosPolicyKind,
@@ -772,30 +721,31 @@ impl QosPolicy for DestinationOrderQosPolicyKind {
 impl Default for DestinationOrderQosPolicy {
     fn default() -> Self {
         Self {
-            kind: DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS,
+            kind: DestinationOrderQosPolicyKind::ByReceptionTimestamp,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HistoryQosPolicyKind {
-    KeepLastHistoryQoS,
-    KeepAllHistoryQos,
+    KeepLast,
+    KeepAll,
 }
 
-/// 1. This policy controls the behavior of the Service when the value of an instance changes before it is finally
-/// communicated to some of its existing DataReader entities.
-/// 2. If the kind is set to KEEP_LAST, then the Service will only attempt to keep the latest values of the instance and
+/// This policy controls the behavior of the Service when the value of an instance changes before it is finally
+/// communicated to some of its existing [`DataReader`](crate::subscription::data_reader::DataReader) entities.
+///
+/// If the kind is set to [`HistoryQosPolicyKind::KeepLast`], then the Service will only attempt to keep the latest values of the instance and
 /// discard the older ones. In this case, the value of depth regulates the maximum number of values (up to and including
 /// the most current one) the Service will maintain and deliver. The default (and most common setting) for depth is one,
 /// indicating that only the most recent value should be delivered.
-/// 3. If the kind is set to KEEP_ALL, then the Service will attempt to maintain and deliver all the values of the instance to
+/// If the kind is set to [`HistoryQosPolicyKind::KeepAll`], then the Service will attempt to maintain and deliver all the values of the instance to
 /// existing subscribers. The resources that the Service can use to keep this history are limited by the settings of the
-/// RESOURCE_LIMITS QoS. If the limit is reached, then the behavior of the Service will depend on the
-/// RELIABILITY QoS. If the reliability kind is BEST_EFFORT, then the old values will be discarded. If reliability is
-/// RELIABLE, then the Service will block the DataWriter until it can deliver the necessary old values to all subscribers.
-/// The setting of HISTORY depth must be consistent with the RESOURCE_LIMITS max_samples_per_instance. For these two
-/// QoS to be consistent, they must verify that depth <= max_samples_per_instance.
+/// [`ResourceLimitsQosPolicy`]. If the limit is reached, then the behavior of the Service will depend on the
+/// [`ReliabilityQosPolicy`]. If the reliability kind is [`ReliabilityQosPolicyKind::BestEffort`], then the old values will be discarded. If reliability is
+/// [`ReliabilityQosPolicyKind::Reliable`], then the Service will block the [`DataWriter`](crate::publication::data_writer::DataWriter) until it can deliver the necessary old values to all subscribers.
+/// The setting of [`HistoryQosPolicy`] depth must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`]. For these two
+/// QoS to be consistent, they must verify that *depth <= max_samples_per_instance*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HistoryQosPolicy {
     pub kind: HistoryQosPolicyKind,
@@ -811,7 +761,7 @@ impl QosPolicy for HistoryQosPolicy {
 impl Default for HistoryQosPolicy {
     fn default() -> Self {
         Self {
-            kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+            kind: HistoryQosPolicyKind::KeepLast,
             depth: 1,
         }
     }
@@ -819,20 +769,23 @@ impl Default for HistoryQosPolicy {
 
 /// This policy controls the resources that the Service can use in order to meet the requirements imposed by the application and
 /// other QoS settings.
-/// If the DataWriter objects are communicating samples faster than they are ultimately taken by the DataReader objects, the
+///
+/// If the [`DataWriter`](crate::publication::data_writer::DataWriter) objects are communicating samples faster than they are ultimately
+/// taken by the [`DataReader`](crate::subscription::data_reader::DataReader) objects, the
 /// middleware will eventually hit against some of the QoS-imposed resource limits. Note that this may occur when just a single
-/// DataReader cannot keep up with its corresponding DataWriter. The behavior in this case depends on the setting for the
-/// RELIABILITY QoS. If reliability is BEST_EFFORT then the Service is allowed to drop samples. If the reliability is
-/// RELIABLE, the Service will block the DataWriter or discard the sample at the DataReader in order not to lose existing
-/// samples.
-/// The constant LENGTH_UNLIMITED may be used to indicate the absence of a particular limit. For example setting
-/// max_samples_per_instance to LENGH_UNLIMITED will cause the middleware to not enforce this particular limit.
-/// The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
-/// values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-/// The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
-/// QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-/// An attempt to set this policy to inconsistent values when an entity is created of via a set_qos operation will cause the operation
-/// to fail.
+/// [`DataReader`](crate::subscription::data_reader::DataReader) cannot keep up with its corresponding [`DataWriter`](crate::publication::data_writer::DataWriter).
+/// The behavior in this case depends on the setting for the [`ReliabilityQosPolicy`].
+/// If reliability is [`ReliabilityQosPolicyKind::BestEffort`] then the Service is allowed to drop samples. If the reliability is
+/// [`ReliabilityQosPolicyKind::Reliable`], the Service will block the DataWriter or discard the sample at the
+/// [`DataReader`](crate::subscription::data_reader::DataReader) in order not to lose existing samples.
+/// The constant [`LENGTH_UNLIMITED`] may be used to indicate the absence of a particular limit. For example setting
+/// [`ResourceLimitsQosPolicy::max_samples_per_instance`] to [`LENGTH_UNLIMITED`] will cause the middleware to not enforce
+/// this particular limit.
+/// The setting of [`ResourceLimitsQosPolicy::max_samples`] must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`].
+/// For these two values to be consistent they must verify that *max_samples >= max_samples_per_instance*.
+/// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
+/// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
+/// that *[`HistoryQosPolicy::depth`] <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResourceLimitsQosPolicy {
     pub max_samples: i32,
@@ -868,15 +821,16 @@ impl ResourceLimitsQosPolicy {
 }
 
 /// This policy controls the behavior of the Entity as a factory for other entities.
+///
 /// This policy concerns only DomainParticipant (as factory for Publisher, Subscriber, and Topic), Publisher (as factory for
 /// DataWriter), and Subscriber (as factory for DataReader).
 /// This policy is mutable. A change in the policy affects only the entities created after the change; not the previously created
 /// entities.
-/// The setting of autoenable_created_entities to TRUE indicates that the factory create_<entity> operation will automatically
-/// invoke the enable operation each time a new Entity is created. Therefore, the Entity returned by create_<entity> will already
-/// be enabled. A setting of FALSE indicates that the Entity will not be automatically enabled. The application will need to enable
-/// it explicitly by means of the enable operation (see 2.2.2.1.1.7).
-/// The default setting of autoenable_created_entities = TRUE means that, by default, it is not necessary to explicitly call enable
+/// The setting of `autoenable_created_entities` to [`true`] indicates that the factory `create_<entity>` operation will automatically
+/// invoke the enable operation each time a new Entity is created. Therefore, the Entity returned by `create_...` will already
+/// be enabled. A setting of [`false`] indicates that the Entity will not be automatically enabled. The application will need to enable
+/// it explicitly by means of the `enable()` operation.
+/// The default setting of `autoenable_created_entities` is [`true`] which means that, by default, it is not necessary to explicitly call `enable()`
 /// on newly created entities.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct EntityFactoryQosPolicy {
@@ -897,22 +851,22 @@ impl Default for EntityFactoryQosPolicy {
     }
 }
 
-/// This policy controls the behavior of the DataWriter with regards to the lifecycle of the data-instances it manages, that is, the
-/// data-instances that have been either explicitly registered with the DataWriter using the register operations (see 2.2.2.4.2.5 and
-///     2.2.2.4.2.6) or implicitly by directly writing the data (see 2.2.2.4.2.11 and 2.2.2.4.2.12).
-///     The autodispose_unregistered_instances flag controls the behavior when the DataWriter unregisters an instance by means of
-///     the unregister operations (see 2.2.2.4.2.7 and 2.2.2.4.2.8):
-///     • The setting ‘autodispose_unregistered_instances = TRUE’ causes the DataWriter to dispose the instance each time it
-///     is unregistered. The behavior is identical to explicitly calling one of the dispose operations (2.2.2.4.2.13 and
-///     2.2.2.4.2.14) on the instance prior to calling the unregister operation.
-///     • The setting ‘autodispose_unregistered_instances = FALSE’ will not cause this automatic disposition upon
-///     unregistering. The application can still call one of the dispose operations prior to unregistering the instance and
-///     accomplish the same effect. Refer to 2.2.3.23.3 for a description of the consequences of disposing and unregistering
-///     instances.
-/// Note that the deletion of a DataWriter automatically unregisters all data-instances it manages (2.2.2.4.1.6). Therefore the
-/// setting of the autodispose_unregistered_instances flag will determine whether instances are ultimately disposed when the
-/// DataWriter is deleted either directly by means of the Publisher::delete_datawriter operation or indirectly as a consequence of
-/// calling delete_contained_entities on the Publisher or the DomainParticipant that contains the DataWriter.
+/// This policy controls the behavior of the [`DataWriter`](crate::publication::data_writer::DataWriter) with regards to the lifecycle
+/// of the data-instances it manages, that is, the data-instances that have been either explicitly registered with the
+/// [`DataWriter::register`](crate::publication::data_writer::DataWriter) or implicitly by using [`DataWriter::write`](crate::publication::data_writer::DataWriter)
+///
+/// The [`WriterDataLifecycleQosPolicy::autodispose_unregistered_instances`] flag controls the behavior when the
+/// DataWriter unregisters an instance by means of the [`DataWriter::unregister_instance`](crate::publication::data_writer::DataWriter) operations:
+/// - The setting [`WriterDataLifecycleQosPolicy::autodispose_unregistered_instances`] = [`true`] causes the [`DataWriter::unregister_instance`](crate::publication::data_writer::DataWriter)
+///   to dispose the instance each time it is unregistered.
+///   The behavior is identical to explicitly calling one of the [`DataWriter::dispose`](crate::publication::data_writer::DataWriter) operations on the
+///   instance prior to calling the unregister operation.
+/// - The setting [`WriterDataLifecycleQosPolicy::autodispose_unregistered_instances`] = [`false`]  will not cause this automatic disposition upon unregistering.
+///   The application can still call one of the dispose operations prior to unregistering the instance and accomplish the same effect.
+///
+/// Note that the deletion of a [`DataWriter`](crate::publication::data_writer::DataWriter) automatically unregisters all data-instances it manages.
+/// Therefore the setting of the [`WriterDataLifecycleQosPolicy::autodispose_unregistered_instances`] flag will determine whether instances are ultimately disposed when the
+/// [`DataWriter`](crate::publication::data_writer::DataWriter) is deleted.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterDataLifecycleQosPolicy {
     pub autodispose_unregistered_instances: bool,
@@ -932,24 +886,25 @@ impl Default for WriterDataLifecycleQosPolicy {
     }
 }
 
-/// This policy controls the behavior of the DataReader with regards to the lifecycle of the data-instances it manages, that is, the
-/// data-instances that have been received and for which the DataReader maintains some internal resources.
-/// The DataReader internally maintains the samples that have not been taken by the application, subject to the constraints
-/// imposed by other QoS policies such as HISTORY and RESOURCE_LIMITS.
-/// The DataReader also maintains information regarding the identity, view_state and instance_state of data-instances even after
-/// all samples have been ‘taken.’ This is needed to properly compute the states when future samples arrive.
-/// Under normal circumstances the DataReader can only reclaim all resources for instances for which there are no writers and for
-/// which all samples have been ‘taken.’ The last sample the DataReader will have taken for that instance will have an
-/// instance_state of either NOT_ALIVE_NO_WRITERS or NOT_ALIVE_DISPOSED depending on whether the last writer
-/// that had ownership of the instance disposed it or not. Refer to Figure 2.11for a statechart describing the transitions possible for
-/// the instance_state. In the absence of the READER_DATA_LIFECYCLE QoS this behavior could cause problems if the
-/// application “forgets” to ‘take’ those samples. The ‘untaken’ samples will prevent the DataReader from reclaiming the
-/// resources and they would remain in the DataReader indefinitely.
-/// The autopurge_nowriter_samples_delay defines the maximum duration for which the DataReader will maintain information
-/// regarding an instance once its instance_state becomes NOT_ALIVE_NO_WRITERS. After this time elapses, the DataReader
+/// This policy controls the behavior of the [`DataReader`](crate::subscription::data_reader::DataReader) with regards to the lifecycle of the data-instances it manages, that is, the
+/// data-instances that have been received and for which the [`DataReader`](crate::subscription::data_reader::DataReader) maintains some internal resources.
+///
+/// The [`DataReader`](crate::subscription::data_reader::DataReader) internally maintains the samples that have not been taken by the application, subject to the constraints
+/// imposed by other QoS policies such as [`HistoryQosPolicy`] and [`ResourceLimitsQosPolicy`].
+/// The [`DataReader`](crate::subscription::data_reader::DataReader) also maintains information regarding the identity, view_state and instance_state
+/// of data-instances even after all samples have been ‘taken.’ This is needed to properly compute the states when future samples arrive.
+/// Under normal circumstances the [`DataReader`](crate::subscription::data_reader::DataReader) can only reclaim all resources for instances for which there are no writers and for
+/// which all samples have been ‘taken’. The last sample the [`DataReader`](crate::subscription::data_reader::DataReader) will have taken for that instance will have an
+/// `instance_state` of either [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind) or
+/// [`InstanceStateKind::NotAliveDisposed`](crate::subscription::sample_info::InstanceStateKind) depending on whether the last writer
+/// that had ownership of the instance disposed it or not.  In the absence of the [`ReaderDataLifecycleQosPolicy`] this behavior could cause problems if the
+/// application “forgets” to ‘take’ those samples. The ‘untaken’ samples will prevent the [`DataReader`](crate::subscription::data_reader::DataReader) from reclaiming the
+/// resources and they would remain in the [`DataReader`](crate::subscription::data_reader::DataReader) indefinitely.
+/// The [`ReaderDataLifecycleQosPolicy::autopurge_nowriter_samples_delay`] defines the maximum duration for which the [`DataReader`](crate::subscription::data_reader::DataReader) will maintain information
+/// regarding an instance once its `instance_state` becomes [`InstanceStateKind::NotAliveNoWriters`](crate::subscription::sample_info::InstanceStateKind). After this time elapses, the [`DataReader`](crate::subscription::data_reader::DataReader)
 /// will purge all internal information regarding the instance, any untaken samples will also be lost.
-/// The autopurge_disposed_samples_delay defines the maximum duration for which the DataReader will maintain samples for
-/// an instance once its instance_state becomes NOT_ALIVE_DISPOSED. After this time elapses, the DataReader will purge all
+/// The [`ReaderDataLifecycleQosPolicy::autopurge_disposed_samples_delay`] defines the maximum duration for which the [`DataReader`](crate::subscription::data_reader::DataReader) will maintain samples for
+/// an instance once its `instance_state` becomes [`InstanceStateKind::NotAliveDisposed`](crate::subscription::sample_info::InstanceStateKind). After this time elapses, the [`DataReader`](crate::subscription::data_reader::DataReader) will purge all
 /// samples for the instance.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderDataLifecycleQosPolicy {
@@ -972,194 +927,108 @@ impl Default for ReaderDataLifecycleQosPolicy {
     }
 }
 
-/// This policy is used to configure the HISTORY QoS and the RESOURCE_LIMITS QoS used by the fictitious DataReader and
-/// DataWriter used by the “persistence service.” The “persistence service” is the one responsible for implementing the
-/// DURABILITY kinds TRANSIENT and PERSISTENCE (see 2.2.3.4).
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DurabilityServiceQosPolicy {
-    pub service_cleanup_delay: Duration,
-    pub history_kind: HistoryQosPolicyKind,
-    pub history_depth: i32,
-    pub max_samples: i32,
-    pub max_instances: i32,
-    pub max_samples_per_instance: i32,
-}
-
-impl QosPolicy for DurabilityServiceQosPolicy {
-    fn name(&self) -> &str {
-        DURABILITYSERVICE_POLICY_NAME
-    }
-}
-
-impl Default for DurabilityServiceQosPolicy {
-    fn default() -> Self {
-        Self {
-            service_cleanup_delay: DURATION_ZERO,
-            history_kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
-            history_depth: 1,
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: LENGTH_UNLIMITED,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn durability_qos_policy_kind_ordering() {
-        assert!(
-            DurabilityQosPolicyKind::VolatileDurabilityQoS
-                < DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
+        assert!(DurabilityQosPolicyKind::Volatile < DurabilityQosPolicyKind::TransientLocal);
 
-        assert!(
-            DurabilityQosPolicyKind::VolatileDurabilityQoS
-                == DurabilityQosPolicyKind::VolatileDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::VolatileDurabilityQoS
-                < DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
+        assert!(DurabilityQosPolicyKind::Volatile == DurabilityQosPolicyKind::Volatile);
+        assert!(DurabilityQosPolicyKind::Volatile < DurabilityQosPolicyKind::TransientLocal);
 
-        assert!(
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-                > DurabilityQosPolicyKind::VolatileDurabilityQoS
-        );
-        assert!(
-            DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-                == DurabilityQosPolicyKind::TransientLocalDurabilityQoS
-        );
+        assert!(DurabilityQosPolicyKind::TransientLocal > DurabilityQosPolicyKind::Volatile);
+        assert!(DurabilityQosPolicyKind::TransientLocal == DurabilityQosPolicyKind::TransientLocal);
     }
 
     #[test]
     fn presentation_qos_policy_access_scope_kind_ordering() {
         assert!(
-            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
-                < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
+            PresentationQosPolicyAccessScopeKind::Instance
+                < PresentationQosPolicyAccessScopeKind::Topic
         );
 
         assert!(
-            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
-                == PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
+            PresentationQosPolicyAccessScopeKind::Instance
+                == PresentationQosPolicyAccessScopeKind::Instance
         );
         assert!(
-            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
-                < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
+            PresentationQosPolicyAccessScopeKind::Instance
+                < PresentationQosPolicyAccessScopeKind::Topic
         );
 
         assert!(
-            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-                > PresentationQosPolicyAccessScopeKind::InstancePresentationQoS
+            PresentationQosPolicyAccessScopeKind::Topic
+                > PresentationQosPolicyAccessScopeKind::Instance
         );
         assert!(
-            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
-                == PresentationQosPolicyAccessScopeKind::TopicPresentationQoS
+            PresentationQosPolicyAccessScopeKind::Topic
+                == PresentationQosPolicyAccessScopeKind::Topic
         );
     }
 
     #[test]
     fn liveliness_qos_policy_kind_ordering() {
+        assert!(LivelinessQosPolicyKind::Automatic < LivelinessQosPolicyKind::ManualByParticipant);
         assert!(
-            LivelinessQosPolicyKind::AutomaticLivelinessQoS
-                < LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-        );
-        assert!(
-            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-                < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
+            LivelinessQosPolicyKind::ManualByParticipant < LivelinessQosPolicyKind::ManualByTopic
         );
 
+        assert!(LivelinessQosPolicyKind::Automatic == LivelinessQosPolicyKind::Automatic);
+        assert!(LivelinessQosPolicyKind::Automatic < LivelinessQosPolicyKind::ManualByParticipant);
+        assert!(LivelinessQosPolicyKind::Automatic < LivelinessQosPolicyKind::ManualByTopic);
+
+        assert!(LivelinessQosPolicyKind::ManualByParticipant > LivelinessQosPolicyKind::Automatic);
         assert!(
-            LivelinessQosPolicyKind::AutomaticLivelinessQoS
-                == LivelinessQosPolicyKind::AutomaticLivelinessQoS
+            LivelinessQosPolicyKind::ManualByParticipant
+                == LivelinessQosPolicyKind::ManualByParticipant
         );
         assert!(
-            LivelinessQosPolicyKind::AutomaticLivelinessQoS
-                < LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-        );
-        assert!(
-            LivelinessQosPolicyKind::AutomaticLivelinessQoS
-                < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
+            LivelinessQosPolicyKind::ManualByParticipant < LivelinessQosPolicyKind::ManualByTopic
         );
 
+        assert!(LivelinessQosPolicyKind::ManualByTopic > LivelinessQosPolicyKind::Automatic);
         assert!(
-            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-                > LivelinessQosPolicyKind::AutomaticLivelinessQoS
+            LivelinessQosPolicyKind::ManualByTopic > LivelinessQosPolicyKind::ManualByParticipant
         );
-        assert!(
-            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-                == LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-        );
-        assert!(
-            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-                < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
-        );
-
-        assert!(
-            LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
-                > LivelinessQosPolicyKind::AutomaticLivelinessQoS
-        );
-        assert!(
-            LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
-                > LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS
-        );
-        assert!(
-            LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
-                == LivelinessQosPolicyKind::ManualByTopicLivelinessQoS
-        );
+        assert!(LivelinessQosPolicyKind::ManualByTopic == LivelinessQosPolicyKind::ManualByTopic);
     }
 
     #[test]
     fn reliability_qos_policy_kind_ordering() {
-        assert!(
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos
-                < ReliabilityQosPolicyKind::ReliableReliabilityQos
-        );
+        assert!(ReliabilityQosPolicyKind::BestEffort < ReliabilityQosPolicyKind::Reliable);
 
-        assert!(
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos
-                == ReliabilityQosPolicyKind::BestEffortReliabilityQos
-        );
-        assert!(
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos
-                < ReliabilityQosPolicyKind::ReliableReliabilityQos
-        );
+        assert!(ReliabilityQosPolicyKind::BestEffort == ReliabilityQosPolicyKind::BestEffort);
+        assert!(ReliabilityQosPolicyKind::BestEffort < ReliabilityQosPolicyKind::Reliable);
 
-        assert!(
-            ReliabilityQosPolicyKind::ReliableReliabilityQos
-                > ReliabilityQosPolicyKind::BestEffortReliabilityQos
-        );
-        assert!(
-            ReliabilityQosPolicyKind::ReliableReliabilityQos
-                == ReliabilityQosPolicyKind::ReliableReliabilityQos
-        );
+        assert!(ReliabilityQosPolicyKind::Reliable > ReliabilityQosPolicyKind::BestEffort);
+        assert!(ReliabilityQosPolicyKind::Reliable == ReliabilityQosPolicyKind::Reliable);
     }
 
     #[test]
     fn destination_order_qos_policy_kind_ordering() {
         assert!(
-            DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
-                < DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp
+                < DestinationOrderQosPolicyKind::BySourceTimestamp
         );
 
         assert!(
-            DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
-                == DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp
+                == DestinationOrderQosPolicyKind::ByReceptionTimestamp
         );
         assert!(
-            DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
-                < DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+            DestinationOrderQosPolicyKind::ByReceptionTimestamp
+                < DestinationOrderQosPolicyKind::BySourceTimestamp
         );
 
         assert!(
-            DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
-                > DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
+            DestinationOrderQosPolicyKind::BySourceTimestamp
+                > DestinationOrderQosPolicyKind::ByReceptionTimestamp
         );
         assert!(
-            DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
-                == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+            DestinationOrderQosPolicyKind::BySourceTimestamp
+                == DestinationOrderQosPolicyKind::BySourceTimestamp
         );
     }
 

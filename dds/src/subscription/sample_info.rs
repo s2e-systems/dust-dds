@@ -1,81 +1,91 @@
 use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
-// Sample states to support reads
+/// Enumeration of the possible sample states
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SampleStateKind {
+    /// This value indicates that the sample has already been access by means of a read operation.
     Read,
+    /// This value indicates that the sample has not been accessed before.
     NotRead,
 }
 
+/// Special constant containing a list of all the sample states.
 pub const ANY_SAMPLE_STATE: &[SampleStateKind] = &[SampleStateKind::Read, SampleStateKind::NotRead];
 
-// View states to support reads
+/// Enumeration of the possible sample view states
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ViewStateKind {
+    /// This value indicates that either this is the first time that the reader has ever accessed samples of that instance, or else
+    /// that the reader has accessed previous samples of the instance, but the instance has since been reborn (i.e., become
+    /// not-alive and then alive again). These two cases are distinguished by examining the [`SampleInfo::disposed_generation_count`] and
+    /// [`SampleInfo::no_writers_generation_count`].
     New,
+    /// This value indicates that the reader has already accessed samples of the same instance and that the instance has not been reborn since.
     NotNew,
 }
 
+/// Special constant containing a list of all the view states.
 pub const ANY_VIEW_STATE: &[ViewStateKind] = &[ViewStateKind::New, ViewStateKind::NotNew];
 
-// Instance states to support reads
+// Enumeration of the possible instance states
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum InstanceStateKind {
+    /// This value indicates that  (a) samples have been received for the instance, (b) there are live [`DataWriter`](crate::publication::data_writer::DataWriter)
+    /// entities writing the instance, and (c) the instance has not been explicitly disposed (or else more samples have been received after it was disposed).
     Alive,
+    /// This value indicates the instance was explicitly disposed by means of the [`DataWriter::dispose`](crate::publication::data_writer::DataWriter) operation.
     NotAliveDisposed,
-    NotAliveUnregistered,
+    /// This value indicates the instance has been declared as not-alive by the DataReader because it
+    /// detected that there are no live [`DataWriter`](crate::publication::data_writer::DataWriter) entities writing that instance.
+    NotAliveNoWriters,
 }
 
-// This is a bit-mask InstanceStateKind
+/// Special constant containing a list of all the instance states.
 pub const ANY_INSTANCE_STATE: &[InstanceStateKind] = &[
     InstanceStateKind::Alive,
     InstanceStateKind::NotAliveDisposed,
-    InstanceStateKind::NotAliveUnregistered,
+    InstanceStateKind::NotAliveNoWriters,
 ];
 
+/// Special constant containing a list of all the *not alive* instance states.
 pub const NOT_ALIVE_INSTANCE_STATE: &[InstanceStateKind] = &[
     InstanceStateKind::NotAliveDisposed,
-    InstanceStateKind::NotAliveUnregistered,
+    InstanceStateKind::NotAliveNoWriters,
 ];
 
+/// The [`SampleInfo`] contains the information associated with each received data value.
 pub struct SampleInfo {
-    /// The sample_state (READ or NOT_READ) - indicates whether or not the corresponding data sample has already been read.
+    /// This field indicates whether or not the corresponding data sample has already been read.
     pub sample_state: SampleStateKind,
-    /// The view_state, (NEW, or NOT_NEW) - indicates whether the DataReader has already seen samples for the most current generation of the related instance
+    /// This field indicates whether the [`DataReader`](crate::subscription::data_reader::DataReader) has already seen
+    /// samples for the most current generation of the related instance.
     pub view_state: ViewStateKind,
-    /// The instance_state (ALIVE, NOT_ALIVE_DISPOSED, or NOT_ALIVE_NO_WRITERS) - indicates whether the
-    /// instance is currently in existence or, if it has been disposed, the reason why it was disposed.
-    /// • ALIVE if this instance is currently in existence.
-    /// • NOT_ALIVE_DISPOSED if this instance was disposed by the a DataWriter.
-    /// • NOT_ALIVE_NO_WRITERS if the instance has been disposed by the DataReader because none of the
-    /// DataWriter objects currently “alive” (according to the LIVELINESS QoS) are writing the instance.
+    /// The field indicates whether the instance is currently in existence or, if it has been disposed, the reason why it was disposed..
     pub instance_state: InstanceStateKind,
-    /// The disposed_generation_count that indicates the number of times the instance had become alive after it was disposed
-    /// explicitly by a DataWriter, at the time the sample was received.
+    /// This field indicates the number of times the instance had become alive after it was disposed
+    /// explicitly by a [`DataWriter`](crate::publication::data_writer::DataWriter), at the time the sample was received.
     pub disposed_generation_count: i32,
-    /// The no_writers_generation_count that indicates the number of times the instance had become alive after it was
-    /// disposed because there were no writers, at the time the sample was received.
+    /// This field indicates the number of times the instance had become alive after it was disposed because there
+    /// were no writers, at the time the sample was received.
     pub no_writers_generation_count: i32,
-    /// The sample_rank that indicates the number of samples related to the same instance that follow in the collection
-    /// returned by read or take.
+    /// This field indicates the number of samples related to the same instance that follow in the returned collection.
     pub sample_rank: i32,
-    /// The generation_rank that indicates the generation difference (number of times the instance was disposed and become
+    /// This field indicates the generation difference (number of times the instance was disposed and become
     /// alive again) between the time the sample was received, and the time the most recent sample in the collection related to
     /// the same instance was received.
     pub generation_rank: i32,
-    /// The absolute_generation_rank that indicates the generation difference (number of times the instance was disposed and
+    /// This field indicates the generation difference (number of times the instance was disposed and
     /// become alive again) between the time the sample was received, and the time the most recent sample (which may not be
     /// in the returned collection) related to the same instance was received.
     pub absolute_generation_rank: i32,
-    /// the source_timestamp that indicates the time provided by the DataWriter when the sample was written.
+    /// This field indicates the time provided by the [`DataWriter`](crate::publication::data_writer::DataWriter) when the sample was written.
     pub source_timestamp: Option<Time>,
-    /// the instance_handle that identifies locally the corresponding instance
+    /// This field indicated the [`InstanceHandle`] that identifies locally the corresponding instance.
     pub instance_handle: InstanceHandle,
-    /// the publication_handle that identifies locally the DataWriter that modified the instance. The publication_handle is the
-    /// same InstanceHandle_t that is returned by the operation get_matched_publications on the DataReader and can also
-    /// be used as a parameter to the DataReader operation get_matched_publication_data.
+    /// This field indicated the local identification of the [`DataWriter`](crate::publication::data_writer::DataWriter) that modified the instance.
+    /// This handle is the same [`InstanceHandle`] that is returned by the operation [`DataReader::get_matched_publications`](crate::subscription::data_reader::DataReader)
+    /// and can also be used as a parameter to the [`DataReader::get_matched_publication_data`](crate::subscription::data_reader::DataReader) operation.
     pub publication_handle: InstanceHandle,
-    /// the valid_data flag that indicates whether the DataSample contains data or else it is only used to communicate of a
-    /// change in the instance_state of the instance.
+    /// This field indicates whether the sample contains data or if it is only used to communicate of a change in the [`SampleInfo::instance_state`] of the instance.
     pub valid_data: bool,
 }

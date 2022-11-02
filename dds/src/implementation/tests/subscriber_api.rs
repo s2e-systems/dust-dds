@@ -5,7 +5,7 @@ use crate::implementation::dds_impl::domain_participant_impl::DomainParticipantI
 use crate::implementation::rtps::participant::RtpsParticipant;
 use crate::implementation::rtps::types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E};
 use crate::infrastructure::error::{DdsError, DdsResult};
-use crate::infrastructure::qos::{DomainParticipantQos, Qos};
+use crate::infrastructure::qos::{DomainParticipantQos, QosKind};
 use crate::infrastructure::status::NO_STATUS;
 use crate::topic_definition::type_support::{DdsDeserialize, DdsType};
 
@@ -57,16 +57,16 @@ fn create_and_delete_datareader_succeeds() {
     );
 
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_reader = subscriber
         .create_datareader::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -96,19 +96,19 @@ fn delete_datareader_from_other_subscriber_returns_error() {
     );
 
     let subscriber1 = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let subscriber2 = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_reader = subscriber1
         .create_datareader::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -140,10 +140,10 @@ fn lookup_datareader_without_readers_created() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert!(subscriber.lookup_datareader::<Foo>(&topic).is_err());
@@ -168,16 +168,16 @@ fn lookup_datareader_with_one_datareader_created() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = domain_participant
-        .create_topic::<Foo>("topic", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_reader = subscriber
         .create_datareader::<Foo>(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -206,19 +206,19 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     subscriber
         .create_datareader::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -247,19 +247,19 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     subscriber
         .create_datareader::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -288,19 +288,19 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_foo = domain_participant
-        .create_topic::<Foo>("topic_foo", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic_foo", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic_bar = domain_participant
-        .create_topic::<Bar>("topic_bar", Qos::Default, None, NO_STATUS)
+        .create_topic::<Bar>("topic_bar", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_reader_foo = subscriber
         .create_datareader::<Foo>(
             &topic_foo,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -309,7 +309,7 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
     let data_reader_bar = subscriber
         .create_datareader::<Bar>(
             &topic_bar,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -340,19 +340,19 @@ fn lookup_datareader_with_two_datareaders_with_different_topics() {
         Arc::new(Condvar::new()),
     );
     let subscriber = domain_participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic1 = domain_participant
-        .create_topic::<Foo>("topic1", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic1", QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic2 = domain_participant
-        .create_topic::<Foo>("topic2", Qos::Default, None, NO_STATUS)
+        .create_topic::<Foo>("topic2", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let data_reader1 = subscriber
         .create_datareader::<Foo>(
             &topic1,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,
@@ -361,7 +361,7 @@ fn lookup_datareader_with_two_datareaders_with_different_topics() {
     let data_reader2 = subscriber
         .create_datareader::<Foo>(
             &topic2,
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
             &domain_participant,

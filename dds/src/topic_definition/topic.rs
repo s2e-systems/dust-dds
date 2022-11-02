@@ -10,7 +10,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{Qos, TopicQos},
+        qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
 };
@@ -70,30 +70,28 @@ impl<Foo> Topic<Foo> {
     }
 }
 
-/// This implementation block represents the Entity operations for the [`Topic`].
+/// This implementation block contains the Entity operations for the [`Topic`].
 impl<Foo> Topic<Foo>
 where
     Foo: 'static,
 {
-    /// This operation is used to set the QoS policies of the Entity and replacing
-    /// the values of any policies previously set. Certain policies are “immutable;” they can only be set at
-    /// Entity creation time, or before the entity is made enabled. If [`Self::set_qos()`] is invoked after
-    /// the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
-    /// fail and returns IMMUTABLE_POLICY.
-    /// Certain values of QoS policies can be incompatible with the settings of the
-    /// other policies. This operation will also fail if it specifies a set of values that once combined with the existing values
-    /// would result in an inconsistent set of policies. In this case, the return value is INCONSISTENT_POLICY.
+    /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
+    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
+    /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
+    /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
+    /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The [`Topic`] has a corresponding special value of the QoS TOPIC_QOS_DEFAULT which may be used as a parameter
-    /// to the [`Self::set_qos()`] operation to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.topic_attributes.upgrade()?.set_qos(qos)
     }
 
-    /// This operation allows access to the existing set of QoS policies for the [`Topic`].
+    /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
         self.topic_attributes.upgrade()?.get_qos()
     }

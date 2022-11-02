@@ -8,7 +8,7 @@ use crate::implementation::rtps::types::{
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::Qos;
+use crate::infrastructure::qos::QosKind;
 use crate::infrastructure::status::{SampleLostStatus, StatusKind};
 use crate::infrastructure::time::DURATION_ZERO;
 use crate::subscription::data_reader::AnyDataReader;
@@ -81,7 +81,7 @@ impl DdsShared<SubscriberImpl> {
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
-        qos: Qos<DataReaderQos>,
+        qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
@@ -111,8 +111,8 @@ impl DdsShared<SubscriberImpl> {
         // /////// Create data reader
         let data_reader_shared = {
             let qos = match qos {
-                Qos::Default => self.default_data_reader_qos.clone(),
-                Qos::Specific(q) => q,
+                QosKind::Default => self.default_data_reader_qos.clone(),
+                QosKind::Specific(q) => q,
             };
             qos.is_consistent()?;
 
@@ -239,7 +239,7 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DdsResult<()> {
+    pub fn get_sample_lost_status(&self ) -> DdsResult<SampleLostStatus> {
         todo!()
     }
 
@@ -251,7 +251,7 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn set_default_datareader_qos(&self, _qos: Qos<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_default_datareader_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -269,10 +269,10 @@ impl DdsShared<SubscriberImpl> {
 }
 
 impl DdsShared<SubscriberImpl> {
-    pub fn set_qos(&self, qos: Qos<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         if *self.enabled.read_lock() {

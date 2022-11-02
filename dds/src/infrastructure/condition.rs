@@ -40,7 +40,7 @@ impl StatusCondition {
     }
 }
 
-/// This implementation block represents the Condition operations for the [`StatusCondition`].
+/// This implementation block contains the Condition operations for the [`StatusCondition`].
 impl StatusCondition {
     /// This operation retrieves the *trigger_value* of the [`StatusCondition`].
     pub fn get_trigger_value(&self) -> bool {

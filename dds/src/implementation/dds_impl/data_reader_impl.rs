@@ -41,13 +41,14 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::Qos,
+        qos::QosKind,
         qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
+        time::Duration,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
@@ -345,7 +346,7 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                             stateful_rtps_reader.matched_writer_lookup(writer_guid)
                         {
                             match reliability_kind {
-                                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                                ReliabilityQosPolicyKind::BestEffort => {
                                     let expected_seq_num = writer_proxy.available_changes_max() + 1;
                                     if sequence_number >= expected_seq_num {
                                         writer_proxy.received_change_set(sequence_number);
@@ -361,7 +362,7 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
                                             );
                                     }
                                 }
-                                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                                ReliabilityQosPolicyKind::Reliable => {
                                     writer_proxy
                                         .received_change_set(data_submessage.writer_sn.value);
                                     stateful_rtps_reader
@@ -609,7 +610,7 @@ where
             .collect::<DdsResult<Vec<_>>>()?;
 
         if rtps_reader.reader().get_qos().destination_order.kind
-            == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+            == DestinationOrderQosPolicyKind::BySourceTimestamp
         {
             samples.sort_by(|a, b| {
                 a.sample_info
@@ -690,7 +691,7 @@ where
             .remove_change(|x| to_delete.contains(&x.sequence_number()));
 
         if rtps_reader.reader().get_qos().destination_order.kind
-            == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS
+            == DestinationOrderQosPolicyKind::BySourceTimestamp
         {
             samples.sort_by(|a, b| {
                 a.sample_info
@@ -710,11 +711,7 @@ where
         Ok(samples)
     }
 
-    pub fn read_next_sample<Foo>(
-        &self,
-        _data_value: &mut [Foo],
-        _sample_info: &mut [SampleInfo],
-    ) -> DdsResult<()> {
+    pub fn read_next_sample<Foo>(&self) -> DdsResult<Sample<Foo>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -722,11 +719,7 @@ where
         todo!()
     }
 
-    pub fn take_next_sample<Foo>(
-        &self,
-        _data_value: &mut [Foo],
-        _sample_info: &mut [SampleInfo],
-    ) -> DdsResult<()> {
+    pub fn take_next_sample<Foo>(&self) -> DdsResult<Sample<Foo>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -734,17 +727,14 @@ where
         todo!()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn read_instance<Foo>(
         &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<()> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -752,17 +742,14 @@ where
         todo!()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn take_instance<Foo>(
         &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<()> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -770,17 +757,14 @@ where
         todo!()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn read_next_instance<Foo>(
         &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
-        _previous_handle: InstanceHandle,
+        _previous_handle: Option<InstanceHandle>,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<()> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -788,17 +772,14 @@ where
         todo!()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn take_next_instance<Foo>(
         &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
-        _previous_handle: InstanceHandle,
+        _previous_handle: Option<InstanceHandle>,
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<()> {
+    ) -> DdsResult<Vec<Sample<Foo>>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -830,7 +811,7 @@ where
         todo!()
     }
 
-    pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<InstanceHandle> {
+    pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
     }
 
@@ -936,7 +917,7 @@ where
         todo!()
     }
 
-    pub fn wait_for_historical_data(&self) -> DdsResult<()> {
+    pub fn wait_for_historical_data(&self, _max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -1026,10 +1007,10 @@ where
 }
 
 impl<Tim> DdsShared<DataReaderImpl<Tim>> {
-    pub fn set_qos(&self, qos: Qos<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
@@ -1186,10 +1167,10 @@ mod tests {
             qos::{SubscriberQos, TopicQos},
             qos_policy::{
                 DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy,
-                LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-                PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-                ReliabilityQosPolicyKind, TopicDataQosPolicy, UserDataQosPolicy,
+                GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
+                LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+                UserDataQosPolicy,
             },
         },
         infrastructure::{qos_policy::HistoryQosPolicyKind, time::DURATION_ZERO},
@@ -1255,7 +1236,7 @@ mod tests {
     ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                kind: HistoryQosPolicyKind::KeepAll,
                 depth: 0,
             },
             ..Default::default()
@@ -1448,7 +1429,7 @@ mod tests {
             latency_budget: LatencyBudgetQosPolicy::default(),
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                kind: ReliabilityQosPolicyKind::Reliable,
                 max_blocking_time: crate::infrastructure::time::Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),
@@ -1458,7 +1439,6 @@ mod tests {
             partition: PartitionQosPolicy::default(),
             topic_data: TopicDataQosPolicy::default(),
             group_data: GroupDataQosPolicy::default(),
-            durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {
@@ -1509,7 +1489,7 @@ mod tests {
         );
 
         let mut data_reader_qos = DataReaderQos::default();
-        data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+        data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::Reliable;
 
         let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
@@ -1536,7 +1516,7 @@ mod tests {
             latency_budget: LatencyBudgetQosPolicy::default(),
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: crate::infrastructure::time::Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),
@@ -1546,7 +1526,6 @@ mod tests {
             partition: PartitionQosPolicy::default(),
             topic_data: TopicDataQosPolicy::default(),
             group_data: GroupDataQosPolicy::default(),
-            durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
         };
         let discovered_writer_data = DiscoveredWriterData {

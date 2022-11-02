@@ -43,11 +43,16 @@ impl From<u64> for Time {
     }
 }
 
+/// Special constant value representing an infinite duration
 pub const DURATION_INFINITE: Duration = Duration {
     sec: 0x7fffffff,
     nanosec: 0x7fffffff,
 };
+
+/// Special constant value representing a zero duration
 pub const DURATION_ZERO: Duration = Duration { sec: 0, nanosec: 0 };
+
+/// Special constant value representing an invalid time
 pub const TIME_INVALID: Time = Time {
     sec: -1,
     nanosec: 0xffffffff,

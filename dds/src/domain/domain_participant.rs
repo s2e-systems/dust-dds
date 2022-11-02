@@ -7,7 +7,7 @@ use crate::{
         condition::StatusCondition,
         error::DdsResult,
         instance::InstanceHandle,
-        qos::{DomainParticipantQos, PublisherQos, Qos, SubscriberQos, TopicQos},
+        qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -76,14 +76,14 @@ impl Drop for DomainParticipant {
 impl DomainParticipant {
     /// This operation creates a [`Publisher`] with the desired QoS policies and attaches to it the specified [`PublisherListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Publisher`] will be created.
-    /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
+    /// The value [`QosKind::Default`] can be used to indicate that the Publisher should be created with the default
     /// Publisher QoS set in the factory. The use of this value is equivalent to the application obtaining the default Publisher QoS by
     /// means of the operation [`DomainParticipant::get_default_publisher_qos()`] and using the resulting QoS to create the [`Publisher`].
-    /// The created [`Publisher`] belongs to the DomainParticipant that is its factory
+    /// The created [`Publisher`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Publisher`] will be created.
     pub fn create_publisher(
         &self,
-        qos: Qos<PublisherQos>,
+        qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
@@ -95,7 +95,8 @@ impl DomainParticipant {
 
     /// This operation deletes an existing [`Publisher`].
     /// A [`Publisher`] cannot be deleted if it has any attached [`DataWriter`](crate::publication::data_writer::DataWriter) objects. If [`DomainParticipant::delete_publisher()`]
-    /// is called on a [`Publisher`] with existing DataWriter objects, it will return a PreconditionNotMet error.
+    /// is called on a [`Publisher`] with existing [`DataWriter`](crate::publication::data_writer::DataWriter) objects, it will return a
+    /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError) error.
     /// The [`DomainParticipant::delete_publisher()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Publisher`].
     /// If [`DomainParticipant::delete_publisher()`] is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// a PreconditionNotMet error.
@@ -107,15 +108,15 @@ impl DomainParticipant {
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Subscriber`] will be created.
-    /// The special value SUBSCRIBER_QOS_DEFAULT can be used to indicate that the Subscriber should be created with the
+    /// The value [`QosKind::Default`] can be used to indicate that the [`Subscriber`] should be created with the
     /// default Subscriber QoS set in the factory. The use of this value is equivalent to the application obtaining the default
     /// Subscriber QoS by means of the operation [`Self::get_default_subscriber_qos()`] and using the resulting QoS to create the
     /// [`Subscriber`].
-    /// The created [`Subscriber`] belongs to the DomainParticipant that is its factory.
+    /// The created [`Subscriber`] belongs to the [`DomainParticipant`] that is its factory.
     /// In case of failure, the operation will return an error and no [`Subscriber`] will be created.
     pub fn create_subscriber(
         &self,
-        qos: Qos<SubscriberQos>,
+        qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
@@ -127,10 +128,10 @@ impl DomainParticipant {
 
     /// This operation deletes an existing [`Subscriber`].
     /// A [`Subscriber`] cannot be deleted if it has any attached [`DataReader`](crate::subscription::data_reader::DataReader) objects. If the [`DomainParticipant::delete_subscriber()`] operation is called on a
-    /// [`Subscriber`] with existing [`DataReader`](crate::subscription::data_reader::DataReader) objects, it will return PRECONDITION_NOT_MET.
+    /// [`Subscriber`] with existing [`DataReader`](crate::subscription::data_reader::DataReader) objects, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_subscriber()`] operation must be called on the same [`DomainParticipant`] object used to create the Subscriber. If
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
-    /// PRECONDITION_NOT_MET.
+    /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
@@ -139,17 +140,17 @@ impl DomainParticipant {
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Topic`] will be created.
-    /// The special value TOPIC_QOS_DEFAULT can be used to indicate that the Topic should be created with the default Topic QoS
+    /// The value [`QosKind::Default`] can be used to indicate that the [`Topic`] should be created with the default Topic QoS
     /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
-    /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the Topic.
-    /// The created [`Topic`] belongs to the DomainParticipant that is its factory.
-    /// The Topic is bound to a type specified by the generic type parameter 'Foo'. Only types which implement
+    /// operation [`DomainParticipant::get_default_topic_qos`] and using the resulting QoS to create the [`Topic`].
+    /// The created [`Topic`] belongs to the [`DomainParticipant`] that is its factory.
+    /// The [`Topic`] is bound to a type specified by the generic type parameter 'Foo'. Only types which implement
     /// [`DdsType`] and have a `'static` lifetime can be associated to a [`Topic`].
     /// In case of failure, the operation will return an error and no [`Topic`] will be created.
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
-        qos: Qos<TopicQos>,
+        qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
@@ -166,9 +167,9 @@ impl DomainParticipant {
     /// This operation deletes a [`Topic`].
     /// The deletion of a [`Topic`] is not allowed if there are any existing [`DataReader`](crate::subscription::data_reader::DataReader) or [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects that are using the [`Topic`]. If the [`DomainParticipant::delete_topic()`] operation is called on a [`Topic`] with any of these existing objects attached to
-    /// it, it will return PRECONDITION_NOT_MET.
-    /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the Topic. If [`DomainParticipant::delete_topic()`] is
-    /// called on a different [`DomainParticipant`], the operation will have no effect and it will return PRECONDITION_NOT_MET.
+    /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
+    /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
+    /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
@@ -185,7 +186,7 @@ impl DomainParticipant {
     /// released. If a [`Topic`] is obtained multiple times by means of [`DomainParticipant::find_topic()`] or [`DomainParticipant::create_topic()`], it must also be deleted that same number
     /// of times using [`DomainParticipant::delete_topic()`].
     /// Regardless of whether the middleware chooses to propagate topics, the [`DomainParticipant::delete_topic()`] operation deletes only the local proxy.
-    /// If the operation times-out, a Timeout error is returned.
+    /// If the operation times-out, a [`DdsError::Timeout`](crate::infrastructure::error::DdsError) error is returned.
     pub fn find_topic<Foo>(&self, topic_name: &str, timeout: Duration) -> DdsResult<Topic<Foo>>
     where
         Foo: DdsType,
@@ -205,19 +206,20 @@ impl DomainParticipant {
     /// never create a new [`Topic`]. The [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`] does not require any extra
     /// deletion. It is still possible to delete the [`Topic`] returned by [`DomainParticipant::lookup_topicdescription()`], provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
-    /// If the operation fails to locate a [`Topic`], a [`None`] value is returned.
-    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<Topic<Foo>>
+    /// If the operation fails to locate a [`Topic`], the operation succeeds and a [`None`] value is returned.
+    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<Option<Topic<Foo>>>
     where
         Foo: DdsType,
     {
-        self.domain_participant_attributes
+        Ok(self
+            .domain_participant_attributes
             .upgrade()?
             .lookup_topicdescription::<Foo>(topic_name)
-            .map(|x| Topic::new(x.downgrade()))
+            .map(|x| Topic::new(x.downgrade())))
     }
 
-    /// This operation allows access to the built-in Subscriber. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
-    /// well as corresponding [`DataReader`](crate::subscription::data_reader::DataReader) objects to access them. All these [`DataReader`](crate::subscription::data_reader::DataReader) objects belong to a single built-in Subscriber.
+    /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
+    /// well as corresponding [`DataReader`](crate::subscription::data_reader::DataReader) objects to access them. All these [`DataReader`](crate::subscription::data_reader::DataReader) objects belong to a single built-in [`Subscriber`].
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
@@ -231,7 +233,7 @@ impl DomainParticipant {
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any topic,
     /// publication, or subscription that originates on that domain participant.
     /// This operation can be used, in conjunction with the discovery of remote participants offered by means of the
-    /// “DCPSParticipant” built-in Topic, to provide, for example, access control.
+    /// “DCPSParticipant” built-in [`Topic`], to provide, for example, access control.
     /// Application data can be associated with a [`DomainParticipant`] by means of the [`UserDataQosPolicy`](crate::infrastructure::qos_policy::UserDataQosPolicy).
     /// This application data is propagated as a field in the built-in topic and can be used by an application to implement its own access control policy.
     /// The domain participant to ignore is identified by the `handle` argument. This handle is the one that appears in the [`SampleInfo`](crate::subscription::sample_info::SampleInfo)
@@ -289,14 +291,14 @@ impl DomainParticipant {
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
-    /// it deletes all contained [`Publisher`], [`Subscriber`], [`Topic`].
+    /// it deletes all contained [`Publisher`], [`Subscriber`] and [`Topic`] entities.
     /// Prior to deleting each contained entity, this operation will recursively call the corresponding `delete_contained_entities()`
     /// operation on each contained entity (if applicable). This pattern is applied recursively. In this manner the operation
     /// [`DomainParticipant::delete_contained_entities()`] will end up deleting all the entities recursively contained in the
     /// [`DomainParticipant`], that is also the [`DataWriter`](crate::publication::data_writer::DataWriter), [`DataReader`](crate::subscription::data_reader::DataReader).
-    /// The operation will return PRECONDITION_NOT_MET if the any of the contained entities is in a state where it cannot be
+    /// The operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError) if the any of the contained entities is in a state where it cannot be
     /// deleted.
-    /// Once delete_contained_entities returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
+    /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         self.domain_participant_attributes
@@ -320,10 +322,10 @@ impl DomainParticipant {
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created [`Publisher`] entities in the
     /// case where the QoS policies are defaulted in the [`DomainParticipant::create_publisher()`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return INCONSISTENT_POLICY.
-    /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
+    /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
+    /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
-    pub fn set_default_publisher_qos(&self, qos: Qos<PublisherQos>) -> DdsResult<()> {
+    pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_publisher_qos(qos)
@@ -342,10 +344,10 @@ impl DomainParticipant {
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
     /// case where the QoS policies are defaulted in the [`DomainParticipant::create_subscriber()`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return INCONSISTENT_POLICY.
-    /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
+    /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
+    /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
-    pub fn set_default_subscriber_qos(&self, qos: Qos<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_subscriber_qos(qos)
@@ -364,10 +366,10 @@ impl DomainParticipant {
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
     /// where the QoS policies are defaulted in the [`DomainParticipant::create_topic`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-    /// return INCONSISTENT_POLICY.
-    /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
+    /// return [`DdsError::InconsistenPolicy`](crate::infrastructure::error::DdsError).
+    /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
-    pub fn set_default_topic_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
+    pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         self.domain_participant_attributes
             .upgrade()?
             .set_default_topic_qos(qos)
@@ -376,7 +378,7 @@ impl DomainParticipant {
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
     /// entities in the case where the QoS policies are defaulted in the [`DomainParticipant::create_topic()`] operation.
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
-    /// set_default_topic_qos, or else, if the call was never made, the default values of [`TopicQos`]
+    /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
         self.domain_participant_attributes
             .upgrade()?
@@ -395,7 +397,7 @@ impl DomainParticipant {
     /// be in the same domain as the participant on which this operation is invoked and must not have been “ignored” by means of the
     /// [`DomainParticipant::ignore_participant()`] operation.
     /// The participant_handle must correspond to such a DomainParticipant. Otherwise, the operation will fail and return
-    /// PRECONDITION_NOT_MET.
+    /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// Use the operation [`DomainParticipant::get_discovered_participants()`] to find the DomainParticipants that are currently discovered.
     pub fn get_discovered_participant_data(
         &self,
@@ -417,8 +419,8 @@ impl DomainParticipant {
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
     /// a participant in the same domain as the participant on which this operation is invoked and must not have been “ignored” by
     /// means of the [`DomainParticipant::ignore_topic()`] operation.
-    /// The topic_handle must correspond to such a topic. Otherwise, the operation will fail and return
-    /// PRECONDITION_NOT_MET.
+    /// The `topic_handle` must correspond to such a topic. Otherwise, the operation will fail and return
+    /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// Use the operation [`DomainParticipant::get_discovered_topics()`] to find the topics that are currently discovered.
     pub fn get_discovered_topic_data(
         &self,
@@ -450,27 +452,25 @@ impl DomainParticipant {
     }
 }
 
-/// This implementation block represents the Entity operations for the [`DomainParticipant`].
+/// This implementation block contains the Entity operations for the [`DomainParticipant`].
 impl DomainParticipant {
-    /// This operation is used to set the QoS policies of the Entity and replacing
-    /// the values of any policies previously set. Certain policies are “immutable;” they can only be set at
-    /// Entity creation time, or before the entity is made enabled. If [`Self::set_qos()`] is invoked after
-    /// the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
-    /// fail and returns IMMUTABLE_POLICY.
-    /// Certain values of QoS policies can be incompatible with the settings of the
-    /// other policies. This operation will also fail if it specifies a set of values that once combined with the existing values
-    /// would result in an inconsistent set of policies. In this case, the return value is INCONSISTENT_POLICY.
+    /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
+    /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
+    /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
+    /// fail and returns [`DdsError::ImmutablePolicy`](crate::infrastructure::error::DdsError).
+    /// Certain values of QoS policies can be incompatible with the settings of the other policies. This operation will also fail if it specifies
+    /// a set of values that once combined with the existing values would result in an inconsistent set of policies. In this case,
+    /// the return value is [`DdsError::InconsistentPolicy`](crate::infrastructure::error::DdsError).
     /// The existing set of policies are only changed if the [`Self::set_qos()`] operation succeeds. This is indicated by the [`Ok`] return value. In all
     /// other cases, none of the policies is modified.
-    /// The [`DomainParticipant`] has a corresponding special value of the QoS PARTICIPANT_QOS_DEFAULT which may be used as a parameter
-    /// to the [`Self::set_qos()`] operation to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
+    /// The parameter `qos` can be set to [`QosKind::Default`] to indicate that the QoS of the Entity should be changed to match the current default QoS set in the Entity’s factory.
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
-    pub fn set_qos(&self, qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         self.domain_participant_attributes.upgrade()?.set_qos(qos)
     }
 
-    /// This operation allows access to the existing set of QoS policies for the [`DomainParticipant`].
+    /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
         Ok(self.domain_participant_attributes.upgrade()?.get_qos())
     }
@@ -530,13 +530,13 @@ impl DomainParticipant {
     /// Other operations may explicitly state that they may be called on disabled entities; those that do not will return the error
     /// NotEnabled.
     /// It is legal to delete an Entity that has not been enabled by calling the proper operation on its factory.
-    /// Entities created from a factory that is disabled, are created disabled regardless of the setting of the ENTITY_FACTORY Qos
-    /// policy.
-    /// Calling enable on an Entity whose factory is not enabled will fail and return PRECONDITION_NOT_MET.
+    /// Entities created from a factory that is disabled, are created disabled regardless of the setting of the
+    /// [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy).
+    /// Calling enable on an Entity whose factory is not enabled will fail and return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// If the `autoenable_created_entities` field of [`EntityFactoryQosPolicy`](crate::infrastructure::qos_policy::EntityFactoryQosPolicy) is set to [`true`], the [`Self::enable()`] operation on the factory will
     /// automatically enable all entities created from the factory.
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
-    /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
+    /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         self.domain_participant_attributes.upgrade()?.enable()
     }

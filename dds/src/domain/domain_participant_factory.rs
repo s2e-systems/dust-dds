@@ -10,7 +10,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        qos::Qos,
+        qos::QosKind,
         status::StatusKind,
     },
 };
@@ -58,14 +58,14 @@ impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
     /// to join the Domain identified by the `domain_id` argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no [`DomainParticipant`] will be created.
-    /// The special value PARTICIPANT_QOS_DEFAULT can be used to indicate that the [`DomainParticipant`] should be created
+    /// The value [`QosKind::Default`] can be used to indicate that the [`DomainParticipant`] should be created
     /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
     /// default DomainParticipant QoS by means of the operation [`DomainParticipantFactory::get_default_participant_qos`] and using the resulting
     /// QoS to create the [`DomainParticipant`].
     pub fn create_participant(
         &self,
         domain_id: DomainId,
-        qos: Qos<DomainParticipantQos>,
+        qos: QosKind<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
@@ -76,8 +76,8 @@ impl DomainParticipantFactory {
         };
 
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
@@ -153,7 +153,7 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_default_participant_qos(&self, _qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_default_participant_qos(&self, _qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -171,7 +171,7 @@ impl DomainParticipantFactory {
     /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_qos(&self, _qos: Qos<DomainParticipantFactoryQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
         todo!()
     }
 

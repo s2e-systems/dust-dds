@@ -211,7 +211,7 @@ impl RtpsReader {
     }
 
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
-        if self.qos.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS
+        if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
             && change.kind() == ChangeKind::Alive
         {
             let num_instance_samples = self
@@ -346,7 +346,7 @@ mod tests {
     fn reader_no_key_add_change_keep_last_1() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+                kind: HistoryQosPolicyKind::KeepLast,
                 depth: 1,
             },
             ..Default::default()
@@ -384,7 +384,7 @@ mod tests {
     fn reader_with_key_add_change_keep_last_1() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+                kind: HistoryQosPolicyKind::KeepLast,
                 depth: 1,
             },
             ..Default::default()
@@ -444,7 +444,7 @@ mod tests {
     fn reader_no_key_add_change_keep_last_3() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+                kind: HistoryQosPolicyKind::KeepLast,
                 depth: 3,
             },
             ..Default::default()
@@ -504,7 +504,7 @@ mod tests {
     fn reader_with_key_add_change_keep_last_3() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+                kind: HistoryQosPolicyKind::KeepLast,
                 depth: 3,
             },
             ..Default::default()
@@ -608,7 +608,7 @@ mod tests {
     fn reader_max_samples() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                kind: HistoryQosPolicyKind::KeepAll,
                 depth: LENGTH_UNLIMITED,
             },
             resource_limits: ResourceLimitsQosPolicy {
@@ -649,7 +649,7 @@ mod tests {
     fn reader_max_instances() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                kind: HistoryQosPolicyKind::KeepAll,
                 depth: LENGTH_UNLIMITED,
             },
             resource_limits: ResourceLimitsQosPolicy {
@@ -693,7 +693,7 @@ mod tests {
     fn reader_max_samples_per_instance() {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                kind: HistoryQosPolicyKind::KeepAll,
                 depth: LENGTH_UNLIMITED,
             },
             resource_limits: ResourceLimitsQosPolicy {

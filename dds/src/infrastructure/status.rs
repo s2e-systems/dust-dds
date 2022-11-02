@@ -1,24 +1,50 @@
 use super::{instance::InstanceHandle, qos_policy::QosPolicyId};
 
+/// Enumeration of the different types of communication status
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StatusKind {
+    /// Another topic exists with the same name but different characteristics.
     InconsistentTopic,
+    /// The deadline that the [`DataWriter`](crate::publication::data_writer::DataWriter) has committed through its
+    ///  [`DeadlineQosPolicy`](crate::infrastructure::qos_policy::DeadlineQosPolicy) was not respected for a specific instance.
     OfferedDeadlineMissed,
+    /// The deadline that the [`DataReader`](crate::subscription::data_reader::DataReader) was expecting through its
+    /// [`DeadlineQosPolicy`](crate::infrastructure::qos_policy::DeadlineQosPolicy) was not respected for a specific instance.
     RequestedDeadlineMissed,
+    /// A *QosPolicy* value was incompatible with what was requested.
     OfferedIncompatibleQos,
+    /// A *QosPolicy* value was incompatible with what is offered.
     RequestedIncompatibleQos,
+    /// A sample has been lost (never received).
     SampleLost,
+    /// A (received) sample has been rejected.
     SampleRejected,
+    /// New information is available.
     DataOnReaders,
+    /// New information is available.
     DataAvailable,
+    /// The liveliness that the [`DataWriter`](crate::publication::data_writer::DataWriter) has committed through its
+    /// [`LivelinessQosPolicy`](crate::infrastructure::qos_policy::LivelinessQosPolicy) was not respected;
+    /// thus [`DataReader`](crate::subscription::data_reader::DataReader) entities will consider the data writer as no longer *active*.
     LivelinessLost,
+    /// The liveliness of one or more [`DataWriter`](crate::publication::data_writer::DataWriter) that were writing instances read
+    /// through the [`DataReader`](crate::subscription::data_reader::DataReader) has changed.
+    /// Some data writers have become *active* or *inactive*.
     LivelinessChanged,
+    /// The  [`DataWriter`](crate::publication::data_writer::DataWriter) has found [`DataReader`](crate::subscription::data_reader::DataReader) that
+    /// matches the [`Topic`](crate::topic_definition::topic::Topic)  and has compatible Qos, or has ceased to be matched with a
+    /// [`DataReader`](crate::subscription::data_reader::DataReader) that was previously considered to be matched.
     PublicationMatched,
+    /// The [`DataReader`](crate::subscription::data_reader::DataReader) has found a [`DataWriter`](crate::publication::data_writer::DataWriter)
+    /// that matches the [`Topic`](crate::topic_definition::topic::Topic) and has compatible Qos, or has ceased to be matched with a
+    /// [`DataWriter`](crate::publication::data_writer::DataWriter) that was previously considered to be matched.
     SubscriptionMatched,
 }
 
+/// Special constant representing an empty list of communication statuses
 pub const NO_STATUS: &[StatusKind] = &[];
 
+/// Structure holding the values related to the Inconsistent Topic communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct InconsistentTopicStatus {
     /// Total cumulative count of the Topics discovered whose name matches
@@ -29,6 +55,7 @@ pub struct InconsistentTopicStatus {
     pub total_count_change: i32,
 }
 
+/// Structure holding the values related to the Sample Lost communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SampleLostStatus {
     /// Total cumulative count of all samples lost across of instances of data published under the Topic.
@@ -45,6 +72,7 @@ pub enum SampleRejectedStatusKind {
     RejectedBySamplesPerInstanceLimit,
 }
 
+/// Structure holding the values related to the Sample Rejected communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SampleRejectedStatus {
     /// Total cumulative count of samples rejected by the DataReader.
@@ -57,6 +85,7 @@ pub struct SampleRejectedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+/// Structure holding the values related to the Liveliness Lost communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LivelinessLostStatus {
     /// Total cumulative number of times that a previously-alive DataWriter
@@ -70,6 +99,7 @@ pub struct LivelinessLostStatus {
     pub total_count_change: i32,
 }
 
+/// Structure holding the values related to the Liveliness Changed communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct LivelinessChangedStatus {
     /// The total number of currently active DataWriters that write the Topic
@@ -98,6 +128,7 @@ pub struct LivelinessChangedStatus {
     pub last_publication_handle: InstanceHandle,
 }
 
+/// Structure holding the values related to the Offered Deadline Missed communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OfferedDeadlineMissedStatus {
     /// Total cumulative number of offered deadline periods elapsed during
@@ -113,6 +144,7 @@ pub struct OfferedDeadlineMissedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+/// Structure holding the values related to the Requested Deadline Missed communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RequestedDeadlineMissedStatus {
     /// Total cumulative number of missed deadlines detected for any instance
@@ -127,14 +159,14 @@ pub struct RequestedDeadlineMissedStatus {
     pub last_instance_handle: InstanceHandle,
 }
 
+/// Structure associating the QosPolicyId and the number of time it appeared in the related communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct QosPolicyCount {
     pub policy_id: QosPolicyId,
     pub count: i32,
 }
 
-pub type QosPolicyCountSeq = Vec<QosPolicyCount>;
-
+/// Structure holding the values related to the Offered Incompatible Qos communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OfferedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataWriter
@@ -151,9 +183,10 @@ pub struct OfferedIncompatibleQosStatus {
     /// concerned DataWriter discovered a DataReader for the same Topic
     /// with a requested QoS that is incompatible with that offered by the
     /// DataWriter.
-    pub policies: QosPolicyCountSeq,
+    pub policies: Vec<QosPolicyCount>,
 }
 
+/// Structure holding the values related to the Requested Incompatible Qos communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RequestedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataReader
@@ -163,16 +196,17 @@ pub struct RequestedIncompatibleQosStatus {
     /// The change in total_count since the last time the listener was called or
     /// the status was read.
     pub total_count_change: i32,
-    /// The QosPolicyId_t of one of the policies that was found to be
+    /// The QosPolicyId of one of the policies that was found to be
     /// incompatible the last time an incompatibility was detected.
     pub last_policy_id: QosPolicyId,
     /// A list containing for each policy the total number of times that the
     /// concerned DataReader discovered a DataWriter for the same Topic
     /// with an offered QoS that is incompatible with that requested by the
     /// DataReader.
-    pub policies: QosPolicyCountSeq,
+    pub policies: Vec<QosPolicyCount>,
 }
 
+/// Structure holding the values related to the Publication Matched communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PublicationMatchedStatus {
     /// Total cumulative count the concerned DataWriter discovered a
@@ -194,6 +228,7 @@ pub struct PublicationMatchedStatus {
     pub current_count_change: i32,
 }
 
+/// Structure holding the values related to the Subscription Matched communication status.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct SubscriptionMatchedStatus {
     /// Total cumulative count the concerned DataReader discovered a

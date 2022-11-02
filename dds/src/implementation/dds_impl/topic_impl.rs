@@ -1,7 +1,7 @@
 use crate::builtin_topics::BuiltInTopicKey;
 use crate::implementation::rtps::types::Guid;
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::Qos;
+use crate::infrastructure::qos::QosKind;
 use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
 use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
@@ -89,10 +89,10 @@ impl DdsShared<TopicImpl> {
 }
 
 impl DdsShared<TopicImpl> {
-    pub fn set_qos(&self, qos: Qos<TopicQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         qos.is_consistent()?;
@@ -168,7 +168,6 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
                 name: val.topic_name.to_string(),
                 type_name: val.type_name.to_string(),
                 durability: qos.durability.clone(),
-                durability_service: qos.durability_service.clone(),
                 deadline: qos.deadline.clone(),
                 latency_budget: qos.latency_budget.clone(),
                 liveliness: qos.liveliness.clone(),

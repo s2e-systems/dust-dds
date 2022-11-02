@@ -11,7 +11,7 @@ use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsSta
 use crate::infrastructure::condition::StatusCondition;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::Qos;
+use crate::infrastructure::qos::QosKind;
 use crate::infrastructure::status::StatusKind;
 use crate::infrastructure::time::{Duration, DURATION_ZERO};
 use crate::topic_definition::type_support::DdsType;
@@ -75,7 +75,7 @@ impl DdsShared<PublisherImpl> {
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
-        qos: Qos<DataWriterQos>,
+        qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
@@ -112,8 +112,8 @@ impl DdsShared<PublisherImpl> {
         // /////// Create data writer
         let data_writer_shared = {
             let qos = match qos {
-                Qos::Default => self.default_datawriter_qos.clone(),
-                Qos::Specific(q) => q,
+                QosKind::Default => self.default_datawriter_qos.clone(),
+                QosKind::Specific(q) => q,
             };
             qos.is_consistent()?;
 
@@ -253,7 +253,7 @@ impl DdsShared<PublisherImpl> {
         todo!()
     }
 
-    pub fn set_default_datawriter_qos(&self, _qos: Qos<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_default_datawriter_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -271,10 +271,10 @@ impl DdsShared<PublisherImpl> {
 }
 
 impl DdsShared<PublisherImpl> {
-    pub fn set_qos(&self, qos: Qos<PublisherQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         if *self.enabled.read_lock() {

@@ -145,10 +145,10 @@ impl<T> RtpsStatefulWriter<T> {
 impl<T: Timer> RtpsStatefulWriter<T> {
     pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
         match self.writer.get_qos().reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+            ReliabilityQosPolicyKind::BestEffort => {
                 self.produce_submessages_best_effort()
             }
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => self.produce_submessages_reliable(),
+            ReliabilityQosPolicyKind::Reliable => self.produce_submessages_reliable(),
         }
     }
 
@@ -317,7 +317,7 @@ impl<T> RtpsStatefulWriter<T> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+            == ReliabilityQosPolicyKind::Reliable
         {
             let reader_guid = Guid::new(
                 source_guid_prefix,

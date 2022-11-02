@@ -34,7 +34,7 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::Qos,
+        qos::QosKind,
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
     },
@@ -248,7 +248,7 @@ impl DataReaderListener for RegisterDiscoveredTopicsListener {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
-        if let Ok(topic_creation_topic) =
+        if let Some(topic_creation_topic) =
             self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
         {
             if let Ok(sedp_builtin_topic_announcer) = self
@@ -270,13 +270,13 @@ impl DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
-        qos: Qos<PublisherQos>,
+        qos: QosKind<PublisherQos>,
         _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<PublisherImpl>> {
         let publisher_qos = match qos {
-            Qos::Default => self.default_publisher_qos.clone(),
-            Qos::Specific(q) => q,
+            QosKind::Default => self.default_publisher_qos.clone(),
+            QosKind::Specific(q) => q,
         };
         let publisher_counter = self
             .user_defined_publisher_counter
@@ -324,13 +324,13 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn create_subscriber(
         &self,
-        qos: Qos<SubscriberQos>,
+        qos: QosKind<SubscriberQos>,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<SubscriberImpl>> {
         let subscriber_qos = match qos {
-            Qos::Default => self.default_subscriber_qos.clone(),
-            Qos::Specific(q) => q,
+            QosKind::Default => self.default_subscriber_qos.clone(),
+            QosKind::Specific(q) => q,
         };
         let subcriber_counter = self
             .user_defined_subscriber_counter
@@ -378,7 +378,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_topic<Foo>(
         &self,
         topic_name: &str,
-        qos: Qos<TopicQos>,
+        qos: QosKind<TopicQos>,
         _a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DdsShared<TopicImpl>>
@@ -396,8 +396,8 @@ impl DdsShared<DomainParticipantImpl> {
             },
         );
         let qos = match qos {
-            Qos::Default => self.default_topic_qos.clone(),
-            Qos::Specific(q) => q,
+            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Specific(q) => q,
         };
 
         // /////// Create topic
@@ -470,23 +470,19 @@ impl DdsShared<DomainParticipantImpl> {
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 
-    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> DdsResult<DdsShared<TopicImpl>>
+    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> Option<DdsShared<TopicImpl>>
     where
         Foo: DdsType,
     {
-        self.topic_list
-            .read_lock()
-            .iter()
-            .find_map(|topic| {
-                if topic.get_name().unwrap() == topic_name
-                    && topic.get_type_name().unwrap() == Foo::type_name()
-                {
-                    Some(topic.clone())
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
+        self.topic_list.read_lock().iter().find_map(|topic| {
+            if topic.get_name().unwrap() == topic_name
+                && topic.get_type_name().unwrap() == Foo::type_name()
+            {
+                Some(topic.clone())
+            } else {
+                None
+            }
+        })
     }
 
     pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<SubscriberImpl>> {
@@ -553,7 +549,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&self, _qos: Qos<PublisherQos>) -> DdsResult<()> {
+    pub fn set_default_publisher_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -561,7 +557,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_subscriber_qos(&self, _qos: Qos<SubscriberQos>) -> DdsResult<()> {
+    pub fn set_default_subscriber_qos(&self, _qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -569,7 +565,7 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_topic_qos(&self, _qos: Qos<TopicQos>) -> DdsResult<()> {
+    pub fn set_default_topic_qos(&self, _qos: QosKind<TopicQos>) -> DdsResult<()> {
         todo!()
     }
 
@@ -658,10 +654,10 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn set_qos(&self, qos: Qos<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         *self.qos.write_lock() = match qos {
-            Qos::Default => DomainParticipantQos::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => DomainParticipantQos::default(),
+            QosKind::Specific(q) => q,
         };
         self.announce_condvar.notify_all();
 
@@ -735,8 +731,9 @@ impl DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_participant(&self) -> DdsResult<()> {
-        let dcps_topic_participant =
-            self.lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
+        let dcps_topic_participant = self
+            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
 
         let spdp_participant_writer = self
             .builtin_publisher
@@ -895,7 +892,7 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let spdp_topic_participant = self.create_topic::<SpdpDiscoveredParticipantData>(
                 DCPS_PARTICIPANT,
-                Qos::Specific(self.get_default_topic_qos()?),
+                QosKind::Specific(self.get_default_topic_qos()?),
                 None,
                 NO_STATUS,
             )?;
@@ -919,7 +916,7 @@ impl DdsShared<DomainParticipantImpl> {
                     false,
                     DataReaderQos {
                         history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            kind: HistoryQosPolicyKind::KeepAll,
                             depth: 0,
                         },
                         ..Default::default()
@@ -962,7 +959,7 @@ impl DdsShared<DomainParticipantImpl> {
                     None,
                     DataWriterQos {
                         reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                            kind: ReliabilityQosPolicyKind::BestEffort,
                             max_blocking_time: DURATION_ZERO,
                         },
                         ..Default::default()
@@ -988,7 +985,7 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_publication = self.create_topic::<DiscoveredWriterData>(
                 DCPS_PUBLICATION,
-                Qos::Specific(self.get_default_topic_qos()?),
+                QosKind::Specific(self.get_default_topic_qos()?),
                 None,
                 NO_STATUS,
             )?;
@@ -1014,11 +1011,11 @@ impl DdsShared<DomainParticipantImpl> {
                     expects_inline_qos,
                     DataReaderQos {
                         history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            kind: HistoryQosPolicyKind::KeepAll,
                             depth: 0,
                         },
                         reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            kind: ReliabilityQosPolicyKind::Reliable,
                             max_blocking_time: DURATION_ZERO,
                         },
                         ..Default::default()
@@ -1073,7 +1070,7 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_subscription = self.create_topic::<DiscoveredReaderData>(
                 DCPS_SUBSCRIPTION,
-                Qos::Specific(self.get_default_topic_qos()?),
+                QosKind::Specific(self.get_default_topic_qos()?),
                 None,
                 NO_STATUS,
             )?;
@@ -1099,11 +1096,11 @@ impl DdsShared<DomainParticipantImpl> {
                     expects_inline_qos,
                     DataReaderQos {
                         history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            kind: HistoryQosPolicyKind::KeepAll,
                             depth: 0,
                         },
                         reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            kind: ReliabilityQosPolicyKind::Reliable,
                             max_blocking_time: DURATION_ZERO,
                         },
                         ..Default::default()
@@ -1158,7 +1155,7 @@ impl DdsShared<DomainParticipantImpl> {
         {
             let sedp_topic_topic = self.create_topic::<DiscoveredTopicData>(
                 DCPS_TOPIC,
-                Qos::Specific(self.get_default_topic_qos()?),
+                QosKind::Specific(self.get_default_topic_qos()?),
                 None,
                 NO_STATUS,
             )?;
@@ -1184,11 +1181,11 @@ impl DdsShared<DomainParticipantImpl> {
                     expects_inline_qos,
                     DataReaderQos {
                         history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAllHistoryQos,
+                            kind: HistoryQosPolicyKind::KeepAll,
                             depth: 0,
                         },
                         reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                            kind: ReliabilityQosPolicyKind::Reliable,
                             max_blocking_time: DURATION_ZERO,
                         },
                         ..Default::default()
@@ -1286,8 +1283,9 @@ impl DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn discover_matched_participants(&self) -> DdsResult<()> {
-        let dcps_participant_topic =
-            self.lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)?;
+        let dcps_participant_topic = self
+            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
+            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
 
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber
@@ -1318,8 +1316,9 @@ impl DdsShared<DomainParticipantImpl> {
             return Ok(());
         }
 
-        let dcps_publication_topic =
-            self.lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)?;
+        let dcps_publication_topic = self
+            .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
+            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
         let sedp_builtin_publication_reader = self
             .builtin_subscriber
             .lookup_datareader::<DiscoveredWriterData>(&dcps_publication_topic)?;
@@ -1349,8 +1348,9 @@ impl DdsShared<DomainParticipantImpl> {
             return Ok(());
         }
 
-        let dcps_subscription_topic =
-            self.lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)?;
+        let dcps_subscription_topic = self
+            .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
+            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
         let sedp_builtin_subscription_reader = self
             .builtin_subscriber
             .lookup_datareader::<DiscoveredReaderData>(&dcps_subscription_topic)?;
@@ -1383,7 +1383,7 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_writer_data
         };
 
-        if let Ok(publication_topic) =
+        if let Some(publication_topic) =
             self.lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
         {
             if let Ok(sedp_builtin_publications_announcer) =
@@ -1407,7 +1407,7 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_reader_data
         };
 
-        if let Ok(subscription_topic) =
+        if let Some(subscription_topic) =
             self.lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
         {
             if let Ok(sedp_builtin_subscription_announcer) =

@@ -1,8 +1,8 @@
 use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-    ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
     TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
@@ -25,7 +25,6 @@ pub struct TopicBuiltinTopicData {
     pub name: String,
     pub type_name: String,
     pub durability: DurabilityQosPolicy,
-    pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
     pub latency_budget: LatencyBudgetQosPolicy,
     pub liveliness: LivelinessQosPolicy,
@@ -47,7 +46,6 @@ pub struct PublicationBuiltinTopicData {
     pub type_name: String,
 
     pub durability: DurabilityQosPolicy,
-    pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
     pub latency_budget: LatencyBudgetQosPolicy,
     pub liveliness: LivelinessQosPolicy,

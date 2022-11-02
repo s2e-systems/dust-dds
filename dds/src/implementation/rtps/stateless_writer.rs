@@ -104,7 +104,7 @@ impl RtpsStatelessWriter {
         let reliability_kind = &self.writer.get_qos().reliability.kind;
         let writer_cache = self.writer.writer_cache();
         match reliability_kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+            ReliabilityQosPolicyKind::BestEffort => {
                 for rl in self.reader_locators.iter_mut() {
                     let mut submessages = Vec::new();
                     while !rl.unsent_changes().is_empty() {
@@ -126,7 +126,7 @@ impl RtpsStatelessWriter {
                     }
                 }
             }
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => todo!(),
+            ReliabilityQosPolicyKind::Reliable => todo!(),
         }
 
         destined_submessages
@@ -140,7 +140,7 @@ impl RtpsStatelessWriter {
             || acknack_reader_id == self.writer.guid().entity_id();
 
         if self.writer.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+            == ReliabilityQosPolicyKind::Reliable
             && message_is_for_me
         {
             for reader_locator in self.reader_locators.iter_mut() {

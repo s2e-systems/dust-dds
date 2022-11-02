@@ -1,10 +1,10 @@
 use crate::builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData};
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-    OwnershipQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-    TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+    ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
 };
 use crate::{
     implementation::parameter_list_serde::{
@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID,
-    PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_RELIABILITY,
+    PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_HISTORY,
+    PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_RELIABILITY,
     PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 
@@ -89,11 +89,7 @@ impl DdsSerialize for DiscoveredTopicData {
             PID_DURABILITY,
             &self.topic_builtin_topic_data.durability,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&DurabilityServiceQosPolicy, _>(
-                PID_DURABILITY_SERVICE,
-                &self.topic_builtin_topic_data.durability_service,
-            )?;
+
         parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
             PID_DEADLINE,
             &self.topic_builtin_topic_data.deadline,
@@ -155,8 +151,6 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
         let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let durability_service =
-            param_list.get_or_default::<DurabilityServiceQosPolicy, _>(PID_DURABILITY_SERVICE)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =
             param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
@@ -182,7 +176,6 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
                 name,
                 type_name,
                 durability,
-                durability_service,
                 deadline,
                 latency_budget,
                 liveliness,
@@ -202,10 +195,10 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
 #[cfg(test)]
 mod tests {
     use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-        DurabilityServiceQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-        TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+        ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
     use crate::topic_definition::type_support::LittleEndian;
@@ -228,7 +221,6 @@ mod tests {
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),
-                durability_service: DurabilityServiceQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),
@@ -271,7 +263,6 @@ mod tests {
                 name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),
-                durability_service: DurabilityServiceQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),

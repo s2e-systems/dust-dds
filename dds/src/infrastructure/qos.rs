@@ -4,31 +4,35 @@ use crate::infrastructure::{
 };
 
 use super::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind,
-    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-    PartitionQosPolicy, PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
+    GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
+    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+    PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
     ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
     TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
     WriterDataLifecycleQosPolicy, LENGTH_UNLIMITED,
 };
 
+/// QoS policies applicable to the [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantFactoryQos {
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
-pub enum Qos<T> {
+/// Enumeration representing the kind of Qos to be used
+pub enum QosKind<T> {
     Default,
     Specific(T),
 }
 
+/// QoS policies applicable to the [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
+/// QoS policies applicable to the [`Publisher`](crate::publication::publisher::Publisher)
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct PublisherQos {
     pub presentation: PresentationQosPolicy,
@@ -47,10 +51,10 @@ impl PublisherQos {
     }
 }
 
+/// QoS policies applicable to the [`DataWriter`](crate::publication::data_writer::DataWriter)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataWriterQos {
     pub durability: DurabilityQosPolicy,
-    pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
     pub latency_budget: LatencyBudgetQosPolicy,
     pub liveliness: LivelinessQosPolicy,
@@ -69,7 +73,7 @@ impl Default for DataWriterQos {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                kind: ReliabilityQosPolicyKind::Reliable,
                 max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             durability: DurabilityQosPolicy::default(),
@@ -81,7 +85,6 @@ impl Default for DataWriterQos {
             resource_limits: ResourceLimitsQosPolicy::default(),
             user_data: UserDataQosPolicy::default(),
             ownership: OwnershipQosPolicy::default(),
-            durability_service: DurabilityServiceQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
             transport_priority: TransportPriorityQosPolicy::default(),
             writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
@@ -108,7 +111,7 @@ impl DataWriterQos {
         let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
             || self.history.depth > self.resource_limits.max_samples_per_instance;
 
-        if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS
+        if self.history.kind == HistoryQosPolicyKind::KeepLast
             && limited_samples_per_instance
             && history_depth_over_limit
         {
@@ -126,7 +129,6 @@ impl DataWriterQos {
             || self.history != other.history
             || self.resource_limits != other.resource_limits
             || self.ownership != other.ownership
-            || self.durability_service != other.durability_service
         {
             Err(DdsError::ImmutablePolicy)
         } else {
@@ -135,6 +137,7 @@ impl DataWriterQos {
     }
 }
 
+/// QoS policies applicable to the [`Subscriber`](crate::subscription::subscriber::Subscriber)
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct SubscriberQos {
     pub presentation: PresentationQosPolicy,
@@ -153,6 +156,7 @@ impl SubscriberQos {
     }
 }
 
+/// QoS policies applicable to the [`DataReader`](crate::subscription::data_reader::DataReader)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DataReaderQos {
     pub durability: DurabilityQosPolicy,
@@ -173,7 +177,7 @@ impl Default for DataReaderQos {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             durability: DurabilityQosPolicy::default(),
@@ -210,7 +214,7 @@ impl DataReaderQos {
         let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
             || self.history.depth > self.resource_limits.max_samples_per_instance;
 
-        if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS
+        if self.history.kind == HistoryQosPolicyKind::KeepLast
             && limited_samples_per_instance
             && history_depth_over_limit
         {
@@ -242,11 +246,11 @@ impl DataReaderQos {
     }
 }
 
+/// QoS policies applicable to the [`Topic`](crate::topic_definition::topic::Topic)
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicQos {
     pub topic_data: TopicDataQosPolicy,
     pub durability: DurabilityQosPolicy,
-    pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
     pub latency_budget: LatencyBudgetQosPolicy,
     pub liveliness: LivelinessQosPolicy,
@@ -263,12 +267,11 @@ impl Default for TopicQos {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
             },
             topic_data: TopicDataQosPolicy::default(),
             durability: DurabilityQosPolicy::default(),
-            durability_service: DurabilityServiceQosPolicy::default(),
             deadline: DeadlineQosPolicy::default(),
             latency_budget: LatencyBudgetQosPolicy::default(),
             liveliness: LivelinessQosPolicy::default(),
@@ -301,7 +304,7 @@ impl TopicQos {
         let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
             || self.history.depth > self.resource_limits.max_samples_per_instance;
 
-        if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS
+        if self.history.kind == HistoryQosPolicyKind::KeepLast
             && limited_samples_per_instance
             && history_depth_over_limit
         {
@@ -313,7 +316,6 @@ impl TopicQos {
 
     pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
         if self.durability != other.durability
-            || self.durability_service != other.durability_service
             || self.liveliness != other.liveliness
             || self.reliability != other.reliability
             || self.destination_order != other.destination_order

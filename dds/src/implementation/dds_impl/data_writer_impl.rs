@@ -25,7 +25,7 @@ use crate::{
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::Qos,
+        qos::QosKind,
         qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -352,7 +352,7 @@ impl DdsShared<DataWriterImpl> {
     ) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         if rtps_writer_lock.writer().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+            == ReliabilityQosPolicyKind::Reliable
         {
             match &mut *rtps_writer_lock {
                 RtpsWriterKind::Stateless(stateless_rtps_writer) => {
@@ -510,7 +510,7 @@ impl DdsShared<DataWriterImpl> {
         &self,
         instance: &Foo,
         _timestamp: Time,
-    ) -> DdsResult<InstanceHandle>
+    ) -> DdsResult<Option<InstanceHandle>>
     where
         Foo: DdsType + DdsSerialize,
     {
@@ -542,7 +542,7 @@ impl DdsShared<DataWriterImpl> {
                 return Err(DdsError::OutOfResources);
             }
         }
-        Ok(instance_handle)
+        Ok(Some(instance_handle))
     }
 
     pub fn unregister_instance_w_timestamp<Foo>(
@@ -646,7 +646,9 @@ impl DdsShared<DataWriterImpl> {
 
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
-        let handle = self.register_instance_w_timestamp(data, timestamp)?;
+        let handle = self
+            .register_instance_w_timestamp(data, timestamp)?
+            .unwrap_or(HANDLE_NIL);
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         let change = rtps_writer_lock.new_change(
             ChangeKind::Alive,
@@ -823,10 +825,10 @@ impl DdsShared<DataWriterImpl> {
 }
 
 impl DdsShared<DataWriterImpl> {
-    pub fn set_qos(&self, qos: Qos<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
-            Qos::Default => Default::default(),
-            Qos::Specific(q) => q,
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
         };
 
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
@@ -913,7 +915,6 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
                 topic_name: val.topic.get_name().unwrap(),
                 type_name: val.topic.get_type_name().unwrap().to_string(),
                 durability: writer_qos.durability.clone(),
-                durability_service: writer_qos.durability_service.clone(),
                 deadline: writer_qos.deadline.clone(),
                 latency_budget: writer_qos.latency_budget.clone(),
                 liveliness: writer_qos.liveliness.clone(),
@@ -1120,7 +1121,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1167,7 +1168,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1222,7 +1223,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1321,7 +1322,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1418,6 +1419,7 @@ mod test {
                 &MockKeyedFoo { key: vec![1, 2] },
                 Time { sec: 0, nanosec: 0 },
             )
+            .unwrap()
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
@@ -1468,7 +1470,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1492,7 +1494,7 @@ mod test {
             latency_budget: LatencyBudgetQosPolicy::default(),
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),
@@ -1560,7 +1562,7 @@ mod test {
             None,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos,
+                    kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
                 },
                 ..Default::default()
@@ -1583,7 +1585,7 @@ mod test {
             latency_budget: LatencyBudgetQosPolicy::default(),
             liveliness: LivelinessQosPolicy::default(),
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+                kind: ReliabilityQosPolicyKind::Reliable,
                 max_blocking_time: Duration::new(0, 0),
             },
             ownership: OwnershipQosPolicy::default(),

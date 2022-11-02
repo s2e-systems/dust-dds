@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::{DataWriterQos, Qos},
+        qos::{DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -23,26 +23,26 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", Qos::Default, None, NO_STATUS)
+        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic, Qos::Specific(writer_qos), None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
     let writer_cond = writer.get_statuscondition().unwrap();
     writer_cond

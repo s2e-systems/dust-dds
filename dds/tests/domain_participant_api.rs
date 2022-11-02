@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use dust_dds::infrastructure::qos::Qos;
+use dust_dds::infrastructure::qos::QosKind;
 use dust_dds::infrastructure::status::NO_STATUS;
 use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dust_dds::{
@@ -36,11 +36,11 @@ impl<'de> DdsDeserialize<'de> for TestType {
 fn create_delete_publisher() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(participant.delete_publisher(&publisher), Ok(()));
@@ -55,11 +55,11 @@ fn create_delete_publisher() {
 fn create_delete_subscriber() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
@@ -74,11 +74,11 @@ fn create_delete_subscriber() {
 fn create_delete_topic() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<TestType>("abc", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("abc", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(participant.delete_topic(&topic), Ok(()));
@@ -93,14 +93,14 @@ fn create_delete_topic() {
 fn not_allowed_to_delete_publisher_from_different_participant() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let other_participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     assert_eq!(
         other_participant.delete_publisher(&publisher),
@@ -114,14 +114,14 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
 fn not_allowed_to_delete_subscriber_from_different_participant() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let other_participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     assert_eq!(
         other_participant.delete_subscriber(&subscriber),
@@ -135,14 +135,14 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
 fn not_allowed_to_delete_topic_from_different_participant() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let other_participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<TestType>("abc", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("abc", QosKind::Default, None, NO_STATUS)
         .unwrap();
     assert_eq!(
         other_participant.delete_topic(&topic),
@@ -156,17 +156,17 @@ fn not_allowed_to_delete_topic_from_different_participant() {
 fn not_allowed_to_delete_publisher_with_writer() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
-        .create_datawriter(&writer_topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter(&writer_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -181,17 +181,17 @@ fn not_allowed_to_delete_publisher_with_writer() {
 fn not_allowed_to_delete_subscriber_with_reader() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datareader = subscriber
-        .create_datareader(&reader_topic, Qos::Default, None, NO_STATUS)
+        .create_datareader(&reader_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -206,17 +206,17 @@ fn not_allowed_to_delete_subscriber_with_reader() {
 fn not_allowed_to_delete_topic_attached_to_reader() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datareader = subscriber
-        .create_datareader(&reader_topic, Qos::Default, None, NO_STATUS)
+        .create_datareader(&reader_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -231,17 +231,17 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
 fn not_allowed_to_delete_topic_attached_to_writer() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let _a_datawriter = publisher
-        .create_datawriter(&writer_topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter(&writer_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     assert_eq!(
@@ -256,17 +256,17 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
 fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
-        .create_datawriter(&writer_topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter(&writer_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
@@ -278,17 +278,17 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
 fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datareader = subscriber
-        .create_datareader(&reader_topic, Qos::Default, None, NO_STATUS)
+        .create_datareader(&reader_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     subscriber
         .delete_datareader(&a_datareader)
@@ -300,17 +300,17 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
 fn allowed_to_delete_topic_with_created_and_deleted_writer() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let writer_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let publisher = participant
-        .create_publisher(Qos::Default, None, NO_STATUS)
+        .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datawriter = publisher
-        .create_datawriter(&writer_topic, Qos::Default, None, NO_STATUS)
+        .create_datawriter(&writer_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
@@ -322,17 +322,17 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
 fn allowed_to_delete_topic_with_created_and_deleted_reader() {
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, Qos::Default, None, NO_STATUS)
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_topic = participant
-        .create_topic::<TestType>("Test", Qos::Default, None, NO_STATUS)
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
         .expect("Error creating topic");
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let a_datareader = subscriber
-        .create_datareader::<TestType>(&reader_topic, Qos::Default, None, NO_STATUS)
+        .create_datareader::<TestType>(&reader_topic, QosKind::Default, None, NO_STATUS)
         .unwrap();
     subscriber
         .delete_datareader(&a_datareader)

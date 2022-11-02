@@ -4,10 +4,10 @@ use crate::builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData};
 use crate::implementation::rtps::types::{EntityId, Guid, Locator};
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-    TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+    PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
+    UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
 use crate::{
     implementation::parameter_list_serde::{
@@ -19,10 +19,10 @@ use crate::{
 
 use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-    PID_DURABILITY_SERVICE, PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID,
-    PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP,
-    PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA,
-    PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
+    PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION,
+    PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME,
+    PID_UNICAST_LOCATOR, PID_USER_DATA,
 };
 
 #[derive(Debug, PartialEq, Eq, serde::Serialize)]
@@ -126,11 +126,7 @@ impl DdsSerialize for DiscoveredWriterData {
             PID_DURABILITY,
             &self.publication_builtin_topic_data.durability,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&DurabilityServiceQosPolicy, _>(
-                PID_DURABILITY_SERVICE,
-                &self.publication_builtin_topic_data.durability_service,
-            )?;
+
         parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
             PID_DEADLINE,
             &self.publication_builtin_topic_data.deadline,
@@ -202,8 +198,6 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let durability_service =
-            param_list.get_or_default::<DurabilityServiceQosPolicy, _>(PID_DURABILITY_SERVICE)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =
             param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
@@ -236,7 +230,6 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
                 topic_name,
                 type_name,
                 durability,
-                durability_service,
                 deadline,
                 latency_budget,
                 liveliness,
@@ -258,10 +251,10 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 mod tests {
     use crate::implementation::rtps::types::GuidPrefix;
     use crate::infrastructure::qos_policy::{
-        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-        DurabilityServiceQosPolicy, GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-        LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-        TopicDataQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+        LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+        PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
+        DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
     use crate::topic_definition::type_support::LittleEndian;
 
@@ -301,7 +294,6 @@ mod tests {
                 topic_name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),
-                durability_service: DurabilityServiceQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),
@@ -372,7 +364,6 @@ mod tests {
                 topic_name: "ab".to_string(),
                 type_name: "cd".to_string(),
                 durability: DurabilityQosPolicy::default(),
-                durability_service: DurabilityServiceQosPolicy::default(),
                 deadline: DeadlineQosPolicy::default(),
                 latency_budget: LatencyBudgetQosPolicy::default(),
                 liveliness: LivelinessQosPolicy::default(),

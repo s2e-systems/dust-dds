@@ -1,7 +1,7 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::{DataReaderQos, Qos},
+        qos::{DataReaderQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -24,26 +24,26 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", Qos::Default, None, NO_STATUS)
+        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::ReliableReliabilityQos,
+            kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic, Qos::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();

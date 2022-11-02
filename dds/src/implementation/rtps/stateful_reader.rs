@@ -86,10 +86,10 @@ impl RtpsStatefulReader {
             .find(|x| x.remote_writer_guid() == writer_guid)
         {
             match reliability_level {
-                ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                ReliabilityQosPolicyKind::BestEffort => {
                     writer_proxy.best_effort_receive_gap(gap_submessage)
                 }
-                ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                ReliabilityQosPolicyKind::Reliable => {
                     writer_proxy.reliable_receive_gap(gap_submessage)
                 }
             }
@@ -104,7 +104,7 @@ impl RtpsStatefulReader {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::ReliableReliabilityQos
+            == ReliabilityQosPolicyKind::Reliable
         {
             let writer_guid = Guid::new(
                 source_guid_prefix,
