@@ -165,11 +165,11 @@ impl DdsShared<PublisherImpl> {
         Ok(data_writer_shared)
     }
 
-    pub fn delete_datawriter(&self, a_datawriter: &DdsShared<DataWriterImpl>) -> DdsResult<()> {
+    pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
         let data_writer_list = &mut self.data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
-            .position(|x| x == a_datawriter)
+            .position(|x| x.get_instance_handle() == data_writer_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Data writer can only be deleted from its parent publisher".to_string(),
@@ -333,12 +333,8 @@ impl DdsShared<PublisherImpl> {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(<[u8; 16]>::from(self.rtps_group.guid()).into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_group.guid().into()
     }
 }
 

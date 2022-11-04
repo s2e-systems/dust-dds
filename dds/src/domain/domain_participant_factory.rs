@@ -34,8 +34,7 @@ use crate::domain::domain_participant_listener::DomainParticipantListener;
 
 use super::domain_participant::DomainParticipant;
 
-type DomainIdTypeNative = i32;
-pub type DomainId = DomainIdTypeNative;
+pub type DomainId = i32;
 
 lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
@@ -69,7 +68,8 @@ impl DomainParticipantFactory {
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
-        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION") {
+        let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
+        {
             DustDdsConfiguration::try_from_str(configuration_json.as_str())?
         } else {
             Default::default()
@@ -82,7 +82,7 @@ impl DomainParticipantFactory {
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
         let rtps_participant = RtpsParticipant::new(
-            GuidPrefix(rtps_udp_psm.guid_prefix()),
+            GuidPrefix::from(rtps_udp_psm.guid_prefix()),
             rtps_udp_psm.default_unicast_locator_list().as_ref(),
             rtps_udp_psm.default_multicast_locator_list(),
             PROTOCOLVERSION,
@@ -153,7 +153,10 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_default_participant_qos(&self, _qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+    pub fn set_default_participant_qos(
+        &self,
+        _qos: QosKind<DomainParticipantQos>,
+    ) -> DdsResult<()> {
         todo!()
     }
 

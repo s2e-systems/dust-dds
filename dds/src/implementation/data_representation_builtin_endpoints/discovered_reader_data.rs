@@ -274,16 +274,10 @@ mod tests {
         let data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
-                    GuidPrefix([5; 12]),
-                    EntityId {
-                        entity_key: [11, 12, 13],
-                        entity_kind: 15,
-                    },
+                    GuidPrefix::from([5; 12]),
+                    EntityId::new([11, 12, 13], 15),
                 ),
-                remote_group_entity_id: EntityId {
-                    entity_key: [21, 22, 23],
-                    entity_kind: 25,
-                },
+                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
@@ -343,16 +337,10 @@ mod tests {
             reader_proxy: ReaderProxy {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
-                    GuidPrefix([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId {
-                        entity_key: [4, 0, 0],
-                        entity_kind: 0,
-                    },
+                    GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    EntityId::new([4, 0, 0], 0),
                 ),
-                remote_group_entity_id: EntityId {
-                    entity_key: [21, 22, 23],
-                    entity_kind: 25,
-                },
+                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQosDeserialize::default().0,

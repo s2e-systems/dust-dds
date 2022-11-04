@@ -6,11 +6,9 @@ use crate::infrastructure::qos_policy::{
     TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
-type BuiltInTopicKeyTypeNative = u8; // Originally in the DDS idl i32
-
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BuiltInTopicKey {
-    pub value: [BuiltInTopicKeyTypeNative; 16], // Originally in the DDS idl [i32;3]
+    pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

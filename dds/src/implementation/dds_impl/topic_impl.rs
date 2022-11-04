@@ -148,12 +148,8 @@ impl DdsShared<TopicImpl> {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(<[u8; 16]>::from(self.guid).into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.guid.into()
     }
 }
 
@@ -193,18 +189,12 @@ mod tests {
 
     #[test]
     fn get_instance_handle() {
-        let guid = Guid::new(
-            GuidPrefix([2; 12]),
-            EntityId {
-                entity_key: [3; 3],
-                entity_kind: 1,
-            },
-        );
+        let guid = Guid::new(GuidPrefix::from([2; 12]), EntityId::new([3; 3], 1));
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
-        let instance_handle = topic.get_instance_handle().unwrap();
+        let instance_handle = topic.get_instance_handle();
         assert_eq!(expected_instance_handle, instance_handle);
     }
 }

@@ -48,35 +48,9 @@ impl DdsType for Bar {
 }
 
 #[test]
-fn domain_participant_create_and_delete_topic() {
-    let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
-        &[],
-        &[],
-        PROTOCOLVERSION,
-        VENDOR_ID_S2E,
-    );
-    let domain_participant = DomainParticipantImpl::new(
-        rtps_participant,
-        DomainId::default(),
-        "".to_string(),
-        DomainParticipantQos::default(),
-        vec![],
-        vec![],
-        Arc::new(Condvar::new()),
-    );
-
-    let topic = domain_participant
-        .create_topic::<Foo>("topic", QosKind::Default, None, NO_STATUS)
-        .unwrap();
-
-    domain_participant.delete_topic::<Foo>(&topic).unwrap();
-}
-
-#[test]
 fn not_allowed_to_delete_topic_from_other_participant() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -93,7 +67,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
     );
 
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -114,7 +88,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
         .unwrap();
 
     assert!(matches!(
-        domain_participant2.delete_topic::<Foo>(&topic),
+        domain_participant2.delete_topic::<Foo>(topic.get_instance_handle()),
         Err(DdsError::PreconditionNotMet(_))
     ));
 }
@@ -122,7 +96,7 @@ fn not_allowed_to_delete_topic_from_other_participant() {
 #[test]
 fn domain_participant_lookup_topic_without_creating_any_topic() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -146,7 +120,7 @@ fn domain_participant_lookup_topic_without_creating_any_topic() {
 #[test]
 fn domain_participant_lookup_single_existing_topic() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -177,7 +151,7 @@ fn domain_participant_lookup_single_existing_topic() {
 #[test]
 fn domain_participant_lookup_topic_with_wrong_type() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -205,7 +179,7 @@ fn domain_participant_lookup_topic_with_wrong_type() {
 #[test]
 fn domain_participant_lookup_topic_with_wrong_name() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -233,7 +207,7 @@ fn domain_participant_lookup_topic_with_wrong_name() {
 #[test]
 fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -274,7 +248,7 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_types() {
 #[test]
 fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -314,7 +288,7 @@ fn domain_participant_lookup_topic_with_two_topics_with_different_names() {
 
 #[test]
 fn get_instance_handle() {
-    let guid_prefix = GuidPrefix([1; 12]);
+    let guid_prefix = GuidPrefix::from([1; 12]);
     let rtps_participant =
         RtpsParticipant::new(guid_prefix, &[], &[], PROTOCOLVERSION, VENDOR_ID_S2E);
     let domain_participant = DomainParticipantImpl::new(
@@ -333,11 +307,11 @@ fn get_instance_handle() {
 
 #[test]
 fn domain_participant_get_discovered_participant_data() {
-    let guid_prefix = GuidPrefix([1; 12]);
+    let guid_prefix = GuidPrefix::from([1; 12]);
     let domain_id = DomainId::default();
     let domain_tag = "".to_string();
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,

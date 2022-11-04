@@ -156,10 +156,7 @@ impl DdsType for SpdpDiscoveredParticipantData {
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
-        let guid = Guid {
-            prefix: self.participant_proxy.guid_prefix,
-            entity_id: ENTITYID_PARTICIPANT,
-        };
+        let guid = Guid::new(self.participant_proxy.guid_prefix, ENTITYID_PARTICIPANT);
 
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
@@ -260,7 +257,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
                 domain_id,
                 domain_tag,
                 protocol_version,
-                guid_prefix: guid.prefix,
+                guid_prefix: guid.prefix(),
                 vendor_id,
                 expects_inline_qos,
                 metatraffic_unicast_locator_list,
@@ -297,14 +294,8 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix([8; 12]);
-        let guid = Guid {
-            prefix: guid_prefix,
-            entity_id: EntityId {
-                entity_key: [0, 0, 1],
-                entity_kind: 0xc1,
-            },
-        };
+        let guid_prefix = GuidPrefix::from([8; 12]);
+        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], 0xc1));
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -421,14 +412,8 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix([8; 12]);
-        let guid = Guid {
-            prefix: guid_prefix,
-            entity_id: EntityId {
-                entity_key: [0, 0, 1],
-                entity_kind: 0xc1,
-            },
-        };
+        let guid_prefix = GuidPrefix::from([8; 12]);
+        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], 0xc1));
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];

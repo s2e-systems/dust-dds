@@ -327,7 +327,7 @@ impl DataWriterImpl {
             if !rtps_writer
                 .matched_readers()
                 .iter_mut()
-                .any(|r| r.remote_reader_guid().prefix == participant_discovery.guid_prefix())
+                .any(|r| r.remote_reader_guid().prefix() == participant_discovery.guid_prefix())
             {
                 let type_name = self.topic.get_type_name().unwrap();
                 if type_name == DiscoveredWriterData::type_name() {
@@ -881,12 +881,8 @@ impl DdsShared<DataWriterImpl> {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(<[u8; 16]>::from(self.rtps_writer.read_lock().writer().guid()).into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_writer.read_lock().writer().guid().into()
     }
 }
 
@@ -1508,13 +1504,7 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid {
-                    prefix: GuidPrefix([2; 12]),
-                    entity_id: EntityId {
-                        entity_key: [2; 3],
-                        entity_kind: 2,
-                    },
-                },
+                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1599,13 +1589,7 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid {
-                    prefix: GuidPrefix([2; 12]),
-                    entity_id: EntityId {
-                        entity_key: [2; 3],
-                        entity_kind: 2,
-                    },
-                },
+                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],

@@ -103,9 +103,7 @@ impl RtpsStatefulReader {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.reader.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(
                 source_guid_prefix,
                 heartbeat_submessage.writer_id.value.into(),
@@ -136,7 +134,7 @@ impl RtpsStatefulReader {
         &mut self,
         mut send_acknack: impl FnMut(&RtpsWriterProxy, AckNackSubmessage),
     ) {
-        let entity_id = self.reader.guid().entity_id;
+        let entity_id = self.reader.guid().entity_id();
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks || !writer_proxy.missing_changes().is_empty() {
                 writer_proxy.acknack_count = Count(writer_proxy.acknack_count.0.wrapping_add(1));

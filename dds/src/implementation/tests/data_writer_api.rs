@@ -62,7 +62,7 @@ impl DdsSerialize for KeyedFoo {
 #[test]
 fn register_instance_w_timestamp_different_keys() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -141,7 +141,7 @@ fn register_instance_w_timestamp_different_keys() {
 #[test]
 fn register_instance_w_timestamp_no_key() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -185,7 +185,7 @@ fn register_instance_w_timestamp_no_key() {
 #[test]
 fn register_instance_w_timestamp_out_of_resources() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -244,7 +244,7 @@ fn register_instance_w_timestamp_out_of_resources() {
 #[test]
 fn lookup_instance() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -296,7 +296,7 @@ fn lookup_instance() {
 #[test]
 fn unregister_registered_instance() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -336,7 +336,7 @@ fn unregister_registered_instance() {
 #[test]
 fn unregister_instance_not_registered() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -376,7 +376,7 @@ fn unregister_instance_not_registered() {
 #[test]
 fn unregister_instance_non_registered_handle() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -418,7 +418,7 @@ fn unregister_instance_non_registered_handle() {
 #[test]
 fn unregister_instance_not_matching_handle() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -469,7 +469,7 @@ fn unregister_instance_not_matching_handle() {
 #[test]
 fn dispose_not_registered() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -509,7 +509,7 @@ fn dispose_not_registered() {
 #[test]
 fn dispose_non_registered_handle() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -551,7 +551,7 @@ fn dispose_non_registered_handle() {
 #[test]
 fn dispose_not_matching_handle() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -602,7 +602,7 @@ fn dispose_not_matching_handle() {
 #[test]
 fn get_key_value_known_instance() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -645,7 +645,7 @@ fn get_key_value_known_instance() {
 #[test]
 fn get_key_value_unknown_instance() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,

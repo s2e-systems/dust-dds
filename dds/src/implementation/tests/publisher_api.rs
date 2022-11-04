@@ -28,7 +28,7 @@ impl DdsType for Bar {
 #[test]
 fn create_and_delete_datawriter_succeeds() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -61,13 +61,15 @@ fn create_and_delete_datawriter_succeeds() {
         )
         .unwrap();
 
-    publisher.delete_datawriter(&data_writer).unwrap();
+    publisher
+        .delete_datawriter(data_writer.get_instance_handle())
+        .unwrap();
 }
 
 #[test]
 fn delete_datawriter_from_other_publisher_returns_error() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -104,7 +106,7 @@ fn delete_datawriter_from_other_publisher_returns_error() {
         .unwrap();
 
     assert!(matches!(
-        publisher2.delete_datawriter(&data_writer),
+        publisher2.delete_datawriter(data_writer.get_instance_handle()),
         Err(DdsError::PreconditionNotMet(_))
     ));
 }
@@ -112,7 +114,7 @@ fn delete_datawriter_from_other_publisher_returns_error() {
 #[test]
 fn lookup_datawriter_without_writers_created() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -140,7 +142,7 @@ fn lookup_datawriter_without_writers_created() {
 #[test]
 fn lookup_datawriter_with_one_datawriter_created() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -178,7 +180,7 @@ fn lookup_datawriter_with_one_datawriter_created() {
 #[test]
 fn lookup_datawriter_with_one_datawriter_created_and_wrong_type() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -219,7 +221,7 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_type() {
 #[test]
 fn lookup_datawriter_with_one_datawriter_created_and_wrong_topic() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -260,7 +262,7 @@ fn lookup_datawriter_with_one_datawriter_created_and_wrong_topic() {
 #[test]
 fn lookup_datawriter_with_two_datawriters_with_different_types() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -312,7 +314,7 @@ fn lookup_datawriter_with_two_datawriters_with_different_types() {
 #[test]
 fn lookup_datawriter_with_two_datawriters_with_different_topics() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,

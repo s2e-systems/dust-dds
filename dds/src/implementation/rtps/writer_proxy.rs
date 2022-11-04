@@ -54,7 +54,7 @@ impl RtpsWriterProxy {
             value: reader_id.into(),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: self.remote_writer_guid().entity_id.into(),
+            value: self.remote_writer_guid().entity_id().into(),
         };
 
         let reader_sn_state = SequenceNumberSetSubmessageElement {

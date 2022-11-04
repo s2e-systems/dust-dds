@@ -31,21 +31,11 @@ use super::{
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
 #[derive(PartialEq, Debug)]
-pub struct Subscriber {
-    subscriber_attributes: DdsWeak<SubscriberImpl>,
-}
+pub struct Subscriber(DdsWeak<SubscriberImpl>);
 
 impl Subscriber {
-    pub fn new(subscriber_attributes: DdsWeak<SubscriberImpl>) -> Self {
-        Self {
-            subscriber_attributes,
-        }
-    }
-}
-
-impl AsRef<DdsWeak<SubscriberImpl>> for Subscriber {
-    fn as_ref(&self) -> &DdsWeak<SubscriberImpl> {
-        &self.subscriber_attributes
+    pub fn new(subscriber_impl: DdsWeak<SubscriberImpl>) -> Self {
+        Self(subscriber_impl)
     }
 }
 
@@ -77,10 +67,10 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
     {
         #[allow(clippy::redundant_closure)]
-        self.subscriber_attributes
+        self.0
             .upgrade()?
             .create_datareader::<Foo>(
-                &a_topic.as_ref().upgrade()?,
+                &a_topic.0.upgrade()?,
                 qos,
                 a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
@@ -93,10 +83,13 @@ impl Subscriber {
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
-        self.subscriber_attributes
+    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()>
+    where
+        Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+    {
+        self.0
             .upgrade()?
-            .delete_datareader(&a_datareader.as_ref().upgrade()?)
+            .delete_datareader(a_datareader.get_instance_handle()?)
     }
 
     /// This operation retrieves a previously created [`DataReader`] belonging to the [`Subscriber`] that is attached to a [`Topic`].
@@ -108,9 +101,9 @@ impl Subscriber {
     where
         Foo: DdsType,
     {
-        self.subscriber_attributes
+        self.0
             .upgrade()?
-            .lookup_datareader::<Foo>(&topic.as_ref().upgrade()?)
+            .lookup_datareader::<Foo>(&topic.0.upgrade()?)
             .map(|x| Some(DataReader::new(x.downgrade())))
     }
 
@@ -119,7 +112,7 @@ impl Subscriber {
     /// This operation is typically invoked from the [`SubscriberListener::on_data_on_readers`] operation. That way the
     /// [`SubscriberListener`] can delegate to the [`DataReaderListener`] objects the handling of the data.
     pub fn notify_datareaders(&self) -> DdsResult<()> {
-        self.subscriber_attributes.upgrade()?.notify_datareaders()
+        self.0.upgrade()?.notify_datareaders()
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
@@ -132,9 +125,7 @@ impl Subscriber {
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.subscriber_attributes
-            .upgrade()?
-            .get_sample_lost_status()
+        self.0.upgrade()?.get_sample_lost_status()
     }
 
     /// This operation deletes all the entities that were created by means of the [`Subscriber::create_datareader`] operations.
@@ -144,9 +135,7 @@ impl Subscriber {
     /// Once this operation returns successfully, the application may delete the [`Subscriber`] knowing that it has no
     /// contained [`DataReader`] objects.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.subscriber_attributes
-            .upgrade()?
-            .delete_contained_entities()
+        self.0.upgrade()?.delete_contained_entities()
     }
 
     /// This operation sets a default value of the [`DataReaderQos`] which will be used for newly created [`DataReader`] entities in
@@ -156,9 +145,7 @@ impl Subscriber {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.subscriber_attributes
-            .upgrade()?
-            .set_default_datareader_qos(qos)
+        self.0.upgrade()?.set_default_datareader_qos(qos)
     }
 
     /// This operation retrieves the default value of the [`DataReaderQos`], that is, the qos policies which will be used for newly
@@ -166,9 +153,7 @@ impl Subscriber {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        self.subscriber_attributes
-            .upgrade()?
-            .get_default_datareader_qos()
+        self.0.upgrade()?.get_default_datareader_qos()
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datareader_qos`.
@@ -182,7 +167,7 @@ impl Subscriber {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        self.subscriber_attributes
+        self.0
             .upgrade()?
             .copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
@@ -202,12 +187,12 @@ impl Subscriber {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.subscriber_attributes.upgrade()?.set_qos(qos)
+        self.0.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
-        Ok(self.subscriber_attributes.upgrade()?.get_qos())
+        Ok(self.0.upgrade()?.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -221,21 +206,19 @@ impl Subscriber {
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.subscriber_attributes
-            .upgrade()?
-            .set_listener(a_listener, mask)
+        self.0.upgrade()?.set_listener(a_listener, mask)
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
     pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
-        self.subscriber_attributes.upgrade()?.get_listener()
+        self.0.upgrade()?.get_listener()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.subscriber_attributes.upgrade()?.get_statuscondition()
+        self.0.upgrade()?.get_statuscondition()
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -245,7 +228,7 @@ impl Subscriber {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.subscriber_attributes.upgrade()?.get_status_changes()
+        self.0.upgrade()?.get_status_changes()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -269,7 +252,7 @@ impl Subscriber {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.subscriber_attributes.upgrade()?.enable(
+        self.0.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
@@ -277,6 +260,6 @@ impl Subscriber {
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.subscriber_attributes.upgrade()?.get_instance_handle()
+        Ok(self.0.upgrade()?.get_instance_handle())
     }
 }

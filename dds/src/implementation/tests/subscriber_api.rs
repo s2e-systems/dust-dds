@@ -40,7 +40,7 @@ impl<'de> DdsDeserialize<'de> for Bar {
 #[test]
 fn create_and_delete_datareader_succeeds() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -73,13 +73,15 @@ fn create_and_delete_datareader_succeeds() {
         )
         .unwrap();
 
-    subscriber.delete_datareader(&data_reader).unwrap();
+    subscriber
+        .delete_datareader(data_reader.get_instance_handle())
+        .unwrap();
 }
 
 #[test]
 fn delete_datareader_from_other_subscriber_returns_error() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -116,7 +118,7 @@ fn delete_datareader_from_other_subscriber_returns_error() {
         .unwrap();
 
     assert!(matches!(
-        subscriber2.delete_datareader(&data_reader),
+        subscriber2.delete_datareader(data_reader.get_instance_handle()),
         Err(DdsError::PreconditionNotMet(_))
     ));
 }
@@ -124,7 +126,7 @@ fn delete_datareader_from_other_subscriber_returns_error() {
 #[test]
 fn lookup_datareader_without_readers_created() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -152,7 +154,7 @@ fn lookup_datareader_without_readers_created() {
 #[test]
 fn lookup_datareader_with_one_datareader_created() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -190,7 +192,7 @@ fn lookup_datareader_with_one_datareader_created() {
 #[test]
 fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -231,7 +233,7 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_type() {
 #[test]
 fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -272,7 +274,7 @@ fn lookup_datareader_with_one_datareader_created_and_wrong_topic() {
 #[test]
 fn lookup_datareader_with_two_datareaders_with_different_types() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,
@@ -324,7 +326,7 @@ fn lookup_datareader_with_two_datareaders_with_different_types() {
 #[test]
 fn lookup_datareader_with_two_datareaders_with_different_topics() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,

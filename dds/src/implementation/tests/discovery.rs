@@ -22,7 +22,7 @@ mock! {
 #[test]
 fn participant_sends_spdp_discovery() {
     let rtps_participant = RtpsParticipant::new(
-        GuidPrefix([1; 12]),
+        GuidPrefix::from([1; 12]),
         &[],
         &[],
         PROTOCOLVERSION,

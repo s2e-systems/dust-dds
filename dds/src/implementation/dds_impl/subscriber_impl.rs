@@ -158,14 +158,11 @@ impl DdsShared<SubscriberImpl> {
         Ok(data_reader_shared)
     }
 
-    pub fn delete_datareader(
-        &self,
-        a_datareader: &DdsShared<DataReaderImpl<ThreadTimer>>,
-    ) -> DdsResult<()> {
+    pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
         let data_reader_list = &mut self.data_reader_list.write_lock();
         let data_reader_list_position = data_reader_list
             .iter()
-            .position(|x| x == a_datareader)
+            .position(|x| x.get_instance_handle() == a_datareader_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Data reader can only be deleted from its parent subscriber".to_string(),
@@ -239,7 +236,7 @@ impl DdsShared<SubscriberImpl> {
         todo!()
     }
 
-    pub fn get_sample_lost_status(&self ) -> DdsResult<SampleLostStatus> {
+    pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         todo!()
     }
 
@@ -331,12 +328,8 @@ impl DdsShared<SubscriberImpl> {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(<[u8; 16]>::from(self.rtps_group.guid()).into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_group.guid().into()
     }
 }
 

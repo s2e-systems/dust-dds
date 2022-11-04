@@ -164,7 +164,7 @@ impl DomainParticipantImpl {
         announce_condvar: Arc<Condvar>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
-        let guid_prefix = rtps_participant.guid().prefix;
+        let guid_prefix = rtps_participant.guid().prefix();
 
         let builtin_subscriber = SubscriberImpl::new(
             SubscriberQos::default(),
@@ -214,7 +214,7 @@ impl DomainParticipantImpl {
     }
 
     pub fn is_parent(&self, other: InstanceHandle) -> bool {
-        self.rtps_participant.guid().prefix.0 == <[u8; 16]>::from(other)[0..12]
+        self.rtps_participant.guid().prefix() == Guid::from(other).prefix()
     }
 }
 
@@ -302,22 +302,25 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(publisher_impl_shared)
     }
 
-    pub fn delete_publisher(&self, a_publisher: &DdsShared<PublisherImpl>) -> DdsResult<()> {
-        if !self.is_parent(a_publisher.get_instance_handle().unwrap()) {
-            return Err(DdsError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant".to_string(),
-            ));
-        }
+    pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
+        let mut publisher_list = self.user_defined_publisher_list.write_lock();
 
-        if !a_publisher.is_empty() {
+        let publisher = publisher_list
+            .iter()
+            .find(|&x| x.get_instance_handle() == a_publisher_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Publisher can only be deleted from its parent participant".to_string(),
+                )
+            })?;
+
+        if !publisher.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
         }
 
-        self.user_defined_publisher_list
-            .write_lock()
-            .retain(|x| x != a_publisher);
+        publisher_list.retain(|x| x.get_instance_handle() != a_publisher_handle);
 
         Ok(())
     }
@@ -356,22 +359,26 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(subscriber_shared)
     }
 
-    pub fn delete_subscriber(&self, a_subscriber: &DdsShared<SubscriberImpl>) -> DdsResult<()> {
-        if !self.is_parent(a_subscriber.get_instance_handle()?) {
-            return Err(DdsError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant".to_string(),
-            ));
-        }
+    pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
+        let mut subscriber_list = self.user_defined_subscriber_list.write_lock();
 
-        if !a_subscriber.is_empty() {
+        let subscriber = subscriber_list
+            .iter()
+            .find(|&x| x.get_instance_handle() == a_subscriber_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Subscriber can only be deleted from its parent participant".to_string(),
+                )
+            })?;
+
+        if !subscriber.is_empty() {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber still contains data readers".to_string(),
             ));
         }
 
-        self.user_defined_subscriber_list
-            .write_lock()
-            .retain(|x| x != a_subscriber);
+        subscriber_list.retain(|x| x.get_instance_handle() != a_subscriber_handle);
+
         Ok(())
     }
 
@@ -390,10 +397,7 @@ impl DdsShared<DomainParticipantImpl> {
             .fetch_add(1, Ordering::Relaxed);
         let topic_guid = Guid::new(
             self.rtps_participant.guid().prefix(),
-            EntityId {
-                entity_key: [topic_counter, 0, 0],
-                entity_kind: USER_DEFINED_TOPIC,
-            },
+            EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC),
         );
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),
@@ -423,26 +427,24 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(topic_shared)
     }
 
-    pub fn delete_topic<Foo>(&self, a_topic: &DdsShared<TopicImpl>) -> DdsResult<()> {
+    pub fn delete_topic<Foo>(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
         let mut topic_list = self.topic_list.write_lock();
-        let topic_list_position = topic_list
+        let topic = topic_list
             .iter()
-            .position(|topic| topic == a_topic)
+            .find(|&topic| topic.get_instance_handle() == a_topic_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Topic can only be deleted from its parent publisher".to_string(),
                 )
             })?;
 
-        // If topic is not attached to any reader or writer there must be no more than 2 strong counts
-        // 1 strong stored in the list of the participant and 1 strong used to call this function
-        if a_topic.strong_count() > 2 {
+        if topic.strong_count() > 1 {
             return Err(DdsError::PreconditionNotMet(
                 "Topic still attached to some data reader or data writer".to_string(),
             ));
         }
 
-        topic_list.remove(topic_list_position);
+        topic_list.retain(|x| x.get_instance_handle() != a_topic_handle);
 
         Ok(())
     }
@@ -725,7 +727,7 @@ impl DdsShared<DomainParticipantImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(<[u8; 16]>::from(self.rtps_participant.guid()).into())
+        Ok(self.rtps_participant.guid().into())
     }
 }
 
@@ -873,7 +875,7 @@ impl DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn receive_built_in_data(&self, source_locator: Locator, message: RtpsMessage) {
         MessageReceiver::new().process_message(
-            self.rtps_participant.guid().prefix,
+            self.rtps_participant.guid().prefix(),
             core::slice::from_ref(&self.builtin_publisher),
             core::slice::from_ref(&self.builtin_subscriber),
             source_locator,
@@ -884,7 +886,7 @@ impl DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn create_builtins(&self) -> DdsResult<()> {
-        let guid_prefix = self.rtps_participant.guid().prefix;
+        let guid_prefix = self.rtps_participant.guid().prefix();
 
         ///////// Create built-in DDS data readers and data writers
 
@@ -1272,7 +1274,7 @@ impl DdsShared<DomainParticipantImpl> {
 impl DdsShared<DomainParticipantImpl> {
     pub fn receive_user_defined_data(&self, source_locator: Locator, message: RtpsMessage) {
         MessageReceiver::new().process_message(
-            self.rtps_participant.guid().prefix,
+            self.rtps_participant.guid().prefix(),
             self.user_defined_publisher_list.read_lock().as_slice(),
             self.user_defined_subscriber_list.read_lock().as_slice(),
             source_locator,

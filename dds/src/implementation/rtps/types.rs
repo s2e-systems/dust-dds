@@ -13,8 +13,8 @@ use std::ops::AddAssign;
 /// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
-    pub prefix: GuidPrefix,
-    pub entity_id: EntityId,
+    prefix: GuidPrefix,
+    entity_id: EntityId,
 }
 
 #[allow(dead_code)]
@@ -80,7 +80,7 @@ impl From<[u8; 16]> for Guid {
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct GuidPrefix(pub [u8; 12]);
+pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
 impl From<GuidPrefix> for [u8; 12] {
@@ -101,8 +101,8 @@ impl From<[u8; 12]> for GuidPrefix {
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
-    pub entity_key: EntityKey,
-    pub entity_kind: EntityKind,
+    entity_key: EntityKey,
+    entity_kind: EntityKind,
 }
 
 impl EntityId {

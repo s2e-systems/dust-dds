@@ -30,23 +30,11 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo> {
-    data_writer_attributes: DdsWeak<DataWriterImpl>,
-    phantom: PhantomData<Foo>,
-}
+pub struct DataWriter<Foo>(DdsWeak<DataWriterImpl>, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
     pub(crate) fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
-        Self {
-            data_writer_attributes,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<Foo> AsRef<DdsWeak<DataWriterImpl>> for DataWriter<Foo> {
-    fn as_ref(&self) -> &DdsWeak<DataWriterImpl> {
-        &self.data_writer_attributes
+        Self(data_writer_attributes, PhantomData)
     }
 }
 
@@ -73,7 +61,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .register_instance_w_timestamp(instance, timestamp)
     }
@@ -87,7 +75,7 @@ where
         instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .register_instance_w_timestamp(instance, timestamp)
     }
@@ -129,7 +117,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -145,7 +133,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
@@ -155,9 +143,7 @@ where
     /// This operation returns [`DdsError::BadParameter`](crate::infrastructure::error::DdsError) if the `handle` does not
     /// correspond to an existing data object known to the [`DataWriter`].
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_key_value(key_holder, handle)
+        self.0.upgrade()?.get_key_value(key_holder, handle)
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] that can be used in subsequent operations
@@ -166,9 +152,7 @@ where
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.data_writer_attributes
-            .upgrade()?
-            .lookup_instance(instance)
+        self.0.upgrade()?.lookup_instance(instance)
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -208,9 +192,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.data_writer_attributes
-            .upgrade()?
-            .write_w_timestamp(data, handle, timestamp)
+        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::write`] and can
@@ -224,9 +206,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.data_writer_attributes
-            .upgrade()?
-            .write_w_timestamp(data, handle, timestamp)
+        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -246,7 +226,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .dispose_w_timestamp(data, handle, timestamp)
     }
@@ -262,7 +242,7 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .dispose_w_timestamp(data, handle, timestamp)
     }
@@ -276,56 +256,38 @@ where
     /// This operation is intended to be used only if the DataWriter has [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind).
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.data_writer_attributes
-            .upgrade()?
-            .wait_for_acknowledgments(max_wait)
+        self.0.upgrade()?.wait_for_acknowledgments(max_wait)
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_liveliness_lost_status()
+        self.0.upgrade()?.get_liveliness_lost_status()
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_offered_deadline_missed_status()
+        self.0.upgrade()?.get_offered_deadline_missed_status()
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_offered_incompatible_qos_status()
+        self.0.upgrade()?.get_offered_incompatible_qos_status()
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_publication_matched_status()
+        self.0.upgrade()?.get_publication_matched_status()
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
-        Ok(Topic::new(
-            self.data_writer_attributes
-                .upgrade()?
-                .get_topic()
-                .downgrade(),
-        ))
+        Ok(Topic::new(self.0.upgrade()?.get_topic().downgrade()))
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         Ok(Publisher::new(
-            self.data_writer_attributes
-                .upgrade()?
-                .get_publisher()
-                .downgrade(),
+            self.0.upgrade()?.get_publisher().downgrade(),
         ))
     }
 
@@ -338,7 +300,7 @@ where
     /// [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant). Consequently the use of this operation is only needed
     /// if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.assert_liveliness()
+        self.0.upgrade()?.assert_liveliness()
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the [`DataWriter`]; that is, a subscription
@@ -351,7 +313,7 @@ where
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        self.data_writer_attributes
+        self.0
             .upgrade()?
             .get_matched_subscription_data(subscription_handle)
     }
@@ -363,9 +325,7 @@ where
     /// [`DataReader`](crate::subscription::data_reader::DataReader) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.data_writer_attributes
-            .upgrade()?
-            .get_matched_subscriptions()
+        self.0.upgrade()?.get_matched_subscriptions()
     }
 }
 
@@ -387,12 +347,12 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.set_qos(qos)
+        self.0.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.data_writer_attributes.upgrade()?.get_qos())
+        Ok(self.0.upgrade()?.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -407,7 +367,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
-        self.data_writer_attributes.upgrade()?.set_listener(
+        self.0.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
         )
@@ -425,7 +385,7 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         Ok(StatusCondition::new(
-            self.data_writer_attributes.upgrade()?.get_statuscondition(),
+            self.0.upgrade()?.get_statuscondition(),
         ))
     }
 
@@ -436,7 +396,7 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.data_writer_attributes.upgrade()?.get_status_changes()
+        self.0.upgrade()?.get_status_changes()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -460,7 +420,7 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.data_writer_attributes.upgrade()?.enable(
+        self.0.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
@@ -468,7 +428,7 @@ where
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.data_writer_attributes.upgrade()?.get_instance_handle()
+        Ok(self.0.upgrade()?.get_instance_handle())
     }
 }
 

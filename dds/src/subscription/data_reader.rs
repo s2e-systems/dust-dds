@@ -46,23 +46,11 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo> {
-    data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>,
-    phantom: PhantomData<Foo>,
-}
+pub struct DataReader<Foo>(DdsWeak<DataReaderImpl<ThreadTimer>>, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
     pub(crate) fn new(data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>) -> Self {
-        Self {
-            data_reader_attributes,
-            phantom: PhantomData,
-        }
-    }
-}
-
-impl<Foo> AsRef<DdsWeak<DataReaderImpl<ThreadTimer>>> for DataReader<Foo> {
-    fn as_ref(&self) -> &DdsWeak<DataReaderImpl<ThreadTimer>> {
-        &self.data_reader_attributes
+        Self(data_reader_attributes, PhantomData)
     }
 }
 
@@ -117,12 +105,9 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        self.0
+            .upgrade()?
+            .read(max_samples, sample_states, view_states, instance_states)
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
@@ -135,12 +120,9 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        self.0
+            .upgrade()?
+            .take(max_samples, sample_states, view_states, instance_states)
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -151,7 +133,7 @@ where
     /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.data_reader_attributes.upgrade()?.read_next_sample()
+        self.0.upgrade()?.read_next_sample()
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -162,7 +144,7 @@ where
     /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.data_reader_attributes.upgrade()?.take_next_sample()
+        self.0.upgrade()?.take_next_sample()
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The
@@ -181,7 +163,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.read_instance(
+        self.0.upgrade()?.read_instance(
             max_samples,
             a_handle,
             sample_states,
@@ -206,7 +188,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.take_instance(
+        self.0.upgrade()?.take_instance(
             max_samples,
             a_handle,
             sample_states,
@@ -246,7 +228,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.read_next_instance(
+        self.0.upgrade()?.read_next_instance(
             max_samples,
             previous_handle,
             sample_states,
@@ -266,7 +248,7 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.data_reader_attributes.upgrade()?.take_next_instance(
+        self.0.upgrade()?.take_next_instance(
             max_samples,
             previous_handle,
             sample_states,
@@ -280,9 +262,7 @@ where
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_key_value(key_holder, handle)
+        self.0.upgrade()?.get_key_value(key_holder, handle)
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] handle
@@ -292,73 +272,53 @@ where
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.data_reader_attributes
-            .upgrade()?
-            .lookup_instance(instance)
+        self.0.upgrade()?.lookup_instance(instance)
     }
 
     /// This operation allows access to the [`LivelinessChangedStatus`].
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_liveliness_changed_status()
+        self.0.upgrade()?.get_liveliness_changed_status()
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_requested_deadline_missed_status()
+        self.0.upgrade()?.get_requested_deadline_missed_status()
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_requested_incompatible_qos_status()
+        self.0.upgrade()?.get_requested_incompatible_qos_status()
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_sample_lost_status()
+        self.0.upgrade()?.get_sample_lost_status()
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_sample_rejected_status()
+        self.0.upgrade()?.get_sample_rejected_status()
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_subscription_matched_status()
+        self.0.upgrade()?.get_subscription_matched_status()
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
         Ok(Topic::new(
-            self.data_reader_attributes
-                .upgrade()?
-                .get_topicdescription()
-                .downgrade(),
+            self.0.upgrade()?.get_topicdescription().downgrade(),
         ))
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
         Ok(Subscriber::new(
-            self.data_reader_attributes
-                .upgrade()?
-                .get_subscriber()
-                .downgrade(),
+            self.0.upgrade()?.get_subscriber().downgrade(),
         ))
     }
 
@@ -375,9 +335,7 @@ where
     /// There are situations where the application logic may require the application to wait until all “historical”
     /// data is received.
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        self.data_reader_attributes
-            .upgrade()?
-            .wait_for_historical_data(max_wait)
+        self.0.upgrade()?.wait_for_historical_data(max_wait)
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
@@ -391,7 +349,7 @@ where
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.data_reader_attributes
+        self.0
             .upgrade()?
             .get_matched_publication_data(publication_handle)
     }
@@ -403,9 +361,7 @@ where
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.data_reader_attributes
-            .upgrade()?
-            .get_matched_publications()
+        self.0.upgrade()?.get_matched_publications()
     }
 }
 
@@ -427,12 +383,12 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.data_reader_attributes.upgrade()?.set_qos(qos)
+        self.0.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        self.data_reader_attributes.upgrade()?.get_qos()
+        self.0.upgrade()?.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -447,7 +403,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
-        self.data_reader_attributes.upgrade()?.set_listener(
+        self.0.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
         )
@@ -465,7 +421,7 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         Ok(StatusCondition::new(
-            self.data_reader_attributes.upgrade()?.get_statuscondition(),
+            self.0.upgrade()?.get_statuscondition(),
         ))
     }
 
@@ -476,7 +432,7 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.data_reader_attributes.upgrade()?.get_status_changes())
+        Ok(self.0.upgrade()?.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -500,7 +456,7 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.data_reader_attributes.upgrade()?.enable(
+        self.0.upgrade()?.enable(
             &THE_PARTICIPANT_FACTORY
                 .lookup_participant_by_entity_handle(self.get_instance_handle()?),
         )
@@ -508,7 +464,7 @@ where
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.data_reader_attributes.upgrade()?.get_instance_handle()
+        Ok(self.0.upgrade()?.get_instance_handle())
     }
 }
 

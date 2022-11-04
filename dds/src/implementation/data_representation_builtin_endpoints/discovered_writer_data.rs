@@ -270,19 +270,13 @@ mod tests {
         let data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
-                    GuidPrefix([5; 12]),
-                    EntityId {
-                        entity_key: [11, 12, 13],
-                        entity_kind: 15,
-                    },
+                    GuidPrefix::from([5; 12]),
+                    EntityId::new([11, 12, 13], 15),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId {
-                    entity_key: [21, 22, 23],
-                    entity_kind: 25,
-                },
+                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -340,19 +334,13 @@ mod tests {
             writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
-                    GuidPrefix([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId {
-                        entity_key: [4, 0, 0],
-                        entity_kind: 0,
-                    },
+                    GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    EntityId::new([4, 0, 0], 0),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId {
-                    entity_key: [21, 22, 23],
-                    entity_kind: 25,
-                },
+                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {

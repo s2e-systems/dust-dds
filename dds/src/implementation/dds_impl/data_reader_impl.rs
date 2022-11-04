@@ -278,7 +278,7 @@ impl<Tim> DataReaderImpl<Tim> {
             if !rtps_reader
                 .matched_writers()
                 .iter_mut()
-                .any(|r| r.remote_writer_guid().prefix == participant_discovery.guid_prefix())
+                .any(|r| r.remote_writer_guid().prefix() == participant_discovery.guid_prefix())
             {
                 let type_name = self.topic.get_type_name().unwrap();
                 if type_name == DiscoveredWriterData::type_name() {
@@ -1064,12 +1064,8 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(<[u8; 16]>::from(self.rtps_reader.read_lock().reader().guid()).into())
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.read_lock().reader().guid().into()
     }
 }
 
@@ -1086,7 +1082,7 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
         Ok(DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: guid,
-                remote_group_entity_id: guid.entity_id,
+                remote_group_entity_id: guid.entity_id(),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: false,
@@ -1360,13 +1356,7 @@ mod tests {
 
     #[test]
     fn get_instance_handle() {
-        let guid = Guid::new(
-            GuidPrefix([4; 12]),
-            EntityId {
-                entity_key: [3; 3],
-                entity_kind: 1,
-            },
-        );
+        let guid = Guid::new(GuidPrefix::from([4; 12]), EntityId::new([3; 3], 1));
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
         let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
@@ -1386,7 +1376,7 @@ mod tests {
         *data_reader.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
-        let instance_handle = data_reader.get_instance_handle().unwrap();
+        let instance_handle = data_reader.get_instance_handle();
         assert_eq!(expected_instance_handle, instance_handle);
     }
 
@@ -1443,13 +1433,7 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid {
-                    prefix: GuidPrefix([2; 12]),
-                    entity_id: EntityId {
-                        entity_key: [2; 3],
-                        entity_kind: 2,
-                    },
-                },
+                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1530,13 +1514,7 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid {
-                    prefix: GuidPrefix([2; 12]),
-                    entity_id: EntityId {
-                        entity_key: [2; 3],
-                        entity_kind: 2,
-                    },
-                },
+                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
