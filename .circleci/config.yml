@@ -19,19 +19,25 @@ jobs:
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
             cargo test --jobs 8
       - run:
-          name: Hello world publisher
-          background: true
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage"
-            export LLVM_PROFILE_FILE="hello_world-%p-%m.profraw"
-            cargo run --example hello_world_publisher
-      - run:
-          name: Hello world subscriber
+          name: Hello world example
           no_output_timeout: 10s
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
-            export LLVM_PROFILE_FILE="hello_world-%p-%m.profraw"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example hello_world_publisher &
+            pid=$!
             cargo run --example hello_world_subscriber
+            wait $pid
+      - run:
+          name: BestEffort example
+          no_output_timeout: 30s
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example best_effort_subscriber &
+            pid=$!
+            cargo run --example best_effort_publisher
+            wait $pid
       - run:
           name: Gather coverage data
           command: |
