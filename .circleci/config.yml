@@ -17,7 +17,7 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --jobs 8
+            cargo test -- --test-threads=1
       - run:
           name: Hello world example
           no_output_timeout: 10s

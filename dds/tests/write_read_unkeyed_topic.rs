@@ -13,7 +13,6 @@ use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
 
 use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
 use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
-
 #[derive(Debug, PartialEq)]
 struct UserData(u8);
 
@@ -47,7 +46,7 @@ impl<'de> DdsDeserialize<'de> for UserData {
 
 #[test]
 fn write_read_unkeyed_topic() {
-    let domain_id = 8;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -99,7 +98,7 @@ fn write_read_unkeyed_topic() {
     writer.write(&UserData(8), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(3, 0))
         .unwrap();
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
@@ -109,7 +108,7 @@ fn write_read_unkeyed_topic() {
 
 #[test]
 fn data_reader_resource_limits() {
-    let domain_id = 10;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = participant_factory
@@ -175,14 +174,14 @@ fn data_reader_resource_limits() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(&UserData(1), None).unwrap();
     writer.write(&UserData(2), None).unwrap();
     writer.write(&UserData(3), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(5, 0))
         .unwrap();
 
     let samples = reader
@@ -194,7 +193,7 @@ fn data_reader_resource_limits() {
 
 #[test]
 fn data_reader_order_by_source_timestamp() {
-    let domain_id = 11;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -303,7 +302,7 @@ fn data_reader_order_by_source_timestamp() {
 
 #[test]
 fn data_reader_publication_handle_sample_info() {
-    let domain_id = 12;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory

@@ -30,5 +30,4 @@ serde_json = "1.0.87"
 schemars = "0.8.11"
 
 [dev-dependencies]
-dust_dds_derive = { path = "../dds_derive" }
 mockall = { version = "0.11" }

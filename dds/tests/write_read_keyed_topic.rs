@@ -43,7 +43,7 @@ impl DdsSerde for KeyedData {}
 
 #[test]
 fn each_key_sample_is_read() {
-    let domain_id = 20;
+    let domain_id = 0;
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -129,7 +129,7 @@ fn each_key_sample_is_read() {
 
 #[test]
 fn write_read_disposed_samples() {
-    let domain_id = 21;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -205,7 +205,7 @@ fn write_read_disposed_samples() {
 
 #[test]
 fn write_read_sample_view_state() {
-    let domain_id = 22;
+    let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -213,7 +213,7 @@ fn write_read_sample_view_state() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic::<KeyedData>("OtherTopic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant

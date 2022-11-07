@@ -57,7 +57,7 @@ fn writer_discovers_reader_in_same_participant() {
 
 #[test]
 fn reader_discovers_writer_in_same_participant() {
-    let domain_id = 6;
+    let domain_id = 0;
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -92,7 +92,7 @@ fn reader_discovers_writer_in_same_participant() {
 
 #[test]
 fn participant_records_discovered_topics() {
-    let domain_id = 7;
+    let domain_id = 0;
 
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
@@ -137,28 +137,31 @@ fn participant_records_discovered_topics() {
 
 #[test]
 fn participant_announces_updated_qos() {
-    let domain_id = 8;
+    let domain_id = 0;
 
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
-    // let participant2 = domain_participant_factory
-    // .create_participant(domain_id, None, None, EMPTY_STATUS)
-    // .unwrap();
 
     let mut qos = participant1.get_qos().unwrap();
     qos.user_data.value = vec![1, 2, 3];
 
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
+    participant1
+        .set_qos(QosKind::Specific(qos.clone()))
+        .unwrap();
     qos.user_data.value = vec![4, 5, 6];
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
+    participant1
+        .set_qos(QosKind::Specific(qos.clone()))
+        .unwrap();
     qos.user_data.value = vec![7, 8, 9];
     std::thread::sleep(std::time::Duration::from_secs(1));
-    participant1.set_qos(QosKind::Specific(qos.clone())).unwrap();
+    participant1
+        .set_qos(QosKind::Specific(qos.clone()))
+        .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 }

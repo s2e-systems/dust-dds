@@ -6,7 +6,7 @@ use std::{
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::Qos,
+        qos::QosKind,
         status::{StatusKind, NO_STATUS},
     },
     subscription::{
@@ -55,20 +55,20 @@ fn main() {
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
-        .create_participant(domain_id, Qos::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
         .create_topic::<BestEffortExampleType>(
             "BestEffortExampleTopic",
-            Qos::Default,
+            QosKind::Default,
             None,
             NO_STATUS,
         )
         .unwrap();
 
     let subscriber = participant
-        .create_subscriber(Qos::Default, None, NO_STATUS)
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let (sender, receiver) = sync_channel(0);
@@ -77,7 +77,7 @@ fn main() {
     let _reader = subscriber
         .create_datareader(
             &topic,
-            Qos::Default,
+            QosKind::Default,
             Some(listener),
             &[StatusKind::DataAvailable, StatusKind::LivelinessChanged],
         )
