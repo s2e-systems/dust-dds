@@ -2,82 +2,32 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessage_elements::TimestampSubmessageElement,
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
+        submessages::{DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
     },
-    types::{Count, Locator, SequenceNumber},
+    types::{Locator, SequenceNumber},
 };
 
 pub struct RtpsReaderLocator {
-    requested_changes: Vec<SequenceNumber>,
     unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
-    expects_inline_qos: bool,
-    last_received_acknack_count: Count,
+    _expects_inline_qos: bool,
 }
 
 impl RtpsReaderLocator {
     pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
-            expects_inline_qos,
-            requested_changes: vec![],
+            _expects_inline_qos: expects_inline_qos,
             unsent_changes: vec![],
-            last_received_acknack_count: Count(0),
         }
-    }
-
-    pub fn unsent_changes_reset(&mut self) {
-        self.unsent_changes = vec![];
     }
 
     pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         &mut self.unsent_changes
     }
 
-    pub fn requested_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
-        &mut self.requested_changes
-    }
-
     pub fn locator(&self) -> Locator {
         self.locator
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-
-    /// 8.4.8.2.5 Transition T6
-    /// Implementation does not include the part corresponding to searching the reader locator
-    /// on the stateless writer
-    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
-        if acknack_submessage.count.value > self.last_received_acknack_count.0 {
-            self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
-            self.last_received_acknack_count.0 = acknack_submessage.count.value;
-        }
-    }
-
-    pub fn next_requested_change<'a>(
-        &mut self,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> RtpsReaderLocatorCacheChange<'a> {
-        // "next_seq_num := MIN {change.sequenceNumber
-        //     SUCH-THAT change IN this.requested_changes()};
-        // return change IN this.requested_changes()
-        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-
-        let next_seq_num = self.requested_changes.iter().min().cloned().unwrap();
-
-        // 8.4.8.2.4 Transition T4
-        // "After the transition, the following post-conditions hold:
-        //   ( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-        self.unsent_changes.retain(|c| *c != next_seq_num);
-
-        let cache_change = writer_cache
-            .changes()
-            .iter()
-            .find(|c| c.sequence_number() == next_seq_num);
-
-        RtpsReaderLocatorCacheChange { cache_change }
     }
 
     pub fn next_unsent_change<'a>(
@@ -102,14 +52,6 @@ impl RtpsReaderLocator {
             .find(|c| c.sequence_number() == next_seq_num);
 
         RtpsReaderLocatorCacheChange { cache_change }
-    }
-
-    pub fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
-        self.requested_changes = req_seq_num_set.to_vec();
-    }
-
-    pub fn requested_changes(&self) -> Vec<SequenceNumber> {
-        self.requested_changes.clone()
     }
 
     pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
@@ -202,19 +144,5 @@ mod tests {
                 .sequence_number(),
             2
         );
-    }
-
-    #[test]
-    fn reader_locator_requested_changes_set() {
-        let mut reader_locator_attributes = RtpsReaderLocator::new(LOCATOR_INVALID, false);
-
-        let req_seq_num_set = vec![1, 2, 3];
-        reader_locator_attributes.requested_changes_set(&req_seq_num_set);
-
-        let expected_requested_changes = vec![1, 2, 3];
-        assert_eq!(
-            reader_locator_attributes.requested_changes(),
-            expected_requested_changes
-        )
     }
 }

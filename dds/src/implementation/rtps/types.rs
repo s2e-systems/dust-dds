@@ -177,6 +177,9 @@ pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
 pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
 pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
 pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
+// Added in comparison to the RTPS standard
+pub const BUILT_IN_TOPIC: EntityKind = 0xca;
+pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
 
 pub type EntityKey = [u8; 3];
 

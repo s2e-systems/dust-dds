@@ -12,7 +12,7 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::{data_writer_impl::AnyDataWriterListener, publisher_impl::PublisherImpl},
+        dds_impl::{user_defined_data_writer::AnyDataWriterListener, user_defined_publisher::UserDefinedPublisher},
         utils::shared_object::DdsWeak,
     },
     infrastructure::status::StatusKind,
@@ -31,10 +31,10 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(PartialEq, Debug)]
-pub struct Publisher(DdsWeak<PublisherImpl>);
+pub struct Publisher(DdsWeak<UserDefinedPublisher>);
 
 impl Publisher {
-    pub(crate) fn new(publisher_impl: DdsWeak<PublisherImpl>) -> Self {
+    pub(crate) fn new(publisher_impl: DdsWeak<UserDefinedPublisher>) -> Self {
         Self(publisher_impl)
     }
 }

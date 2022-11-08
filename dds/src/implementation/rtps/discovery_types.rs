@@ -39,8 +39,8 @@ impl BuiltinEndpointSet {
     @position(9) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_DETECTOR,
     */
 
-    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER: u32 = 1 << 10;
-    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 11;
+    pub const _BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER: u32 = 1 << 10;
+    pub const _BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 11;
 
     /*
     Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification
@@ -52,6 +52,7 @@ impl BuiltinEndpointSet {
     pub const BUILTIN_ENDPOINT_TOPICS_ANNOUNCER: u32 = 1 << 28;
     pub const BUILTIN_ENDPOINT_TOPICS_DETECTOR: u32 = 1 << 29;
 
+    #[allow(dead_code)]
     pub fn new(value: u32) -> Self {
         Self(value)
     }
@@ -65,12 +66,15 @@ impl BuiltinEndpointSet {
 pub struct BuiltinEndpointQos(pub u32);
 
 impl BuiltinEndpointQos {
+    #[allow(dead_code)]
     pub const BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 29;
 
+    #[allow(dead_code)]
     pub fn new(value: u32) -> Self {
         Self(value)
     }
 
+    #[allow(dead_code)]
     pub fn has(&self, endpoint: u32) -> bool {
         (self.0 & endpoint) == endpoint
     }

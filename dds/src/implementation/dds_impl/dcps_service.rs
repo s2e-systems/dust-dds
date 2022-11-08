@@ -46,8 +46,6 @@ impl DcpsService {
 
         participant.enable()?;
 
-        participant.create_builtins()?;
-
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
         // //////////// SPDP Communication
@@ -148,6 +146,10 @@ impl DcpsService {
                 match domain_participant.discover_matched_readers() {
                     Ok(()) => (),
                     Err(e) => println!("sedp reader discovery failed: {:?}", e),
+                }
+                match domain_participant.discover_matched_topics() {
+                    Ok(()) => (),
+                    Err(e) => println!("sedp topic discovery failed: {:?}", e),
                 }
             }));
         }

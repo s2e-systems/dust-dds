@@ -103,8 +103,6 @@ impl DomainParticipantFactory {
             participant.enable()?;
         }
 
-        participant.create_builtins()?;
-
         THE_PARTICIPANT_FACTORY
             .participant_list
             .lock()

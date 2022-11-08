@@ -12,7 +12,10 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    subscription::{
+        subscriber::{Subscriber, SubscriberKind},
+        subscriber_listener::SubscriberListener,
+    },
     topic_definition::{
         topic::Topic,
         topic_listener::TopicListener,
@@ -49,10 +52,6 @@ pub struct DomainParticipant(DdsWeak<DomainParticipantImpl>);
 impl DomainParticipant {
     pub(crate) fn new(domain_participant_impl: DdsWeak<DomainParticipantImpl>) -> Self {
         Self(domain_participant_impl)
-    }
-
-    pub(crate) fn create_builtins(&self) -> DdsResult<()> {
-        self.0.upgrade()?.create_builtins()
     }
 }
 
@@ -120,7 +119,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_subscriber(qos, a_listener, mask)
-            .map(|x| Subscriber::new(x.downgrade()))
+            .map(|x| Subscriber::new(SubscriberKind::UserDefined(x.downgrade())))
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -226,7 +225,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .get_builtin_subscriber()
-            .map(|x| Subscriber::new(x.downgrade()))
+            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(x.downgrade())))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

@@ -13,7 +13,7 @@ pub struct RtpsReaderCacheChange {
     sequence_number: SequenceNumber,
     instance_handle: InstanceHandle,
     data: Vec<u8>,
-    inline_qos: Vec<RtpsParameter>,
+    _inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
 }
 
@@ -43,7 +43,7 @@ impl RtpsReaderCacheChange {
             sequence_number,
             instance_handle,
             data: data_value,
-            inline_qos,
+            _inline_qos: inline_qos,
             source_timestamp,
         }
     }
@@ -66,10 +66,6 @@ impl RtpsReaderCacheChange {
 
     pub fn data_value(&self) -> &[u8] {
         self.data.as_ref()
-    }
-
-    pub fn inline_qos(&self) -> &[RtpsParameter] {
-        &self.inline_qos
     }
 
     pub fn source_timestamp(&self) -> &Option<Time> {

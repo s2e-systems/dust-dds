@@ -1,17 +1,13 @@
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        data_representation_builtin_endpoints::spdp_discovered_participant_data::{
-            ParticipantLeaseDuration, SpdpDiscoveredParticipantData,
-        },
+        data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         rtps::{
-            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            discovery_types::BuiltinEndpointSet,
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
-            types::{
-                Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_UNKNOWN,
-            },
+            types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
             utils::clock::StdTimer,
             writer_proxy::RtpsWriterProxy,
         },
@@ -217,60 +213,8 @@ impl<'a> ParticipantDiscovery<'a> {
 }
 
 impl<'a> ParticipantDiscovery<'a> {
-    pub fn domain_id(&self) -> DomainId {
-        self.participant_data.domain_id() as i32
-    }
-
-    pub fn domain_tag(&self) -> &str {
-        self.participant_data.domain_tag()
-    }
-
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.participant_data.protocol_version()
-    }
-
     pub fn guid_prefix(&self) -> GuidPrefix {
         self.participant_data.guid_prefix()
-    }
-
-    pub fn vendor_id(&self) -> VendorId {
-        self.participant_data.vendor_id()
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.participant_data.expects_inline_qos()
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        self.participant_data.metatraffic_unicast_locator_list()
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        self.participant_data.metatraffic_multicast_locator_list()
-    }
-
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.participant_data.default_unicast_locator_list()
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.participant_data.default_multicast_locator_list()
-    }
-
-    pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.participant_data.available_builtin_endpoints()
-    }
-
-    pub fn lease_duration(&self) -> ParticipantLeaseDuration {
-        self.participant_data.lease_duration()
-    }
-
-    pub fn manual_liveliness_count(&self) -> Count {
-        self.participant_data.manual_liveliness_count()
-    }
-
-    pub fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.participant_data.builtin_endpoint_qos()
     }
 }
 

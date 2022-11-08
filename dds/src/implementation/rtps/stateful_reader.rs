@@ -1,11 +1,18 @@
-use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+use crate::infrastructure::{
+    qos_policy::ReliabilityQosPolicyKind,
+    time::{Duration, DURATION_ZERO},
+};
 
 use super::{
-    messages::submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
+    messages::submessages::{AckNackSubmessage, HeartbeatSubmessage},
     reader::RtpsReader,
     types::{Count, Guid, GuidPrefix},
     writer_proxy::RtpsWriterProxy,
 };
+
+pub const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
+
+pub const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 /// ChangeFromWriterStatusKind
 /// Enumeration used to indicate the status of a ChangeFromWriter. It can take the values:
@@ -58,42 +65,10 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn matched_writer_remove<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&RtpsWriterProxy) -> bool,
-    {
-        self.matched_writers.retain(|x| !f(x))
-    }
-
     pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
         self.matched_writers
             .iter_mut()
             .find(|x| x.remote_writer_guid() == a_writer_guid)
-    }
-}
-
-impl RtpsStatefulReader {
-    pub fn process_gap_submessage(
-        &mut self,
-        gap_submessage: &GapSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        let writer_guid = Guid::new(source_guid_prefix, gap_submessage.writer_id.value.into());
-        let reliability_level = &self.reader.get_qos().reliability.kind;
-        if let Some(writer_proxy) = self
-            .matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == writer_guid)
-        {
-            match reliability_level {
-                ReliabilityQosPolicyKind::BestEffort => {
-                    writer_proxy.best_effort_receive_gap(gap_submessage)
-                }
-                ReliabilityQosPolicyKind::Reliable => {
-                    writer_proxy.reliable_receive_gap(gap_submessage)
-                }
-            }
-        }
     }
 }
 

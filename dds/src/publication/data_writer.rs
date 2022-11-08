@@ -17,7 +17,7 @@ use crate::{
 use crate::{
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
-        dds_impl::data_writer_impl::{AnyDataWriterListener, DataWriterImpl},
+        dds_impl::user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
         utils::shared_object::DdsWeak,
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
@@ -30,10 +30,10 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(DdsWeak<DataWriterImpl>, PhantomData<Foo>);
+pub struct DataWriter<Foo>(DdsWeak<UserDefinedDataWriter>, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
-    pub(crate) fn new(data_writer_attributes: DdsWeak<DataWriterImpl>) -> Self {
+    pub(crate) fn new(data_writer_attributes: DdsWeak<UserDefinedDataWriter>) -> Self {
         Self(data_writer_attributes, PhantomData)
     }
 }

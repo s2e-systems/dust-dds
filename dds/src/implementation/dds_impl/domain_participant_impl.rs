@@ -7,6 +7,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::implementation::rtps::{group::RtpsGroupImpl, participant::RtpsParticipant};
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::domain_participant_factory::DomainId,
@@ -16,32 +17,19 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            endpoint::RtpsEndpoint,
             messages::RtpsMessage,
-            reader::RtpsReader,
-            reader_locator::RtpsReaderLocator,
-            stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriter,
-            stateless_reader::RtpsStatelessReader,
             transport::TransportWrite,
             types::{
-                Count, EntityId, EntityKind, Guid, Locator, ProtocolVersion, TopicKind, VendorId,
-                BUILT_IN_READER_GROUP, BUILT_IN_READER_WITH_KEY, BUILT_IN_WRITER_GROUP,
-                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_WRITER_GROUP,
+                Count, EntityId, Guid, Locator, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
-            writer::RtpsWriter,
         },
+        utils::shared_object::DdsWeak,
     },
-    infrastructure::{
-        instance::InstanceHandle,
-        qos::QosKind,
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-        status::{StatusKind, NO_STATUS},
-    },
+    infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind},
     publication::publisher_listener::PublisherListener,
     subscription::{
-        data_reader::DataReader,
-        data_reader_listener::DataReaderListener,
         sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
@@ -51,20 +39,10 @@ use crate::{
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
             error::{DdsError, DdsResult},
-            qos::{
-                DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos,
-                TopicQos,
-            },
-            qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
+            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             time::{Duration, Time},
         },
     },
-};
-use crate::{
-    implementation::rtps::{
-        group::RtpsGroupImpl, participant::RtpsParticipant, stateless_writer::RtpsStatelessWriter,
-    },
-    infrastructure::time::DURATION_ZERO,
 };
 
 use crate::implementation::{
@@ -80,13 +58,10 @@ use crate::implementation::{
 };
 
 use super::{
-    data_reader_impl::{DataReaderImpl, RtpsReaderKind},
-    data_writer_impl::{DataWriterImpl, RtpsWriterKind},
-    message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery,
-    publisher_impl::PublisherImpl,
-    subscriber_impl::SubscriberImpl,
-    topic_impl::TopicImpl,
+    builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
@@ -115,29 +90,17 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
-const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-
-const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-
-const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
-
-const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
-
-const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
-
-pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
-
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
-    builtin_subscriber: DdsShared<SubscriberImpl>,
-    builtin_publisher: DdsShared<PublisherImpl>,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<SubscriberImpl>>>,
+    builtin_subscriber: DdsShared<BuiltInSubscriber>,
+    builtin_publisher: DdsShared<BuiltinPublisher>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: SubscriberQos,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<PublisherImpl>>>,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: PublisherQos,
     topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
@@ -166,20 +129,60 @@ impl DomainParticipantImpl {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
-        let builtin_subscriber = SubscriberImpl::new(
-            SubscriberQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP),
-            )),
+        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
+        let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
+        let spdp_topic_participant = TopicImpl::new(
+            spdp_topic_guid,
+            TopicQos::default(),
+            SpdpDiscoveredParticipantData::type_name(),
+            DCPS_PARTICIPANT,
+            DdsWeak::new(),
         );
 
-        let builtin_publisher = PublisherImpl::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(Guid::new(
-                guid_prefix,
-                EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP),
-            )),
+        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
+        let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
+        let sedp_topic_topics = TopicImpl::new(
+            sedp_topics_guid,
+            TopicQos::default(),
+            DiscoveredTopicData::type_name(),
+            DCPS_TOPIC,
+            DdsWeak::new(),
+        );
+
+        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
+        let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
+        let sedp_topic_publications = TopicImpl::new(
+            sedp_publications_guid,
+            TopicQos::default(),
+            DiscoveredWriterData::type_name(),
+            DCPS_PUBLICATION,
+            DdsWeak::new(),
+        );
+
+        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
+        let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
+        let sedp_topic_subscriptions = TopicImpl::new(
+            sedp_subscriptions_guid,
+            TopicQos::default(),
+            DiscoveredReaderData::type_name(),
+            DCPS_SUBSCRIPTION,
+            DdsWeak::new(),
+        );
+
+        let builtin_subscriber = BuiltInSubscriber::new(
+            guid_prefix,
+            spdp_topic_participant,
+            sedp_topic_topics.clone(),
+            sedp_topic_publications.clone(),
+            sedp_topic_subscriptions.clone(),
+        );
+
+        let builtin_publisher = BuiltinPublisher::new(
+            guid_prefix,
+            sedp_topic_topics,
+            sedp_topic_publications,
+            sedp_topic_subscriptions,
+            metatraffic_multicast_locator_list.as_ref(),
         );
 
         DdsShared::new(DomainParticipantImpl {
@@ -212,58 +215,18 @@ impl DomainParticipantImpl {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
-
-    pub fn is_parent(&self, other: InstanceHandle) -> bool {
-        self.rtps_participant.guid().prefix() == Guid::from(other).prefix()
-    }
-}
-
-struct RegisterDiscoveredTopicsListener {
-    discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
-}
-
-impl DataReaderListener for RegisterDiscoveredTopicsListener {
-    type Foo = DiscoveredTopicData;
-
-    fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
-        let topic_data = the_reader
-            .take(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .unwrap()[0]
-            .data
-            .as_ref()
-            .unwrap()
-            .topic_builtin_topic_data
-            .clone();
-
-        self.discovered_topic_list
-            .write_lock()
-            .insert(topic_data.key.value.into(), topic_data);
-    }
 }
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
-        if let Some(topic_creation_topic) =
-            self.lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
-        {
-            if let Ok(sedp_builtin_topic_announcer) = self
-                .builtin_publisher
-                .lookup_datawriter::<DiscoveredTopicData>(&topic_creation_topic)
-            {
-                sedp_builtin_topic_announcer
-                    .write_w_timestamp(
-                        &sedp_discovered_topic_data,
-                        None,
-                        self.get_current_time().unwrap(),
-                    )
-                    .unwrap();
-            }
-        }
+        self.builtin_publisher
+            .sedp_builtin_topics_writer()
+            .write_w_timestamp(
+                &sedp_discovered_topic_data,
+                None,
+                self.get_current_time().unwrap(),
+            )
+            .unwrap();
     }
 }
 
@@ -273,7 +236,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<PublisherQos>,
         _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<PublisherImpl>> {
+    ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
             QosKind::Specific(q) => q,
@@ -284,7 +247,7 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let publisher_impl_shared = PublisherImpl::new(publisher_qos, rtps_group);
+        let publisher_impl_shared = UserDefinedPublisher::new(publisher_qos, rtps_group);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -330,7 +293,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<SubscriberQos>,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<SubscriberImpl>> {
+    ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
             QosKind::Specific(q) => q,
@@ -341,7 +304,7 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber_shared = SubscriberImpl::new(subscriber_qos, rtps_group);
+        let subscriber_shared = UserDefinedSubscriber::new(subscriber_qos, rtps_group);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -487,7 +450,7 @@ impl DdsShared<DomainParticipantImpl> {
         })
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<SubscriberImpl>> {
+    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriber>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
@@ -696,8 +659,8 @@ impl DdsShared<DomainParticipantImpl> {
         if !*self.enabled.read_lock() {
             *self.enabled.write_lock() = true;
 
-            self.builtin_subscriber.enable(self)?;
-            self.builtin_publisher.enable(self)?;
+            self.builtin_subscriber.enable()?;
+            self.builtin_publisher.enable()?;
 
             if self
                 .qos
@@ -733,14 +696,6 @@ impl DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn announce_participant(&self) -> DdsResult<()> {
-        let dcps_topic_participant = self
-            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
-
-        let spdp_participant_writer = self
-            .builtin_publisher
-            .lookup_datawriter::<SpdpDiscoveredParticipantData>(&dcps_topic_participant)?;
-
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -771,11 +726,13 @@ impl DdsShared<DomainParticipantImpl> {
             },
             lease_duration: self.lease_duration.into(),
         };
-        spdp_participant_writer.write_w_timestamp(
-            &spdp_discovered_participant_data,
-            None,
-            self.get_current_time().unwrap(),
-        )
+        self.builtin_publisher
+            .spdp_builtin_participant_writer()
+            .write_w_timestamp(
+                &spdp_discovered_participant_data,
+                None,
+                self.get_current_time().unwrap(),
+            )
     }
 }
 
@@ -784,55 +741,33 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
     ) {
-        let dcps_publication_topic = self
-            .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
-            .unwrap();
-        let dcps_subscription_topic = self
-            .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-            .unwrap();
-        let dcps_topic_topic = self
-            .lookup_topicdescription::<DiscoveredTopicData>(DCPS_TOPIC)
-            .unwrap();
-
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
             discovered_participant_data,
             self.domain_id as i32,
             &self.domain_tag,
         ) {
-            let sedp_builtin_publication_writer_shared = self
-                .builtin_publisher
-                .lookup_datawriter::<DiscoveredWriterData>(&dcps_publication_topic)
-                .unwrap();
-            sedp_builtin_publication_writer_shared.add_matched_participant(&participant_discovery);
+            self.builtin_publisher
+                .sedp_builtin_publications_writer()
+                .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_publication_reader_shared = self
-                .builtin_subscriber
-                .lookup_datareader::<DiscoveredWriterData>(&dcps_publication_topic)
-                .unwrap();
+            let sedp_builtin_publication_reader_shared =
+                self.builtin_subscriber.sedp_builtin_publications_reader();
             sedp_builtin_publication_reader_shared.add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_subscription_writer_shared = self
-                .builtin_publisher
-                .lookup_datawriter::<DiscoveredReaderData>(&dcps_subscription_topic)
-                .unwrap();
-            sedp_builtin_subscription_writer_shared.add_matched_participant(&participant_discovery);
+            self.builtin_publisher
+                .sedp_builtin_subscriptions_writer()
+                .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_subscription_reader_shared = self
-                .builtin_subscriber
-                .lookup_datareader::<DiscoveredReaderData>(&dcps_subscription_topic)
-                .unwrap();
+            let sedp_builtin_subscription_reader_shared =
+                self.builtin_subscriber.sedp_builtin_subscriptions_reader();
             sedp_builtin_subscription_reader_shared.add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_topic_writer_shared = self
-                .builtin_publisher
-                .lookup_datawriter::<DiscoveredTopicData>(&dcps_topic_topic)
-                .unwrap();
-            sedp_builtin_topic_writer_shared.add_matched_participant(&participant_discovery);
+            self.builtin_publisher
+                .sedp_builtin_topics_writer()
+                .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_topic_reader_shared = self
-                .builtin_subscriber
-                .lookup_datareader::<DiscoveredTopicData>(&dcps_topic_topic)
-                .unwrap();
+            let sedp_builtin_topic_reader_shared =
+                self.builtin_subscriber.sedp_builtin_topics_reader();
             sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
 
             self.discovered_participant_list.write_lock().insert(
@@ -855,14 +790,6 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         self.rtps_participant.default_multicast_locator_list()
     }
-
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.rtps_participant.protocol_version()
-    }
-
-    pub fn vendor_id(&self) -> VendorId {
-        self.rtps_participant.vendor_id()
-    }
 }
 
 impl DdsShared<DomainParticipantImpl> {
@@ -881,378 +808,6 @@ impl DdsShared<DomainParticipantImpl> {
             source_locator,
             &message,
         );
-    }
-}
-
-impl DdsShared<DomainParticipantImpl> {
-    pub fn create_builtins(&self) -> DdsResult<()> {
-        let guid_prefix = self.rtps_participant.guid().prefix();
-
-        ///////// Create built-in DDS data readers and data writers
-
-        ////////// SPDP built-in topic, reader and writer
-        {
-            let spdp_topic_participant = self.create_topic::<SpdpDiscoveredParticipantData>(
-                DCPS_PARTICIPANT,
-                QosKind::Specific(self.get_default_topic_qos()?),
-                None,
-                NO_STATUS,
-            )?;
-            spdp_topic_participant.enable()?;
-
-            let spdp_builtin_participant_reader_guid =
-                Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let spdp_builtin_participant_rtps_reader =
-                RtpsStatelessReader::new(RtpsReader::new::<SpdpDiscoveredParticipantData>(
-                    RtpsEndpoint::new(
-                        spdp_builtin_participant_reader_guid,
-                        TopicKind::WithKey,
-                        unicast_locator_list,
-                        multicast_locator_list,
-                    ),
-                    DURATION_ZERO,
-                    DURATION_ZERO,
-                    false,
-                    DataReaderQos {
-                        history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAll,
-                            depth: 0,
-                        },
-                        ..Default::default()
-                    },
-                ));
-
-            let spdp_builtin_participant_data_reader = DataReaderImpl::new(
-                RtpsReaderKind::Stateless(spdp_builtin_participant_rtps_reader),
-                spdp_topic_participant.clone(),
-                None,
-                self.builtin_subscriber.downgrade(),
-            );
-            spdp_builtin_participant_data_reader.enable(self)?;
-            self.builtin_subscriber
-                .add_data_reader(spdp_builtin_participant_data_reader);
-
-            let spdp_reader_locators: Vec<RtpsReaderLocator> = self
-                .metatraffic_multicast_locator_list
-                .iter()
-                .map(|&locator| RtpsReaderLocator::new(locator, false))
-                .collect();
-
-            let spdp_builtin_participant_writer_guid =
-                Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-
-            let mut spdp_builtin_participant_rtps_writer =
-                RtpsStatelessWriter::new(RtpsWriter::new(
-                    RtpsEndpoint::new(
-                        spdp_builtin_participant_writer_guid,
-                        TopicKind::WithKey,
-                        unicast_locator_list,
-                        multicast_locator_list,
-                    ),
-                    true,
-                    DURATION_ZERO,
-                    DURATION_ZERO,
-                    DURATION_ZERO,
-                    None,
-                    DataWriterQos {
-                        reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::BestEffort,
-                            max_blocking_time: DURATION_ZERO,
-                        },
-                        ..Default::default()
-                    },
-                ));
-
-            for reader_locator in spdp_reader_locators {
-                spdp_builtin_participant_rtps_writer.reader_locator_add(reader_locator);
-            }
-
-            let spdp_builtin_participant_data_writer = DataWriterImpl::new(
-                RtpsWriterKind::Stateless(spdp_builtin_participant_rtps_writer),
-                None,
-                spdp_topic_participant,
-                self.builtin_publisher.downgrade(),
-            );
-            spdp_builtin_participant_data_writer.enable(self)?;
-            self.builtin_publisher
-                .add_data_writer(spdp_builtin_participant_data_writer);
-        }
-
-        ////////// SEDP built-in publication topic, reader and writer
-        {
-            let sedp_topic_publication = self.create_topic::<DiscoveredWriterData>(
-                DCPS_PUBLICATION,
-                QosKind::Specific(self.get_default_topic_qos()?),
-                None,
-                NO_STATUS,
-            )?;
-            sedp_topic_publication.enable()?;
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            let topic_kind = TopicKind::WithKey;
-            let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-            let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
-            let expects_inline_qos = false;
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let sedp_builtin_publications_rtps_reader =
-                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredReaderData>(
-                    RtpsEndpoint::new(
-                        guid,
-                        topic_kind,
-                        unicast_locator_list,
-                        multicast_locator_list,
-                    ),
-                    heartbeat_response_delay,
-                    heartbeat_suppression_duration,
-                    expects_inline_qos,
-                    DataReaderQos {
-                        history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAll,
-                            depth: 0,
-                        },
-                        reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::Reliable,
-                            max_blocking_time: DURATION_ZERO,
-                        },
-                        ..Default::default()
-                    },
-                ));
-
-            let sedp_builtin_publications_data_reader = DataReaderImpl::new(
-                RtpsReaderKind::Stateful(sedp_builtin_publications_rtps_reader),
-                sedp_topic_publication.clone(),
-                None,
-                self.builtin_subscriber.downgrade(),
-            );
-            sedp_builtin_publications_data_reader.enable(self)?;
-            self.builtin_subscriber
-                .add_data_reader(sedp_builtin_publications_data_reader);
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
-            let topic_kind = TopicKind::WithKey;
-            let push_mode = true;
-            let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
-            let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
-            let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
-            let data_max_size_serialized = None;
-            let sedp_builtin_publications_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-                DataWriterQos::default(),
-            ));
-
-            let sedp_builtin_publications_data_writer = DataWriterImpl::new(
-                RtpsWriterKind::Stateful(sedp_builtin_publications_rtps_writer),
-                None,
-                sedp_topic_publication,
-                self.builtin_publisher.downgrade(),
-            );
-            sedp_builtin_publications_data_writer.enable(self)?;
-
-            self.builtin_publisher
-                .add_data_writer(sedp_builtin_publications_data_writer);
-        }
-
-        ////////// SEDP built-in subcriptions topic, reader and writer
-        {
-            let sedp_topic_subscription = self.create_topic::<DiscoveredReaderData>(
-                DCPS_SUBSCRIPTION,
-                QosKind::Specific(self.get_default_topic_qos()?),
-                None,
-                NO_STATUS,
-            )?;
-            sedp_topic_subscription.enable()?;
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            let topic_kind = TopicKind::WithKey;
-            let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-            let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
-            let expects_inline_qos = false;
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let sedp_builtin_subscriptions_rtps_reader =
-                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredWriterData>(
-                    RtpsEndpoint::new(
-                        guid,
-                        topic_kind,
-                        unicast_locator_list,
-                        multicast_locator_list,
-                    ),
-                    heartbeat_response_delay,
-                    heartbeat_suppression_duration,
-                    expects_inline_qos,
-                    DataReaderQos {
-                        history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAll,
-                            depth: 0,
-                        },
-                        reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::Reliable,
-                            max_blocking_time: DURATION_ZERO,
-                        },
-                        ..Default::default()
-                    },
-                ));
-
-            let sedp_builtin_subscriptions_data_reader = DataReaderImpl::new(
-                RtpsReaderKind::Stateful(sedp_builtin_subscriptions_rtps_reader),
-                sedp_topic_subscription.clone(),
-                None,
-                self.builtin_subscriber.downgrade(),
-            );
-            sedp_builtin_subscriptions_data_reader.enable(self)?;
-            self.builtin_subscriber
-                .add_data_reader(sedp_builtin_subscriptions_data_reader);
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            let topic_kind = TopicKind::WithKey;
-            let push_mode = true;
-            let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
-            let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
-            let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
-            let data_max_size_serialized = None;
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let sedp_builtin_subscriptions_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-                DataWriterQos::default(),
-            ));
-            let sedp_builtin_subscriptions_data_writer = DataWriterImpl::new(
-                RtpsWriterKind::Stateful(sedp_builtin_subscriptions_rtps_writer),
-                None,
-                sedp_topic_subscription,
-                self.builtin_publisher.downgrade(),
-            );
-            sedp_builtin_subscriptions_data_writer.enable(self)?;
-            self.builtin_publisher
-                .add_data_writer(sedp_builtin_subscriptions_data_writer);
-        }
-
-        ////////// SEDP built-in topics topic, reader and writer
-        {
-            let sedp_topic_topic = self.create_topic::<DiscoveredTopicData>(
-                DCPS_TOPIC,
-                QosKind::Specific(self.get_default_topic_qos()?),
-                None,
-                NO_STATUS,
-            )?;
-            sedp_topic_topic.enable()?;
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-            let topic_kind = TopicKind::WithKey;
-            let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
-            let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
-            let expects_inline_qos = false;
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let sedp_builtin_topics_rtps_reader =
-                RtpsStatefulReader::new(RtpsReader::new::<DiscoveredTopicData>(
-                    RtpsEndpoint::new(
-                        guid,
-                        topic_kind,
-                        unicast_locator_list,
-                        multicast_locator_list,
-                    ),
-                    heartbeat_response_delay,
-                    heartbeat_suppression_duration,
-                    expects_inline_qos,
-                    DataReaderQos {
-                        history: HistoryQosPolicy {
-                            kind: HistoryQosPolicyKind::KeepAll,
-                            depth: 0,
-                        },
-                        reliability: ReliabilityQosPolicy {
-                            kind: ReliabilityQosPolicyKind::Reliable,
-                            max_blocking_time: DURATION_ZERO,
-                        },
-                        ..Default::default()
-                    },
-                ));
-
-            let sedp_builtin_topics_data_reader = DataReaderImpl::new(
-                RtpsReaderKind::Stateful(sedp_builtin_topics_rtps_reader),
-                sedp_topic_topic.clone(),
-                None,
-                self.builtin_subscriber.downgrade(),
-            );
-            sedp_builtin_topics_data_reader.enable(self)?;
-
-            // set the topic listener
-            {
-                let topics_data_reader =
-                    DataReader::new(sedp_builtin_topics_data_reader.downgrade());
-                topics_data_reader.set_listener(
-                    Some(Box::new(RegisterDiscoveredTopicsListener {
-                        discovered_topic_list: self.discovered_topic_list.clone(),
-                    })),
-                    NO_STATUS,
-                )?;
-            }
-
-            self.builtin_subscriber
-                .add_data_reader(sedp_builtin_topics_data_reader);
-
-            let guid = Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-            let topic_kind = TopicKind::WithKey;
-            let push_mode = true;
-            let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
-            let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
-            let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
-            let data_max_size_serialized = None;
-            let unicast_locator_list = &[];
-            let multicast_locator_list = &[];
-            let sedp_builtin_topics_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    unicast_locator_list,
-                    multicast_locator_list,
-                ),
-                push_mode,
-                heartbeat_period,
-                nack_response_delay,
-                nack_suppression_duration,
-                data_max_size_serialized,
-                DataWriterQos::default(),
-            ));
-
-            let sedp_builtin_topics_data_writer = DataWriterImpl::new(
-                RtpsWriterKind::Stateful(sedp_builtin_topics_rtps_writer),
-                None,
-                sedp_topic_topic,
-                self.builtin_publisher.downgrade(),
-            );
-            sedp_builtin_topics_data_writer.enable(self)?;
-            self.builtin_publisher
-                .add_data_writer(sedp_builtin_topics_data_writer);
-        }
-
-        Ok(())
     }
 }
 
@@ -1285,13 +840,8 @@ impl DdsShared<DomainParticipantImpl> {
 
 impl DdsShared<DomainParticipantImpl> {
     pub fn discover_matched_participants(&self) -> DdsResult<()> {
-        let dcps_participant_topic = self
-            .lookup_topicdescription::<SpdpDiscoveredParticipantData>(DCPS_PARTICIPANT)
-            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
-
         let spdp_builtin_participant_data_reader =
-            self.builtin_subscriber
-                .lookup_datareader::<SpdpDiscoveredParticipantData>(&dcps_participant_topic)?;
+            self.builtin_subscriber.spdp_builtin_participant_reader();
 
         if let Ok(samples) = spdp_builtin_participant_data_reader.take(
             1,
@@ -1318,12 +868,8 @@ impl DdsShared<DomainParticipantImpl> {
             return Ok(());
         }
 
-        let dcps_publication_topic = self
-            .lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
-            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
-        let sedp_builtin_publication_reader = self
-            .builtin_subscriber
-            .lookup_datareader::<DiscoveredWriterData>(&dcps_publication_topic)?;
+        let sedp_builtin_publication_reader =
+            self.builtin_subscriber.sedp_builtin_publications_reader();
 
         let samples = sedp_builtin_publication_reader.take(
             1,
@@ -1350,12 +896,8 @@ impl DdsShared<DomainParticipantImpl> {
             return Ok(());
         }
 
-        let dcps_subscription_topic = self
-            .lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-            .ok_or_else(|| DdsError::PreconditionNotMet("Topic not found".to_string()))?;
-        let sedp_builtin_subscription_reader = self
-            .builtin_subscriber
-            .lookup_datareader::<DiscoveredReaderData>(&dcps_subscription_topic)?;
+        let sedp_builtin_subscription_reader =
+            self.builtin_subscriber.sedp_builtin_subscriptions_reader();
 
         let samples = sedp_builtin_subscription_reader.take(
             1,
@@ -1367,6 +909,25 @@ impl DdsShared<DomainParticipantImpl> {
         for discovered_reader_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
             for publisher in user_defined_publishers.iter() {
                 publisher.add_matched_reader(discovered_reader_data_sample.data.as_ref().unwrap())
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn discover_matched_topics(&self) -> DdsResult<()> {
+        if let Ok(samples) = self
+            .builtin_subscriber
+            .sedp_builtin_topics_reader()
+            .take::<DiscoveredTopicData>(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
+            for sample in samples {
+                if let Some(topic_data) = sample.data.as_ref() {
+                    self.discovered_topic_list.write_lock().insert(
+                        topic_data.topic_builtin_topic_data.key.value.into(),
+                        topic_data.topic_builtin_topic_data.clone(),
+                    );
+                }
             }
         }
 
@@ -1385,18 +946,10 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_writer_data
         };
 
-        if let Some(publication_topic) =
-            self.lookup_topicdescription::<DiscoveredWriterData>(DCPS_PUBLICATION)
-        {
-            if let Ok(sedp_builtin_publications_announcer) =
-                self.builtin_publisher
-                    .lookup_datawriter::<DiscoveredWriterData>(&publication_topic)
-            {
-                sedp_builtin_publications_announcer
-                    .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
-                    .unwrap();
-            }
-        }
+        self.builtin_publisher
+            .sedp_builtin_publications_writer()
+            .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
+            .unwrap();
     }
 
     pub fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
@@ -1409,17 +962,9 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_reader_data
         };
 
-        if let Some(subscription_topic) =
-            self.lookup_topicdescription::<DiscoveredReaderData>(DCPS_SUBSCRIPTION)
-        {
-            if let Ok(sedp_builtin_subscription_announcer) =
-                self.builtin_publisher
-                    .lookup_datawriter::<DiscoveredReaderData>(&subscription_topic)
-            {
-                sedp_builtin_subscription_announcer
-                    .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
-                    .unwrap();
-            }
-        }
+        self.builtin_publisher
+            .sedp_builtin_subscriptions_writer()
+            .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
+            .unwrap();
     }
 }

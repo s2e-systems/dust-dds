@@ -84,20 +84,8 @@ impl SpdpDiscoveredParticipantData {
         &self.participant_proxy.domain_tag
     }
 
-    pub fn protocol_version(&self) -> ProtocolVersion {
-        self.participant_proxy.protocol_version
-    }
-
     pub fn guid_prefix(&self) -> GuidPrefix {
         self.participant_proxy.guid_prefix
-    }
-
-    pub fn vendor_id(&self) -> VendorId {
-        self.participant_proxy.vendor_id
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.participant_proxy.expects_inline_qos
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
@@ -108,28 +96,8 @@ impl SpdpDiscoveredParticipantData {
         &self.participant_proxy.metatraffic_multicast_locator_list
     }
 
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.default_unicast_locator_list
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.default_multicast_locator_list
-    }
-
     pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
         self.participant_proxy.available_builtin_endpoints
-    }
-
-    pub fn lease_duration(&self) -> ParticipantLeaseDuration {
-        self.lease_duration
-    }
-
-    pub fn manual_liveliness_count(&self) -> Count {
-        self.participant_proxy.manual_liveliness_count
-    }
-
-    pub fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
-        self.participant_proxy.builtin_endpoint_qos
     }
 }
 

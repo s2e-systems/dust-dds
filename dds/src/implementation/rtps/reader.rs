@@ -23,7 +23,7 @@ use super::{
     history_cache::RtpsParameter,
     messages::{submessages::DataSubmessage, types::ParameterId},
     reader_cache_change::RtpsReaderCacheChange,
-    types::{ChangeKind, Guid, Locator, SequenceNumber, TopicKind},
+    types::{ChangeKind, Guid},
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
@@ -50,10 +50,10 @@ impl ReaderHistoryCache {
 
 pub struct RtpsReader {
     endpoint: RtpsEndpoint,
-    heartbeat_response_delay: Duration,
-    heartbeat_suppression_duration: Duration,
+    _heartbeat_response_delay: Duration,
+    _heartbeat_suppression_duration: Duration,
     reader_cache: ReaderHistoryCache,
-    expects_inline_qos: bool,
+    _expects_inline_qos: bool,
     qos: DataReaderQos,
     serialized_data_to_key_func: fn(&[u8]) -> DdsResult<Vec<u8>>,
 }
@@ -80,10 +80,10 @@ impl RtpsReader {
 
         Self {
             endpoint,
-            heartbeat_response_delay,
-            heartbeat_suppression_duration,
+            _heartbeat_response_delay: heartbeat_response_delay,
+            _heartbeat_suppression_duration: heartbeat_suppression_duration,
             reader_cache: ReaderHistoryCache::new(),
-            expects_inline_qos,
+            _expects_inline_qos: expects_inline_qos,
             qos,
             serialized_data_to_key_func: serialized_data_to_key_func::<T>,
         }
@@ -161,34 +161,6 @@ impl RtpsReader {
 impl RtpsReader {
     pub fn guid(&self) -> Guid {
         self.endpoint.guid()
-    }
-}
-
-impl RtpsReader {
-    pub fn topic_kind(&self) -> TopicKind {
-        self.endpoint.topic_kind()
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.endpoint.multicast_locator_list()
-    }
-}
-
-impl RtpsReader {
-    pub fn heartbeat_response_delay(&self) -> Duration {
-        self.heartbeat_response_delay
-    }
-
-    pub fn heartbeat_suppression_duration(&self) -> Duration {
-        self.heartbeat_suppression_duration
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
     }
 }
 
@@ -285,22 +257,6 @@ impl RtpsReader {
     {
         self.reader_cache.changes.retain(|cc| !f(cc));
     }
-
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.reader_cache
-            .changes
-            .iter()
-            .map(|cc| cc.sequence_number())
-            .min()
-    }
-
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.reader_cache
-            .changes
-            .iter()
-            .map(|cc| cc.sequence_number())
-            .max()
-    }
 }
 
 impl RtpsReader {
@@ -318,7 +274,7 @@ impl RtpsReader {
 #[cfg(test)]
 mod tests {
     use crate::{
-        implementation::rtps::types::{ChangeKind, GUID_UNKNOWN},
+        implementation::rtps::types::{ChangeKind, TopicKind, GUID_UNKNOWN},
         infrastructure::{
             instance::HANDLE_NIL,
             qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},

@@ -17,10 +17,6 @@ impl<T> DdsShared<T> {
         DdsWeak(Arc::downgrade(&self.0))
     }
 
-    pub fn ptr_eq(this: &Self, other: &Self) -> bool {
-        Arc::ptr_eq(&this.0, &other.0)
-    }
-
     pub fn strong_count(&self) -> usize {
         Arc::strong_count(&self.0)
     }
@@ -101,18 +97,5 @@ impl<T> PartialEq for DdsWeak<T> {
 impl<T> Debug for DdsWeak<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("DdsWeak").finish()
-    }
-}
-
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-    #[test]
-    fn ptr_eq() {
-        let x = DdsShared::new(vec![1, 2, 3, 4]);
-        let y = x.downgrade();
-        let z = x.clone();
-        assert!(DdsShared::ptr_eq(&x, &z));
-        assert!(DdsShared::ptr_eq(&x, &y.upgrade().unwrap()));
     }
 }

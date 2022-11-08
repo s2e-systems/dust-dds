@@ -118,11 +118,6 @@ impl DdsShared<TopicImpl> {
         todo!()
     }
 
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyTopicListener>>> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_listener()
-        todo!()
-    }
-
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_statuscondition()
         todo!()

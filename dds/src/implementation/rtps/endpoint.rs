@@ -5,7 +5,7 @@ use super::{
 
 pub struct RtpsEndpoint {
     entity: RtpsEntity,
-    topic_kind: TopicKind,
+    _topic_kind: TopicKind,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
 }
@@ -19,7 +19,7 @@ impl RtpsEndpoint {
     ) -> Self {
         Self {
             entity: RtpsEntity::new(guid),
-            topic_kind,
+            _topic_kind: topic_kind,
             unicast_locator_list: unicast_locator_list.to_vec(),
             multicast_locator_list: multicast_locator_list.to_vec(),
         }
@@ -33,10 +33,6 @@ impl RtpsEndpoint {
 }
 
 impl RtpsEndpoint {
-    pub fn topic_kind(&self) -> TopicKind {
-        self.topic_kind
-    }
-
     pub fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }

@@ -1,6 +1,9 @@
 use crate::{
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
-    infrastructure::qos_policy::ReliabilityQosPolicyKind,
+    infrastructure::{
+        qos_policy::ReliabilityQosPolicyKind,
+        time::{Duration, DURATION_ZERO},
+    },
 };
 
 use super::{
@@ -13,9 +16,15 @@ use super::{
         RtpsSubmessageType,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{Count, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{Count, Guid, GuidPrefix, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
+
+pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
+
+pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
+
+pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct RtpsStatefulWriter<T> {
     writer: RtpsWriter,
@@ -77,19 +86,6 @@ impl<T> RtpsStatefulWriter<T> {
         }
     }
 
-    pub fn matched_reader_remove<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&RtpsReaderProxy) -> bool,
-    {
-        self.matched_readers.retain(|x| !f(x));
-    }
-
-    pub fn matched_reader_lookup(&self, a_reader_guid: Guid) -> Option<&RtpsReaderProxy> {
-        self.matched_readers
-            .iter()
-            .find(|&x| x.remote_reader_guid() == a_reader_guid)
-    }
-
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
         for matched_reader in self.matched_readers.iter() {
             if let Some(cc) = matched_reader
@@ -125,29 +121,12 @@ impl<T> RtpsStatefulWriter<T> {
                 .push(RtpsChangeForReader::new(status, true, sequence_number))
         }
     }
-
-    pub fn remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        self.writer.writer_cache_mut().remove_change(f)
-    }
-
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache().get_seq_num_min()
-    }
-
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache().get_seq_num_max()
-    }
 }
 
 impl<T: Timer> RtpsStatefulWriter<T> {
     pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
         match self.writer.get_qos().reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => {
-                self.produce_submessages_best_effort()
-            }
+            ReliabilityQosPolicyKind::BestEffort => self.produce_submessages_best_effort(),
             ReliabilityQosPolicyKind::Reliable => self.produce_submessages_reliable(),
         }
     }
@@ -316,9 +295,7 @@ impl<T> RtpsStatefulWriter<T> {
         acknack_submessage: &AckNackSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        if self.writer.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let reader_guid = Guid::new(
                 source_guid_prefix,
                 acknack_submessage.reader_id.value.into(),

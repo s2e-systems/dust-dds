@@ -1,7 +1,7 @@
 use crate::{
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
-        dds_impl::data_reader_impl::{AnyDataReaderListener, DataReaderImpl},
+        dds_impl::user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
         utils::{shared_object::DdsWeak, timer::ThreadTimer},
     },
     infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration},
@@ -30,7 +30,7 @@ use crate::topic_definition::topic::Topic;
 
 use super::{
     sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    subscriber::Subscriber,
+    subscriber::{Subscriber, SubscriberKind},
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
@@ -46,10 +46,10 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(DdsWeak<DataReaderImpl<ThreadTimer>>, PhantomData<Foo>);
+pub struct DataReader<Foo>(DdsWeak<UserDefinedDataReader<ThreadTimer>>, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
-    pub(crate) fn new(data_reader_attributes: DdsWeak<DataReaderImpl<ThreadTimer>>) -> Self {
+    pub(crate) fn new(data_reader_attributes: DdsWeak<UserDefinedDataReader<ThreadTimer>>) -> Self {
         Self(data_reader_attributes, PhantomData)
     }
 }
@@ -317,9 +317,9 @@ where
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        Ok(Subscriber::new(
+        Ok(Subscriber::new(SubscriberKind::UserDefined(
             self.0.upgrade()?.get_subscriber().downgrade(),
-        ))
+        )))
     }
 
     /// This operation blocks the calling thread until either all “historical” data is received, or else the

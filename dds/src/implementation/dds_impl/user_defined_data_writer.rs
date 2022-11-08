@@ -17,11 +17,9 @@ use crate::{
             types::{ParameterId, ProtocolId},
             RtpsMessage,
         },
-        reader_locator::RtpsReaderLocator,
         reader_proxy::RtpsReaderProxy,
         transport::TransportWrite,
-        types::{ChangeKind, EntityId, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
-        writer::RtpsWriter,
+        types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E},
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -56,9 +54,7 @@ use crate::{
             types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
         rtps::{
-            history_cache::{RtpsParameter, RtpsWriterCacheChange},
-            stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter,
+            history_cache::RtpsParameter, stateful_writer::RtpsStatefulWriter,
             utils::clock::StdTimer,
         },
     },
@@ -69,16 +65,15 @@ use serde::Serialize;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
-        discovered_writer_data::DiscoveredWriterData,
+        discovered_reader_data::DiscoveredReaderData, discovered_writer_data::DiscoveredWriterData,
     },
     utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
 };
 
 use super::{
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, publisher_impl::PublisherImpl,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl,
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
@@ -126,22 +121,22 @@ fn retrieve_instance_handle(
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
         &mut self,
-        _the_writer: &DdsShared<DataWriterImpl>,
+        _the_writer: &DdsShared<UserDefinedDataWriter>,
         _status: LivelinessLostStatus,
     );
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        _the_writer: &DdsShared<DataWriterImpl>,
+        _the_writer: &DdsShared<UserDefinedDataWriter>,
         _status: OfferedDeadlineMissedStatus,
     );
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        _the_writer: &DdsShared<DataWriterImpl>,
+        _the_writer: &DdsShared<UserDefinedDataWriter>,
         _status: OfferedIncompatibleQosStatus,
     );
     fn trigger_on_publication_matched(
         &mut self,
-        _the_writer: &DdsShared<DataWriterImpl>,
+        _the_writer: &DdsShared<UserDefinedDataWriter>,
         _status: PublicationMatchedStatus,
     );
 }
@@ -149,7 +144,7 @@ pub trait AnyDataWriterListener {
 impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync> {
     fn trigger_on_liveliness_lost(
         &mut self,
-        the_writer: &DdsShared<DataWriterImpl>,
+        the_writer: &DdsShared<UserDefinedDataWriter>,
         status: LivelinessLostStatus,
     ) {
         self.on_liveliness_lost(&DataWriter::new(the_writer.downgrade()), status);
@@ -157,7 +152,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
 
     fn trigger_on_offered_deadline_missed(
         &mut self,
-        the_writer: &DdsShared<DataWriterImpl>,
+        the_writer: &DdsShared<UserDefinedDataWriter>,
         status: OfferedDeadlineMissedStatus,
     ) {
         self.on_offered_deadline_missed(&DataWriter::new(the_writer.downgrade()), status);
@@ -165,7 +160,7 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
 
     fn trigger_on_offered_incompatible_qos(
         &mut self,
-        the_writer: &DdsShared<DataWriterImpl>,
+        the_writer: &DdsShared<UserDefinedDataWriter>,
         status: OfferedIncompatibleQosStatus,
     ) {
         self.on_offered_incompatible_qos(&DataWriter::new(the_writer.downgrade()), status);
@@ -173,93 +168,18 @@ impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send
 
     fn trigger_on_publication_matched(
         &mut self,
-        the_writer: &DdsShared<DataWriterImpl>,
+        the_writer: &DdsShared<UserDefinedDataWriter>,
         status: PublicationMatchedStatus,
     ) {
         self.on_publication_matched(&DataWriter::new(the_writer.downgrade()), status)
     }
 }
 
-pub enum RtpsWriterKind {
-    Stateless(RtpsStatelessWriter),
-    Stateful(RtpsStatefulWriter<StdTimer>),
-}
-
-impl RtpsWriterKind {
-    fn writer(&self) -> &RtpsWriter {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.writer(),
-            RtpsWriterKind::Stateful(w) => w.writer(),
-        }
-    }
-
-    #[allow(dead_code)]
-    fn writer_mut(&mut self) -> &mut RtpsWriter {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.writer_mut(),
-            RtpsWriterKind::Stateful(w) => w.writer_mut(),
-        }
-    }
-}
-
-impl RtpsWriterKind {
-    pub fn new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> RtpsWriterCacheChange {
-        match self {
-            RtpsWriterKind::Stateless(w) => w
-                .writer_mut()
-                .new_change(kind, data, inline_qos, handle, timestamp),
-            RtpsWriterKind::Stateful(w) => w
-                .writer_mut()
-                .new_change(kind, data, inline_qos, handle, timestamp),
-        }
-    }
-}
-
-impl RtpsWriterKind {
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.add_change(change),
-            RtpsWriterKind::Stateful(w) => w.add_change(change),
-        }
-    }
-
-    pub fn remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.remove_change(f),
-            RtpsWriterKind::Stateful(w) => w.remove_change(f),
-        }
-    }
-
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.get_seq_num_min(),
-            RtpsWriterKind::Stateful(w) => w.get_seq_num_min(),
-        }
-    }
-
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        match self {
-            RtpsWriterKind::Stateless(w) => w.get_seq_num_max(),
-            RtpsWriterKind::Stateful(w) => w.get_seq_num_max(),
-        }
-    }
-}
-
-pub struct DataWriterImpl {
-    rtps_writer: DdsRwLock<RtpsWriterKind>,
+pub struct UserDefinedDataWriter {
+    rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
-    publisher: DdsWeak<PublisherImpl>,
+    publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
@@ -270,12 +190,12 @@ pub struct DataWriterImpl {
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
 }
 
-impl DataWriterImpl {
+impl UserDefinedDataWriter {
     pub fn new(
-        rtps_writer: RtpsWriterKind,
+        rtps_writer: RtpsStatefulWriter<StdTimer>,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         topic: DdsShared<TopicImpl>,
-        publisher: DdsWeak<PublisherImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) -> DdsShared<Self> {
         let liveliness_lost_status = LivelinessLostStatus {
             total_count: 0,
@@ -303,7 +223,7 @@ impl DataWriterImpl {
             policies: vec![],
         };
 
-        DdsShared::new(DataWriterImpl {
+        DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
@@ -318,33 +238,9 @@ impl DataWriterImpl {
             listener: DdsRwLock::new(listener),
         })
     }
-
-    /// NOTE: This function is only useful for the SEDP writers so we probably need a separate
-    /// type for those.
-    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if let RtpsWriterKind::Stateful(rtps_writer) = &mut *rtps_writer_lock {
-            if !rtps_writer
-                .matched_readers()
-                .iter_mut()
-                .any(|r| r.remote_reader_guid().prefix() == participant_discovery.guid_prefix())
-            {
-                let type_name = self.topic.get_type_name().unwrap();
-                if type_name == DiscoveredWriterData::type_name() {
-                    participant_discovery
-                        .discovered_participant_add_publications_writer(rtps_writer);
-                } else if type_name == DiscoveredReaderData::type_name() {
-                    participant_discovery
-                        .discovered_participant_add_subscriptions_writer(rtps_writer);
-                } else if type_name == DiscoveredTopicData::type_name() {
-                    participant_discovery.discovered_participant_add_topics_writer(rtps_writer);
-                }
-            }
-        }
-    }
 }
 
-impl DdsShared<DataWriterImpl> {
+impl DdsShared<UserDefinedDataWriter> {
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
@@ -354,31 +250,15 @@ impl DdsShared<DataWriterImpl> {
         if rtps_writer_lock.writer().get_qos().reliability.kind
             == ReliabilityQosPolicyKind::Reliable
         {
-            match &mut *rtps_writer_lock {
-                RtpsWriterKind::Stateless(stateless_rtps_writer) => {
-                    for reader_locator in message_receiver
-                        .unicast_reply_locator_list()
-                        .iter()
-                        .chain(message_receiver.multicast_reply_locator_list().iter())
-                    {
-                        if let Some(rl) =
-                            stateless_rtps_writer.reader_locator_lookup(reader_locator)
-                        {
-                            rl.receive_acknack(acknack_submessage)
-                        }
-                    }
-                }
-                RtpsWriterKind::Stateful(stateful_rtps_writer) => stateful_rtps_writer
-                    .on_acknack_submessage_received(
-                        acknack_submessage,
-                        message_receiver.source_guid_prefix(),
-                    ),
-            }
+            rtps_writer_lock.on_acknack_submessage_received(
+                acknack_submessage,
+                message_receiver.source_guid_prefix(),
+            );
         }
     }
 }
 
-impl DdsShared<DataWriterImpl> {
+impl DdsShared<UserDefinedDataWriter> {
     pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
         let writer_topic_name = self.topic.get_name().unwrap();
@@ -419,45 +299,23 @@ impl DdsShared<DataWriterImpl> {
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                match &mut *rtps_writer_lock {
-                    RtpsWriterKind::Stateless(w) => {
-                        for &locator in discovered_reader_data
-                            .reader_proxy
-                            .unicast_locator_list
-                            .iter()
-                            .chain(
-                                discovered_reader_data
-                                    .reader_proxy
-                                    .multicast_locator_list
-                                    .iter(),
-                            )
-                        {
-                            let a_locator = RtpsReaderLocator::new(
-                                locator,
-                                discovered_reader_data.reader_proxy.expects_inline_qos,
-                            );
-                            w.reader_locator_add(a_locator);
-                        }
-                    }
-                    RtpsWriterKind::Stateful(w) => {
-                        let reader_proxy = RtpsReaderProxy::new(
-                            discovered_reader_data.reader_proxy.remote_reader_guid,
-                            discovered_reader_data.reader_proxy.remote_group_entity_id,
-                            discovered_reader_data
-                                .reader_proxy
-                                .unicast_locator_list
-                                .as_ref(),
-                            discovered_reader_data
-                                .reader_proxy
-                                .multicast_locator_list
-                                .as_ref(),
-                            discovered_reader_data.reader_proxy.expects_inline_qos,
-                            true,
-                        );
+                let reader_proxy = RtpsReaderProxy::new(
+                    discovered_reader_data.reader_proxy.remote_reader_guid,
+                    discovered_reader_data.reader_proxy.remote_group_entity_id,
+                    discovered_reader_data
+                        .reader_proxy
+                        .unicast_locator_list
+                        .as_ref(),
+                    discovered_reader_data
+                        .reader_proxy
+                        .multicast_locator_list
+                        .as_ref(),
+                    discovered_reader_data.reader_proxy.expects_inline_qos,
+                    true,
+                );
 
-                        w.matched_reader_add(reader_proxy);
-                    }
-                }
+                rtps_writer_lock.matched_reader_add(reader_proxy);
+
                 self.matched_subscription_list
                     .write_lock()
                     .insert(reader_info.key.value.into(), reader_info.clone());
@@ -505,7 +363,7 @@ impl DdsShared<DataWriterImpl> {
     }
 }
 
-impl DdsShared<DataWriterImpl> {
+impl DdsShared<UserDefinedDataWriter> {
     pub fn register_instance_w_timestamp<Foo>(
         &self,
         instance: &Foo,
@@ -585,7 +443,7 @@ impl DdsShared<DataWriterImpl> {
             let mut data = vec![0, 1, 0, 0];
             data.extend(serialized_key);
 
-            let change = rtps_writer_lock.new_change(
+            let change = rtps_writer_lock.writer_mut().new_change(
                 ChangeKind::NotAliveUnregistered,
                 data,
                 inline_qos,
@@ -650,7 +508,7 @@ impl DdsShared<DataWriterImpl> {
             .register_instance_w_timestamp(data, timestamp)?
             .unwrap_or(HANDLE_NIL);
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let change = rtps_writer_lock.new_change(
+        let change = rtps_writer_lock.writer_mut().new_change(
             ChangeKind::Alive,
             serialized_data,
             vec![],
@@ -701,7 +559,7 @@ impl DdsShared<DataWriterImpl> {
             // Hardcoded CDR header to satisfy wireshark
             let mut data = vec![0, 1, 0, 0];
             data.extend(serialized_key);
-            let change = rtps_writer_lock.new_change(
+            let change = rtps_writer_lock.writer_mut().new_change(
                 ChangeKind::NotAliveDisposed,
                 data,
                 inline_qos,
@@ -726,16 +584,19 @@ impl DdsShared<DataWriterImpl> {
         let max_wait_time_std = std::time::Duration::new(max_wait.sec() as u64, max_wait.nanosec());
 
         while start_time.elapsed() < max_wait_time_std {
-            match &*self.rtps_writer.write_lock() {
-                RtpsWriterKind::Stateless(_) => return Err(DdsError::IllegalOperation),
-                RtpsWriterKind::Stateful(w) => {
-                    let changes = w.writer().writer_cache().changes();
+            {
+                let rtps_writer_lock = self.rtps_writer.write_lock();
+                let changes = rtps_writer_lock.writer().writer_cache().changes();
 
-                    if changes.iter().map(|c| w.is_acked_by_all(c)).all(|r| r) {
-                        return Ok(());
-                    }
+                if changes
+                    .iter()
+                    .map(|c| rtps_writer_lock.is_acked_by_all(c))
+                    .all(|r| r)
+                {
+                    return Ok(());
                 }
             }
+
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
         Err(DdsError::Timeout)
@@ -781,7 +642,7 @@ impl DdsShared<DataWriterImpl> {
         self.topic.clone()
     }
 
-    pub fn get_publisher(&self) -> DdsShared<PublisherImpl> {
+    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
         self.publisher
             .upgrade()
             .expect("Failed to get parent publisher of data writer")
@@ -824,7 +685,7 @@ impl DdsShared<DataWriterImpl> {
     }
 }
 
-impl DdsShared<DataWriterImpl> {
+impl DdsShared<UserDefinedDataWriter> {
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -856,10 +717,6 @@ impl DdsShared<DataWriterImpl> {
         Ok(())
     }
 
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyDataWriterListener + Send + Sync>>> {
-        todo!()
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -886,10 +743,10 @@ impl DdsShared<DataWriterImpl> {
     }
 }
 
-impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
+impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
     type Error = DdsError;
 
-    fn try_from(val: &DdsShared<DataWriterImpl>) -> DdsResult<Self> {
+    fn try_from(val: &DdsShared<UserDefinedDataWriter>) -> DdsResult<Self> {
         let rtps_writer_lock = val.rtps_writer.read_lock();
         let guid = val.rtps_writer.read_lock().writer().guid();
         let writer_qos = rtps_writer_lock.writer().get_qos();
@@ -928,62 +785,35 @@ impl TryFrom<&DdsShared<DataWriterImpl>> for DiscoveredWriterData {
     }
 }
 
-impl DdsShared<DataWriterImpl> {
+impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
         let guid_prefix = rtps_writer_lock.writer().guid().prefix();
 
-        match &mut *rtps_writer_lock {
-            RtpsWriterKind::Stateless(stateless_rtps_writer) => {
-                let destined_submessages = stateless_rtps_writer.produce_submessages();
-                for (reader_locator, submessages) in destined_submessages {
-                    let header = RtpsMessageHeader {
-                        protocol: ProtocolId::PROTOCOL_RTPS,
-                        version: ProtocolVersionSubmessageElement {
-                            value: PROTOCOLVERSION.into(),
-                        },
-                        vendor_id: VendorIdSubmessageElement {
-                            value: VENDOR_ID_S2E,
-                        },
-                        guid_prefix: GuidPrefixSubmessageElement {
-                            value: guid_prefix.into(),
-                        },
-                    };
+        let destined_submessages = rtps_writer_lock.produce_submessages();
 
-                    let rtps_message = RtpsMessage {
-                        header,
-                        submessages,
-                    };
-                    transport.write(&rtps_message, reader_locator.locator())
-                }
+        for (reader_proxy, submessages) in destined_submessages {
+            let header = RtpsMessageHeader {
+                protocol: ProtocolId::PROTOCOL_RTPS,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E,
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: guid_prefix.into(),
+                },
+            };
+
+            let rtps_message = RtpsMessage {
+                header,
+                submessages,
+            };
+            for locator in reader_proxy.unicast_locator_list() {
+                transport.write(&rtps_message, *locator);
             }
-            RtpsWriterKind::Stateful(stateful_rtps_writer) => {
-                let destined_submessages = stateful_rtps_writer.produce_submessages();
-
-                for (reader_proxy, submessages) in destined_submessages {
-                    let header = RtpsMessageHeader {
-                        protocol: ProtocolId::PROTOCOL_RTPS,
-                        version: ProtocolVersionSubmessageElement {
-                            value: PROTOCOLVERSION.into(),
-                        },
-                        vendor_id: VendorIdSubmessageElement {
-                            value: VENDOR_ID_S2E,
-                        },
-                        guid_prefix: GuidPrefixSubmessageElement {
-                            value: guid_prefix.into(),
-                        },
-                    };
-
-                    let rtps_message = RtpsMessage {
-                        header,
-                        submessages,
-                    };
-                    for locator in reader_proxy.unicast_locator_list() {
-                        transport.write(&rtps_message, *locator);
-                    }
-                }
-            }
-        };
+        }
     }
 }
 
@@ -994,19 +824,7 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::{
-                submessage_elements::{
-                    EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                    SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-                    TimestampSubmessageElement,
-                },
-                submessages::{DataSubmessage, InfoTimestampSubmessage},
-                RtpsSubmessageType,
-            },
-            types::{
-                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN,
-                GUID_UNKNOWN, PROTOCOLVERSION_2_4,
-            },
+            types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
@@ -1083,7 +901,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<DataWriterImpl> {
+    fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
@@ -1096,61 +914,9 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateful(rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
+        let data_writer = UserDefinedDataWriter::new(rtps_writer, None, dummy_topic, DdsWeak::new());
         *data_writer.enabled.write_lock() = true;
         data_writer
-    }
-
-    #[test]
-    fn write_w_timestamp_stateless_message() {
-        let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let locator = Locator::new(1, 7400, [1; 16]);
-        let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
-        stateless_rtps_writer.reader_locator_add(reader_locator);
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateless(stateless_rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-
-        data_writer
-            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-
-        let mut mock_transport = MockTransport::new();
-        mock_transport
-            .expect_write()
-            .withf(move |message, destination_locator| {
-                message.submessages.len() == 2 && destination_locator == &locator
-            })
-            .once()
-            .return_const(());
-        data_writer.send_message(&mut mock_transport);
     }
 
     #[test]
@@ -1185,12 +951,8 @@ mod test {
 
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateful(stateful_rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
+        let data_writer =
+            UserDefinedDataWriter::new(stateful_rtps_writer, None, dummy_topic, DdsWeak::new());
         *data_writer.enabled.write_lock() = true;
 
         data_writer
@@ -1202,204 +964,6 @@ mod test {
             .expect_write()
             .withf(move |message, destination_locator| {
                 message.submessages.len() == 2 && destination_locator == &locator
-            })
-            .once()
-            .return_const(());
-        data_writer.send_message(&mut mock_transport);
-    }
-
-    #[test]
-    fn unregister_w_timestamp_message() {
-        let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let locator = Locator::new(1, 7400, [1; 16]);
-        let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
-        stateless_rtps_writer.reader_locator_add(reader_locator);
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateless(stateless_rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-
-        let instance = MockKeyedFoo { key: vec![1] };
-
-        data_writer
-            .register_instance_w_timestamp(&instance, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-        data_writer
-            .unregister_instance_w_timestamp(&instance, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-
-        let mut mock_transport = MockTransport::new();
-        let expected_message = RtpsMessage {
-            header: RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION_2_4.into(),
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E.into(),
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: GUIDPREFIX_UNKNOWN.into(),
-                },
-            },
-            submessages: vec![
-                RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
-                    endianness_flag: true,
-                    invalidate_flag: false,
-                    timestamp: TimestampSubmessageElement {
-                        value: Time::from(0).into(),
-                    },
-                }),
-                RtpsSubmessageType::Data(DataSubmessage {
-                    endianness_flag: true,
-                    inline_qos_flag: true,
-                    data_flag: false,
-                    key_flag: true,
-                    non_standard_payload_flag: false,
-                    reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
-                    },
-                    writer_sn: SequenceNumberSubmessageElement { value: 1 },
-                    inline_qos: ParameterListSubmessageElement {
-                        parameter: vec![Parameter {
-                            parameter_id: PID_STATUS_INFO,
-                            length: 4,
-                            value: &[0, 0, 0, 2],
-                        }],
-                    },
-                    serialized_payload: SerializedDataSubmessageElement {
-                        value: &[0, 1, 0, 0, 1],
-                    },
-                }),
-            ],
-        };
-        mock_transport
-            .expect_write()
-            .withf(move |message, destination_locator| {
-                message == &expected_message && destination_locator == &locator
-            })
-            .once()
-            .return_const(());
-        data_writer.send_message(&mut mock_transport);
-    }
-
-    #[test]
-    fn dispose_w_timestamp_message() {
-        let mut stateless_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let locator = Locator::new(1, 7400, [1; 16]);
-        let expects_inline_qos = false;
-        let reader_locator = RtpsReaderLocator::new(locator, expects_inline_qos);
-        stateless_rtps_writer.reader_locator_add(reader_locator);
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateless(stateless_rtps_writer),
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-
-        let instance = MockKeyedFoo { key: vec![1] };
-
-        data_writer
-            .register_instance_w_timestamp(&instance, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-        data_writer
-            .dispose_w_timestamp(&instance, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-
-        let mut mock_transport = MockTransport::new();
-        let expected_message = RtpsMessage {
-            header: RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION_2_4.into(),
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E.into(),
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: GUIDPREFIX_UNKNOWN.into(),
-                },
-            },
-            submessages: vec![
-                RtpsSubmessageType::InfoTimestamp(InfoTimestampSubmessage {
-                    endianness_flag: true,
-                    invalidate_flag: false,
-                    timestamp: TimestampSubmessageElement {
-                        value: Time::from(0).into(),
-                    },
-                }),
-                RtpsSubmessageType::Data(DataSubmessage {
-                    endianness_flag: true,
-                    inline_qos_flag: true,
-                    data_flag: false,
-                    key_flag: true,
-                    non_standard_payload_flag: false,
-                    reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
-                    },
-                    writer_sn: SequenceNumberSubmessageElement { value: 1 },
-                    inline_qos: ParameterListSubmessageElement {
-                        parameter: vec![Parameter {
-                            parameter_id: PID_STATUS_INFO,
-                            length: 4,
-                            value: &[0, 0, 0, 1],
-                        }],
-                    },
-                    serialized_payload: SerializedDataSubmessageElement {
-                        value: &[0, 1, 0, 0, 1],
-                    },
-                }),
-            ],
-        };
-        mock_transport
-            .expect_write()
-            .withf(move |message, destination_locator| {
-                message == &expected_message && destination_locator == &locator
             })
             .once()
             .return_const(());
@@ -1448,7 +1012,7 @@ mod test {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_publisher =
-            PublisherImpl::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+            UserDefinedPublisher::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1473,12 +1037,8 @@ mod test {
             },
         ));
 
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateful(rtps_writer),
-            None,
-            test_topic,
-            parent_publisher.downgrade(),
-        );
+        let data_writer =
+            UserDefinedDataWriter::new(rtps_writer, None, test_topic, parent_publisher.downgrade());
         *data_writer.enabled.write_lock() = true;
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: [2; 16] },
@@ -1534,7 +1094,7 @@ mod test {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_publisher =
-            PublisherImpl::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+            UserDefinedPublisher::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1558,12 +1118,8 @@ mod test {
                 ..Default::default()
             },
         ));
-        let data_writer = DataWriterImpl::new(
-            RtpsWriterKind::Stateful(rtps_writer),
-            None,
-            test_topic,
-            parent_publisher.downgrade(),
-        );
+        let data_writer =
+            UserDefinedDataWriter::new(rtps_writer, None, test_topic, parent_publisher.downgrade());
         *data_writer.enabled.write_lock() = true;
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: [2; 16] },

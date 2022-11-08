@@ -8,7 +8,6 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
@@ -22,15 +21,10 @@ use crate::{
                 types::ProtocolId,
                 RtpsMessage, RtpsSubmessageType,
             },
-            reader::RtpsReader,
             reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
-            stateless_reader::RtpsStatelessReader,
             transport::TransportWrite,
-            types::{
-                ChangeKind, EntityId, Guid, GuidPrefix, SequenceNumber, ENTITYID_UNKNOWN,
-                PROTOCOLVERSION, VENDOR_ID_S2E,
-            },
+            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -59,7 +53,6 @@ use crate::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
     },
-    topic_definition::type_support::DdsType,
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -75,52 +68,55 @@ use crate::{
 
 use super::{
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
-    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub trait AnyDataReaderListener {
-    fn trigger_on_data_available(&mut self, reader: &DdsShared<DataReaderImpl<ThreadTimer>>);
+    fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>);
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SampleLostStatus,
     );
 }
 
 impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync> {
-    fn trigger_on_data_available(&mut self, reader: &DdsShared<DataReaderImpl<ThreadTimer>>) {
+    fn trigger_on_data_available(
+        &mut self,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+    ) {
         self.on_data_available(&DataReader::new(reader.downgrade()))
     }
 
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(&DataReader::new(reader.downgrade()), status)
@@ -128,7 +124,7 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(&DataReader::new(reader.downgrade()), status)
@@ -136,7 +132,7 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(&DataReader::new(reader.downgrade()), status)
@@ -144,7 +140,7 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(&DataReader::new(reader.downgrade()), status)
@@ -152,7 +148,7 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(&DataReader::new(reader.downgrade()), status)
@@ -160,39 +156,18 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 
     fn trigger_on_sample_lost(
         &mut self,
-        reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(&DataReader::new(reader.downgrade()), status)
     }
 }
 
-pub enum RtpsReaderKind {
-    Stateless(RtpsStatelessReader),
-    Stateful(RtpsStatefulReader),
-}
-
-impl RtpsReaderKind {
-    pub fn reader(&self) -> &RtpsReader {
-        match self {
-            RtpsReaderKind::Stateless(r) => r.reader(),
-            RtpsReaderKind::Stateful(r) => r.reader(),
-        }
-    }
-
-    pub fn reader_mut(&mut self) -> &mut RtpsReader {
-        match self {
-            RtpsReaderKind::Stateless(r) => r.reader_mut(),
-            RtpsReaderKind::Stateful(r) => r.reader_mut(),
-        }
-    }
-}
-
-pub struct DataReaderImpl<Tim> {
-    rtps_reader: DdsRwLock<RtpsReaderKind>,
+pub struct UserDefinedDataReader<Tim> {
+    rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
-    parent_subscriber: DdsWeak<SubscriberImpl>,
+    parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
@@ -207,21 +182,21 @@ pub struct DataReaderImpl<Tim> {
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
-impl<Tim> DataReaderImpl<Tim>
+impl<Tim> UserDefinedDataReader<Tim>
 where
     Tim: Timer,
 {
     pub fn new(
-        rtps_reader: RtpsReaderKind,
+        rtps_reader: RtpsStatefulReader,
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        parent_subscriber: DdsWeak<SubscriberImpl>,
+        parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     ) -> DdsShared<Self> {
         let qos = rtps_reader.reader().get_qos();
         let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
             + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
 
-        DdsShared::new(DataReaderImpl {
+        DdsShared::new(UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             topic,
             listener: DdsRwLock::new(listener),
@@ -271,31 +246,7 @@ where
     }
 }
 
-impl<Tim> DataReaderImpl<Tim> {
-    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
-        let mut rtps_reader_lock = self.rtps_reader.write_lock();
-        if let RtpsReaderKind::Stateful(rtps_reader) = &mut *rtps_reader_lock {
-            if !rtps_reader
-                .matched_writers()
-                .iter_mut()
-                .any(|r| r.remote_writer_guid().prefix() == participant_discovery.guid_prefix())
-            {
-                let type_name = self.topic.get_type_name().unwrap();
-                if type_name == DiscoveredWriterData::type_name() {
-                    participant_discovery
-                        .discovered_participant_add_publications_reader(rtps_reader);
-                } else if type_name == DiscoveredReaderData::type_name() {
-                    participant_discovery
-                        .discovered_participant_add_subscriptions_reader(rtps_reader);
-                } else if type_name == DiscoveredTopicData::type_name() {
-                    participant_discovery.discovered_participant_add_topics_reader(rtps_reader);
-                }
-            }
-        }
-    }
-}
-
-impl DdsShared<DataReaderImpl<ThreadTimer>> {
+impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -307,79 +258,46 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
             data_submessage.writer_id.value.into(),
         );
 
-        let before_data_cache_len;
-        let after_data_cache_len;
         let mut rtps_reader = self.rtps_reader.write_lock();
-        match &mut *rtps_reader {
-            RtpsReaderKind::Stateless(stateless_rtps_reader) => {
-                before_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
 
-                let data_reader_id: EntityId = data_submessage.reader_id.value.into();
-                if data_reader_id == ENTITYID_UNKNOWN
-                    || data_reader_id == stateless_rtps_reader.reader().guid().entity_id()
-                {
-                    stateless_rtps_reader
-                        .reader_mut()
-                        .on_data_submessage_received(data_submessage, message_receiver);
-                }
+        let before_data_cache_len = rtps_reader.reader_mut().changes().len();
 
-                after_data_cache_len = stateless_rtps_reader.reader_mut().changes().len();
-            }
-            RtpsReaderKind::Stateful(stateful_rtps_reader) => {
-                before_data_cache_len = stateful_rtps_reader.reader_mut().changes().len();
-
-                if let Some(writer_proxy) = stateful_rtps_reader.matched_writer_lookup(writer_guid)
-                {
-                    if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
-                        || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
-                        || writer_proxy
-                            .missing_changes()
-                            .contains(&data_submessage.writer_sn.value)
-                    {
-                        let reliability_kind = stateful_rtps_reader
-                            .reader()
-                            .get_qos()
-                            .reliability
-                            .kind
-                            .clone();
-                        if let Some(writer_proxy) =
-                            stateful_rtps_reader.matched_writer_lookup(writer_guid)
-                        {
-                            match reliability_kind {
-                                ReliabilityQosPolicyKind::BestEffort => {
-                                    let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                                    if sequence_number >= expected_seq_num {
-                                        writer_proxy.received_change_set(sequence_number);
-                                        if sequence_number > expected_seq_num {
-                                            writer_proxy.lost_changes_update(sequence_number);
-                                        }
-
-                                        stateful_rtps_reader
-                                            .reader_mut()
-                                            .on_data_submessage_received(
-                                                data_submessage,
-                                                message_receiver,
-                                            );
-                                    }
+        if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
+            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
+                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
+                || writer_proxy
+                    .missing_changes()
+                    .contains(&data_submessage.writer_sn.value)
+            {
+                let reliability_kind = rtps_reader.reader().get_qos().reliability.kind.clone();
+                if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
+                    match reliability_kind {
+                        ReliabilityQosPolicyKind::BestEffort => {
+                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                            if sequence_number >= expected_seq_num {
+                                writer_proxy.received_change_set(sequence_number);
+                                if sequence_number > expected_seq_num {
+                                    writer_proxy.lost_changes_update(sequence_number);
                                 }
-                                ReliabilityQosPolicyKind::Reliable => {
-                                    writer_proxy
-                                        .received_change_set(data_submessage.writer_sn.value);
-                                    stateful_rtps_reader
-                                        .reader_mut()
-                                        .on_data_submessage_received(
-                                            data_submessage,
-                                            message_receiver,
-                                        );
-                                }
+
+                                rtps_reader
+                                    .reader_mut()
+                                    .on_data_submessage_received(data_submessage, message_receiver);
                             }
+                        }
+                        ReliabilityQosPolicyKind::Reliable => {
+                            writer_proxy.received_change_set(data_submessage.writer_sn.value);
+                            rtps_reader
+                                .reader_mut()
+                                .on_data_submessage_received(data_submessage, message_receiver);
                         }
                     }
                 }
-
-                after_data_cache_len = stateful_rtps_reader.reader_mut().changes().len();
             }
         }
+
+        let after_data_cache_len = rtps_reader.reader_mut().changes().len();
+
         // Call the listener after dropping the rtps_reader lock to avoid deadlock
         drop(rtps_reader);
         if before_data_cache_len < after_data_cache_len {
@@ -426,21 +344,18 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
         let mut rtps_reader = self.rtps_reader.write_lock();
-        if let RtpsReaderKind::Stateful(stateful_rtps_reader) = &mut *rtps_reader {
-            stateful_rtps_reader
-                .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-        }
+        rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
     }
 }
 
-impl DdsShared<DataReaderImpl<ThreadTimer>> {
+impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_topic_name = self.topic.get_name().unwrap();
@@ -483,26 +398,22 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                match &mut *rtps_reader_lock {
-                    RtpsReaderKind::Stateless(_) => (),
-                    RtpsReaderKind::Stateful(r) => {
-                        let writer_proxy = RtpsWriterProxy::new(
-                            discovered_writer_data.writer_proxy.remote_writer_guid,
-                            discovered_writer_data
-                                .writer_proxy
-                                .unicast_locator_list
-                                .as_ref(),
-                            discovered_writer_data
-                                .writer_proxy
-                                .multicast_locator_list
-                                .as_ref(),
-                            discovered_writer_data.writer_proxy.data_max_size_serialized,
-                            discovered_writer_data.writer_proxy.remote_group_entity_id,
-                        );
+                let writer_proxy = RtpsWriterProxy::new(
+                    discovered_writer_data.writer_proxy.remote_writer_guid,
+                    discovered_writer_data
+                        .writer_proxy
+                        .unicast_locator_list
+                        .as_ref(),
+                    discovered_writer_data
+                        .writer_proxy
+                        .multicast_locator_list
+                        .as_ref(),
+                    discovered_writer_data.writer_proxy.data_max_size_serialized,
+                    discovered_writer_data.writer_proxy.remote_group_entity_id,
+                );
 
-                        r.matched_writer_add(writer_proxy);
-                    }
-                }
+                rtps_reader_lock.matched_writer_add(writer_proxy);
+
                 self.matched_publication_list
                     .write_lock()
                     .insert(writer_info.key.value.into(), writer_info.clone());
@@ -567,7 +478,7 @@ impl DdsShared<DataReaderImpl<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<DataReaderImpl<Tim>>
+impl<Tim> DdsShared<UserDefinedDataReader<Tim>>
 where
     Tim: Timer,
 {
@@ -787,18 +698,6 @@ where
         todo!()
     }
 
-    pub fn return_loan<Foo>(
-        &self,
-        _data_values: &mut [Foo],
-        _sample_infos: &mut [SampleInfo],
-    ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
     pub fn get_key_value<Foo>(
         &self,
         _key_holder: &mut Foo,
@@ -903,18 +802,10 @@ where
         self.topic.clone()
     }
 
-    pub fn get_subscriber(&self) -> DdsShared<SubscriberImpl> {
+    pub fn get_subscriber(&self) -> DdsShared<UserDefinedSubscriber> {
         self.parent_subscriber
             .upgrade()
             .expect("Failed to get parent subscriber of data reader")
-    }
-
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
     }
 
     pub fn wait_for_historical_data(&self, _max_wait: Duration) -> DdsResult<()> {
@@ -1006,7 +897,7 @@ where
     }
 }
 
-impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -1039,10 +930,6 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
         Ok(())
     }
 
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn AnyDataReaderListener + Send + Sync>>> {
-        todo!()
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -1069,10 +956,10 @@ impl<Tim> DdsShared<DataReaderImpl<Tim>> {
     }
 }
 
-impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
+impl<Tim> TryFrom<&DdsShared<UserDefinedDataReader<Tim>>> for DiscoveredReaderData {
     type Error = DdsError;
 
-    fn try_from(val: &DdsShared<DataReaderImpl<Tim>>) -> DdsResult<Self> {
+    fn try_from(val: &DdsShared<UserDefinedDataReader<Tim>>) -> DdsResult<Self> {
         let rtps_reader_lock = val.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
@@ -1111,40 +998,38 @@ impl<Tim> TryFrom<&DdsShared<DataReaderImpl<Tim>>> for DiscoveredReaderData {
     }
 }
 
-impl<Tim> DdsShared<DataReaderImpl<Tim>> {
+impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        if let RtpsReaderKind::Stateful(stateful_rtps_reader) = &mut *self.rtps_reader.write_lock()
-        {
-            let mut acknacks = Vec::new();
-            stateful_rtps_reader.send_submessages(|wp, acknack| {
-                acknacks.push((
-                    wp.unicast_locator_list().to_vec(),
-                    vec![RtpsSubmessageType::AckNack(acknack)],
-                ))
-            });
+        let mut rtps_reader = self.rtps_reader.write_lock();
+        let mut acknacks = Vec::new();
+        rtps_reader.send_submessages(|wp, acknack| {
+            acknacks.push((
+                wp.unicast_locator_list().to_vec(),
+                vec![RtpsSubmessageType::AckNack(acknack)],
+            ))
+        });
 
-            for (locator_list, acknacks) in acknacks {
-                let header = RtpsMessageHeader {
-                    protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: ProtocolVersionSubmessageElement {
-                        value: PROTOCOLVERSION.into(),
-                    },
-                    vendor_id: VendorIdSubmessageElement {
-                        value: VENDOR_ID_S2E,
-                    },
-                    guid_prefix: GuidPrefixSubmessageElement {
-                        value: stateful_rtps_reader.reader().guid().prefix().into(),
-                    },
-                };
+        for (locator_list, acknacks) in acknacks {
+            let header = RtpsMessageHeader {
+                protocol: ProtocolId::PROTOCOL_RTPS,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E,
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: rtps_reader.reader().guid().prefix().into(),
+                },
+            };
 
-                let message = RtpsMessage {
-                    header,
-                    submessages: acknacks,
-                };
+            let message = RtpsMessage {
+                header,
+                submessages: acknacks,
+            };
 
-                for &locator in &locator_list {
-                    transport.write(&message, locator);
-                }
+            for &locator in &locator_list {
+                transport.write(&message, locator);
             }
         }
     }
@@ -1176,8 +1061,7 @@ mod tests {
     use crate::{
         implementation::{
             data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-            dds_impl::{data_reader_impl::RtpsReaderKind, topic_impl::TopicImpl},
-            rtps::group::RtpsGroupImpl,
+            dds_impl::topic_impl::TopicImpl, rtps::group::RtpsGroupImpl,
             utils::shared_object::DdsShared,
         },
         topic_definition::type_support::{DdsType, Endianness},
@@ -1229,7 +1113,7 @@ mod tests {
 
     fn reader_with_changes(
         changes: Vec<RtpsReaderCacheChange>,
-    ) -> DdsShared<DataReaderImpl<ThreadTimer>> {
+    ) -> DdsShared<UserDefinedDataReader<ThreadTimer>> {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1248,8 +1132,8 @@ mod tests {
             stateful_reader.reader_mut().add_change(change).unwrap();
         }
 
-        let data_reader = DataReaderImpl::new(
-            RtpsReaderKind::Stateful(stateful_reader),
+        let data_reader = UserDefinedDataReader::new(
+            stateful_reader,
             TopicImpl::new(
                 GUID_UNKNOWN,
                 Default::default(),
@@ -1320,35 +1204,35 @@ mod tests {
     mock! {
         Listener {}
         impl AnyDataReaderListener for Listener {
-            fn trigger_on_data_available(&mut self, reader: &DdsShared<DataReaderImpl<ThreadTimer>>);
+            fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>);
             fn trigger_on_sample_rejected(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: SampleRejectedStatus,
             );
             fn trigger_on_liveliness_changed(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: LivelinessChangedStatus,
             );
             fn trigger_on_requested_deadline_missed(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: RequestedDeadlineMissedStatus,
             );
             fn trigger_on_requested_incompatible_qos(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: RequestedIncompatibleQosStatus,
             );
             fn trigger_on_subscription_matched(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: SubscriptionMatchedStatus,
             );
             fn trigger_on_sample_lost(
                 &mut self,
-                reader: &DdsShared<DataReaderImpl<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
                 status: SampleLostStatus,
             );
         }
@@ -1367,12 +1251,8 @@ mod tests {
             qos,
         ));
 
-        let data_reader: DdsShared<DataReaderImpl<ThreadTimer>> = DataReaderImpl::new(
-            RtpsReaderKind::Stateful(stateful_reader),
-            dummy_topic,
-            None,
-            DdsWeak::new(),
-        );
+        let data_reader: DdsShared<UserDefinedDataReader<ThreadTimer>> =
+            UserDefinedDataReader::new(stateful_reader, dummy_topic, None, DdsWeak::new());
         *data_reader.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
@@ -1385,7 +1265,7 @@ mod tests {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber =
-            SubscriberImpl::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+            UserDefinedSubscriber::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1402,8 +1282,8 @@ mod tests {
             DataReaderQos::default(),
         ));
 
-        let data_reader = DataReaderImpl::<ThreadTimer>::new(
-            RtpsReaderKind::Stateful(rtps_reader),
+        let data_reader = UserDefinedDataReader::<ThreadTimer>::new(
+            rtps_reader,
             test_topic,
             None,
             parent_subscriber.downgrade(),
@@ -1463,7 +1343,7 @@ mod tests {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber =
-            SubscriberImpl::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+            UserDefinedSubscriber::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1483,8 +1363,8 @@ mod tests {
             data_reader_qos,
         ));
 
-        let data_reader = DataReaderImpl::<ThreadTimer>::new(
-            RtpsReaderKind::Stateful(rtps_reader),
+        let data_reader = UserDefinedDataReader::<ThreadTimer>::new(
+            rtps_reader,
             test_topic,
             None,
             parent_subscriber.downgrade(),

@@ -1,17 +1,40 @@
 use crate::{
-    implementation::{
-        dds_impl::{publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl},
-        rtps::{
-            messages::{submessages::InfoTimestampSubmessage, RtpsMessage, RtpsSubmessageType},
-            types::{
-                GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
-                LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+    implementation::rtps::{
+        messages::{
+            submessages::{
+                AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoTimestampSubmessage,
             },
+            RtpsMessage, RtpsSubmessageType,
         },
-        utils::shared_object::DdsShared,
+        types::{
+            GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        },
     },
     infrastructure::time::{Time, TIME_INVALID},
 };
+
+pub trait PublisherMessageReceiver {
+    fn on_acknack_submessage_received(
+        &self,
+        acknack_submessage: &AckNackSubmessage,
+        message_receiver: &MessageReceiver,
+    );
+}
+
+pub trait SubscriberSubmessageReceiver {
+    fn on_heartbeat_submessage_received(
+        &self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    );
+
+    fn on_data_submessage_received(
+        &self,
+        data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    );
+}
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -41,8 +64,8 @@ impl MessageReceiver {
     pub fn process_message(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &[DdsShared<PublisherImpl>],
-        subscriber_list: &[DdsShared<SubscriberImpl>],
+        publisher_list: &[impl PublisherMessageReceiver],
+        subscriber_list: &[impl SubscriberSubmessageReceiver],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
     ) {

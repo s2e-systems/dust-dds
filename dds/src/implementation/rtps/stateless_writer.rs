@@ -1,11 +1,8 @@
 use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
 
 use super::{
-    history_cache::RtpsWriterCacheChange,
-    messages::{submessages::AckNackSubmessage, RtpsSubmessageType},
-    reader_locator::RtpsReaderLocator,
-    types::{Count, EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
-    writer::RtpsWriter,
+    history_cache::RtpsWriterCacheChange, messages::RtpsSubmessageType,
+    reader_locator::RtpsReaderLocator, types::Count, writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
@@ -21,12 +18,6 @@ impl RtpsStatelessWriter {
 
     pub fn writer_mut(&mut self) -> &mut RtpsWriter {
         &mut self.writer
-    }
-}
-
-impl RtpsStatelessWriter {
-    pub fn reader_locators(&'_ mut self) -> &mut Vec<RtpsReaderLocator> {
-        &mut self.reader_locators
     }
 }
 
@@ -51,25 +42,6 @@ impl RtpsStatelessWriter {
             .collect();
         self.reader_locators.push(a_locator);
     }
-
-    pub fn reader_locator_remove<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&RtpsReaderLocator) -> bool,
-    {
-        self.reader_locators.retain(|x| !f(x))
-    }
-
-    pub fn reader_locator_lookup(&mut self, locator: &Locator) -> Option<&mut RtpsReaderLocator> {
-        self.reader_locators
-            .iter_mut()
-            .find(|x| x.locator() == *locator)
-    }
-
-    pub fn unsent_changes_reset(&mut self) {
-        for reader_locator in &mut self.reader_locators {
-            reader_locator.unsent_changes_reset()
-        }
-    }
 }
 
 impl RtpsStatelessWriter {
@@ -80,21 +52,6 @@ impl RtpsStatelessWriter {
                 .push(change.sequence_number());
         }
         self.writer.writer_cache_mut().add_change(change);
-    }
-
-    pub fn remove_change<F>(&mut self, f: F)
-    where
-        F: FnMut(&RtpsWriterCacheChange) -> bool,
-    {
-        self.writer.writer_cache_mut().remove_change(f)
-    }
-
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache().get_seq_num_min()
-    }
-
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.writer.writer_cache().get_seq_num_max()
     }
 }
 
@@ -130,22 +87,5 @@ impl RtpsStatelessWriter {
         }
 
         destined_submessages
-    }
-}
-
-impl RtpsStatelessWriter {
-    pub fn on_acknack_submessage_received(&mut self, acknack_submessage: &AckNackSubmessage) {
-        let acknack_reader_id: EntityId = acknack_submessage.reader_id.value.into();
-        let message_is_for_me = acknack_reader_id == ENTITYID_UNKNOWN
-            || acknack_reader_id == self.writer.guid().entity_id();
-
-        if self.writer.get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-            && message_is_for_me
-        {
-            for reader_locator in self.reader_locators.iter_mut() {
-                reader_locator.receive_acknack(acknack_submessage);
-            }
-        }
     }
 }

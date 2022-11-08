@@ -65,28 +65,12 @@ impl RtpsReaderProxy {
         self.remote_reader_guid
     }
 
-    pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
-
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_slice()
     }
 
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_slice()
-    }
-
     pub fn changes_for_reader(&self) -> &[RtpsChangeForReader] {
         self.changes_for_reader.as_slice()
-    }
-
-    pub fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
-    }
-
-    pub fn is_active(&self) -> bool {
-        self.is_active
     }
 
     pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {

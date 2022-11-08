@@ -25,26 +25,25 @@ use crate::implementation::{
     utils::shared_object::{DdsRwLock, DdsShared},
 };
 
-use super::data_writer_impl::AnyDataWriterListener;
-use super::message_receiver::MessageReceiver;
+use super::user_defined_data_writer::AnyDataWriterListener;
+use super::message_receiver::{MessageReceiver, PublisherMessageReceiver};
 use super::{
-    data_writer_impl::{DataWriterImpl, RtpsWriterKind},
-    domain_participant_impl::DomainParticipantImpl,
+    user_defined_data_writer::UserDefinedDataWriter, domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
 };
 
-pub struct PublisherImpl {
+pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroupImpl,
-    data_writer_list: DdsRwLock<Vec<DdsShared<DataWriterImpl>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     enabled: DdsRwLock<bool>,
 }
 
-impl PublisherImpl {
+impl UserDefinedPublisher {
     pub fn new(qos: PublisherQos, rtps_group: RtpsGroupImpl) -> DdsShared<Self> {
-        DdsShared::new(PublisherImpl {
+        DdsShared::new(UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -59,19 +58,13 @@ impl PublisherImpl {
     }
 }
 
-impl DdsShared<PublisherImpl> {
+impl DdsShared<UserDefinedPublisher> {
     pub fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
 }
 
-impl DdsShared<PublisherImpl> {
-    pub fn add_data_writer(&self, writer: DdsShared<DataWriterImpl>) {
-        self.data_writer_list.write_lock().push(writer);
-    }
-}
-
-impl DdsShared<PublisherImpl> {
+impl DdsShared<UserDefinedPublisher> {
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
@@ -79,7 +72,7 @@ impl DdsShared<PublisherImpl> {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
-    ) -> DdsResult<DdsShared<DataWriterImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
     {
@@ -122,23 +115,22 @@ impl DdsShared<PublisherImpl> {
                 false => TopicKind::NoKey,
             };
 
-            let rtps_writer_impl =
-                RtpsWriterKind::Stateful(RtpsStatefulWriter::new(RtpsWriter::new(
-                    RtpsEndpoint::new(
-                        guid,
-                        topic_kind,
-                        parent_participant.default_unicast_locator_list(),
-                        parent_participant.default_multicast_locator_list(),
-                    ),
-                    true,
-                    Duration::new(0, 200_000_000),
-                    DURATION_ZERO,
-                    DURATION_ZERO,
-                    None,
-                    qos,
-                )));
+            let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+                RtpsEndpoint::new(
+                    guid,
+                    topic_kind,
+                    parent_participant.default_unicast_locator_list(),
+                    parent_participant.default_multicast_locator_list(),
+                ),
+                true,
+                Duration::new(0, 200_000_000),
+                DURATION_ZERO,
+                DURATION_ZERO,
+                None,
+                qos,
+            ));
 
-            let data_writer_shared = DataWriterImpl::new(
+            let data_writer_shared = UserDefinedDataWriter::new(
                 rtps_writer_impl,
                 a_listener,
                 topic_shared.clone(),
@@ -183,7 +175,7 @@ impl DdsShared<PublisherImpl> {
     pub fn lookup_datawriter<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<DataWriterImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
     {
@@ -270,7 +262,7 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl DdsShared<PublisherImpl> {
+impl DdsShared<UserDefinedPublisher> {
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -338,7 +330,7 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl DdsShared<PublisherImpl> {
+impl DdsShared<UserDefinedPublisher> {
     pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.add_matched_reader(discovered_reader_data)
@@ -346,8 +338,8 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl DdsShared<PublisherImpl> {
-    pub fn on_acknack_submessage_received(
+impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {
+    fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
@@ -358,7 +350,7 @@ impl DdsShared<PublisherImpl> {
     }
 }
 
-impl DdsShared<PublisherImpl> {
+impl DdsShared<UserDefinedPublisher> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);

@@ -3,7 +3,7 @@ use super::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
-        submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{AckNackSubmessage, HeartbeatSubmessage},
     },
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
@@ -25,23 +25,6 @@ pub struct RtpsWriterProxy {
 }
 
 impl RtpsWriterProxy {
-    pub fn best_effort_receive_gap(&mut self, gap: &GapSubmessage) {
-        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
-            self.irrelevant_change_set(seq_num);
-        }
-        for seq_num in gap.gap_list.set.iter() {
-            self.irrelevant_change_set(*seq_num);
-        }
-    }
-    pub fn reliable_receive_gap(&mut self, gap: &GapSubmessage) {
-        for seq_num in gap.gap_start.value..=gap.gap_list.base - 1 {
-            self.irrelevant_change_set(seq_num);
-        }
-        for seq_num in gap.gap_list.set.iter() {
-            self.irrelevant_change_set(*seq_num);
-        }
-    }
-
     pub fn reliable_send_ack_nack(
         &mut self,
         reader_id: EntityId,
@@ -119,18 +102,6 @@ impl RtpsWriterProxy {
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
     }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.multicast_locator_list.as_ref()
-    }
-
-    pub fn data_max_size_serialized(&self) -> Option<i32> {
-        self.data_max_size_serialized
-    }
-
-    pub fn remote_group_entity_id(&self) -> EntityId {
-        self.remote_group_entity_id
-    }
 }
 
 impl RtpsWriterProxy {
@@ -157,7 +128,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn _irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
         // This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
         // SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader. Logical action in the virtual machine:
         // FIND change FROM this.changes_from_writer SUCH-THAT
