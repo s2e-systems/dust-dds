@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, DdsType, DdsSerde)]
 struct HelloWorldType {
+    #[key]
     id: u8,
     msg: String,
 }

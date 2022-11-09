@@ -1,7 +1,6 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        error::DdsResult,
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
@@ -11,35 +10,15 @@ use dust_dds::{
     subscription::sample_info::{
         InstanceStateKind, ViewStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsSerde, DdsType, Endianness},
+    topic_definition::type_support::{DdsSerde, DdsType},
 };
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct KeyedData {
+    #[key]
     id: u8,
     value: u8,
 }
-
-impl DdsType for KeyedData {
-    fn type_name() -> &'static str {
-        "KeyedData"
-    }
-
-    fn has_key() -> bool {
-        true
-    }
-
-    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
-        vec![self.id]
-    }
-
-    fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> DdsResult<()> {
-        self.id = key[0];
-        Ok(())
-    }
-}
-
-impl DdsSerde for KeyedData {}
 
 #[test]
 fn each_key_sample_is_read() {
