@@ -1,13 +1,13 @@
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc, Condvar,
-    },
+    sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::implementation::rtps::{group::RtpsGroupImpl, participant::RtpsParticipant};
+use crate::implementation::{
+    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant},
+    utils::condvar::DdsCondvar,
+};
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::domain_participant_factory::DomainId,
@@ -113,10 +113,12 @@ pub struct DomainParticipantImpl {
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
-    announce_condvar: Arc<Condvar>,
+    announce_condvar: DdsCondvar,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl DomainParticipantImpl {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_participant: RtpsParticipant,
         domain_id: DomainId,
@@ -124,7 +126,8 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
-        announce_condvar: Arc<Condvar>,
+        announce_condvar: DdsCondvar,
+        user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -209,6 +212,7 @@ impl DomainParticipantImpl {
             discovered_topic_list: DdsShared::new(DdsRwLock::new(HashMap::new())),
             enabled: DdsRwLock::new(false),
             announce_condvar,
+            user_defined_data_send_condvar,
         })
     }
 
@@ -247,7 +251,11 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let publisher_impl_shared = UserDefinedPublisher::new(publisher_qos, rtps_group);
+        let publisher_impl_shared = UserDefinedPublisher::new(
+            publisher_qos,
+            rtps_group,
+            self.user_defined_data_send_condvar.clone(),
+        );
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -304,7 +312,11 @@ impl DdsShared<DomainParticipantImpl> {
         let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber_shared = UserDefinedSubscriber::new(subscriber_qos, rtps_group);
+        let subscriber_shared = UserDefinedSubscriber::new(
+            subscriber_qos,
+            rtps_group,
+            self.user_defined_data_send_condvar.clone(),
+        );
         if *self.enabled.read_lock()
             && self
                 .qos

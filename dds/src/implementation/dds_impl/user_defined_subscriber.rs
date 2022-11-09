@@ -6,6 +6,7 @@ use crate::implementation::rtps::types::{
     EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
 };
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
+use crate::implementation::utils::condvar::DdsCondvar;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::qos::QosKind;
@@ -29,11 +30,11 @@ use crate::implementation::{
     },
 };
 
-use super::user_defined_data_reader::AnyDataReaderListener;
 use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
+use super::user_defined_data_reader::AnyDataReaderListener;
 use super::{
-    user_defined_data_reader::UserDefinedDataReader, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
+    user_defined_data_reader::UserDefinedDataReader,
 };
 
 pub struct UserDefinedSubscriber {
@@ -43,10 +44,15 @@ pub struct UserDefinedSubscriber {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl UserDefinedSubscriber {
-    pub fn new(qos: SubscriberQos, rtps_group: RtpsGroupImpl) -> DdsShared<Self> {
+    pub fn new(
+        qos: SubscriberQos,
+        rtps_group: RtpsGroupImpl,
+        user_defined_data_send_condvar: DdsCondvar,
+    ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
@@ -54,6 +60,7 @@ impl UserDefinedSubscriber {
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             enabled: DdsRwLock::new(false),
+            user_defined_data_send_condvar,
         })
     }
 
@@ -125,8 +132,13 @@ impl DdsShared<UserDefinedSubscriber> {
                 qos,
             ));
 
-            let data_reader_shared =
-                UserDefinedDataReader::new(rtps_reader, a_topic.clone(), a_listener, self.downgrade());
+            let data_reader_shared = UserDefinedDataReader::new(
+                rtps_reader,
+                a_topic.clone(),
+                a_listener,
+                self.downgrade(),
+                self.user_defined_data_send_condvar.clone(),
+            );
 
             self.data_reader_list
                 .write_lock()

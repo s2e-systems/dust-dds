@@ -1,12 +1,15 @@
-use crate::infrastructure::status::{
-    LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-    PublicationMatchedStatus,
+use crate::{
+    infrastructure::status::{
+        LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+        PublicationMatchedStatus,
+    },
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use super::data_writer::DataWriter;
 
 pub trait DataWriterListener {
-    type Foo;
+    type Foo: DdsType + DdsSerialize;
 
     fn on_liveliness_lost(
         &mut self,

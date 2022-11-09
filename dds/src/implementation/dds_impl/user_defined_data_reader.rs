@@ -28,6 +28,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
+            condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
             timer::Timer,
         },
@@ -45,7 +46,7 @@ use crate::{
         time::Duration,
     },
     subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::DdsDeserialize,
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
     implementation::utils::timer::ThreadTimer,
@@ -106,7 +107,10 @@ pub trait AnyDataReaderListener {
     );
 }
 
-impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync> {
+impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+{
     fn trigger_on_data_available(
         &mut self,
         reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
@@ -180,6 +184,7 @@ pub struct UserDefinedDataReader<Tim> {
     samples_viewed: DdsRwLock<HashSet<InstanceHandle>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl<Tim> UserDefinedDataReader<Tim>
@@ -191,6 +196,7 @@ where
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
+        user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let qos = rtps_reader.reader().get_qos();
         let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
@@ -242,6 +248,7 @@ where
             samples_viewed: DdsRwLock::new(HashSet::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            user_defined_data_send_condvar,
         })
     }
 }
@@ -352,6 +359,7 @@ impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     ) {
         let mut rtps_reader = self.rtps_reader.write_lock();
         rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.user_defined_data_send_condvar.notify_all();
     }
 }
 
@@ -1143,6 +1151,7 @@ mod tests {
             ),
             None,
             DdsWeak::new(),
+            DdsCondvar::new(),
         );
         *data_reader.enabled.write_lock() = true;
         data_reader
@@ -1251,8 +1260,13 @@ mod tests {
             qos,
         ));
 
-        let data_reader: DdsShared<UserDefinedDataReader<ThreadTimer>> =
-            UserDefinedDataReader::new(stateful_reader, dummy_topic, None, DdsWeak::new());
+        let data_reader: DdsShared<UserDefinedDataReader<ThreadTimer>> = UserDefinedDataReader::new(
+            stateful_reader,
+            dummy_topic,
+            None,
+            DdsWeak::new(),
+            DdsCondvar::new(),
+        );
         *data_reader.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
@@ -1264,8 +1278,11 @@ mod tests {
     fn add_compatible_matched_writer() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_subscriber =
-            UserDefinedSubscriber::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+        let parent_subscriber = UserDefinedSubscriber::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsCondvar::new(),
+        );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1287,6 +1304,7 @@ mod tests {
             test_topic,
             None,
             parent_subscriber.downgrade(),
+            DdsCondvar::new(),
         );
         *data_reader.enabled.write_lock() = true;
         let publication_builtin_topic_data = PublicationBuiltinTopicData {
@@ -1342,8 +1360,11 @@ mod tests {
     fn add_incompatible_matched_writer() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_subscriber =
-            UserDefinedSubscriber::new(SubscriberQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+        let parent_subscriber = UserDefinedSubscriber::new(
+            SubscriberQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsCondvar::new(),
+        );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1368,6 +1389,7 @@ mod tests {
             test_topic,
             None,
             parent_subscriber.downgrade(),
+            DdsCondvar::new(),
         );
         *data_reader.enabled.write_lock() = true;
         let publication_builtin_topic_data = PublicationBuiltinTopicData {

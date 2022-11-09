@@ -54,7 +54,7 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserData>("write_read_unkeyed_topic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let publisher = participant
@@ -98,7 +98,7 @@ fn write_read_unkeyed_topic() {
     writer.write(&UserData(8), None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(3, 0))
+        .wait_for_acknowledgments(Duration::new(5, 0))
         .unwrap();
 
     let samples = reader.read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
@@ -111,21 +111,14 @@ fn data_reader_resource_limits() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
-    let participant1 = participant_factory
+    let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
-    let topic1 = participant1
-        .create_topic::<UserData>("MyTopic", QosKind::Default, None, NO_STATUS)
+    let topic = participant
+        .create_topic::<UserData>("data_reader_resource_limits", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let participant2 = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let topic2 = participant2
-        .create_topic::<UserData>("MyTopic", QosKind::Default, None, NO_STATUS)
-        .unwrap();
-
-    let publisher = participant1
+    let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let data_writer_qos = DataWriterQos {
@@ -140,10 +133,10 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let writer = publisher
-        .create_datawriter(&topic1, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let subscriber = participant2
+    let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
@@ -163,7 +156,7 @@ fn data_reader_resource_limits() {
         ..Default::default()
     };
     let reader = subscriber
-        .create_datareader(&topic2, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();

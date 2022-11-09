@@ -6,20 +6,23 @@ use std::{
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    implementation::rtps::{
-        messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                VendorIdSubmessageElement,
+    implementation::{
+        rtps::{
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessage_elements::{
+                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+                    VendorIdSubmessageElement,
+                },
+                submessages::AckNackSubmessage,
+                types::{ParameterId, ProtocolId},
+                RtpsMessage,
             },
-            submessages::AckNackSubmessage,
-            types::{ParameterId, ProtocolId},
-            RtpsMessage,
+            reader_proxy::RtpsReaderProxy,
+            transport::TransportWrite,
+            types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
-        reader_proxy::RtpsReaderProxy,
-        transport::TransportWrite,
-        types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E},
+        utils::condvar::DdsCondvar,
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -72,8 +75,8 @@ use crate::implementation::{
 
 use super::{
     domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    user_defined_publisher::UserDefinedPublisher, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
@@ -141,7 +144,10 @@ pub trait AnyDataWriterListener {
     );
 }
 
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync> {
+impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
+where
+    Foo: DdsType + DdsSerialize + 'static,
+{
     fn trigger_on_liveliness_lost(
         &mut self,
         the_writer: &DdsShared<UserDefinedDataWriter>,
@@ -188,6 +194,7 @@ pub struct UserDefinedDataWriter {
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl UserDefinedDataWriter {
@@ -196,6 +203,7 @@ impl UserDefinedDataWriter {
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<UserDefinedPublisher>,
+        user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let liveliness_lost_status = LivelinessLostStatus {
             total_count: 0,
@@ -236,6 +244,7 @@ impl UserDefinedDataWriter {
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             listener: DdsRwLock::new(listener),
+            user_defined_data_send_condvar,
         })
     }
 }
@@ -516,6 +525,8 @@ impl DdsShared<UserDefinedDataWriter> {
             timestamp,
         );
         rtps_writer_lock.add_change(change);
+
+        self.user_defined_data_send_condvar.notify_all();
 
         Ok(())
     }
@@ -914,7 +925,13 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(rtps_writer, None, dummy_topic, DdsWeak::new());
+        let data_writer = UserDefinedDataWriter::new(
+            rtps_writer,
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+            DdsCondvar::new(),
+        );
         *data_writer.enabled.write_lock() = true;
         data_writer
     }
@@ -951,8 +968,13 @@ mod test {
 
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
 
-        let data_writer =
-            UserDefinedDataWriter::new(stateful_rtps_writer, None, dummy_topic, DdsWeak::new());
+        let data_writer = UserDefinedDataWriter::new(
+            stateful_rtps_writer,
+            None,
+            dummy_topic,
+            DdsWeak::new(),
+            DdsCondvar::new(),
+        );
         *data_writer.enabled.write_lock() = true;
 
         data_writer
@@ -1011,8 +1033,11 @@ mod test {
     fn add_compatible_matched_reader() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_publisher =
-            UserDefinedPublisher::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+        let parent_publisher = UserDefinedPublisher::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsCondvar::new(),
+        );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1037,8 +1062,13 @@ mod test {
             },
         ));
 
-        let data_writer =
-            UserDefinedDataWriter::new(rtps_writer, None, test_topic, parent_publisher.downgrade());
+        let data_writer = UserDefinedDataWriter::new(
+            rtps_writer,
+            None,
+            test_topic,
+            parent_publisher.downgrade(),
+            DdsCondvar::new(),
+        );
         *data_writer.enabled.write_lock() = true;
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: [2; 16] },
@@ -1093,8 +1123,11 @@ mod test {
     fn add_incompatible_matched_reader() {
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
-        let parent_publisher =
-            UserDefinedPublisher::new(PublisherQos::default(), RtpsGroupImpl::new(GUID_UNKNOWN));
+        let parent_publisher = UserDefinedPublisher::new(
+            PublisherQos::default(),
+            RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsCondvar::new(),
+        );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -1118,8 +1151,13 @@ mod test {
                 ..Default::default()
             },
         ));
-        let data_writer =
-            UserDefinedDataWriter::new(rtps_writer, None, test_topic, parent_publisher.downgrade());
+        let data_writer = UserDefinedDataWriter::new(
+            rtps_writer,
+            None,
+            test_topic,
+            parent_publisher.downgrade(),
+            DdsCondvar::new(),
+        );
         *data_writer.enabled.write_lock() = true;
         let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
             key: BuiltInTopicKey { value: [2; 16] },

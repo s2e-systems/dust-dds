@@ -1,12 +1,15 @@
-use crate::infrastructure::status::{
-    LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-    SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+use crate::{
+    infrastructure::status::{
+        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
+        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
+    },
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::data_reader::DataReader;
 
 pub trait DataReaderListener {
-    type Foo;
+    type Foo: DdsType + for<'de> DdsDeserialize<'de>;
 
     fn on_data_available(&mut self, _the_reader: &DataReader<Self::Foo>) {}
     fn on_sample_rejected(

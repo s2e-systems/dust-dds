@@ -12,7 +12,10 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::{user_defined_data_writer::AnyDataWriterListener, user_defined_publisher::UserDefinedPublisher},
+        dds_impl::{
+            user_defined_data_writer::AnyDataWriterListener,
+            user_defined_publisher::UserDefinedPublisher,
+        },
         utils::shared_object::DdsWeak,
     },
     infrastructure::status::StatusKind,
@@ -36,6 +39,16 @@ pub struct Publisher(DdsWeak<UserDefinedPublisher>);
 impl Publisher {
     pub(crate) fn new(publisher_impl: DdsWeak<UserDefinedPublisher>) -> Self {
         Self(publisher_impl)
+    }
+}
+
+impl Drop for Publisher {
+    fn drop(&mut self) {
+        if self.0.weak_count() == 1 {
+            if let Ok(p) = self.get_participant() {
+                p.delete_publisher(self).ok();
+            }
+        }
     }
 }
 
@@ -102,7 +115,7 @@ impl Publisher {
     /// specified which one.
     pub fn lookup_datawriter<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<Option<DataWriter<Foo>>>
     where
-        Foo: DdsType,
+        Foo: DdsType + DdsSerialize,
     {
         self.0
             .upgrade()?

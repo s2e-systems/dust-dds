@@ -30,11 +30,29 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(DdsWeak<UserDefinedDataWriter>, PhantomData<Foo>);
+pub struct DataWriter<Foo>(DdsWeak<UserDefinedDataWriter>, PhantomData<Foo>)
+where
+    Foo: DdsType + DdsSerialize + 'static;
 
-impl<Foo> DataWriter<Foo> {
+impl<Foo> DataWriter<Foo>
+where
+    Foo: DdsType + DdsSerialize + 'static,
+{
     pub(crate) fn new(data_writer_attributes: DdsWeak<UserDefinedDataWriter>) -> Self {
         Self(data_writer_attributes, PhantomData)
+    }
+}
+
+impl<Foo> Drop for DataWriter<Foo>
+where
+    Foo: DdsType + DdsSerialize + 'static,
+{
+    fn drop(&mut self) {
+        if self.0.weak_count() == 1 {
+            if let Ok(p) = self.get_publisher() {
+                p.delete_datawriter(self).ok();
+            }
+        }
     }
 }
 

@@ -2,7 +2,7 @@ use std::{
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
-        Arc, Condvar, Mutex,
+        Arc,
     },
     thread::JoinHandle,
 };
@@ -12,9 +12,9 @@ use crate::{
     implementation::{
         rtps::participant::RtpsParticipant,
         rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
-        utils::shared_object::DdsShared,
+        utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{error::DdsResult, qos::DomainParticipantQos},
+    infrastructure::{error::DdsResult, qos::DomainParticipantQos, time::Duration},
 };
 
 use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
@@ -33,7 +33,8 @@ impl DcpsService {
         domain_participant_qos: DomainParticipantQos,
         mut transport: RtpsUdpPsm,
     ) -> DdsResult<Self> {
-        let announcer_condvar = Arc::new(Condvar::new());
+        let announcer_condvar = DdsCondvar::new();
+        let user_defined_data_send_condvar = DdsCondvar::new();
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -42,6 +43,7 @@ impl DcpsService {
             transport.metatraffic_unicast_locator_list(),
             transport.metatraffic_multicast_locator_list(),
             announcer_condvar.clone(),
+            user_defined_data_send_condvar.clone(),
         );
 
         participant.enable()?;
@@ -164,7 +166,6 @@ impl DcpsService {
                     break;
                 }
 
-                domain_participant.send_user_defined_data(&mut default_unicast_transport);
                 if let Some((locator, message)) =
                     default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
                 {
@@ -179,12 +180,13 @@ impl DcpsService {
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
             let mut default_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
+
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
 
                 domain_participant.send_user_defined_data(&mut default_unicast_transport_send);
             }));
@@ -193,7 +195,6 @@ impl DcpsService {
         // //////////// Announce participant
         let domain_participant = participant.clone();
         let task_quit = quit.clone();
-        let lock = Mutex::new(());
 
         threads.push(std::thread::spawn(move || {
             // TODO: Temporary solution to ensure tests pass by announcing as soon as possible
@@ -203,9 +204,7 @@ impl DcpsService {
                     break;
                 }
 
-                let var_lock = lock.lock().unwrap();
-                let _r =
-                    announcer_condvar.wait_timeout(var_lock, std::time::Duration::from_secs(5));
+                let _r = announcer_condvar.wait_timeout(Duration::new(5, 0));
 
                 match domain_participant.announce_participant() {
                     Ok(_) => (),

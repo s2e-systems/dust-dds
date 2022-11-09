@@ -13,7 +13,10 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::{user_defined_data_reader::AnyDataReaderListener, user_defined_subscriber::UserDefinedSubscriber},
+        dds_impl::{
+            user_defined_data_reader::AnyDataReaderListener,
+            user_defined_subscriber::UserDefinedSubscriber,
+        },
         utils::shared_object::DdsWeak,
     },
     infrastructure::instance::InstanceHandle,
@@ -43,6 +46,21 @@ pub struct Subscriber(SubscriberKind);
 impl Subscriber {
     pub(crate) fn new(subscriber_impl: SubscriberKind) -> Self {
         Self(subscriber_impl)
+    }
+}
+
+impl Drop for Subscriber {
+    fn drop(&mut self) {
+        match &self.0 {
+            SubscriberKind::BuiltIn(_) => (), // Built-in subscribers don't get deleted
+            SubscriberKind::UserDefined(subscriber) => {
+                if subscriber.weak_count() == 1 {
+                    if let Ok(p) = self.get_participant() {
+                        p.delete_subscriber(self).ok();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -116,7 +134,7 @@ impl Subscriber {
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
     pub fn lookup_datareader<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<Option<DataReader<Foo>>>
     where
-        Foo: DdsType,
+        Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         match &self.0 {
             SubscriberKind::BuiltIn(s) => s

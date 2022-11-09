@@ -8,6 +8,7 @@ use crate::implementation::rtps::types::{
 };
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
+use crate::implementation::utils::condvar::DdsCondvar;
 use crate::infrastructure::condition::StatusCondition;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
@@ -25,11 +26,11 @@ use crate::implementation::{
     utils::shared_object::{DdsRwLock, DdsShared},
 };
 
-use super::user_defined_data_writer::AnyDataWriterListener;
 use super::message_receiver::{MessageReceiver, PublisherMessageReceiver};
+use super::user_defined_data_writer::AnyDataWriterListener;
 use super::{
-    user_defined_data_writer::UserDefinedDataWriter, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
+    domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
+    user_defined_data_writer::UserDefinedDataWriter,
 };
 
 pub struct UserDefinedPublisher {
@@ -39,10 +40,15 @@ pub struct UserDefinedPublisher {
     user_defined_data_writer_counter: AtomicU8,
     default_datawriter_qos: DataWriterQos,
     enabled: DdsRwLock<bool>,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl UserDefinedPublisher {
-    pub fn new(qos: PublisherQos, rtps_group: RtpsGroupImpl) -> DdsShared<Self> {
+    pub fn new(
+        qos: PublisherQos,
+        rtps_group: RtpsGroupImpl,
+        user_defined_data_send_condvar: DdsCondvar,
+    ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
@@ -50,6 +56,7 @@ impl UserDefinedPublisher {
             user_defined_data_writer_counter: AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             enabled: DdsRwLock::new(false),
+            user_defined_data_send_condvar,
         })
     }
 
@@ -135,6 +142,7 @@ impl DdsShared<UserDefinedPublisher> {
                 a_listener,
                 topic_shared.clone(),
                 self.downgrade(),
+                self.user_defined_data_send_condvar.clone(),
             );
 
             self.data_writer_list

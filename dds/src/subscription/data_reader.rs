@@ -46,11 +46,32 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(DdsWeak<UserDefinedDataReader<ThreadTimer>>, PhantomData<Foo>);
+pub struct DataReader<Foo>(
+    DdsWeak<UserDefinedDataReader<ThreadTimer>>,
+    PhantomData<Foo>,
+)
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static;
 
-impl<Foo> DataReader<Foo> {
+impl<Foo> DataReader<Foo>
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+{
     pub(crate) fn new(data_reader_attributes: DdsWeak<UserDefinedDataReader<ThreadTimer>>) -> Self {
         Self(data_reader_attributes, PhantomData)
+    }
+}
+
+impl<Foo> Drop for DataReader<Foo>
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
+{
+    fn drop(&mut self) {
+        if self.0.weak_count() == 1 {
+            if let Ok(s) = self.get_subscriber() {
+                s.delete_datareader(self).ok();
+            }
+        }
     }
 }
 
