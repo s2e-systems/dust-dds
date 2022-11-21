@@ -1,12 +1,25 @@
-use crate::infrastructure::{
-    qos_policy::ReliabilityQosPolicyKind,
-    time::{Duration, DURATION_ZERO},
+use crate::{
+    implementation::dds_impl::message_receiver::MessageReceiver,
+    infrastructure::{
+        qos_policy::ReliabilityQosPolicyKind,
+        time::{Duration, DURATION_ZERO},
+    },
 };
 
 use super::{
-    messages::submessages::{AckNackSubmessage, HeartbeatSubmessage},
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::{
+            GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+            VendorIdSubmessageElement,
+        },
+        submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage},
+        types::ProtocolId,
+        RtpsMessage, RtpsSubmessageType,
+    },
     reader::RtpsReader,
-    types::{Count, Guid, GuidPrefix},
+    transport::TransportWrite,
+    types::{Count, Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -120,6 +133,84 @@ impl RtpsStatefulReader {
                     |wp, acknack| send_acknack(wp, acknack),
                 );
                 writer_proxy.must_send_acknacks = false;
+            }
+        }
+    }
+
+    pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
+        let mut acknacks = Vec::new();
+        self.send_submessages(|wp, acknack| {
+            acknacks.push((
+                wp.unicast_locator_list().to_vec(),
+                vec![RtpsSubmessageType::AckNack(acknack)],
+            ))
+        });
+
+        for (locator_list, acknacks) in acknacks {
+            let header = RtpsMessageHeader {
+                protocol: ProtocolId::PROTOCOL_RTPS,
+                version: ProtocolVersionSubmessageElement {
+                    value: PROTOCOLVERSION.into(),
+                },
+                vendor_id: VendorIdSubmessageElement {
+                    value: VENDOR_ID_S2E,
+                },
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: self.reader().guid().prefix().into(),
+                },
+            };
+
+            let message = RtpsMessage {
+                header,
+                submessages: acknacks,
+            };
+
+            for &locator in &locator_list {
+                transport.write(&message, locator);
+            }
+        }
+    }
+
+    pub fn on_data_submessage_received(
+        &mut self,
+        data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) {
+        let sequence_number = data_submessage.writer_sn.value;
+        let writer_guid = Guid::new(
+            message_receiver.source_guid_prefix(),
+            data_submessage.writer_id.value.into(),
+        );
+
+        if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
+                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
+                || writer_proxy
+                    .missing_changes()
+                    .contains(&data_submessage.writer_sn.value)
+            {
+                let reliability_kind = self.reader().get_qos().reliability.kind.clone();
+                if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
+                    match reliability_kind {
+                        ReliabilityQosPolicyKind::BestEffort => {
+                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+                            if sequence_number >= expected_seq_num {
+                                writer_proxy.received_change_set(sequence_number);
+                                if sequence_number > expected_seq_num {
+                                    writer_proxy.lost_changes_update(sequence_number);
+                                }
+
+                                self.reader_mut()
+                                    .on_data_submessage_received(data_submessage, message_receiver);
+                            }
+                        }
+                        ReliabilityQosPolicyKind::Reliable => {
+                            writer_proxy.received_change_set(data_submessage.writer_sn.value);
+                            self.reader_mut()
+                                .on_data_submessage_received(data_submessage, message_receiver);
+                        }
+                    }
+                }
             }
         }
     }

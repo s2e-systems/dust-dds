@@ -11,33 +11,24 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                    VendorIdSubmessageElement,
-                },
-                submessages::{DataSubmessage, HeartbeatSubmessage},
-                types::ProtocolId,
-                RtpsMessage, RtpsSubmessageType,
-            },
+            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{ChangeKind, GuidPrefix, SequenceNumber},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer::Timer,
+            timer::{ThreadTimer, Timer},
         },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos::QosKind,
-        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::DestinationOrderQosPolicyKind,
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
@@ -49,7 +40,6 @@ use crate::{
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
-    implementation::utils::timer::ThreadTimer,
     subscription::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
@@ -74,35 +64,35 @@ use super::{
 };
 
 pub trait AnyDataReaderListener {
-    fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>);
+    fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader>);
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SampleRejectedStatus,
     );
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: LivelinessChangedStatus,
     );
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: RequestedDeadlineMissedStatus,
     );
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: RequestedIncompatibleQosStatus,
     );
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SubscriptionMatchedStatus,
     );
     fn trigger_on_sample_lost(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SampleLostStatus,
     );
 }
@@ -111,16 +101,13 @@ impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    fn trigger_on_data_available(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
-    ) {
+    fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
         self.on_data_available(&DataReader::new(reader.downgrade()))
     }
 
     fn trigger_on_sample_rejected(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SampleRejectedStatus,
     ) {
         self.on_sample_rejected(&DataReader::new(reader.downgrade()), status)
@@ -128,7 +115,7 @@ where
 
     fn trigger_on_liveliness_changed(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: LivelinessChangedStatus,
     ) {
         self.on_liveliness_changed(&DataReader::new(reader.downgrade()), status)
@@ -136,7 +123,7 @@ where
 
     fn trigger_on_requested_deadline_missed(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: RequestedDeadlineMissedStatus,
     ) {
         self.on_requested_deadline_missed(&DataReader::new(reader.downgrade()), status)
@@ -144,7 +131,7 @@ where
 
     fn trigger_on_requested_incompatible_qos(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: RequestedIncompatibleQosStatus,
     ) {
         self.on_requested_incompatible_qos(&DataReader::new(reader.downgrade()), status)
@@ -152,7 +139,7 @@ where
 
     fn trigger_on_subscription_matched(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SubscriptionMatchedStatus,
     ) {
         self.on_subscription_matched(&DataReader::new(reader.downgrade()), status)
@@ -160,20 +147,20 @@ where
 
     fn trigger_on_sample_lost(
         &mut self,
-        reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+        reader: &DdsShared<UserDefinedDataReader>,
         status: SampleLostStatus,
     ) {
         self.on_sample_lost(&DataReader::new(reader.downgrade()), status)
     }
 }
 
-pub struct UserDefinedDataReader<Tim> {
+pub struct UserDefinedDataReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
     parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     samples_read: DdsRwLock<HashSet<SequenceNumber>>,
-    deadline_timer: DdsRwLock<Tim>,
+    deadline_timer: DdsRwLock<ThreadTimer>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -187,10 +174,7 @@ pub struct UserDefinedDataReader<Tim> {
     user_defined_data_send_condvar: DdsCondvar,
 }
 
-impl<Tim> UserDefinedDataReader<Tim>
-where
-    Tim: Timer,
-{
+impl UserDefinedDataReader {
     pub fn new(
         rtps_reader: RtpsStatefulReader,
         topic: DdsShared<TopicImpl>,
@@ -208,7 +192,7 @@ where
             listener: DdsRwLock::new(listener),
             parent_subscriber,
             samples_read: DdsRwLock::new(HashSet::new()),
-            deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
+            deadline_timer: DdsRwLock::new(ThreadTimer::new(deadline_duration)),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
                 not_alive_count: 0,
@@ -253,90 +237,53 @@ where
     }
 }
 
-impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
+impl DdsShared<UserDefinedDataReader> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let sequence_number = data_submessage.writer_sn.value;
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data_submessage.writer_id.value.into(),
-        );
+        let before_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
-        let mut rtps_reader = self.rtps_reader.write_lock();
+        self.rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver);
 
-        let before_data_cache_len = rtps_reader.reader_mut().changes().len();
+        let after_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
-        if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
-            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
-                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
-                || writer_proxy
-                    .missing_changes()
-                    .contains(&data_submessage.writer_sn.value)
-            {
-                let reliability_kind = rtps_reader.reader().get_qos().reliability.kind.clone();
-                if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
-                    match reliability_kind {
-                        ReliabilityQosPolicyKind::BestEffort => {
-                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                            if sequence_number >= expected_seq_num {
-                                writer_proxy.received_change_set(sequence_number);
-                                if sequence_number > expected_seq_num {
-                                    writer_proxy.lost_changes_update(sequence_number);
-                                }
-
-                                rtps_reader
-                                    .reader_mut()
-                                    .on_data_submessage_received(data_submessage, message_receiver);
-                            }
-                        }
-                        ReliabilityQosPolicyKind::Reliable => {
-                            writer_proxy.received_change_set(data_submessage.writer_sn.value);
-                            rtps_reader
-                                .reader_mut()
-                                .on_data_submessage_received(data_submessage, message_receiver);
-                        }
-                    }
-                }
-            }
-        }
-
-        let after_data_cache_len = rtps_reader.reader_mut().changes().len();
-
-        // Call the listener after dropping the rtps_reader lock to avoid deadlock
-        drop(rtps_reader);
         if before_data_cache_len < after_data_cache_len {
             let reader_shared = self.clone();
-            self.deadline_timer.write_lock().on_deadline(move || {
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count += 1;
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count_change += 1;
+            self
+                .deadline_timer
+                .write_lock()
+                .on_deadline(move || {
+                    reader_shared
+                        .requested_deadline_missed_status
+                        .write_lock()
+                        .total_count += 1;
+                    reader_shared
+                        .requested_deadline_missed_status
+                        .write_lock()
+                        .total_count_change += 1;
 
-                reader_shared
-                    .status_condition
-                    .write_lock()
-                    .add_communication_state(StatusKind::RequestedDeadlineMissed);
-                if let Some(l) = reader_shared.listener.write_lock().as_mut() {
                     reader_shared
                         .status_condition
                         .write_lock()
-                        .remove_communication_state(StatusKind::RequestedDeadlineMissed);
-                    l.trigger_on_requested_deadline_missed(
-                        &reader_shared,
+                        .add_communication_state(StatusKind::RequestedDeadlineMissed);
+                    if let Some(l) = reader_shared.listener.write_lock().as_mut() {
                         reader_shared
-                            .requested_deadline_missed_status
-                            .read_lock()
-                            .clone(),
-                    )
-                };
-            });
+                            .status_condition
+                            .write_lock()
+                            .remove_communication_state(StatusKind::RequestedDeadlineMissed);
+                        l.trigger_on_requested_deadline_missed(
+                            &reader_shared,
+                            reader_shared
+                                .requested_deadline_missed_status
+                                .write_lock()
+                                .clone(),
+                        )
+                    };
+                });
 
             self.status_condition
                 .write_lock()
@@ -351,7 +298,7 @@ impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
+impl DdsShared<UserDefinedDataReader> {
     pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -363,7 +310,7 @@ impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     }
 }
 
-impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
+impl DdsShared<UserDefinedDataReader> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_topic_name = self.topic.get_name().unwrap();
@@ -486,10 +433,7 @@ impl DdsShared<UserDefinedDataReader<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<UserDefinedDataReader<Tim>>
-where
-    Tim: Timer,
-{
+impl DdsShared<UserDefinedDataReader> {
     pub fn read<Foo>(
         &self,
         max_samples: i32,
@@ -905,7 +849,7 @@ where
     }
 }
 
-impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
+impl DdsShared<UserDefinedDataReader> {
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -964,10 +908,10 @@ impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
     }
 }
 
-impl<Tim> TryFrom<&DdsShared<UserDefinedDataReader<Tim>>> for DiscoveredReaderData {
+impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
     type Error = DdsError;
 
-    fn try_from(val: &DdsShared<UserDefinedDataReader<Tim>>) -> DdsResult<Self> {
+    fn try_from(val: &DdsShared<UserDefinedDataReader>) -> DdsResult<Self> {
         let rtps_reader_lock = val.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
@@ -1006,40 +950,9 @@ impl<Tim> TryFrom<&DdsShared<UserDefinedDataReader<Tim>>> for DiscoveredReaderDa
     }
 }
 
-impl<Tim> DdsShared<UserDefinedDataReader<Tim>> {
+impl DdsShared<UserDefinedDataReader> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-        let mut acknacks = Vec::new();
-        rtps_reader.send_submessages(|wp, acknack| {
-            acknacks.push((
-                wp.unicast_locator_list().to_vec(),
-                vec![RtpsSubmessageType::AckNack(acknack)],
-            ))
-        });
-
-        for (locator_list, acknacks) in acknacks {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: rtps_reader.reader().guid().prefix().into(),
-                },
-            };
-
-            let message = RtpsMessage {
-                header,
-                submessages: acknacks,
-            };
-
-            for &locator in &locator_list {
-                transport.write(&message, locator);
-            }
-        }
+        self.rtps_reader.write_lock().send_message(transport);
     }
 }
 
@@ -1121,7 +1034,7 @@ mod tests {
 
     fn reader_with_changes(
         changes: Vec<RtpsReaderCacheChange>,
-    ) -> DdsShared<UserDefinedDataReader<ThreadTimer>> {
+    ) -> DdsShared<UserDefinedDataReader> {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1213,35 +1126,35 @@ mod tests {
     mock! {
         Listener {}
         impl AnyDataReaderListener for Listener {
-            fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>);
+            fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader>);
             fn trigger_on_sample_rejected(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: SampleRejectedStatus,
             );
             fn trigger_on_liveliness_changed(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: LivelinessChangedStatus,
             );
             fn trigger_on_requested_deadline_missed(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: RequestedDeadlineMissedStatus,
             );
             fn trigger_on_requested_incompatible_qos(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: RequestedIncompatibleQosStatus,
             );
             fn trigger_on_subscription_matched(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: SubscriptionMatchedStatus,
             );
             fn trigger_on_sample_lost(
                 &mut self,
-                reader: &DdsShared<UserDefinedDataReader<ThreadTimer>>,
+                reader: &DdsShared<UserDefinedDataReader>,
                 status: SampleLostStatus,
             );
         }
@@ -1260,7 +1173,7 @@ mod tests {
             qos,
         ));
 
-        let data_reader: DdsShared<UserDefinedDataReader<ThreadTimer>> = UserDefinedDataReader::new(
+        let data_reader: DdsShared<UserDefinedDataReader> = UserDefinedDataReader::new(
             stateful_reader,
             dummy_topic,
             None,
@@ -1299,7 +1212,7 @@ mod tests {
             DataReaderQos::default(),
         ));
 
-        let data_reader = UserDefinedDataReader::<ThreadTimer>::new(
+        let data_reader = UserDefinedDataReader::new(
             rtps_reader,
             test_topic,
             None,
@@ -1384,7 +1297,7 @@ mod tests {
             data_reader_qos,
         ));
 
-        let data_reader = UserDefinedDataReader::<ThreadTimer>::new(
+        let data_reader = UserDefinedDataReader::new(
             rtps_reader,
             test_topic,
             None,

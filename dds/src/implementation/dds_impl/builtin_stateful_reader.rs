@@ -9,21 +9,11 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                    VendorIdSubmessageElement,
-                },
-                submessages::{DataSubmessage, HeartbeatSubmessage},
-                types::ProtocolId,
-                RtpsMessage, RtpsSubmessageType,
-            },
             reader::RtpsReader,
             reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber}, messages::submessages::{HeartbeatSubmessage, DataSubmessage},
         },
         utils::{
             shared_object::{DdsRwLock, DdsShared},
@@ -203,51 +193,11 @@ impl DdsShared<BuiltinStatefulReader<ThreadTimer>> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let sequence_number = data_submessage.writer_sn.value;
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data_submessage.writer_id.value.into(),
-        );
+        let before_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
-        let mut rtps_reader = self.rtps_reader.write_lock();
+        self.rtps_reader.write_lock().on_data_submessage_received(data_submessage, message_receiver);
 
-        let before_data_cache_len = rtps_reader.reader_mut().changes().len();
-
-        if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
-            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
-                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
-                || writer_proxy
-                    .missing_changes()
-                    .contains(&data_submessage.writer_sn.value)
-            {
-                let reliability_kind = rtps_reader.reader().get_qos().reliability.kind.clone();
-                if let Some(writer_proxy) = rtps_reader.matched_writer_lookup(writer_guid) {
-                    match reliability_kind {
-                        ReliabilityQosPolicyKind::BestEffort => {
-                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                            if sequence_number >= expected_seq_num {
-                                writer_proxy.received_change_set(sequence_number);
-                                if sequence_number > expected_seq_num {
-                                    writer_proxy.lost_changes_update(sequence_number);
-                                }
-
-                                rtps_reader
-                                    .reader_mut()
-                                    .on_data_submessage_received(data_submessage, message_receiver);
-                            }
-                        }
-                        ReliabilityQosPolicyKind::Reliable => {
-                            writer_proxy.received_change_set(data_submessage.writer_sn.value);
-                            rtps_reader
-                                .reader_mut()
-                                .on_data_submessage_received(data_submessage, message_receiver);
-                        }
-                    }
-                }
-            }
-        }
-
-        let after_data_cache_len = rtps_reader.reader_mut().changes().len();
+        let after_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
         if before_data_cache_len < after_data_cache_len {
             let reader_shared = self.clone();
@@ -280,8 +230,7 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-        rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.rtps_reader.write_lock().on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
     }
 }
 
@@ -492,38 +441,6 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
 
 impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let stateful_rtps_reader = &mut *self.rtps_reader.write_lock();
-
-        let mut acknacks = Vec::new();
-        stateful_rtps_reader.send_submessages(|wp, acknack| {
-            acknacks.push((
-                wp.unicast_locator_list().to_vec(),
-                vec![RtpsSubmessageType::AckNack(acknack)],
-            ))
-        });
-
-        for (locator_list, acknacks) in acknacks {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: stateful_rtps_reader.reader().guid().prefix().into(),
-                },
-            };
-
-            let message = RtpsMessage {
-                header,
-                submessages: acknacks,
-            };
-
-            for &locator in &locator_list {
-                transport.write(&message, locator);
-            }
-        }
+        self.rtps_reader.write_lock().send_message(transport);
     }
 }

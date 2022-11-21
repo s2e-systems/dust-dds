@@ -24,10 +24,7 @@ use crate::{
 
 use crate::implementation::{
     data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-    utils::{
-        shared_object::{DdsRwLock, DdsShared},
-        timer::ThreadTimer,
-    },
+    utils::shared_object::{DdsRwLock, DdsShared},
 };
 
 use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
@@ -40,7 +37,7 @@ use super::{
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroupImpl,
-    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader<ThreadTimer>>>>,
+    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
@@ -83,7 +80,7 @@ impl DdsShared<UserDefinedSubscriber> {
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         _mask: &[StatusKind],
         parent_participant: &DdsShared<DomainParticipantImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader<ThreadTimer>>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -178,7 +175,7 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn lookup_datareader<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader<ThreadTimer>>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType,
     {

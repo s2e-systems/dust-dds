@@ -120,7 +120,7 @@ impl DdsShared<BuiltInSubscriber> {
     pub fn lookup_datareader<Foo>(
         &self,
         _topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader<ThreadTimer>>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType,
     {

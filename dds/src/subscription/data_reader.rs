@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
-        utils::{shared_object::DdsWeak, timer::ThreadTimer},
+        utils::shared_object::DdsWeak,
     },
     infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration},
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -46,10 +46,7 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(
-    DdsWeak<UserDefinedDataReader<ThreadTimer>>,
-    PhantomData<Foo>,
-)
+pub struct DataReader<Foo>(DdsWeak<UserDefinedDataReader>, PhantomData<Foo>)
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static;
 
@@ -57,7 +54,7 @@ impl<Foo> DataReader<Foo>
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
 {
-    pub(crate) fn new(data_reader_attributes: DdsWeak<UserDefinedDataReader<ThreadTimer>>) -> Self {
+    pub(crate) fn new(data_reader_attributes: DdsWeak<UserDefinedDataReader>) -> Self {
         Self(data_reader_attributes, PhantomData)
     }
 }
