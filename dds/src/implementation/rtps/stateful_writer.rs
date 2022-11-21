@@ -280,6 +280,30 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
+                self.heartbeat_timer.reset();
+                self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+                let heartbeat = HeartbeatSubmessage {
+                    endianness_flag: true,
+                    final_flag: false,
+                    liveliness_flag: false,
+                    reader_id: EntityIdSubmessageElement {
+                        value: ENTITYID_UNKNOWN.into(),
+                    },
+                    writer_id: EntityIdSubmessageElement {
+                        value: self.writer.guid().entity_id().into(),
+                    },
+                    first_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                    },
+                    last_sn: SequenceNumberSubmessageElement {
+                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                    },
+                    count: CountSubmessageElement {
+                        value: self.heartbeat_count.into(),
+                    },
+                };
+
+                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
             }
             if !submessages.is_empty() {
                 destined_submessages.push((&*reader_proxy, submessages));
