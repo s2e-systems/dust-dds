@@ -1,8 +1,19 @@
 [package]
 name = "dust_dds_derive"
 version = "0.1.0"
-edition = "2021"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+	"Pierre Martinet <pmartinet@s2e-systems.com>"
+]
+edition = "2018"
 license = "Apache-2.0"
+description = "Derive macro for `DdsType` from `dust-dds`"
+readme = "README.md"
+homepage = "https://s2e-systems.com/products/dust-dds"
+repository = "https://github.com/s2e-systems/dust-dds"
+keywords = ["dds", "rtps", "middleware", "network", "udp"]
+categories = ["api-bindings", "network-programming"]
 
 [lib]
 proc-macro = true
