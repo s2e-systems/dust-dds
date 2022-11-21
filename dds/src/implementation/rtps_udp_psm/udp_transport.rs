@@ -106,12 +106,12 @@ impl RtpsUdpPsm {
             .into_iter()
             .flat_map(|i| {
                 i.addresses.into_iter().filter_map(|a| match a.address? {
-                    SocketAddr::V4(v4) if !v4.ip().is_loopback() && !v4.ip().is_link_local() => Some(*v4.ip()),
+                    SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(*v4.ip()),
                     _ => None,
                 })
             })
             .collect();
-        // let unicast_address_list = vec![[192, 168, 178, 38].into()];
+
         assert!(
             !unicast_address_list.is_empty(),
             "Could not find any IPv4 address"
