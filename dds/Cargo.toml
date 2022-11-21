@@ -16,7 +16,7 @@ keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-dust_dds_derive = { path = "../dds_derive" }
+dust_dds_derive = { path = "../dds_derive", version = "0.1" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "0.2.4"
