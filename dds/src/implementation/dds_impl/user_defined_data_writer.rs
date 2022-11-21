@@ -481,7 +481,7 @@ impl DdsShared<UserDefinedDataWriter> {
             .get(&handle)
             .ok_or(DdsError::BadParameter)?;
 
-        key_holder.set_key_fields_from_serialized_key(serialized_key.as_ref())
+        key_holder.set_key_fields_from_serialized_key::<LittleEndian>(serialized_key.as_ref())
     }
 
     pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
@@ -900,7 +900,7 @@ mod test {
             self.key.clone()
         }
 
-        fn set_key_fields_from_serialized_key(&mut self, key: &[u8]) -> DdsResult<()> {
+        fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, key: &[u8]) -> DdsResult<()> {
             self.key = key.to_vec();
             Ok(())
         }

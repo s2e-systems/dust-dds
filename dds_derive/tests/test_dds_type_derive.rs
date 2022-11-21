@@ -1,4 +1,3 @@
-use cdr::{CdrBe, CdrLe};
 use dust_dds::topic_definition::type_support::{BigEndian, DdsSerde, DdsType, LittleEndian};
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +22,7 @@ fn test_struct_no_key_get() {
 #[test]
 fn test_struct_no_key_set() {
     let mut snk2 = StructNoKey { a: 3, b: 4 };
-    snk2.set_key_fields_from_serialized_key(&[]).unwrap();
+    snk2.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
     assert_eq!(snk2.a, 3);
     assert_eq!(snk2.b, 4);
 }
@@ -46,15 +45,15 @@ fn test_struct_with_key_get() {
     let swk = StructWithKey { a: 1, b: 2 };
     assert_eq!(
         swk.get_serialized_key::<BigEndian>(),
-        cdr::serialize::<_, _, CdrBe>(&2i32, cdr::Infinite).unwrap()
+        &[0, 0, 0, 2]
     );
 }
 
 #[test]
 fn test_struct_with_key_set() {
     let mut swk = StructWithKey { a: 0, b: 0 };
-    let key = cdr::serialize::<_, _, CdrBe>(&42i32, cdr::Infinite).unwrap();
-    swk.set_key_fields_from_serialized_key(&key).unwrap();
+    let key = [42, 0, 0, 0];
+    swk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
     assert_eq!(swk.a, 0);
     assert_eq!(swk.b, 42)
 }
@@ -91,7 +90,7 @@ fn test_struct_many_keys_get() {
     };
     assert_eq!(
         smk.get_serialized_key::<LittleEndian>(),
-        cdr::serialize::<_, _, CdrLe>(&(1i32, 'X', false), cdr::Infinite).unwrap(),
+        [1, 0, 0, 0, b'X', 0]
     );
 }
 
@@ -103,54 +102,12 @@ fn test_struct_many_keys_set() {
         c: '\0',
         d: false,
     };
-    let key = cdr::serialize::<_, _, CdrLe>(&(69i32, 'X', true), cdr::Infinite).unwrap();
-    smk.set_key_fields_from_serialized_key(&key).unwrap();
+    let key = [69, 0, 0, 0, b'X', 1];
+    smk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
     assert_eq!(smk.a, 69);
     assert_eq!(smk.b, 0);
     assert_eq!(smk.c, 'X');
     assert_eq!(smk.d, true);
-}
-
-#[derive(Serialize, Deserialize, DdsType, DdsSerde)]
-#[key]
-struct StructAllKey {
-    a: i32,
-    b: i32,
-    c: String,
-}
-
-#[test]
-fn test_struct_all_key_info() {
-    assert_eq!(StructAllKey::type_name(), "StructAllKey");
-    assert_eq!(StructAllKey::has_key(), true);
-}
-
-#[test]
-fn test_struct_all_key_get() {
-    let sak = StructAllKey {
-        a: 1,
-        b: 2,
-        c: "hello".to_string(),
-    };
-    assert_eq!(
-        sak.get_serialized_key::<LittleEndian>(),
-        cdr::serialize::<_, _, CdrLe>(&(1, 2, "hello".to_string()), cdr::Infinite).unwrap(),
-    );
-}
-
-#[test]
-fn test_struct_all_key_set() {
-    let mut sak = StructAllKey {
-        a: 0,
-        b: 0,
-        c: String::new(),
-    };
-    let key = cdr::serialize::<_, _, CdrLe>(&(1, 2, "hello".to_string()), cdr::Infinite).unwrap();
-    sak.set_key_fields_from_serialized_key(&key).unwrap();
-
-    assert_eq!(sak.a, 1);
-    assert_eq!(sak.b, 2);
-    assert_eq!(sak.c, "hello".to_string());
 }
 
 /*
@@ -179,7 +136,7 @@ fn test_dds_type_derive_with_generic_get() {
     };
     assert_eq!(
         twg.get_serialized_key::<LittleEndian>(),
-        cdr::serialize::<_, _, CdrLe>(&42i32, cdr::Infinite).unwrap()
+        [42, 0, 0, 0]
     )
 }
 
@@ -189,8 +146,8 @@ fn test_dds_type_derive_with_generic_set() {
         a: vec![false],
         b: 0,
     };
-    let key = cdr::serialize::<_, _, CdrLe>(&42i32, cdr::Infinite).unwrap();
-    twg.set_key_fields_from_serialized_key(&key).unwrap();
+    let key = [42, 0, 0, 0];
+    twg.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
     assert_eq!(twg.a, vec![false]);
     assert_eq!(twg.b, 42);
 }
@@ -213,7 +170,7 @@ fn test_tuple_no_key_get() {
 #[test]
 fn test_tuple_no_key_set() {
     let mut twk = TupleNoKey(1, 2);
-    twk.set_key_fields_from_serialized_key(&[]).unwrap();
+    twk.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
     assert_eq!(twk.0, 1);
     assert_eq!(twk.1, 2);
 }
@@ -232,15 +189,15 @@ fn test_tuple_with_keys_get() {
     let twk = TupleWithKeys(1, 2, true, '🦀');
     assert_eq!(
         twk.get_serialized_key::<LittleEndian>(),
-        cdr::serialize::<_, _, CdrLe>(&(2i32, true), cdr::Infinite).unwrap(),
+        [2, 0, 0, 0, 1]
     )
 }
 
 #[test]
 fn test_tuple_with_keys_set() {
     let mut twk = TupleWithKeys(0, 0, false, '\0');
-    let key = cdr::serialize::<_, _, CdrLe>(&(2i32, true), cdr::Infinite).unwrap();
-    twk.set_key_fields_from_serialized_key(&key).unwrap();
+    let key = [2, 0, 0, 0, 1];
+    twk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
     assert_eq!(twk.0, 0);
     assert_eq!(twk.1, 2);
     assert_eq!(twk.2, true);
@@ -269,7 +226,7 @@ fn test_enum_no_key_get() {
 #[test]
 fn test_enum_no_key_set() {
     let mut enk = EnumNoKey::_Two;
-    enk.set_key_fields_from_serialized_key(&[]).unwrap();
+    enk.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
     assert_eq!(enk, EnumNoKey::_Two);
 }
 
@@ -292,14 +249,14 @@ fn test_enum_key_get() {
     let ek = EnumKey::_Two;
     assert_eq!(
         ek.get_serialized_key::<LittleEndian>(),
-        cdr::serialize::<_, _, CdrLe>(&ek, cdr::Infinite).unwrap()
+        [1, 0, 0, 0]
     );
 }
 
 #[test]
 fn test_enum_key_set() {
     let mut ek = EnumKey::_One;
-    let key = cdr::serialize::<_, _, CdrLe>(&EnumKey::_Two, cdr::Infinite).unwrap();
-    ek.set_key_fields_from_serialized_key(&key).unwrap();
+    let key = [1, 0, 0, 0];
+    ek.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
     assert_eq!(ek, EnumKey::_Two);
 }

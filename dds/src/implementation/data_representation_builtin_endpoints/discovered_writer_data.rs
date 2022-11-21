@@ -73,7 +73,7 @@ impl DdsType for DiscoveredWriterData {
         self.publication_builtin_topic_data.key.value.to_vec()
     }
 
-    fn set_key_fields_from_serialized_key(&mut self, _key: &[u8]) -> DdsResult<()> {
+    fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, _key: &[u8]) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
