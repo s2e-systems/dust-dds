@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{
     implementation::{
@@ -9,11 +9,11 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
+            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             reader::RtpsReader,
-            reader_cache_change::RtpsReaderCacheChange,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{ChangeKind, Guid, GuidPrefix, SequenceNumber}, messages::submessages::{HeartbeatSubmessage, DataSubmessage},
+            types::{Guid, GuidPrefix},
         },
         utils::{
             shared_object::{DdsRwLock, DdsShared},
@@ -23,14 +23,14 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos_policy::{DestinationOrderQosPolicyKind, ReliabilityQosPolicyKind},
+        qos_policy::ReliabilityQosPolicyKind,
         status::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
             SubscriptionMatchedStatus,
         },
     },
-    subscription::sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
 };
 use crate::{
@@ -60,7 +60,6 @@ use super::{
 pub struct BuiltinStatefulReader<Tim> {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
-    samples_read: DdsRwLock<HashSet<SequenceNumber>>,
     deadline_timer: DdsRwLock<Tim>,
     _liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
@@ -69,7 +68,6 @@ pub struct BuiltinStatefulReader<Tim> {
     _sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
     _subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     _matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
-    samples_viewed: DdsRwLock<HashSet<InstanceHandle>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
@@ -118,7 +116,6 @@ where
         DdsShared::new(BuiltinStatefulReader {
             rtps_reader: DdsRwLock::new(sedp_builtin_publications_rtps_reader),
             topic,
-            samples_read: DdsRwLock::new(HashSet::new()),
             deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
             _liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
@@ -156,7 +153,6 @@ where
                 current_count_change: 0,
             }),
             _matched_publication_list: DdsRwLock::new(HashMap::new()),
-            samples_viewed: DdsRwLock::new(HashSet::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
@@ -195,7 +191,9 @@ impl DdsShared<BuiltinStatefulReader<ThreadTimer>> {
     ) {
         let before_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
-        self.rtps_reader.write_lock().on_data_submessage_received(data_submessage, message_receiver);
+        self.rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver);
 
         let after_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
 
@@ -230,7 +228,9 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        self.rtps_reader.write_lock().on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.rtps_reader
+            .write_lock()
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
     }
 }
 
@@ -238,12 +238,12 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>>
 where
     Tim: Timer,
 {
-    pub fn _read<Foo>(
+    pub fn take<Foo>(
         &self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -252,182 +252,12 @@ where
             return Err(DdsError::NotEnabled);
         }
 
-        let mut rtps_reader = self.rtps_reader.write_lock();
-
-        let mut samples = rtps_reader
-            .reader_mut()
-            .changes()
-            .iter()
-            .map(|sample| {
-                let (mut data_value, sample_info) = self.read_sample(sample);
-                let value = DdsDeserialize::deserialize(&mut data_value)?;
-                Ok(Sample {
-                    data: Some(value),
-                    sample_info,
-                })
-            })
-            .filter(|result| {
-                if let Ok(sample) = result {
-                    sample_states.contains(&sample.sample_info.sample_state)
-                } else {
-                    true
-                }
-            })
-            .take(max_samples as usize)
-            .collect::<DdsResult<Vec<_>>>()?;
-
-        if rtps_reader.reader().get_qos().destination_order.kind
-            == DestinationOrderQosPolicyKind::BySourceTimestamp
-        {
-            samples.sort_by(|a, b| {
-                a.sample_info
-                    .source_timestamp
-                    .as_ref()
-                    .unwrap()
-                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
-            });
-        }
-
-        for sample in samples.iter() {
-            self.samples_viewed
-                .write_lock()
-                .insert(sample.sample_info.instance_handle);
-        }
-
-        if samples.is_empty() {
-            Err(DdsError::NoData)
-        } else {
-            Ok(samples)
-        }
-    }
-
-    pub fn take<Foo>(
-        &self,
-        _max_samples: i32,
-        sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut rtps_reader = self.rtps_reader.write_lock();
-
-        let (mut samples, to_delete): (Vec<_>, Vec<_>) = rtps_reader
-            .reader_mut()
-            .changes()
-            .iter()
-            .map(|cache_change| match cache_change.kind() {
-                ChangeKind::Alive => {
-                    let (mut data_value, sample_info) = self.read_sample(cache_change);
-                    let value = DdsDeserialize::deserialize(&mut data_value)?;
-                    let sample = Sample {
-                        data: Some(value),
-                        sample_info,
-                    };
-                    Ok((sample, cache_change.sequence_number()))
-                }
-                ChangeKind::AliveFiltered => todo!(),
-                ChangeKind::NotAliveDisposed => {
-                    let (_, sample_info) = self.read_sample(cache_change);
-                    let sample = Sample {
-                        data: None,
-                        sample_info,
-                    };
-                    Ok((sample, cache_change.sequence_number()))
-                }
-                ChangeKind::NotAliveUnregistered => todo!(),
-            })
-            .filter(|result| {
-                if let Ok((sample, _)) = result {
-                    sample_states.contains(&sample.sample_info.sample_state)
-                } else {
-                    true
-                }
-            })
-            .collect::<DdsResult<Vec<_>>>()?
-            .into_iter()
-            .unzip();
-
-        rtps_reader
-            .reader_mut()
-            .remove_change(|x| to_delete.contains(&x.sequence_number()));
-
-        if rtps_reader.reader().get_qos().destination_order.kind
-            == DestinationOrderQosPolicyKind::BySourceTimestamp
-        {
-            samples.sort_by(|a, b| {
-                a.sample_info
-                    .source_timestamp
-                    .as_ref()
-                    .unwrap()
-                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
-            });
-        }
-
-        for sample in samples.iter() {
-            self.samples_viewed
-                .write_lock()
-                .insert(sample.sample_info.instance_handle);
-        }
-
-        Ok(samples)
-    }
-
-    fn read_sample<'a>(&self, cache_change: &'a RtpsReaderCacheChange) -> (&'a [u8], SampleInfo) {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let mut samples_read = self.samples_read.write_lock();
-        let data_value = cache_change.data_value();
-
-        let sample_state = {
-            let sn = cache_change.sequence_number();
-            if samples_read.contains(&sn) {
-                SampleStateKind::Read
-            } else {
-                samples_read.insert(sn);
-                SampleStateKind::NotRead
-            }
-        };
-
-        let (instance_state, valid_data) = match cache_change.kind() {
-            ChangeKind::Alive => (InstanceStateKind::Alive, true),
-            ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
-            _ => unimplemented!(),
-        };
-
-        let view_state = if self
-            .samples_viewed
-            .read_lock()
-            .contains(&cache_change.instance_handle())
-        {
-            ViewStateKind::NotNew
-        } else {
-            ViewStateKind::New
-        };
-
-        let sample_info = SampleInfo {
-            sample_state,
-            view_state,
-            instance_state,
-            disposed_generation_count: 0,
-            no_writers_generation_count: 0,
-            sample_rank: 0,
-            generation_rank: 0,
-            absolute_generation_rank: 0,
-            source_timestamp: *cache_change.source_timestamp(),
-            instance_handle: cache_change.instance_handle(),
-            publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
-            valid_data,
-        };
-
-        (data_value, sample_info)
+        self.rtps_reader.write_lock().reader_mut().take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 }
 
