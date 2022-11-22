@@ -1,4 +1,7 @@
-use crate::infrastructure::{instance::InstanceHandle, time::Time};
+use crate::{
+    infrastructure::{instance::InstanceHandle, time::Time},
+    subscription::sample_info::{SampleStateKind, ViewStateKind},
+};
 
 use super::{
     history_cache::RtpsParameter,
@@ -15,6 +18,8 @@ pub struct RtpsReaderCacheChange {
     data: Vec<u8>,
     _inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
+    sample_state: SampleStateKind,
+    view_state: ViewStateKind,
 }
 
 impl PartialEq for RtpsReaderCacheChange {
@@ -36,6 +41,7 @@ impl RtpsReaderCacheChange {
         data_value: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         source_timestamp: Option<Time>,
+        view_state: ViewStateKind,
     ) -> Self {
         Self {
             kind,
@@ -45,6 +51,8 @@ impl RtpsReaderCacheChange {
             data: data_value,
             _inline_qos: inline_qos,
             source_timestamp,
+            sample_state: SampleStateKind::NotRead,
+            view_state,
         }
     }
 
@@ -70,5 +78,17 @@ impl RtpsReaderCacheChange {
 
     pub fn source_timestamp(&self) -> &Option<Time> {
         &self.source_timestamp
+    }
+
+    pub fn sample_state(&self) -> SampleStateKind {
+        self.sample_state
+    }
+
+    pub fn view_state(&self) -> ViewStateKind {
+        self.view_state
+    }
+
+    pub fn mark_read(&mut self) {
+        self.sample_state = SampleStateKind::Read;
     }
 }
