@@ -5,7 +5,6 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         time::Time,
     },
     subscription::sample_info::{SampleStateKind, ViewStateKind},

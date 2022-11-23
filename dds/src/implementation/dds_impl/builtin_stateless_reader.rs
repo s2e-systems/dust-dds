@@ -1,6 +1,9 @@
 use crate::{
     implementation::{
-        rtps::{endpoint::RtpsEndpoint, reader::RtpsReader, types::TopicKind},
+        rtps::{
+            endpoint::RtpsEndpoint, reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange,
+            types::TopicKind,
+        },
         utils::timer::ThreadTimer,
     },
     infrastructure::qos::DataReaderQos,
@@ -111,9 +114,16 @@ impl DdsShared<BuiltinStatelessReader<ThreadTimer>> {
         if data_reader_id == ENTITYID_UNKNOWN
             || data_reader_id == rtps_reader.reader().guid().entity_id()
         {
-            rtps_reader
-                .reader_mut()
-                .on_data_submessage_received(data_submessage, message_receiver);
+            let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
+                data_submessage,
+                Some(message_receiver.timestamp()),
+                message_receiver.source_guid_prefix(),
+            ) {
+                Ok(a_change) => a_change,
+                Err(_) => return,
+            };
+
+            rtps_reader.reader_mut().add_change(a_change).ok();
         }
 
         let after_data_cache_len = rtps_reader.reader_mut().changes().len();

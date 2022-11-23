@@ -1,13 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    implementation::{
-        data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
-            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
-        },
-        dds_impl::{message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl},
-    },
+    implementation::dds_impl::status_condition_impl::StatusConditionImpl,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -25,8 +19,6 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    history_cache::RtpsParameter,
-    messages::{submessages::DataSubmessage, types::ParameterId},
     reader_cache_change::RtpsReaderCacheChange,
     types::{ChangeKind, Guid},
 };
@@ -107,23 +99,6 @@ impl RtpsReader {
 
     pub fn guid(&self) -> Guid {
         self.endpoint.guid()
-    }
-
-    pub fn on_data_submessage_received(
-        &mut self,
-        data_submessage: &DataSubmessage<'_>,
-        message_receiver: &MessageReceiver,
-    ) {
-        let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
-            data_submessage,
-            Some(message_receiver.timestamp()),
-            message_receiver.source_guid_prefix(),
-        ) {
-            Ok(a_change) => a_change,
-            Err(_) => return,
-        };
-
-        self.add_change(a_change).ok();
     }
 
     pub fn changes(&self) -> &[RtpsReaderCacheChange] {
