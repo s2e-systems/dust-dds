@@ -869,7 +869,6 @@ mod tests {
         let cache_change = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
             GUID_UNKNOWN,
-            [0; 16].into(),
             sn,
             vec![value],
             vec![],

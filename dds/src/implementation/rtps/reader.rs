@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     implementation::{
@@ -51,115 +51,13 @@ impl ReaderHistoryCache {
             changes: Vec::new(),
         }
     }
+}
 
-    fn read<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        for<'de> Foo: DdsDeserialize<'de>,
-    {
-        self.changes
-            .iter_mut()
-            .map(|cache_change| {
-                let sample_state = cache_change.sample_state();
-                let view_state = cache_change.view_state();
-                cache_change.mark_read();
-
-                let (instance_state, valid_data) = match cache_change.kind() {
-                    ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                    ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
-                    _ => unimplemented!(),
-                };
-
-                let sample_info = SampleInfo {
-                    sample_state,
-                    view_state,
-                    instance_state,
-                    disposed_generation_count: 0,
-                    no_writers_generation_count: 0,
-                    sample_rank: 0,
-                    generation_rank: 0,
-                    absolute_generation_rank: 0,
-                    source_timestamp: *cache_change.source_timestamp(),
-                    instance_handle: cache_change.instance_handle(),
-                    publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
-                    valid_data,
-                };
-
-                let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-                Ok(Sample {
-                    data: Some(value),
-                    sample_info,
-                })
-            })
-            .filter(|result| {
-                if let Ok(sample) = result {
-                    sample_states.contains(&sample.sample_info.sample_state)
-                } else {
-                    true
-                }
-            })
-            .take(max_samples as usize)
-            .collect::<DdsResult<Vec<_>>>()
-    }
-
-    fn take<Foo>(
-        &mut self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        for<'de> Foo: DdsDeserialize<'de>,
-    {
-        self.changes
-            .drain(..)
-            .map(|cache_change| {
-                let sample_state = cache_change.sample_state();
-                let view_state = cache_change.view_state();
-
-                let (instance_state, valid_data) = match cache_change.kind() {
-                    ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                    ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
-                    _ => unimplemented!(),
-                };
-
-                let sample_info = SampleInfo {
-                    sample_state,
-                    view_state,
-                    instance_state,
-                    disposed_generation_count: 0,
-                    no_writers_generation_count: 0,
-                    sample_rank: 0,
-                    generation_rank: 0,
-                    absolute_generation_rank: 0,
-                    source_timestamp: *cache_change.source_timestamp(),
-                    instance_handle: cache_change.instance_handle(),
-                    publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
-                    valid_data,
-                };
-
-                let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-                Ok(Sample {
-                    data: Some(value),
-                    sample_info,
-                })
-            })
-            .filter(|result| {
-                if let Ok(sample) = result {
-                    sample_states.contains(&sample.sample_info.sample_state)
-                } else {
-                    true
-                }
-            })
-            .take(max_samples as usize)
-            .collect::<DdsResult<Vec<_>>>()
-    }
+struct Instance {
+    view_state: ViewStateKind,
+    instance_state: InstanceStateKind,
+    most_recent_disposed_generation_count: i32,
+    most_recent_no_writers_generation_count: i32,
 }
 
 pub struct RtpsReader {
@@ -171,10 +69,11 @@ pub struct RtpsReader {
     qos: DataReaderQos,
     serialized_data_to_key_func: fn(&[u8]) -> DdsResult<Vec<u8>>,
     status_condition: StatusConditionImpl,
+    instances: HashMap<InstanceHandle, Instance>,
 }
 
 impl RtpsReader {
-    pub fn new<T>(
+    pub fn new<Foo>(
         endpoint: RtpsEndpoint,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
@@ -182,15 +81,15 @@ impl RtpsReader {
         qos: DataReaderQos,
     ) -> Self
     where
-        T: for<'de> DdsDeserialize<'de> + DdsType,
+        Foo: for<'de> DdsDeserialize<'de> + DdsType,
     {
         // Create a function that deserializes the data and gets the key for the type
         // without having to store the actual type intermediatelly to avoid generics
-        fn serialized_data_to_key_func<T>(mut buf: &[u8]) -> DdsResult<Vec<u8>>
+        fn serialized_data_to_key_func<Foo>(mut buf: &[u8]) -> DdsResult<Vec<u8>>
         where
-            T: for<'de> DdsDeserialize<'de> + DdsType,
+            Foo: for<'de> DdsDeserialize<'de> + DdsType,
         {
-            Ok(T::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
+            Ok(Foo::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
         }
 
         Self {
@@ -200,8 +99,9 @@ impl RtpsReader {
             reader_cache: ReaderHistoryCache::new(),
             _expects_inline_qos: expects_inline_qos,
             qos,
-            serialized_data_to_key_func: serialized_data_to_key_func::<T>,
+            serialized_data_to_key_func: serialized_data_to_key_func::<Foo>,
             status_condition: StatusConditionImpl::default(),
+            instances: HashMap::new(),
         }
     }
 
@@ -209,91 +109,16 @@ impl RtpsReader {
         self.endpoint.guid()
     }
 
-    pub fn try_into_reader_cache_change(
-        &self,
-        message_receiver: &MessageReceiver,
-        data: &DataSubmessage<'_>,
-    ) -> DdsResult<RtpsReaderCacheChange> {
-        let writer_guid = Guid::new(
-            message_receiver.source_guid_prefix(),
-            data.writer_id.value.into(),
-        );
-
-        let instance_handle = calculate_instance_handle(
-            (self.serialized_data_to_key_func)(data.serialized_payload.value)?.as_ref(),
-        );
-        let sequence_number = data.writer_sn.value;
-        let data_value = data.serialized_payload.value.to_vec();
-
-        let inline_qos: Vec<RtpsParameter> = data
-            .inline_qos
-            .parameter
-            .iter()
-            .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
-            .collect();
-
-        let kind = match (data.data_flag, data.key_flag) {
-            (true, false) => Ok(ChangeKind::Alive),
-            (false, true) => {
-                if let Some(p) = inline_qos
-                    .iter()
-                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
-                {
-                    let mut deserializer =
-                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
-                    let status_info = serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    match status_info {
-                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
-                        _ => Err(DdsError::PreconditionNotMet(
-                            "Unknown status info value".to_string(),
-                        )),
-                    }
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Missing mandatory StatusInfo parameter".to_string(),
-                    ))
-                }
-            }
-            _ => Err(DdsError::PreconditionNotMet(
-                "Invalid data submessage data and key flag combination".to_string(),
-            )),
-        }?;
-
-        let source_timestamp = if message_receiver.have_timestamp() {
-            Some(message_receiver.timestamp())
-        } else {
-            None
-        };
-
-        let view_state = match self
-            .reader_cache
-            .changes
-            .iter()
-            .any(|x| x.instance_handle() == instance_handle)
-        {
-            true => ViewStateKind::NotNew,
-            false => ViewStateKind::New,
-        };
-
-        Ok(RtpsReaderCacheChange::new(
-            kind,
-            writer_guid,
-            instance_handle,
-            sequence_number,
-            data_value,
-            inline_qos,
-            source_timestamp,
-            view_state,
-        ))
-    }
-
     pub fn on_data_submessage_received(
         &mut self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let a_change = match self.try_into_reader_cache_change(message_receiver, data_submessage) {
+        let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
+            data_submessage,
+            Some(message_receiver.timestamp()),
+            message_receiver.source_guid_prefix(),
+        ) {
             Ok(a_change) => a_change,
             Err(_) => return,
         };
@@ -306,6 +131,11 @@ impl RtpsReader {
     }
 
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
+        let change_instance_handle = calculate_instance_handle(&(self
+            .serialized_data_to_key_func)(
+            &mut change.data_value()
+        )?);
+
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
             && change.kind() == ChangeKind::Alive
         {
@@ -314,7 +144,9 @@ impl RtpsReader {
                 .changes
                 .iter()
                 .filter(|cc| {
-                    cc.instance_handle() == change.instance_handle()
+                    calculate_instance_handle(
+                        &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
+                    ) == change_instance_handle
                         && cc.kind() == ChangeKind::Alive
                 })
                 .count() as i32;
@@ -327,7 +159,9 @@ impl RtpsReader {
                     .changes
                     .iter()
                     .filter(|cc| {
-                        cc.instance_handle() == change.instance_handle()
+                        calculate_instance_handle(
+                            &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
+                        ) == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
                     })
                     .map(|cc| cc.sequence_number())
@@ -342,7 +176,11 @@ impl RtpsReader {
             .reader_cache
             .changes
             .iter()
-            .map(|cc| cc.instance_handle())
+            .map(|cc| {
+                calculate_instance_handle(
+                    &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
+                )
+            })
             .collect();
 
         let max_samples_limit_not_reached = self.qos.resource_limits.max_samples
@@ -350,7 +188,7 @@ impl RtpsReader {
             || (self.reader_cache.changes.len() as i32) < self.qos.resource_limits.max_samples;
 
         let max_instances_limit_not_reached = instance_handle_list
-            .contains(&change.instance_handle())
+            .contains(&change_instance_handle)
             || self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
             || (instance_handle_list.len() as i32) < self.qos.resource_limits.max_instances;
 
@@ -359,7 +197,11 @@ impl RtpsReader {
                 || (self
                     .changes()
                     .iter()
-                    .filter(|cc| cc.instance_handle() == change.instance_handle())
+                    .filter(|cc| {
+                        calculate_instance_handle(
+                            &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
+                        ) == change_instance_handle
+                    })
                     .count() as i32)
                     < self.qos.resource_limits.max_samples_per_instance;
 
@@ -395,8 +237,8 @@ impl RtpsReader {
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -404,9 +246,57 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let mut samples =
+        let serialized_data_to_key_func = &self.serialized_data_to_key_func;
+        let mut samples = {
             self.reader_cache
-                .read(max_samples, sample_states, view_states, instance_states)?;
+                .changes
+                .iter_mut()
+                .map(|cache_change| {
+                    let sample_state = cache_change.sample_state();
+                    let view_state = cache_change.view_state();
+                    cache_change.mark_read();
+
+                    let (instance_state, valid_data) = match cache_change.kind() {
+                        ChangeKind::Alive => (InstanceStateKind::Alive, true),
+                        ChangeKind::NotAliveDisposed => {
+                            (InstanceStateKind::NotAliveDisposed, false)
+                        }
+                        _ => unimplemented!(),
+                    };
+
+                    let sample_info = SampleInfo {
+                        sample_state,
+                        view_state,
+                        instance_state,
+                        disposed_generation_count: 0,
+                        no_writers_generation_count: 0,
+                        sample_rank: 0,
+                        generation_rank: 0,
+                        absolute_generation_rank: 0,
+                        source_timestamp: *cache_change.source_timestamp(),
+                        instance_handle: calculate_instance_handle(&(serialized_data_to_key_func)(
+                            &mut cache_change.data_value(),
+                        )?),
+                        publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
+                        valid_data,
+                    };
+
+                    let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
+                    Ok(Sample {
+                        data: Some(value),
+                        sample_info,
+                    })
+                })
+                .filter(|result| {
+                    if let Ok(sample) = result {
+                        sample_states.contains(&sample.sample_info.sample_state)
+                    } else {
+                        true
+                    }
+                })
+                .take(max_samples as usize)
+                .collect::<DdsResult<Vec<_>>>()
+        }?;
 
         if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
             samples.sort_by(|a, b| {
@@ -429,8 +319,8 @@ impl RtpsReader {
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -438,9 +328,56 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let mut samples =
+        let serialized_data_to_key_func = &self.serialized_data_to_key_func;
+        let mut samples = {
             self.reader_cache
-                .take(max_samples, sample_states, view_states, instance_states)?;
+                .changes
+                .drain(..)
+                .map(|cache_change| {
+                    let sample_state = cache_change.sample_state();
+                    let view_state = ViewStateKind::New;
+
+                    let (instance_state, valid_data) = match cache_change.kind() {
+                        ChangeKind::Alive => (InstanceStateKind::Alive, true),
+                        ChangeKind::NotAliveDisposed => {
+                            (InstanceStateKind::NotAliveDisposed, false)
+                        }
+                        _ => unimplemented!(),
+                    };
+
+                    let sample_info = SampleInfo {
+                        sample_state,
+                        view_state,
+                        instance_state,
+                        disposed_generation_count: 0,
+                        no_writers_generation_count: 0,
+                        sample_rank: 0,
+                        generation_rank: 0,
+                        absolute_generation_rank: 0,
+                        source_timestamp: *cache_change.source_timestamp(),
+                        instance_handle: calculate_instance_handle(&(serialized_data_to_key_func)(
+                            &mut cache_change.data_value(),
+                        )?),
+                        publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
+                        valid_data,
+                    };
+
+                    let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
+                    Ok(Sample {
+                        data: Some(value),
+                        sample_info,
+                    })
+                })
+                .filter(|result| {
+                    if let Ok(sample) = result {
+                        sample_states.contains(&sample.sample_info.sample_state)
+                    } else {
+                        true
+                    }
+                })
+                .take(max_samples as usize)
+                .collect::<DdsResult<Vec<_>>>()
+        }?;
 
         if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
             samples.sort_by(|a, b| {
