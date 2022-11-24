@@ -853,7 +853,6 @@ mod tests {
             vec![value],
             vec![],
             None,
-            ViewStateKind::New,
         );
 
         cache_change
