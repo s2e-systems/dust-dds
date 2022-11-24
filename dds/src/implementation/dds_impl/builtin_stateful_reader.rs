@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::mpsc::SyncSender};
 
 use crate::{
     implementation::{
@@ -76,7 +76,11 @@ impl<Tim> BuiltinStatefulReader<Tim>
 where
     Tim: Timer,
 {
-    pub fn new<Foo>(guid: Guid, topic: DdsShared<TopicImpl>) -> DdsShared<Self>
+    pub fn new<Foo>(
+        guid: Guid,
+        topic: DdsShared<TopicImpl>,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
+    ) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -111,6 +115,7 @@ where
                 heartbeat_suppression_duration,
                 expects_inline_qos,
                 qos,
+                notifications_sender,
             ));
 
         DdsShared::new(BuiltinStatefulReader {

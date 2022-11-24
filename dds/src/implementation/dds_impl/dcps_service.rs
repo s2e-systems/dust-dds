@@ -2,6 +2,7 @@ use std::{
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
+        mpsc::sync_channel,
         Arc,
     },
     thread::JoinHandle,
@@ -35,6 +36,7 @@ impl DcpsService {
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
+        let (notifications_sender, notifications_receiver) = sync_channel(0);
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -44,12 +46,28 @@ impl DcpsService {
             transport.metatraffic_multicast_locator_list(),
             announcer_condvar.clone(),
             user_defined_data_send_condvar.clone(),
+            notifications_sender,
         );
 
         participant.enable()?;
 
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
+
+        // //////////// Notification thread
+        {
+            let task_quit = quit.clone();
+
+            threads.push(std::thread::spawn(move || loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
+                if let Ok(_) = notifications_receiver.try_recv() {}
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }));
+        }
+
         // //////////// SPDP Communication
 
         // ////////////// SPDP participant discovery

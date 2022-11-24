@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::{
     implementation::{
         rtps::{
@@ -53,7 +55,11 @@ impl<Tim> BuiltinStatelessReader<Tim>
 where
     Tim: Timer,
 {
-    pub fn new<Foo>(guid: Guid, topic: DdsShared<TopicImpl>) -> DdsShared<Self>
+    pub fn new<Foo>(
+        guid: Guid,
+        topic: DdsShared<TopicImpl>,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
+    ) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -77,6 +83,7 @@ where
                 },
                 ..Default::default()
             },
+            notifications_sender,
         );
         let rtps_reader = RtpsStatelessReader::new(reader);
         let qos = rtps_reader.reader().get_qos();

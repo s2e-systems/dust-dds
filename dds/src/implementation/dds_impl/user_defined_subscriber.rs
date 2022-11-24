@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
@@ -42,6 +44,7 @@ pub struct UserDefinedSubscriber {
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
+    notifications_sender: SyncSender<(Guid, StatusKind)>,
 }
 
 impl UserDefinedSubscriber {
@@ -49,6 +52,7 @@ impl UserDefinedSubscriber {
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
         user_defined_data_send_condvar: DdsCondvar,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
@@ -58,6 +62,7 @@ impl UserDefinedSubscriber {
             default_data_reader_qos: DataReaderQos::default(),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
+            notifications_sender,
         })
     }
 
@@ -127,6 +132,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 DURATION_ZERO,
                 false,
                 qos,
+                self.notifications_sender.clone(),
             ));
 
             let data_reader_shared = UserDefinedDataReader::new(

@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::mpsc::SyncSender,
+};
 
 use crate::{
     implementation::dds_impl::status_condition_impl::StatusConditionImpl,
@@ -67,6 +70,7 @@ pub struct RtpsReader {
     status_condition: StatusConditionImpl,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
+    notifications_sender: SyncSender<(Guid, StatusKind)>,
 }
 
 impl RtpsReader {
@@ -76,6 +80,7 @@ impl RtpsReader {
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
     ) -> Self
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -91,6 +96,7 @@ impl RtpsReader {
             status_condition: StatusConditionImpl::default(),
             instance_handle_builder,
             instances: HashMap::new(),
+            notifications_sender,
         }
     }
 
@@ -184,6 +190,11 @@ impl RtpsReader {
             && max_samples_per_instance_limit_not_reached
         {
             self.reader_cache.changes.push(change);
+
+            self.notifications_sender
+                .send((self.endpoint.guid(), StatusKind::DataAvailable))
+                .ok();
+
             Ok(())
         } else {
             Err(DdsError::OutOfResources)
@@ -373,6 +384,8 @@ impl RtpsReader {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc::sync_channel;
+
     use crate::{
         implementation::rtps::types::{ChangeKind, TopicKind, GUID_UNKNOWN},
         infrastructure::{
@@ -470,6 +483,8 @@ mod tests {
 
     #[test]
     fn reader_with_key_add_change_keep_last_1() {
+        let (sender, _receiver) = sync_channel(10);
+
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast,
@@ -478,8 +493,14 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader =
-            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+        let mut reader = RtpsReader::new::<KeyedType>(
+            endpoint,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+            qos,
+            sender,
+        );
 
         let data1_instance1 = KeyedType {
             key: 1,
