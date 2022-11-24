@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::implementation::{
-    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant},
+    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant, types::USER_DEFINED_READER_NO_KEY},
     utils::condvar::DdsCondvar,
 };
 use crate::{
@@ -61,10 +61,13 @@ use crate::implementation::{
 };
 
 use super::{
-    builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::UserDefinedSubscriber,
+    builtin_publisher::BuiltinPublisher,
+    builtin_subscriber::BuiltInSubscriber,
+    message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery,
+    topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::{self, UserDefinedSubscriber},
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
@@ -992,5 +995,18 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_subscriptions_writer()
             .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
             .unwrap();
+    }
+
+    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
+        let (guid, _) = notification;
+        match guid.entity_id().entity_kind() {
+            crate::implementation::rtps::types::USER_DEFINED_READER_NO_KEY
+            | crate::implementation::rtps::types::USER_DEFINED_READER_WITH_KEY => {
+                for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                    subscriber.on_notification_received(notification);
+                }
+            }
+            _ => (),
+        };
     }
 }

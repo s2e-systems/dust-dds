@@ -230,6 +230,12 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         todo!()
     }
+
+    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.on_notification_received(notification)
+        }
+    }
 }
 
 impl UserDefinedSubscriber {

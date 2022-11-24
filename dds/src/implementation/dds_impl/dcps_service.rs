@@ -36,7 +36,7 @@ impl DcpsService {
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
-        let (notifications_sender, notifications_receiver) = sync_channel(0);
+        let (notifications_sender, notifications_receiver) = sync_channel(10);
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -56,6 +56,7 @@ impl DcpsService {
 
         // //////////// Notification thread
         {
+            let domain_participant = participant.clone();
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -63,7 +64,9 @@ impl DcpsService {
                     break;
                 }
 
-                if let Ok(_) = notifications_receiver.try_recv() {}
+                if let Ok(notification) = notifications_receiver.try_recv() {
+                    domain_participant.on_notification_received(notification)
+                }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }

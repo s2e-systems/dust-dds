@@ -14,7 +14,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::GuidPrefix,
+            types::{Guid, GuidPrefix},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -796,6 +796,29 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
 impl DdsShared<UserDefinedDataReader> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         self.rtps_reader.write_lock().send_message(transport);
+    }
+
+    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
+        let (guid, status_kind) = notification;
+        if self.rtps_reader.read_lock().reader().guid() == guid {
+            if let Some(listener) = self.listener.write_lock().as_mut() {
+                match status_kind {
+                    StatusKind::InconsistentTopic => todo!(),
+                    StatusKind::OfferedDeadlineMissed => todo!(),
+                    StatusKind::RequestedDeadlineMissed => todo!(),
+                    StatusKind::OfferedIncompatibleQos => todo!(),
+                    StatusKind::RequestedIncompatibleQos => todo!(),
+                    StatusKind::SampleLost => todo!(),
+                    StatusKind::SampleRejected => todo!(),
+                    StatusKind::DataOnReaders => todo!(),
+                    StatusKind::DataAvailable => listener.trigger_on_data_available(self),
+                    StatusKind::LivelinessLost => todo!(),
+                    StatusKind::LivelinessChanged => todo!(),
+                    StatusKind::PublicationMatched => todo!(),
+                    StatusKind::SubscriptionMatched => todo!(),
+                }
+            }
+        }
     }
 }
 
