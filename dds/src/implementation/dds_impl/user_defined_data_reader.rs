@@ -20,7 +20,6 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer::{ThreadTimer, Timer},
         },
     },
     infrastructure::{
@@ -157,7 +156,6 @@ pub struct UserDefinedDataReader {
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
     parent_subscriber: DdsWeak<UserDefinedSubscriber>,
-    deadline_timer: DdsRwLock<ThreadTimer>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -178,16 +176,11 @@ impl UserDefinedDataReader {
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
-        let qos = rtps_reader.reader().get_qos();
-        let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
-            + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
-
         DdsShared::new(UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             topic,
             listener: DdsRwLock::new(listener),
             parent_subscriber,
-            deadline_timer: DdsRwLock::new(ThreadTimer::new(deadline_duration)),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
                 not_alive_count: 0,
@@ -998,7 +991,7 @@ mod tests {
 
     #[test]
     fn get_instance_handle() {
-        let (notifications_sender, notifications_receiver) = sync_channel(1);
+        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let guid = Guid::new(GuidPrefix::from([4; 12]), EntityId::new([3; 3], 1));
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
@@ -1027,7 +1020,7 @@ mod tests {
 
     #[test]
     fn add_compatible_matched_writer() {
-        let (notifications_sender, notifications_receiver) = sync_channel(1);
+        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(
@@ -1112,7 +1105,7 @@ mod tests {
 
     #[test]
     fn add_incompatible_matched_writer() {
-        let (notifications_sender, notifications_receiver) = sync_channel(1);
+        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(

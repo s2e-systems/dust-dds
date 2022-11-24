@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::implementation::{
-    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant, types::USER_DEFINED_READER_NO_KEY},
+    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant},
     utils::condvar::DdsCondvar,
 };
 use crate::{
@@ -61,13 +61,10 @@ use crate::implementation::{
 };
 
 use super::{
-    builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber,
-    message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::{self, UserDefinedSubscriber},
+    builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;

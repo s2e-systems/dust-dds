@@ -1,12 +1,9 @@
 use std::sync::mpsc::SyncSender;
 
 use crate::{
-    implementation::{
-        rtps::{
-            endpoint::RtpsEndpoint, reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange,
-            types::TopicKind,
-        },
-        utils::timer::ThreadTimer,
+    implementation::rtps::{
+        endpoint::RtpsEndpoint, reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange,
+        types::TopicKind,
     },
     infrastructure::qos::DataReaderQos,
     infrastructure::{
@@ -23,38 +20,25 @@ use crate::{
             stateless_reader::RtpsStatelessReader,
             types::{EntityId, Guid, ENTITYID_UNKNOWN},
         },
-        utils::{
-            shared_object::{DdsRwLock, DdsShared},
-            timer::Timer,
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::HANDLE_NIL,
-        status::{RequestedDeadlineMissedStatus, StatusKind},
+        status::StatusKind,
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl,
-};
+use super::{message_receiver::MessageReceiver, topic_impl::TopicImpl};
 
-pub struct BuiltinStatelessReader<Tim> {
+pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
     _topic: DdsShared<TopicImpl>,
-    deadline_timer: DdsRwLock<Tim>,
-    requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     enabled: DdsRwLock<bool>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
-impl<Tim> BuiltinStatelessReader<Tim>
-where
-    Tim: Timer,
-{
+impl BuiltinStatelessReader {
     pub fn new<Foo>(
         guid: Guid,
         topic: DdsShared<TopicImpl>,
@@ -86,28 +70,16 @@ where
             notifications_sender,
         );
         let rtps_reader = RtpsStatelessReader::new(reader);
-        let qos = rtps_reader.reader().get_qos();
-        let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
-            + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
 
         DdsShared::new(BuiltinStatelessReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             _topic: topic,
-            deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
-
-            requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_instance_handle: HANDLE_NIL,
-            }),
-
             enabled: DdsRwLock::new(false),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
 
-impl DdsShared<BuiltinStatelessReader<ThreadTimer>> {
+impl DdsShared<BuiltinStatelessReader> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -133,10 +105,7 @@ impl DdsShared<BuiltinStatelessReader<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatelessReader<Tim>>
-where
-    Tim: Timer,
-{
+impl DdsShared<BuiltinStatelessReader> {
     pub fn take<Foo>(
         &self,
         max_samples: i32,
@@ -160,7 +129,7 @@ where
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatelessReader<Tim>> {
+impl DdsShared<BuiltinStatelessReader> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 

@@ -1,6 +1,21 @@
 use std::{collections::HashMap, sync::mpsc::SyncSender};
 
 use crate::{
+    implementation::rtps::{
+        stateful_reader::{
+            DEFAULT_HEARTBEAT_RESPONSE_DELAY, DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
+        },
+        types::TopicKind,
+    },
+    infrastructure::{
+        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy},
+        time::DURATION_ZERO,
+    },
+    subscription::data_reader::Sample,
+    topic_definition::type_support::DdsType,
+    {builtin_topics::PublicationBuiltinTopicData, infrastructure::qos::DataReaderQos},
+};
+use crate::{
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -15,67 +30,39 @@ use crate::{
             transport::TransportWrite,
             types::{Guid, GuidPrefix},
         },
-        utils::{
-            shared_object::{DdsRwLock, DdsShared},
-            timer::Timer,
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos_policy::ReliabilityQosPolicyKind,
         status::{
-            LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-            SampleLostStatus, SampleRejectedStatus, SampleRejectedStatusKind, StatusKind,
-            SubscriptionMatchedStatus,
+            LivelinessChangedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+            SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
 };
-use crate::{
-    implementation::{
-        rtps::{
-            stateful_reader::{
-                DEFAULT_HEARTBEAT_RESPONSE_DELAY, DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
-            },
-            types::TopicKind,
-        },
-        utils::timer::ThreadTimer,
-    },
-    infrastructure::{
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy},
-        time::DURATION_ZERO,
-    },
-    subscription::data_reader::Sample,
-    topic_definition::type_support::DdsType,
-    {builtin_topics::PublicationBuiltinTopicData, infrastructure::qos::DataReaderQos},
-};
 
 use super::{
     message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    topic_impl::TopicImpl,
 };
 
-pub struct BuiltinStatefulReader<Tim> {
+pub struct BuiltinStatefulReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
-    deadline_timer: DdsRwLock<Tim>,
     _liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
-    requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     _requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
     _sample_lost_status: DdsRwLock<SampleLostStatus>,
     _sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
     _subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     _matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
-impl<Tim> BuiltinStatefulReader<Tim>
-where
-    Tim: Timer,
-{
+impl BuiltinStatefulReader {
     pub fn new<Foo>(
         guid: Guid,
         topic: DdsShared<TopicImpl>,
@@ -95,8 +82,6 @@ where
             },
             ..Default::default()
         };
-        let deadline_duration = std::time::Duration::from_secs(qos.deadline.period.sec() as u64)
-            + std::time::Duration::from_nanos(qos.deadline.period.nanosec() as u64);
         let topic_kind = TopicKind::WithKey;
         let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
         let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
@@ -121,18 +106,12 @@ where
         DdsShared::new(BuiltinStatefulReader {
             rtps_reader: DdsRwLock::new(sedp_builtin_publications_rtps_reader),
             topic,
-            deadline_timer: DdsRwLock::new(Tim::new(deadline_duration)),
             _liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
                 alive_count: 0,
                 not_alive_count: 0,
                 alive_count_change: 0,
                 not_alive_count_change: 0,
                 last_publication_handle: HANDLE_NIL,
-            }),
-            requested_deadline_missed_status: DdsRwLock::new(RequestedDeadlineMissedStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_instance_handle: HANDLE_NIL,
             }),
             _requested_incompatible_qos_status: DdsRwLock::new(RequestedIncompatibleQosStatus {
                 total_count: 0,
@@ -159,12 +138,11 @@ where
             }),
             _matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
 
-impl<Tim> BuiltinStatefulReader<Tim> {
+impl BuiltinStatefulReader {
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
 
@@ -188,7 +166,7 @@ impl<Tim> BuiltinStatefulReader<Tim> {
     }
 }
 
-impl DdsShared<BuiltinStatefulReader<ThreadTimer>> {
+impl DdsShared<BuiltinStatefulReader> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -200,7 +178,7 @@ impl DdsShared<BuiltinStatefulReader<ThreadTimer>> {
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
+impl DdsShared<BuiltinStatefulReader> {
     pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -212,10 +190,7 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatefulReader<Tim>>
-where
-    Tim: Timer,
-{
+impl DdsShared<BuiltinStatefulReader> {
     pub fn take<Foo>(
         &self,
         max_samples: i32,
@@ -239,7 +214,7 @@ where
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
+impl DdsShared<BuiltinStatefulReader> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
@@ -247,7 +222,7 @@ impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
     }
 }
 
-impl<Tim> DdsShared<BuiltinStatefulReader<Tim>> {
+impl DdsShared<BuiltinStatefulReader> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         self.rtps_reader.write_lock().send_message(transport);
     }
