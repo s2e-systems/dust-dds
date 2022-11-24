@@ -237,49 +237,9 @@ impl DdsShared<UserDefinedDataReader> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let before_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
-
         self.rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-
-        let after_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
-
-        if before_data_cache_len < after_data_cache_len {
-            let reader_shared = self.clone();
-            self.deadline_timer.write_lock().on_deadline(move || {
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count += 1;
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count_change += 1;
-
-                reader_shared
-                    .status_condition
-                    .write_lock()
-                    .add_communication_state(StatusKind::RequestedDeadlineMissed);
-                if let Some(l) = reader_shared.listener.write_lock().as_mut() {
-                    reader_shared
-                        .status_condition
-                        .write_lock()
-                        .remove_communication_state(StatusKind::RequestedDeadlineMissed);
-                    l.trigger_on_requested_deadline_missed(
-                        &reader_shared,
-                        reader_shared
-                            .requested_deadline_missed_status
-                            .write_lock()
-                            .clone(),
-                    )
-                };
-            });
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::DataAvailable);
-        }
     }
 }
 
@@ -795,6 +755,10 @@ impl DdsShared<UserDefinedDataReader> {
     pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
         let (guid, status_kind) = notification;
         if self.rtps_reader.read_lock().reader().guid() == guid {
+            self.status_condition
+                .write_lock()
+                .add_communication_state(status_kind);
+
             if let Some(listener) = self.listener.write_lock().as_mut() {
                 match status_kind {
                     StatusKind::InconsistentTopic => todo!(),
@@ -805,7 +769,9 @@ impl DdsShared<UserDefinedDataReader> {
                     StatusKind::SampleLost => todo!(),
                     StatusKind::SampleRejected => todo!(),
                     StatusKind::DataOnReaders => todo!(),
-                    StatusKind::DataAvailable => listener.trigger_on_data_available(self),
+                    StatusKind::DataAvailable => {
+                        listener.trigger_on_data_available(self);
+                    }
                     StatusKind::LivelinessLost => todo!(),
                     StatusKind::LivelinessChanged => todo!(),
                     StatusKind::PublicationMatched => todo!(),

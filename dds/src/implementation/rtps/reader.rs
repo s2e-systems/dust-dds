@@ -104,10 +104,6 @@ impl RtpsReader {
         self.endpoint.guid()
     }
 
-    pub fn changes(&self) -> &[RtpsReaderCacheChange] {
-        self.reader_cache.changes.as_ref()
-    }
-
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
         let change_instance_handle = self
             .instance_handle_builder
@@ -174,7 +170,9 @@ impl RtpsReader {
         let max_samples_per_instance_limit_not_reached =
             self.qos.resource_limits.max_samples_per_instance == LENGTH_UNLIMITED
                 || (self
-                    .changes()
+                    .reader_cache
+                    .changes
+                    .as_slice()
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder

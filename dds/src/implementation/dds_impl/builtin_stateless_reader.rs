@@ -115,8 +115,6 @@ impl DdsShared<BuiltinStatelessReader<ThreadTimer>> {
     ) {
         let mut rtps_reader = self.rtps_reader.write_lock();
 
-        let before_data_cache_len = rtps_reader.reader_mut().changes().len();
-
         let data_reader_id: EntityId = data_submessage.reader_id.value.into();
         if data_reader_id == ENTITYID_UNKNOWN
             || data_reader_id == rtps_reader.reader().guid().entity_id()
@@ -131,33 +129,6 @@ impl DdsShared<BuiltinStatelessReader<ThreadTimer>> {
             };
 
             rtps_reader.reader_mut().add_change(a_change).ok();
-        }
-
-        let after_data_cache_len = rtps_reader.reader_mut().changes().len();
-
-        // Call the listener after dropping the rtps_reader lock to avoid deadlock
-        drop(rtps_reader);
-        if before_data_cache_len < after_data_cache_len {
-            let reader_shared = self.clone();
-            self.deadline_timer.write_lock().on_deadline(move || {
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count += 1;
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count_change += 1;
-
-                reader_shared
-                    .status_condition
-                    .write_lock()
-                    .add_communication_state(StatusKind::RequestedDeadlineMissed);
-            });
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::DataAvailable);
         }
     }
 }

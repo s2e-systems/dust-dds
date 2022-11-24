@@ -194,36 +194,9 @@ impl DdsShared<BuiltinStatefulReader<ThreadTimer>> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let before_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
-
         self.rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-
-        let after_data_cache_len = self.rtps_reader.write_lock().reader_mut().changes().len();
-
-        if before_data_cache_len < after_data_cache_len {
-            let reader_shared = self.clone();
-            self.deadline_timer.write_lock().on_deadline(move || {
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count += 1;
-                reader_shared
-                    .requested_deadline_missed_status
-                    .write_lock()
-                    .total_count_change += 1;
-
-                reader_shared
-                    .status_condition
-                    .write_lock()
-                    .add_communication_state(StatusKind::RequestedDeadlineMissed);
-            });
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::DataAvailable);
-        }
     }
 }
 
