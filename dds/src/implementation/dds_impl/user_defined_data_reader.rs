@@ -279,12 +279,6 @@ impl DdsShared<UserDefinedDataReader> {
             self.status_condition
                 .write_lock()
                 .add_communication_state(StatusKind::DataAvailable);
-            if let Some(l) = self.listener.write_lock().as_mut() {
-                self.status_condition
-                    .write_lock()
-                    .remove_communication_state(StatusKind::DataAvailable);
-                l.trigger_on_data_available(self)
-            };
         }
     }
 }
