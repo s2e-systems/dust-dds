@@ -79,16 +79,6 @@ use super::{
     user_defined_publisher::UserDefinedPublisher,
 };
 
-fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
-    if serialized_key.len() <= 16 {
-        let mut h = [0; 16];
-        h[..serialized_key.len()].clone_from_slice(serialized_key);
-        h.into()
-    } else {
-        <[u8; 16]>::from(md5::compute(serialized_key)).into()
-    }
-}
-
 fn retrieve_instance_handle(
     handle: Option<InstanceHandle>,
     registered_instance_list: &HashMap<InstanceHandle, Vec<u8>>,
@@ -109,7 +99,7 @@ fn retrieve_instance_handle(
             }
         }
         None => {
-            let instance_handle = calculate_instance_handle(serialized_key);
+            let instance_handle = serialized_key.into();
             if registered_instance_list.contains_key(&instance_handle) {
                 Ok(instance_handle)
             } else {
@@ -327,7 +317,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
                 self.matched_subscription_list
                     .write_lock()
-                    .insert(reader_info.key.value.into(), reader_info.clone());
+                    .insert(reader_info.key.value.as_ref().into(), reader_info.clone());
 
                 // Drop the publication_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -386,7 +376,7 @@ impl DdsShared<UserDefinedDataWriter> {
         }
 
         let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = calculate_instance_handle(&serialized_key);
+        let instance_handle = serialized_key.as_slice().into();
 
         let mut registered_instances_lock = self.registered_instance_list.write_lock();
         let rtps_writer_lock = self.rtps_writer.read_lock();
@@ -489,7 +479,7 @@ impl DdsShared<UserDefinedDataWriter> {
         Foo: DdsType,
     {
         let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = calculate_instance_handle(&serialized_key);
+        let instance_handle = serialized_key.as_slice().into();
         let registered_instance_list_lock = self.registered_instance_list.read_lock();
         if registered_instance_list_lock.contains_key(&instance_handle) {
             Ok(Some(instance_handle))
@@ -900,7 +890,10 @@ mod test {
             self.key.clone()
         }
 
-        fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, key: &[u8]) -> DdsResult<()> {
+        fn set_key_fields_from_serialized_key<E: Endianness>(
+            &mut self,
+            key: &[u8],
+        ) -> DdsResult<()> {
             self.key = key.to_vec();
             Ok(())
         }
@@ -1024,7 +1017,7 @@ mod test {
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
         assert_eq!(
-            data_writer.get_key_value(&mut keyed_foo, [1; 16].into()),
+            data_writer.get_key_value(&mut keyed_foo, [1; 16].as_ref().into()),
             Err(DdsError::BadParameter)
         );
     }
@@ -1112,7 +1105,7 @@ mod test {
 
         let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
         assert_eq!(matched_subscriptions.len(), 1);
-        assert_eq!(matched_subscriptions[0], [2; 16].into());
+        assert_eq!(matched_subscriptions[0], [2; 16].as_ref().into());
         let matched_subscription_data = data_writer
             .get_matched_subscription_data(matched_subscriptions[0])
             .unwrap();

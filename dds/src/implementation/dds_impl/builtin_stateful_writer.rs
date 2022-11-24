@@ -47,16 +47,6 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
-    if serialized_key.len() <= 16 {
-        let mut h = [0; 16];
-        h[..serialized_key.len()].clone_from_slice(serialized_key);
-        h.into()
-    } else {
-        <[u8; 16]>::from(md5::compute(serialized_key)).into()
-    }
-}
-
 pub struct BuiltinStatefulWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
@@ -153,7 +143,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         }
 
         let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = calculate_instance_handle(&serialized_key);
+        let instance_handle = serialized_key.as_slice().into();
 
         let mut registered_instances_lock = self.registered_instance_list.write_lock();
         let rtps_writer_lock = self.rtps_writer.read_lock();

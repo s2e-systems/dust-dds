@@ -362,7 +362,7 @@ impl DdsShared<UserDefinedDataReader> {
 
                 self.matched_publication_list
                     .write_lock()
-                    .insert(writer_info.key.value.into(), writer_info.clone());
+                    .insert(writer_info.key.value.as_ref().into(), writer_info.clone());
 
                 // Drop the subscription_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -1036,7 +1036,7 @@ mod tests {
         );
         *data_reader.enabled.write_lock() = true;
 
-        let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
+        let expected_instance_handle: InstanceHandle = guid.into();
         let instance_handle = data_reader.get_instance_handle();
         assert_eq!(expected_instance_handle, instance_handle);
     }
@@ -1117,7 +1117,7 @@ mod tests {
 
         let matched_publications = data_reader.get_matched_publications().unwrap();
         assert_eq!(matched_publications.len(), 1);
-        assert_eq!(matched_publications[0], [2; 16].into());
+        assert_eq!(matched_publications[0], [2; 16].as_ref().into());
         let matched_publication_data = data_reader
             .get_matched_publication_data(matched_publications[0])
             .unwrap();

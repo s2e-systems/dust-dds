@@ -14,25 +14,15 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType, LittleEndian},
+    topic_definition::type_support::DdsDeserialize,
 };
 
 use super::{
     endpoint::RtpsEndpoint,
-    instance_handle_builder::{self, InstanceHandleBuilder},
+    instance_handle_builder::InstanceHandleBuilder,
     reader_cache_change::RtpsReaderCacheChange,
     types::{ChangeKind, Guid},
 };
-
-fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
-    if serialized_key.len() <= 16 {
-        let mut h = [0; 16];
-        h[..serialized_key.len()].clone_from_slice(serialized_key);
-        h.into()
-    } else {
-        <[u8; 16]>::from(md5::compute(serialized_key)).into()
-    }
-}
 
 struct ReaderHistoryCache {
     changes: Vec<RtpsReaderCacheChange>,
@@ -98,7 +88,7 @@ impl RtpsReader {
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
         let change_instance_handle = self
             .instance_handle_builder
-            .create_instance_handle(change.data_value())?;
+            .build_instance_handle(change.data_value())?;
 
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
             && change.kind() == ChangeKind::Alive
@@ -109,7 +99,7 @@ impl RtpsReader {
                 .iter()
                 .filter(|cc| {
                     self.instance_handle_builder
-                        .create_instance_handle(cc.data_value())
+                        .build_instance_handle(cc.data_value())
                         .unwrap()
                         == change_instance_handle
                         && cc.kind() == ChangeKind::Alive
@@ -125,7 +115,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .create_instance_handle(cc.data_value())
+                            .build_instance_handle(cc.data_value())
                             .unwrap()
                             == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
@@ -144,7 +134,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .create_instance_handle(cc.data_value())
+                    .build_instance_handle(cc.data_value())
                     .unwrap()
             })
             .collect();
@@ -165,7 +155,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .create_instance_handle(cc.data_value())
+                            .build_instance_handle(cc.data_value())
                             .unwrap()
                             == change_instance_handle
                     })
@@ -242,9 +232,9 @@ impl RtpsReader {
                         absolute_generation_rank: 0,
                         source_timestamp: *cache_change.source_timestamp(),
                         instance_handle: instance_handle_builder
-                            .create_instance_handle(cache_change.data_value())
+                            .build_instance_handle(cache_change.data_value())
                             .unwrap(),
-                        publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
+                        publication_handle: cache_change.writer_guid().into(),
                         valid_data,
                     };
 
@@ -323,9 +313,9 @@ impl RtpsReader {
                         absolute_generation_rank: 0,
                         source_timestamp: *cache_change.source_timestamp(),
                         instance_handle: instance_handle_builder
-                            .create_instance_handle(cache_change.data_value())
+                            .build_instance_handle(cache_change.data_value())
                             .unwrap(),
-                        publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
+                        publication_handle: cache_change.writer_guid().into(),
                         valid_data,
                     };
 
