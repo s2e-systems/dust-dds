@@ -15,7 +15,6 @@ pub mod stateless_writer;
 pub mod types;
 pub mod writer;
 pub mod writer_proxy;
-pub mod instance_handle_builder;
 
 pub mod messages;
 pub mod transport;

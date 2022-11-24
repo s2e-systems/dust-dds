@@ -1,8 +1,8 @@
 use crate::{
     implementation::{
         rtps::{
-            endpoint::RtpsEndpoint, instance_handle_builder::InstanceHandleBuilder,
-            reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange, types::TopicKind,
+            endpoint::RtpsEndpoint, reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange,
+            types::TopicKind,
         },
         utils::timer::ThreadTimer,
     },
@@ -60,7 +60,7 @@ where
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
 
-        let reader = RtpsReader::new(
+        let reader = RtpsReader::new::<Foo>(
             RtpsEndpoint::new(
                 guid,
                 TopicKind::WithKey,
@@ -77,7 +77,6 @@ where
                 },
                 ..Default::default()
             },
-            InstanceHandleBuilder::new::<Foo>(),
         );
         let rtps_reader = RtpsStatelessReader::new(reader);
         let qos = rtps_reader.reader().get_qos();

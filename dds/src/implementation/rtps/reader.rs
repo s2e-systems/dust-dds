@@ -14,12 +14,11 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::DdsDeserialize,
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
     endpoint::RtpsEndpoint,
-    instance_handle_builder::InstanceHandleBuilder,
     reader_cache_change::RtpsReaderCacheChange,
     types::{ChangeKind, Guid},
 };
@@ -33,6 +32,21 @@ impl ReaderHistoryCache {
         Self {
             changes: Vec::new(),
         }
+    }
+}
+
+struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
+
+impl InstanceHandleBuilder {
+    fn new<Foo>() -> Self
+    where
+        Foo: for<'de> DdsDeserialize<'de> + DdsType,
+    {
+        Self(Foo::deserialize_key)
+    }
+
+    fn build_instance_handle(&self, data: &[u8]) -> DdsResult<InstanceHandle> {
+        Ok((self.0)(data)?.as_slice().into())
     }
 }
 
@@ -56,14 +70,17 @@ pub struct RtpsReader {
 }
 
 impl RtpsReader {
-    pub fn new(
+    pub fn new<Foo>(
         endpoint: RtpsEndpoint,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
-        instance_handle_builder: InstanceHandleBuilder,
-    ) -> Self {
+    ) -> Self
+    where
+        Foo: DdsType + for<'de> DdsDeserialize<'de>,
+    {
+        let instance_handle_builder = InstanceHandleBuilder::new::<Foo>();
         Self {
             endpoint,
             _heartbeat_response_delay: heartbeat_response_delay,

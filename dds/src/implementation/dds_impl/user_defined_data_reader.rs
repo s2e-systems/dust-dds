@@ -805,7 +805,6 @@ mod tests {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            instance_handle_builder::InstanceHandleBuilder,
             reader::RtpsReader,
             reader_cache_change::RtpsReaderCacheChange,
             types::{
@@ -894,13 +893,12 @@ mod tests {
             },
             ..Default::default()
         };
-        let mut stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
+        let mut stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
             qos,
-            InstanceHandleBuilder::new::<UserData>(),
         ));
         for change in changes {
             stateful_reader.reader_mut().add_change(change).unwrap();
@@ -1018,13 +1016,12 @@ mod tests {
         let guid = Guid::new(GuidPrefix::from([4; 12]), EntityId::new([3; 3], 1));
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
-        let stateful_reader = RtpsStatefulReader::new(RtpsReader::new(
+        let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(guid, TopicKind::NoKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
             qos,
-            InstanceHandleBuilder::new::<UserData>(),
         ));
 
         let data_reader: DdsShared<UserDefinedDataReader> = UserDefinedDataReader::new(
@@ -1058,13 +1055,12 @@ mod tests {
             DdsWeak::new(),
         );
 
-        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
+        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
             DataReaderQos::default(),
-            InstanceHandleBuilder::new::<UserData>(),
         ));
 
         let data_reader = UserDefinedDataReader::new(
@@ -1144,13 +1140,12 @@ mod tests {
         let mut data_reader_qos = DataReaderQos::default();
         data_reader_qos.reliability.kind = ReliabilityQosPolicyKind::Reliable;
 
-        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
+        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             DURATION_ZERO,
             DURATION_ZERO,
             false,
             data_reader_qos,
-            InstanceHandleBuilder::new::<UserData>(),
         ));
 
         let data_reader = UserDefinedDataReader::new(

@@ -9,7 +9,6 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
-            instance_handle_builder::InstanceHandleBuilder,
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
@@ -100,19 +99,19 @@ where
         let expects_inline_qos = false;
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
-        let sedp_builtin_publications_rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                unicast_locator_list,
-                multicast_locator_list,
-            ),
-            heartbeat_response_delay,
-            heartbeat_suppression_duration,
-            expects_inline_qos,
-            qos,
-            InstanceHandleBuilder::new::<Foo>(),
-        ));
+        let sedp_builtin_publications_rtps_reader =
+            RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+                RtpsEndpoint::new(
+                    guid,
+                    topic_kind,
+                    unicast_locator_list,
+                    multicast_locator_list,
+                ),
+                heartbeat_response_delay,
+                heartbeat_suppression_duration,
+                expects_inline_qos,
+                qos,
+            ));
 
         DdsShared::new(BuiltinStatefulReader {
             rtps_reader: DdsRwLock::new(sedp_builtin_publications_rtps_reader),
