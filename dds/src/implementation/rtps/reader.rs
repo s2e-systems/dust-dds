@@ -19,6 +19,7 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
+    instance_handle_builder::{self, InstanceHandleBuilder},
     reader_cache_change::RtpsReaderCacheChange,
     types::{ChangeKind, Guid},
 };
@@ -59,31 +60,20 @@ pub struct RtpsReader {
     reader_cache: ReaderHistoryCache,
     _expects_inline_qos: bool,
     qos: DataReaderQos,
-    serialized_data_to_key_func: fn(&[u8]) -> DdsResult<Vec<u8>>,
     status_condition: StatusConditionImpl,
+    instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
 }
 
 impl RtpsReader {
-    pub fn new<Foo>(
+    pub fn new(
         endpoint: RtpsEndpoint,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
-    ) -> Self
-    where
-        Foo: for<'de> DdsDeserialize<'de> + DdsType,
-    {
-        // Create a function that deserializes the data and gets the key for the type
-        // without having to store the actual type intermediatelly to avoid generics
-        fn serialized_data_to_key_func<Foo>(mut buf: &[u8]) -> DdsResult<Vec<u8>>
-        where
-            Foo: for<'de> DdsDeserialize<'de> + DdsType,
-        {
-            Ok(Foo::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
-        }
-
+        instance_handle_builder: InstanceHandleBuilder,
+    ) -> Self {
         Self {
             endpoint,
             _heartbeat_response_delay: heartbeat_response_delay,
@@ -91,8 +81,8 @@ impl RtpsReader {
             reader_cache: ReaderHistoryCache::new(),
             _expects_inline_qos: expects_inline_qos,
             qos,
-            serialized_data_to_key_func: serialized_data_to_key_func::<Foo>,
             status_condition: StatusConditionImpl::default(),
+            instance_handle_builder,
             instances: HashMap::new(),
         }
     }
@@ -106,10 +96,9 @@ impl RtpsReader {
     }
 
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
-        let change_instance_handle = calculate_instance_handle(&(self
-            .serialized_data_to_key_func)(
-            &mut change.data_value()
-        )?);
+        let change_instance_handle = self
+            .instance_handle_builder
+            .create_instance_handle(change.data_value())?;
 
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
             && change.kind() == ChangeKind::Alive
@@ -119,9 +108,10 @@ impl RtpsReader {
                 .changes
                 .iter()
                 .filter(|cc| {
-                    calculate_instance_handle(
-                        &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
-                    ) == change_instance_handle
+                    self.instance_handle_builder
+                        .create_instance_handle(cc.data_value())
+                        .unwrap()
+                        == change_instance_handle
                         && cc.kind() == ChangeKind::Alive
                 })
                 .count() as i32;
@@ -134,9 +124,10 @@ impl RtpsReader {
                     .changes
                     .iter()
                     .filter(|cc| {
-                        calculate_instance_handle(
-                            &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
-                        ) == change_instance_handle
+                        self.instance_handle_builder
+                            .create_instance_handle(cc.data_value())
+                            .unwrap()
+                            == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
                     })
                     .map(|cc| cc.sequence_number())
@@ -152,9 +143,9 @@ impl RtpsReader {
             .changes
             .iter()
             .map(|cc| {
-                calculate_instance_handle(
-                    &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
-                )
+                self.instance_handle_builder
+                    .create_instance_handle(cc.data_value())
+                    .unwrap()
             })
             .collect();
 
@@ -173,9 +164,10 @@ impl RtpsReader {
                     .changes()
                     .iter()
                     .filter(|cc| {
-                        calculate_instance_handle(
-                            &(self.serialized_data_to_key_func)(&mut cc.data_value()).unwrap(),
-                        ) == change_instance_handle
+                        self.instance_handle_builder
+                            .create_instance_handle(cc.data_value())
+                            .unwrap()
+                            == change_instance_handle
                     })
                     .count() as i32)
                     < self.qos.resource_limits.max_samples_per_instance;
@@ -221,7 +213,7 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let serialized_data_to_key_func = &self.serialized_data_to_key_func;
+        let instance_handle_builder = &self.instance_handle_builder;
         let mut samples = {
             self.reader_cache
                 .changes
@@ -249,9 +241,9 @@ impl RtpsReader {
                         generation_rank: 0,
                         absolute_generation_rank: 0,
                         source_timestamp: *cache_change.source_timestamp(),
-                        instance_handle: calculate_instance_handle(&(serialized_data_to_key_func)(
-                            &mut cache_change.data_value(),
-                        )?),
+                        instance_handle: instance_handle_builder
+                            .create_instance_handle(cache_change.data_value())
+                            .unwrap(),
                         publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
                         valid_data,
                     };
@@ -303,7 +295,7 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let serialized_data_to_key_func = &self.serialized_data_to_key_func;
+        let instance_handle_builder = &self.instance_handle_builder;
         let mut samples = {
             self.reader_cache
                 .changes
@@ -330,9 +322,9 @@ impl RtpsReader {
                         generation_rank: 0,
                         absolute_generation_rank: 0,
                         source_timestamp: *cache_change.source_timestamp(),
-                        instance_handle: calculate_instance_handle(&(serialized_data_to_key_func)(
-                            &mut cache_change.data_value(),
-                        )?),
+                        instance_handle: instance_handle_builder
+                            .create_instance_handle(cache_change.data_value())
+                            .unwrap(),
                         publication_handle: <[u8; 16]>::from(cache_change.writer_guid()).into(),
                         valid_data,
                     };

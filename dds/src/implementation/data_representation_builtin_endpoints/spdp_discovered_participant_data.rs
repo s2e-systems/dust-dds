@@ -7,6 +7,7 @@ use crate::implementation::rtps::types::{
 };
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::UserDataQosPolicy;
+use crate::topic_definition::type_support::LittleEndian;
 use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
@@ -238,6 +239,10 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             },
             lease_duration,
         })
+    }
+
+    fn deserialize_key(mut buf: &[u8]) -> DdsResult<Vec<u8>> {
+        Ok(Self::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
     }
 }
 

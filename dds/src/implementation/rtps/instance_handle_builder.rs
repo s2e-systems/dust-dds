@@ -10,16 +10,7 @@ impl InstanceHandleBuilder {
     where
         Foo: for<'de> DdsDeserialize<'de> + DdsType,
     {
-        // Create a function that deserializes the data and gets the key for the type
-        // without having to store the actual type intermediatelly to avoid generics
-        fn serialized_data_to_key_func<Foo>(mut buf: &[u8]) -> DdsResult<Vec<u8>>
-        where
-            Foo: for<'de> DdsDeserialize<'de> + DdsType,
-        {
-            Ok(Foo::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
-        }
-
-        Self(serialized_data_to_key_func::<Foo>)
+        Self(Foo::deserialize_key)
     }
 
     pub fn create_instance_handle(&self, mut data: &[u8]) -> DdsResult<InstanceHandle> {

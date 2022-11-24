@@ -6,6 +6,7 @@ use crate::infrastructure::qos_policy::{
     ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
     DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
 };
+use crate::topic_definition::type_support::LittleEndian;
 use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
@@ -189,6 +190,10 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
                 topic_data,
             },
         })
+    }
+
+    fn deserialize_key(mut buf: &[u8]) -> DdsResult<Vec<u8>> {
+        Ok(Self::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
     }
 }
 

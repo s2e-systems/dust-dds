@@ -1,4 +1,5 @@
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
+use crate::implementation::rtps::instance_handle_builder::InstanceHandleBuilder;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::transport::TransportWrite;
@@ -116,7 +117,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 false => TopicKind::NoKey,
             };
 
-            let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+            let rtps_reader = RtpsStatefulReader::new(RtpsReader::new(
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
@@ -127,6 +128,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 DURATION_ZERO,
                 false,
                 qos,
+                InstanceHandleBuilder::new::<Foo>(),
             ));
 
             let data_reader_shared = UserDefinedDataReader::new(

@@ -42,6 +42,10 @@ impl<'de> DdsDeserialize<'de> for UserData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         Ok(UserData(buf[0]))
     }
+
+    fn deserialize_key(_buf: &[u8]) -> DdsResult<Vec<u8>> {
+        todo!()
+    }
 }
 
 #[test]
@@ -54,7 +58,12 @@ fn write_read_unkeyed_topic() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<UserData>("write_read_unkeyed_topic", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserData>(
+            "write_read_unkeyed_topic",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -115,7 +124,12 @@ fn data_reader_resource_limits() {
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
     let topic = participant
-        .create_topic::<UserData>("data_reader_resource_limits", QosKind::Default, None, NO_STATUS)
+        .create_topic::<UserData>(
+            "data_reader_resource_limits",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant

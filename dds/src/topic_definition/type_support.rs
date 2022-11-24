@@ -59,6 +59,8 @@ pub trait DdsSerialize {
 
 pub trait DdsDeserialize<'de>: Sized {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
+
+    fn deserialize_key(buf: &[u8]) -> DdsResult<Vec<u8>>;
 }
 
 pub trait DdsSerde {}
@@ -91,9 +93,15 @@ where
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo
 where
-    Foo: serde::Deserialize<'de> + DdsSerde,
+    Foo: serde::Deserialize<'de> + DdsSerde + DdsType,
 {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+    }
+
+    fn deserialize_key(buf: &[u8]) -> DdsResult<Vec<u8>> {
+        let deserialized: Self =
+            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        Ok(deserialized.get_serialized_key::<LittleEndian>())
     }
 }
