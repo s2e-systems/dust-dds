@@ -423,7 +423,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
             let instance_handle = retrieve_instance_handle(
                 handle,
-                &*registered_instance_list_lock,
+                &registered_instance_list_lock,
                 serialized_key.as_ref(),
             )?;
             let mut serialized_status_info = Vec::new();
@@ -542,7 +542,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
             let instance_handle = retrieve_instance_handle(
                 handle,
-                &*registered_instance_list_lock,
+                &registered_instance_list_lock,
                 serialized_key.as_ref(),
             )?;
             let mut serialized_status_info = Vec::new();

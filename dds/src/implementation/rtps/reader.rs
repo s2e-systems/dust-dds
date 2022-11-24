@@ -55,9 +55,20 @@ impl InstanceHandleBuilder {
 
 struct Instance {
     view_state: ViewStateKind,
-    instance_state: InstanceStateKind,
-    most_recent_disposed_generation_count: i32,
-    most_recent_no_writers_generation_count: i32,
+    _instance_state: InstanceStateKind,
+    _most_recent_disposed_generation_count: i32,
+    _most_recent_no_writers_generation_count: i32,
+}
+
+impl Instance {
+    fn new() -> Self {
+        Self {
+            view_state: ViewStateKind::New,
+            _instance_state: InstanceStateKind::Alive,
+            _most_recent_disposed_generation_count: 0,
+            _most_recent_no_writers_generation_count: 0,
+        }
+    }
 }
 
 pub struct RtpsReader {
@@ -187,6 +198,10 @@ impl RtpsReader {
             && max_instances_limit_not_reached
             && max_samples_per_instance_limit_not_reached
         {
+            self.instances
+                .entry(change_instance_handle)
+                .or_insert_with(Instance::new);
+
             self.reader_cache.changes.push(change);
 
             self.notifications_sender
@@ -229,64 +244,60 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let instance_handle_builder = &self.instance_handle_builder;
-        let mut samples = {
-            self.reader_cache
-                .changes
-                .iter_mut()
-                .map(|cache_change| {
-                    let sample_state = cache_change.sample_state();
-                    let view_state = cache_change.view_state();
-                    cache_change.mark_read();
+        let mut samples = Vec::new();
 
-                    let (instance_state, valid_data) = match cache_change.kind() {
-                        ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                        ChangeKind::NotAliveDisposed => {
-                            (InstanceStateKind::NotAliveDisposed, false)
-                        }
-                        _ => unimplemented!(),
-                    };
+        for cache_change in self
+            .reader_cache
+            .changes
+            .iter_mut()
+            .filter(|x| sample_states.contains(&x.sample_state()))
+        {
+            let instance_handle = self
+                .instance_handle_builder
+                .build_instance_handle(cache_change.data_value())
+                .unwrap();
+            let sample_state = cache_change.sample_state();
+            let view_state = self.instances.get(&instance_handle).unwrap().view_state;
+            cache_change.mark_read();
 
-                    let sample_info = SampleInfo {
-                        sample_state,
-                        view_state,
-                        instance_state,
-                        disposed_generation_count: 0,
-                        no_writers_generation_count: 0,
-                        sample_rank: 0,
-                        generation_rank: 0,
-                        absolute_generation_rank: 0,
-                        source_timestamp: *cache_change.source_timestamp(),
-                        instance_handle: instance_handle_builder
-                            .build_instance_handle(cache_change.data_value())
-                            .unwrap(),
-                        publication_handle: cache_change.writer_guid().into(),
-                        valid_data,
-                    };
+            let (instance_state, valid_data) = match cache_change.kind() {
+                ChangeKind::Alive => (InstanceStateKind::Alive, true),
+                ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
+                _ => unimplemented!(),
+            };
 
-                    let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-                    Ok(Sample {
-                        data: Some(value),
-                        sample_info,
-                    })
-                })
-                .filter(|result| {
-                    if let Ok(sample) = result {
-                        sample_states.contains(&sample.sample_info.sample_state)
-                    } else {
-                        true
-                    }
-                })
-                .take(max_samples as usize)
-                .collect::<DdsResult<Vec<_>>>()
-        }?;
+            let sample_info = SampleInfo {
+                sample_state,
+                view_state,
+                instance_state,
+                disposed_generation_count: 0,
+                no_writers_generation_count: 0,
+                sample_rank: 0,
+                generation_rank: 0,
+                absolute_generation_rank: 0,
+                source_timestamp: *cache_change.source_timestamp(),
+                instance_handle,
+                publication_handle: cache_change.writer_guid().into(),
+                valid_data,
+            };
+
+            let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
+            samples.push(Sample {
+                data: Some(value),
+                sample_info,
+            });
+
+            if samples.len() >= max_samples as usize {
+                break;
+            }
+        }
 
         if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
             samples.sort_by(|a, b| {
                 a.sample_info
                     .source_timestamp
                     .as_ref()
-                    .unwrap()
+                    .expect("Missing source timestamp")
                     .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
             });
         }
@@ -294,6 +305,10 @@ impl RtpsReader {
         if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
+            for instance in samples.iter().map(|s| s.sample_info.instance_handle) {
+                self.instances.get_mut(&instance).unwrap().view_state = ViewStateKind::NotNew;
+            }
+
             Ok(samples)
         }
     }
@@ -526,7 +541,6 @@ mod tests {
             to_bytes_le(&data1_instance1),
             vec![],
             None,
-            ViewStateKind::New,
         );
         let change2_instance1 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -535,7 +549,6 @@ mod tests {
             to_bytes_le(&data2_instance1),
             vec![],
             None,
-            ViewStateKind::New,
         );
         reader.add_change(change1_instance1).unwrap();
         reader.add_change(change2_instance1.clone()).unwrap();
@@ -547,7 +560,6 @@ mod tests {
             to_bytes_le(&data1_instance2),
             vec![],
             None,
-            ViewStateKind::New,
         );
         let change2_instance2 = RtpsReaderCacheChange::new(
             ChangeKind::Alive,
@@ -556,7 +568,6 @@ mod tests {
             to_bytes_le(&data2_instance2),
             vec![],
             None,
-            ViewStateKind::New,
         );
         reader.add_change(change1_instance2).unwrap();
         reader.add_change(change2_instance2.clone()).unwrap();

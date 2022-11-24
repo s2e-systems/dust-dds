@@ -4,49 +4,16 @@ use dust_dds::infrastructure::qos_policy::{
     HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
     LENGTH_UNLIMITED,
 };
-use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType};
+use dust_dds::topic_definition::type_support::{DdsSerde, DdsType};
 
-use dust_dds::infrastructure::error::{DdsError, DdsResult};
 use dust_dds::infrastructure::status::{StatusKind, NO_STATUS};
 use dust_dds::infrastructure::time::{Duration, Time};
 use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
 
 use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
 use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, DdsType, DdsSerde, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
-
-impl DdsType for UserData {
-    fn type_name() -> &'static str {
-        "UserData"
-    }
-
-    fn has_key() -> bool {
-        false
-    }
-}
-
-impl DdsSerialize for UserData {
-    fn serialize<W: std::io::Write, E: dust_dds::topic_definition::type_support::Endianness>(
-        &self,
-        mut writer: W,
-    ) -> DdsResult<()> {
-        writer
-            .write(&[self.0])
-            .map(|_| ())
-            .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
-    }
-}
-
-impl<'de> DdsDeserialize<'de> for UserData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        Ok(UserData(buf[0]))
-    }
-
-    fn deserialize_key(_buf: &[u8]) -> DdsResult<Vec<u8>> {
-        todo!()
-    }
-}
 
 #[test]
 fn write_read_unkeyed_topic() {

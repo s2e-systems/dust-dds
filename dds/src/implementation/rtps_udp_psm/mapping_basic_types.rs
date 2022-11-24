@@ -96,7 +96,7 @@ impl MappingWriteByteOrdered for bool {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        if *self { 1_u8 } else { 0 }.mapping_write_byte_ordered::<_, B>(&mut writer)
+        u8::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 

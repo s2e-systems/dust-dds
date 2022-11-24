@@ -14,7 +14,7 @@ use crate::implementation::{
 
 impl NumberOfBytes for SequenceNumberSetSubmessageElement {
     fn number_of_bytes(&self) -> usize {
-        let num_bits = if let Some(&max) = (&self.set).iter().max() {
+        let num_bits = if let Some(&max) = (self.set).iter().max() {
             max - self.base + 1
         } else {
             0

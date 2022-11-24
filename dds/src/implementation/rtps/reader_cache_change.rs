@@ -7,7 +7,7 @@ use crate::{
         error::{DdsError, DdsResult},
         time::Time,
     },
-    subscription::sample_info::{SampleStateKind, ViewStateKind},
+    subscription::sample_info::SampleStateKind,
 };
 
 use super::{
@@ -26,7 +26,6 @@ pub struct RtpsReaderCacheChange {
     _inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
     sample_state: SampleStateKind,
-    view_state: ViewStateKind,
 }
 
 impl PartialEq for RtpsReaderCacheChange {
@@ -46,7 +45,6 @@ impl RtpsReaderCacheChange {
         data_value: Vec<u8>,
         inline_qos: Vec<RtpsParameter>,
         source_timestamp: Option<Time>,
-        view_state: ViewStateKind,
     ) -> Self {
         Self {
             kind,
@@ -56,7 +54,6 @@ impl RtpsReaderCacheChange {
             _inline_qos: inline_qos,
             source_timestamp,
             sample_state: SampleStateKind::NotRead,
-            view_state,
         }
     }
 
@@ -82,10 +79,6 @@ impl RtpsReaderCacheChange {
 
     pub fn sample_state(&self) -> SampleStateKind {
         self.sample_state
-    }
-
-    pub fn view_state(&self) -> ViewStateKind {
-        self.view_state
     }
 
     pub fn mark_read(&mut self) {
@@ -138,8 +131,6 @@ impl RtpsReaderCacheChange {
             )),
         }?;
 
-        let view_state = ViewStateKind::New;
-
         Ok(RtpsReaderCacheChange::new(
             kind,
             writer_guid,
@@ -147,7 +138,6 @@ impl RtpsReaderCacheChange {
             data_value,
             inline_qos,
             source_timestamp,
-            view_state,
         ))
     }
 }

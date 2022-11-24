@@ -14,9 +14,9 @@ impl From<&[u8]> for InstanceHandle {
         let handle = if x.len() <= 16 {
             let mut h = [0; 16];
             h[..x.len()].clone_from_slice(x);
-            h.into()
+            h
         } else {
-            <[u8; 16]>::from(md5::compute(x)).into()
+            <[u8; 16]>::from(md5::compute(x))
         };
         Self(handle)
     }

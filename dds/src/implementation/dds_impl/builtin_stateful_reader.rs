@@ -154,13 +154,13 @@ impl BuiltinStatefulReader {
             let type_name = self.topic.get_type_name().unwrap();
             if type_name == DiscoveredWriterData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_publications_reader(&mut *rtps_reader_lock);
+                    .discovered_participant_add_publications_reader(&mut rtps_reader_lock);
             } else if type_name == DiscoveredReaderData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_subscriptions_reader(&mut *rtps_reader_lock);
+                    .discovered_participant_add_subscriptions_reader(&mut rtps_reader_lock);
             } else if type_name == DiscoveredTopicData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_topics_reader(&mut *rtps_reader_lock);
+                    .discovered_participant_add_topics_reader(&mut rtps_reader_lock);
             }
         }
     }
