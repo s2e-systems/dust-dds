@@ -20,7 +20,7 @@ jobs:
             cargo test -- --test-threads=1
       - run:
           name: Hello world example
-          no_output_timeout: 30s
+          no_output_timeout: 60s
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
