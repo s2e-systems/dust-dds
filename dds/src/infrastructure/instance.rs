@@ -9,9 +9,16 @@ pub struct InstanceHandle([u8; 16]);
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
-impl From<[u8; 16]> for InstanceHandle {
-    fn from(x: [u8; 16]) -> Self {
-        Self(x)
+impl From<&[u8]> for InstanceHandle {
+    fn from(x: &[u8]) -> Self {
+        let handle = if x.len() <= 16 {
+            let mut h = [0; 16];
+            h[..x.len()].clone_from_slice(x);
+            h
+        } else {
+            <[u8; 16]>::from(md5::compute(x))
+        };
+        Self(handle)
     }
 }
 

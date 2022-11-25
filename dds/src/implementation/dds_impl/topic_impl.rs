@@ -188,7 +188,7 @@ mod tests {
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;
 
-        let expected_instance_handle: InstanceHandle = <[u8; 16]>::from(guid).into();
+        let expected_instance_handle: InstanceHandle = guid.into();
         let instance_handle = topic.get_instance_handle();
         assert_eq!(expected_instance_handle, instance_handle);
     }

@@ -18,6 +18,7 @@ use super::{
         RtpsMessage, RtpsSubmessageType,
     },
     reader::RtpsReader,
+    reader_cache_change::RtpsReaderCacheChange,
     transport::TransportWrite,
     types::{Count, Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer_proxy::RtpsWriterProxy,
@@ -200,14 +201,30 @@ impl RtpsStatefulReader {
                                     writer_proxy.lost_changes_update(sequence_number);
                                 }
 
-                                self.reader_mut()
-                                    .on_data_submessage_received(data_submessage, message_receiver);
+                                let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
+                                    data_submessage,
+                                    Some(message_receiver.timestamp()),
+                                    message_receiver.source_guid_prefix(),
+                                ) {
+                                    Ok(a_change) => a_change,
+                                    Err(_) => return,
+                                };
+
+                                self.reader_mut().add_change(a_change).ok();
                             }
                         }
                         ReliabilityQosPolicyKind::Reliable => {
                             writer_proxy.received_change_set(data_submessage.writer_sn.value);
-                            self.reader_mut()
-                                .on_data_submessage_received(data_submessage, message_receiver);
+                            let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
+                                data_submessage,
+                                Some(message_receiver.timestamp()),
+                                message_receiver.source_guid_prefix(),
+                            ) {
+                                Ok(a_change) => a_change,
+                                Err(_) => return,
+                            };
+
+                            self.reader_mut().add_change(a_change).ok();
                         }
                     }
                 }

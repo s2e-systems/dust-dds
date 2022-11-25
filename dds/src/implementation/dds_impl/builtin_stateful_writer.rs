@@ -47,16 +47,6 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-fn calculate_instance_handle(serialized_key: &[u8]) -> InstanceHandle {
-    if serialized_key.len() <= 16 {
-        let mut h = [0; 16];
-        h[..serialized_key.len()].clone_from_slice(serialized_key);
-        h.into()
-    } else {
-        <[u8; 16]>::from(md5::compute(serialized_key)).into()
-    }
-}
-
 pub struct BuiltinStatefulWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
     registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
@@ -109,13 +99,13 @@ impl BuiltinStatefulWriter {
             let type_name = self.topic.get_type_name().unwrap();
             if type_name == DiscoveredWriterData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_publications_writer(&mut *rtps_writer_lock);
+                    .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
             } else if type_name == DiscoveredReaderData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_subscriptions_writer(&mut *rtps_writer_lock);
+                    .discovered_participant_add_subscriptions_writer(&mut rtps_writer_lock);
             } else if type_name == DiscoveredTopicData::type_name() {
                 participant_discovery
-                    .discovered_participant_add_topics_writer(&mut *rtps_writer_lock);
+                    .discovered_participant_add_topics_writer(&mut rtps_writer_lock);
             }
         }
     }
@@ -153,7 +143,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         }
 
         let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = calculate_instance_handle(&serialized_key);
+        let instance_handle = serialized_key.as_slice().into();
 
         let mut registered_instances_lock = self.registered_instance_list.write_lock();
         let rtps_writer_lock = self.rtps_writer.read_lock();

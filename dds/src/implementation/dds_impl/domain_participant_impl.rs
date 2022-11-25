@@ -1,6 +1,9 @@
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicU8, Ordering},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        mpsc::SyncSender,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -115,6 +118,7 @@ pub struct DomainParticipantImpl {
     enabled: DdsRwLock<bool>,
     announce_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
+    notifications_sender: SyncSender<(Guid, StatusKind)>,
 }
 
 impl DomainParticipantImpl {
@@ -128,6 +132,7 @@ impl DomainParticipantImpl {
         metatraffic_multicast_locator_list: Vec<Locator>,
         announce_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -178,6 +183,7 @@ impl DomainParticipantImpl {
             sedp_topic_topics.clone(),
             sedp_topic_publications.clone(),
             sedp_topic_subscriptions.clone(),
+            notifications_sender.clone(),
         );
 
         let builtin_publisher = BuiltinPublisher::new(
@@ -213,6 +219,7 @@ impl DomainParticipantImpl {
             enabled: DdsRwLock::new(false),
             announce_condvar,
             user_defined_data_send_condvar,
+            notifications_sender,
         })
     }
 
@@ -316,6 +323,7 @@ impl DdsShared<DomainParticipantImpl> {
             subscriber_qos,
             rtps_group,
             self.user_defined_data_send_condvar.clone(),
+            self.notifications_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self
@@ -787,6 +795,7 @@ impl DdsShared<DomainParticipantImpl> {
                     .dds_participant_data
                     .key
                     .value
+                    .as_ref()
                     .into(),
                 discovered_participant_data.dds_participant_data.clone(),
             );
@@ -936,7 +945,12 @@ impl DdsShared<DomainParticipantImpl> {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
                     self.discovered_topic_list.write_lock().insert(
-                        topic_data.topic_builtin_topic_data.key.value.into(),
+                        topic_data
+                            .topic_builtin_topic_data
+                            .key
+                            .value
+                            .as_ref()
+                            .into(),
                         topic_data.topic_builtin_topic_data.clone(),
                     );
                 }
@@ -978,5 +992,18 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_subscriptions_writer()
             .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
             .unwrap();
+    }
+
+    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
+        let (guid, _) = notification;
+        match guid.entity_id().entity_kind() {
+            crate::implementation::rtps::types::USER_DEFINED_READER_NO_KEY
+            | crate::implementation::rtps::types::USER_DEFINED_READER_WITH_KEY => {
+                for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                    subscriber.on_notification_received(notification);
+                }
+            }
+            _ => (),
+        };
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData;
 use crate::implementation::data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData;
 use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData;
@@ -15,10 +17,7 @@ use crate::{
     topic_definition::type_support::DdsType,
 };
 
-use crate::implementation::utils::{
-    shared_object::{DdsRwLock, DdsShared},
-    timer::ThreadTimer,
-};
+use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
 
 use super::builtin_stateful_reader::BuiltinStatefulReader;
 use super::builtin_stateless_reader::BuiltinStatelessReader;
@@ -32,10 +31,10 @@ use super::{topic_impl::TopicImpl, user_defined_data_reader::UserDefinedDataRead
 pub struct BuiltInSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroupImpl,
-    spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader<ThreadTimer>>,
-    sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader<ThreadTimer>>,
-    sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader<ThreadTimer>>,
-    sedp_builtin_subscriptions_reader: DdsShared<BuiltinStatefulReader<ThreadTimer>>,
+    spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
+    sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
+    sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader>,
+    sedp_builtin_subscriptions_reader: DdsShared<BuiltinStatefulReader>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -46,6 +45,7 @@ impl BuiltInSubscriber {
         sedp_topic_topics: DdsShared<TopicImpl>,
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
+        notifications_sender: SyncSender<(Guid, StatusKind)>,
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
@@ -59,6 +59,7 @@ impl BuiltInSubscriber {
             BuiltinStatelessReader::new::<SpdpDiscoveredParticipantData>(
                 spdp_builtin_participant_reader_guid,
                 spdp_topic_participant,
+                notifications_sender.clone(),
             );
 
         let sedp_builtin_topics_guid =
@@ -66,6 +67,7 @@ impl BuiltInSubscriber {
         let sedp_builtin_topics_reader = BuiltinStatefulReader::new::<DiscoveredTopicData>(
             sedp_builtin_topics_guid,
             sedp_topic_topics,
+            notifications_sender.clone(),
         );
 
         let sedp_builtin_publications_guid =
@@ -73,6 +75,7 @@ impl BuiltInSubscriber {
         let sedp_builtin_publications_reader = BuiltinStatefulReader::new::<DiscoveredWriterData>(
             sedp_builtin_publications_guid,
             sedp_topic_publications,
+            notifications_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_reader =
@@ -80,6 +83,7 @@ impl BuiltInSubscriber {
         let sedp_builtin_subscriptions_reader = BuiltinStatefulReader::new::<DiscoveredReaderData>(
             sedp_builtin_subscriptions_reader,
             sedp_topic_subscriptions,
+            notifications_sender,
         );
 
         DdsShared::new(BuiltInSubscriber {
@@ -95,25 +99,19 @@ impl BuiltInSubscriber {
 }
 
 impl DdsShared<BuiltInSubscriber> {
-    pub fn spdp_builtin_participant_reader(
-        &self,
-    ) -> &DdsShared<BuiltinStatelessReader<ThreadTimer>> {
+    pub fn spdp_builtin_participant_reader(&self) -> &DdsShared<BuiltinStatelessReader> {
         &self.spdp_builtin_participant_reader
     }
 
-    pub fn sedp_builtin_topics_reader(&self) -> &DdsShared<BuiltinStatefulReader<ThreadTimer>> {
+    pub fn sedp_builtin_topics_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
         &self.sedp_builtin_topics_reader
     }
 
-    pub fn sedp_builtin_publications_reader(
-        &self,
-    ) -> &DdsShared<BuiltinStatefulReader<ThreadTimer>> {
+    pub fn sedp_builtin_publications_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
         &self.sedp_builtin_publications_reader
     }
 
-    pub fn sedp_builtin_subscriptions_reader(
-        &self,
-    ) -> &DdsShared<BuiltinStatefulReader<ThreadTimer>> {
+    pub fn sedp_builtin_subscriptions_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
         &self.sedp_builtin_subscriptions_reader
     }
 
