@@ -327,55 +327,51 @@ impl RtpsReader {
             .remove_communication_state(StatusKind::DataAvailable);
 
         let instance_handle_builder = &self.instance_handle_builder;
-        let mut samples = {
-            self.reader_cache
-                .changes
-                .drain(..)
-                .map(|cache_change| {
-                    let sample_state = cache_change.sample_state();
-                    let view_state = ViewStateKind::New;
+        let samples_positions = self
+            .reader_cache
+            .changes
+            .iter()
+            .enumerate()
+            .filter(|(_, cc)| sample_states.contains(&cc.sample_state()))
+            .map(|(p, _)| p)
+            .take(max_samples as usize)
+            .collect::<Vec<_>>();
 
-                    let (instance_state, valid_data) = match cache_change.kind() {
-                        ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                        ChangeKind::NotAliveDisposed => {
-                            (InstanceStateKind::NotAliveDisposed, false)
-                        }
-                        _ => unimplemented!(),
-                    };
+        let mut samples = Vec::new();
+        for index in samples_positions {
+            let cache_change = self.reader_cache.changes.remove(index);
+            let sample_state = cache_change.sample_state();
+            let view_state = ViewStateKind::New;
 
-                    let sample_info = SampleInfo {
-                        sample_state,
-                        view_state,
-                        instance_state,
-                        disposed_generation_count: 0,
-                        no_writers_generation_count: 0,
-                        sample_rank: 0,
-                        generation_rank: 0,
-                        absolute_generation_rank: 0,
-                        source_timestamp: *cache_change.source_timestamp(),
-                        instance_handle: instance_handle_builder
-                            .build_instance_handle(cache_change.data_value())
-                            .unwrap(),
-                        publication_handle: cache_change.writer_guid().into(),
-                        valid_data,
-                    };
+            let (instance_state, valid_data) = match cache_change.kind() {
+                ChangeKind::Alive => (InstanceStateKind::Alive, true),
+                ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
+                _ => unimplemented!(),
+            };
 
-                    let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-                    Ok(Sample {
-                        data: Some(value),
-                        sample_info,
-                    })
-                })
-                .filter(|result| {
-                    if let Ok(sample) = result {
-                        sample_states.contains(&sample.sample_info.sample_state)
-                    } else {
-                        true
-                    }
-                })
-                .take(max_samples as usize)
-                .collect::<DdsResult<Vec<_>>>()
-        }?;
+            let sample_info = SampleInfo {
+                sample_state,
+                view_state,
+                instance_state,
+                disposed_generation_count: 0,
+                no_writers_generation_count: 0,
+                sample_rank: 0,
+                generation_rank: 0,
+                absolute_generation_rank: 0,
+                source_timestamp: *cache_change.source_timestamp(),
+                instance_handle: instance_handle_builder
+                    .build_instance_handle(cache_change.data_value())
+                    .unwrap(),
+                publication_handle: cache_change.writer_guid().into(),
+                valid_data,
+            };
+
+            let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
+            samples.push(Sample {
+                data: Some(value),
+                sample_info,
+            });
+        }
 
         if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
             samples.sort_by(|a, b| {
