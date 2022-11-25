@@ -11,7 +11,10 @@ jobs:
       - run: cargo --version
       - run:
           name: Run clippy
-          command: cargo clippy -- -D warnings
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo clippy -- -D warnings
       - run:
           name: Run Tests
           command: |
@@ -20,7 +23,7 @@ jobs:
             cargo test -- --test-threads=1
       - run:
           name: Hello world example
-          no_output_timeout: 60s
+          no_output_timeout: 120s
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"

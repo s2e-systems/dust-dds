@@ -54,7 +54,7 @@ fn main() {
         .attach_condition(Condition::StatusCondition(writer_cond))
         .unwrap();
 
-    wait_set.wait(Duration::new(60, 0)).unwrap();
+    wait_set.wait(Duration::new(120, 0)).unwrap();
 
     let hello_world = HelloWorldType {
         id: 8,
