@@ -307,7 +307,7 @@ impl RtpsReader {
 
         let instance_handle_build = &self.instance_handle_builder;
         let instances = &self.instances;
-        let mut local_instances = HashMap::new();
+        let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
             .reader_cache
             .changes
@@ -323,27 +323,29 @@ impl RtpsReader {
             .enumerate()
             .take(max_samples as usize)
         {
-            let instance_handle = self
+            let sample_instance_handle = self
                 .instance_handle_builder
                 .build_instance_handle(cache_change)
                 .unwrap();
-            local_instances
-                .entry(instance_handle)
+            instances_in_collection
+                .entry(sample_instance_handle)
                 .or_insert_with(Instance::new);
 
-            local_instances
-                .get_mut(&instance_handle)
+            instances_in_collection
+                .get_mut(&sample_instance_handle)
                 .unwrap()
                 .update_state(cache_change.kind());
             let sample_state = cache_change.sample_state();
-            let view_state = self.instances[&instance_handle].view_state;
-            let instance_state = self.instances[&instance_handle].instance_state;
+            let view_state = self.instances[&sample_instance_handle].view_state;
+            let instance_state = self.instances[&sample_instance_handle].instance_state;
 
-            let absolute_generation_rank = (self.instances[&instance_handle]
+            let absolute_generation_rank = (self.instances[&sample_instance_handle]
                 .most_recent_disposed_generation_count
-                + self.instances[&instance_handle].most_recent_no_writers_generation_count)
-                - (local_instances[&instance_handle].most_recent_disposed_generation_count
-                    + local_instances[&instance_handle].most_recent_no_writers_generation_count);
+                + self.instances[&sample_instance_handle].most_recent_no_writers_generation_count)
+                - (instances_in_collection[&sample_instance_handle]
+                    .most_recent_disposed_generation_count
+                    + instances_in_collection[&sample_instance_handle]
+                        .most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind() {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
@@ -360,10 +362,10 @@ impl RtpsReader {
                 disposed_generation_count: 0,
                 no_writers_generation_count: 0,
                 sample_rank: 0,
-                generation_rank: 0,
+                generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
                 source_timestamp: *cache_change.source_timestamp(),
-                instance_handle,
+                instance_handle: sample_instance_handle,
                 publication_handle: cache_change.writer_guid().into(),
                 valid_data,
             };
@@ -373,9 +375,25 @@ impl RtpsReader {
             indexed_samples.push((index, sample))
         }
 
-        for (_, sample) in indexed_samples.iter() {
+        // After the collection is created, update the relative generation rank values and mark the read instances as viewed
+        for handle in instances_in_collection.into_keys() {
+            let most_recent_sample_absolute_generation_rank = indexed_samples
+                .iter()
+                .filter(|(_, s)| s.sample_info.instance_handle == handle)
+                .map(|(_, s)| s.sample_info.absolute_generation_rank)
+                .last()
+                .expect("Instance handle must exist on collection");
+
+            for (_, sample) in indexed_samples
+                .iter_mut()
+                .filter(|(_, s)| s.sample_info.instance_handle == handle)
+            {
+                sample.sample_info.generation_rank = sample.sample_info.absolute_generation_rank
+                    - most_recent_sample_absolute_generation_rank;
+            }
+
             self.instances
-                .get_mut(&sample.sample_info.instance_handle)
+                .get_mut(&handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
         }
