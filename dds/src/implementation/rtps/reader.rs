@@ -267,10 +267,18 @@ impl RtpsReader {
             let view_state = self.instances.get(&instance_handle).unwrap().view_state;
             cache_change.mark_read();
 
-            let (instance_state, valid_data) = match cache_change.kind() {
-                ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
+            let instance_state = match cache_change.kind() {
+                ChangeKind::Alive => InstanceStateKind::Alive,
+                ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
                 _ => unimplemented!(),
+            };
+
+            let (data, valid_data) = match cache_change.kind() {
+                ChangeKind::Alive | ChangeKind::AliveFiltered => (
+                    Some(DdsDeserialize::deserialize(&mut cache_change.data_value())?),
+                    true,
+                ),
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (None, false),
             };
 
             let sample_info = SampleInfo {
@@ -288,11 +296,7 @@ impl RtpsReader {
                 valid_data,
             };
 
-            let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-            samples.push(Sample {
-                data: Some(value),
-                sample_info,
-            });
+            samples.push(Sample { data, sample_info });
 
             if samples.len() >= max_samples as usize {
                 break;
