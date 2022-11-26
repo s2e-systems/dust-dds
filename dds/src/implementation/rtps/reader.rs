@@ -111,6 +111,10 @@ impl Instance {
             }
         }
     }
+
+    fn mark_viewed(&mut self) {
+        self.view_state = ViewStateKind::NotNew;
+    }
 }
 
 pub struct RtpsReader {
@@ -171,7 +175,7 @@ impl RtpsReader {
                 .iter()
                 .filter(|cc| {
                     self.instance_handle_builder
-                        .build_instance_handle(&cc)
+                        .build_instance_handle(cc)
                         .unwrap()
                         == change_instance_handle
                         && cc.kind() == ChangeKind::Alive
@@ -187,7 +191,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(&cc)
+                            .build_instance_handle(cc)
                             .unwrap()
                             == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
@@ -206,7 +210,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(&cc)
+                    .build_instance_handle(cc)
                     .unwrap()
             })
             .collect();
@@ -229,7 +233,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(&cc)
+                            .build_instance_handle(cc)
                             .unwrap()
                             == change_instance_handle
                     })
@@ -293,8 +297,8 @@ impl RtpsReader {
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -304,20 +308,45 @@ impl RtpsReader {
 
         let mut samples = Vec::new();
 
+        let instance_handle_build = &self.instance_handle_builder;
+        let instances = &self.instances;
+
+        let mut local_instances = HashMap::new();
         for cache_change in self
             .reader_cache
             .changes
             .iter_mut()
-            .filter(|x| sample_states.contains(&x.sample_state()))
+            .filter(|cc| {
+                let sample_instance_handle =
+                    instance_handle_build.build_instance_handle(cc).unwrap();
+
+                sample_states.contains(&cc.sample_state())
+                    && view_states.contains(&instances[&sample_instance_handle].view_state)
+                    && instance_states.contains(&instances[&sample_instance_handle].instance_state)
+            })
+            .take(max_samples as usize)
         {
             let instance_handle = self
                 .instance_handle_builder
-                .build_instance_handle(&cache_change)
+                .build_instance_handle(cache_change)
                 .unwrap();
+            local_instances
+                .entry(instance_handle)
+                .or_insert_with(Instance::new);
+
+            local_instances
+                .get_mut(&instance_handle)
+                .unwrap()
+                .update_state(cache_change.kind());
             let sample_state = cache_change.sample_state();
             let view_state = self.instances[&instance_handle].view_state;
             let instance_state = self.instances[&instance_handle].instance_state;
-            cache_change.mark_read();
+
+            let absolute_generation_rank = (self.instances[&instance_handle]
+                .most_recent_disposed_generation_count
+                + self.instances[&instance_handle].most_recent_no_writers_generation_count)
+                - (local_instances[&instance_handle].most_recent_disposed_generation_count
+                    + local_instances[&instance_handle].most_recent_no_writers_generation_count);
 
             let (data, valid_data) = match cache_change.kind() {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
@@ -335,46 +364,28 @@ impl RtpsReader {
                 no_writers_generation_count: 0,
                 sample_rank: 0,
                 generation_rank: 0,
-                absolute_generation_rank: 0,
+                absolute_generation_rank,
                 source_timestamp: *cache_change.source_timestamp(),
                 instance_handle,
                 publication_handle: cache_change.writer_guid().into(),
                 valid_data,
             };
 
-            samples.push(Sample { data, sample_info });
+            cache_change.mark_read();
 
-            if samples.len() >= max_samples as usize {
-                break;
-            }
+            samples.push(Sample { data, sample_info });
+        }
+
+        for sample in samples.iter() {
+            self.instances
+                .get_mut(&sample.sample_info.instance_handle)
+                .expect("Sample must exist on hash map")
+                .mark_viewed()
         }
 
         if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
-            let all_instances_in_collection: HashSet<_> = samples
-                .iter()
-                .map(|s| s.sample_info.instance_handle)
-                .collect();
-
-            for instance in all_instances_in_collection {
-                self.instances.get_mut(&instance).unwrap().view_state = ViewStateKind::NotNew;
-
-                let sample_disposed_generation_count = 0;
-                let sample_no_writers_generation_count = 0;
-                for sample in samples
-                    .iter_mut()
-                    .filter(|s| s.sample_info.instance_handle == instance)
-                {
-                    let instance_entry = &self.instances[&sample.sample_info.instance_handle];
-
-                    sample.sample_info.absolute_generation_rank = (instance_entry
-                        .most_recent_disposed_generation_count
-                        + instance_entry.most_recent_no_writers_generation_count)
-                        - (sample_disposed_generation_count - sample_no_writers_generation_count);
-                }
-            }
-
             Ok(samples)
         }
     }
