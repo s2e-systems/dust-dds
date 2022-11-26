@@ -299,13 +299,8 @@ impl RtpsReader {
                 .unwrap();
             let sample_state = cache_change.sample_state();
             let view_state = self.instances.get(&instance_handle).unwrap().view_state;
+            let instance_state = self.instances.get(&instance_handle).unwrap().instance_state;
             cache_change.mark_read();
-
-            let instance_state = match cache_change.kind() {
-                ChangeKind::Alive => InstanceStateKind::Alive,
-                ChangeKind::NotAliveDisposed => InstanceStateKind::NotAliveDisposed,
-                _ => unimplemented!(),
-            };
 
             let (data, valid_data) = match cache_change.kind() {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
@@ -350,8 +345,27 @@ impl RtpsReader {
         if samples.is_empty() {
             Err(DdsError::NoData)
         } else {
-            for instance in samples.iter().map(|s| s.sample_info.instance_handle) {
+            let all_instances_in_collection: HashSet<_> = samples
+                .iter()
+                .map(|s| s.sample_info.instance_handle)
+                .collect();
+
+            for instance in all_instances_in_collection {
                 self.instances.get_mut(&instance).unwrap().view_state = ViewStateKind::NotNew;
+
+                let sample_disposed_generation_count = 0;
+                let sample_no_writers_generation_count = 0;
+                for sample in samples
+                    .iter_mut()
+                    .filter(|s| s.sample_info.instance_handle == instance)
+                {
+                    let instance_entry = &self.instances[&sample.sample_info.instance_handle];
+
+                    sample.sample_info.absolute_generation_rank = (instance_entry
+                        .most_recent_disposed_generation_count
+                        + instance_entry.most_recent_no_writers_generation_count)
+                        - (sample_disposed_generation_count - sample_no_writers_generation_count);
+                }
             }
 
             Ok(samples)
