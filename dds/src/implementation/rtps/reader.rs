@@ -62,18 +62,18 @@ impl InstanceHandleBuilder {
 
 struct Instance {
     view_state: ViewStateKind,
-    _instance_state: InstanceStateKind,
-    _most_recent_disposed_generation_count: i32,
-    _most_recent_no_writers_generation_count: i32,
+    instance_state: InstanceStateKind,
+    most_recent_disposed_generation_count: i32,
+    most_recent_no_writers_generation_count: i32,
 }
 
 impl Instance {
     fn new() -> Self {
         Self {
             view_state: ViewStateKind::New,
-            _instance_state: InstanceStateKind::Alive,
-            _most_recent_disposed_generation_count: 0,
-            _most_recent_no_writers_generation_count: 0,
+            instance_state: InstanceStateKind::Alive,
+            most_recent_disposed_generation_count: 0,
+            most_recent_no_writers_generation_count: 0,
         }
     }
 }
@@ -205,9 +205,43 @@ impl RtpsReader {
             && max_instances_limit_not_reached
             && max_samples_per_instance_limit_not_reached
         {
-            self.instances
+            let instance_entry = self
+                .instances
                 .entry(change_instance_handle)
                 .or_insert_with(Instance::new);
+
+            match instance_entry.instance_state {
+                InstanceStateKind::Alive => {
+                    if change.kind() == ChangeKind::NotAliveDisposed {
+                        instance_entry.instance_state = InstanceStateKind::NotAliveDisposed;
+                    } else if change.kind() == ChangeKind::NotAliveUnregistered {
+                        instance_entry.instance_state = InstanceStateKind::NotAliveNoWriters;
+                    }
+                }
+                InstanceStateKind::NotAliveDisposed => {
+                    if change.kind() == ChangeKind::Alive {
+                        instance_entry.instance_state = InstanceStateKind::Alive;
+                        instance_entry.most_recent_disposed_generation_count += 1;
+                    }
+                }
+                InstanceStateKind::NotAliveNoWriters => {
+                    if change.kind() == ChangeKind::Alive {
+                        instance_entry.instance_state = InstanceStateKind::Alive;
+                        instance_entry.most_recent_no_writers_generation_count += 1;
+                    }
+                }
+            }
+
+            match instance_entry.view_state {
+                ViewStateKind::New => (),
+                ViewStateKind::NotNew => {
+                    if change.kind() == ChangeKind::NotAliveDisposed
+                        || change.kind() == ChangeKind::NotAliveUnregistered
+                    {
+                        instance_entry.view_state = ViewStateKind::New;
+                    }
+                }
+            }
 
             self.reader_cache.changes.push(change);
 
