@@ -384,12 +384,20 @@ impl RtpsReader {
                 .last()
                 .expect("Instance handle must exist on collection");
 
+            let mut total_instance_samples_in_collection = indexed_samples
+                .iter()
+                .filter(|(_, s)| s.sample_info.instance_handle == handle)
+                .count();
+
             for (_, sample) in indexed_samples
                 .iter_mut()
                 .filter(|(_, s)| s.sample_info.instance_handle == handle)
             {
                 sample.sample_info.generation_rank = sample.sample_info.absolute_generation_rank
                     - most_recent_sample_absolute_generation_rank;
+
+                total_instance_samples_in_collection -= 1;
+                sample.sample_info.sample_rank = total_instance_samples_in_collection as i32;
             }
 
             self.instances
@@ -1300,5 +1308,87 @@ mod tests {
         assert_eq!(samples[2].sample_info.generation_rank, 1);
         assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
         assert_eq!(samples[3].sample_info.generation_rank, 0);
+    }
+
+    #[test]
+    fn reader_sample_info_sample_rank() {
+        let (sender, _receiver) = sync_channel(10);
+        let qos = DataReaderQos {
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+                depth: LENGTH_UNLIMITED,
+            },
+            ..Default::default()
+        };
+        let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+        let mut reader = RtpsReader::new::<KeyedType>(
+            endpoint,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+            qos,
+            sender,
+        );
+
+        let change1 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            1,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [1; 5],
+            }),
+            vec![],
+            None,
+        );
+        let change2 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [2; 5],
+            }),
+            vec![],
+            None,
+        );
+
+        let change3 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [3; 5],
+            }),
+            vec![],
+            None,
+        );
+
+        let change4 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [4; 5],
+            }),
+            vec![],
+            None,
+        );
+
+        reader.add_change(change1).unwrap();
+        reader.add_change(change2).unwrap();
+        reader.add_change(change3).unwrap();
+        reader.add_change(change4).unwrap();
+
+        let samples = reader
+            .read::<KeyedType>(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
+
+        assert_eq!(samples.len(), 3);
+        assert_eq!(samples[0].sample_info.sample_rank, 2);
+        assert_eq!(samples[1].sample_info.sample_rank, 1);
+        assert_eq!(samples[2].sample_info.sample_rank, 0);
     }
 }
