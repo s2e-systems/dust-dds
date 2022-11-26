@@ -293,26 +293,22 @@ impl RtpsReader {
         Ok(())
     }
 
-    pub fn read<Foo>(
+    fn create_indexed_sample_collection<Foo>(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
+    ) -> DdsResult<Vec<(usize, Sample<Foo>)>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-
-        let mut samples = Vec::new();
+        let mut indexed_samples = Vec::new();
 
         let instance_handle_build = &self.instance_handle_builder;
         let instances = &self.instances;
-
         let mut local_instances = HashMap::new();
-        for cache_change in self
+        for (index, cache_change) in self
             .reader_cache
             .changes
             .iter_mut()
@@ -324,6 +320,7 @@ impl RtpsReader {
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
                     && instance_states.contains(&instances[&sample_instance_handle].instance_state)
             })
+            .enumerate()
             .take(max_samples as usize)
         {
             let instance_handle = self
@@ -371,31 +368,31 @@ impl RtpsReader {
                 valid_data,
             };
 
-            cache_change.mark_read();
+            let sample = Sample { data, sample_info };
 
-            samples.push(Sample { data, sample_info });
+            indexed_samples.push((index, sample))
         }
 
-        for sample in samples.iter() {
+        for (_, sample) in indexed_samples.iter() {
             self.instances
                 .get_mut(&sample.sample_info.instance_handle)
                 .expect("Sample must exist on hash map")
                 .mark_viewed()
         }
 
-        if samples.is_empty() {
+        if indexed_samples.is_empty() {
             Err(DdsError::NoData)
         } else {
-            Ok(samples)
+            Ok(indexed_samples)
         }
     }
 
-    pub fn take<Foo>(
+    pub fn read<Foo>(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -403,58 +400,55 @@ impl RtpsReader {
         self.status_condition
             .remove_communication_state(StatusKind::DataAvailable);
 
-        let instance_handle_builder = &self.instance_handle_builder;
-        let samples_positions = self
-            .reader_cache
-            .changes
-            .iter()
-            .enumerate()
-            .filter(|(_, cc)| sample_states.contains(&cc.sample_state()))
-            .map(|(p, _)| p)
-            .take(max_samples as usize)
-            .collect::<Vec<_>>();
+        let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )?;
 
-        let mut samples = Vec::new();
-        for index in samples_positions {
-            let cache_change = self.reader_cache.changes.remove(index);
-            let sample_state = cache_change.sample_state();
-            let view_state = ViewStateKind::New;
+        let change_index_list: Vec<usize>;
+        let samples;
 
-            let (instance_state, valid_data) = match cache_change.kind() {
-                ChangeKind::Alive => (InstanceStateKind::Alive, true),
-                ChangeKind::NotAliveDisposed => (InstanceStateKind::NotAliveDisposed, false),
-                _ => unimplemented!(),
-            };
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
-            let sample_info = SampleInfo {
-                sample_state,
-                view_state,
-                instance_state,
-                disposed_generation_count: 0,
-                no_writers_generation_count: 0,
-                sample_rank: 0,
-                generation_rank: 0,
-                absolute_generation_rank: 0,
-                source_timestamp: *cache_change.source_timestamp(),
-                instance_handle: instance_handle_builder
-                    .build_instance_handle(&cache_change)
-                    .unwrap(),
-                publication_handle: cache_change.writer_guid().into(),
-                valid_data,
-            };
-
-            let value = DdsDeserialize::deserialize(&mut cache_change.data_value())?;
-            samples.push(Sample {
-                data: Some(value),
-                sample_info,
-            });
+        for index in change_index_list {
+            self.reader_cache.changes[index].mark_read();
         }
 
-        if samples.is_empty() {
-            Err(DdsError::NoData)
-        } else {
-            Ok(samples)
+        Ok(samples)
+    }
+
+    pub fn take<Foo>(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
+
+        let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )?;
+
+        let mut change_index_list: Vec<usize>;
+        let samples;
+
+        (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
+
+        while let Some(index) = change_index_list.pop() {
+            self.reader_cache.changes.remove(index);
         }
+
+        Ok(samples)
     }
 }
 
