@@ -76,6 +76,41 @@ impl Instance {
             most_recent_no_writers_generation_count: 0,
         }
     }
+
+    fn update_state(&mut self, change_kind: ChangeKind) {
+        match self.instance_state {
+            InstanceStateKind::Alive => {
+                if change_kind == ChangeKind::NotAliveDisposed {
+                    self.instance_state = InstanceStateKind::NotAliveDisposed;
+                } else if change_kind == ChangeKind::NotAliveUnregistered {
+                    self.instance_state = InstanceStateKind::NotAliveNoWriters;
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_disposed_generation_count += 1;
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => {
+                if change_kind == ChangeKind::Alive {
+                    self.instance_state = InstanceStateKind::Alive;
+                    self.most_recent_no_writers_generation_count += 1;
+                }
+            }
+        }
+
+        match self.view_state {
+            ViewStateKind::New => (),
+            ViewStateKind::NotNew => {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveUnregistered
+                {
+                    self.view_state = ViewStateKind::New;
+                }
+            }
+        }
+    }
 }
 
 pub struct RtpsReader {
@@ -210,40 +245,22 @@ impl RtpsReader {
                 .entry(change_instance_handle)
                 .or_insert_with(Instance::new);
 
-            match instance_entry.instance_state {
-                InstanceStateKind::Alive => {
-                    if change.kind() == ChangeKind::NotAliveDisposed {
-                        instance_entry.instance_state = InstanceStateKind::NotAliveDisposed;
-                    } else if change.kind() == ChangeKind::NotAliveUnregistered {
-                        instance_entry.instance_state = InstanceStateKind::NotAliveNoWriters;
-                    }
-                }
-                InstanceStateKind::NotAliveDisposed => {
-                    if change.kind() == ChangeKind::Alive {
-                        instance_entry.instance_state = InstanceStateKind::Alive;
-                        instance_entry.most_recent_disposed_generation_count += 1;
-                    }
-                }
-                InstanceStateKind::NotAliveNoWriters => {
-                    if change.kind() == ChangeKind::Alive {
-                        instance_entry.instance_state = InstanceStateKind::Alive;
-                        instance_entry.most_recent_no_writers_generation_count += 1;
-                    }
-                }
-            }
-
-            match instance_entry.view_state {
-                ViewStateKind::New => (),
-                ViewStateKind::NotNew => {
-                    if change.kind() == ChangeKind::NotAliveDisposed
-                        || change.kind() == ChangeKind::NotAliveUnregistered
-                    {
-                        instance_entry.view_state = ViewStateKind::New;
-                    }
-                }
-            }
+            instance_entry.update_state(change.kind());
 
             self.reader_cache.changes.push(change);
+
+            if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
+                self.reader_cache.changes.sort_by(|a, b| {
+                    a.source_timestamp()
+                        .as_ref()
+                        .expect("Missing source timestamp")
+                        .cmp(
+                            b.source_timestamp()
+                                .as_ref()
+                                .expect("Missing source timestamp"),
+                        )
+                });
+            }
 
             self.notifications_sender
                 .send((self.endpoint.guid(), StatusKind::DataAvailable))
@@ -298,8 +315,8 @@ impl RtpsReader {
                 .build_instance_handle(&cache_change)
                 .unwrap();
             let sample_state = cache_change.sample_state();
-            let view_state = self.instances.get(&instance_handle).unwrap().view_state;
-            let instance_state = self.instances.get(&instance_handle).unwrap().instance_state;
+            let view_state = self.instances[&instance_handle].view_state;
+            let instance_state = self.instances[&instance_handle].instance_state;
             cache_change.mark_read();
 
             let (data, valid_data) = match cache_change.kind() {
@@ -330,16 +347,6 @@ impl RtpsReader {
             if samples.len() >= max_samples as usize {
                 break;
             }
-        }
-
-        if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
-            samples.sort_by(|a, b| {
-                a.sample_info
-                    .source_timestamp
-                    .as_ref()
-                    .expect("Missing source timestamp")
-                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
-            });
         }
 
         if samples.is_empty() {
@@ -429,16 +436,6 @@ impl RtpsReader {
             samples.push(Sample {
                 data: Some(value),
                 sample_info,
-            });
-        }
-
-        if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
-            samples.sort_by(|a, b| {
-                a.sample_info
-                    .source_timestamp
-                    .as_ref()
-                    .unwrap()
-                    .cmp(b.sample_info.source_timestamp.as_ref().unwrap())
             });
         }
 
