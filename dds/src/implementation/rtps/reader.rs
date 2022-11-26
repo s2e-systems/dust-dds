@@ -48,8 +48,15 @@ impl InstanceHandleBuilder {
         Self(Foo::deserialize_key)
     }
 
-    fn build_instance_handle(&self, data: &[u8]) -> DdsResult<InstanceHandle> {
-        Ok((self.0)(data)?.as_slice().into())
+    fn build_instance_handle(&self, change: &RtpsReaderCacheChange) -> DdsResult<InstanceHandle> {
+        Ok(match change.kind() {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => {
+                (self.0)(change.data_value())?.as_slice().into()
+            }
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                change.data_value().into()
+            }
+        })
     }
 }
 
@@ -118,7 +125,7 @@ impl RtpsReader {
     pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
         let change_instance_handle = self
             .instance_handle_builder
-            .build_instance_handle(change.data_value())?;
+            .build_instance_handle(&change)?;
 
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
             && change.kind() == ChangeKind::Alive
@@ -129,7 +136,7 @@ impl RtpsReader {
                 .iter()
                 .filter(|cc| {
                     self.instance_handle_builder
-                        .build_instance_handle(cc.data_value())
+                        .build_instance_handle(&cc)
                         .unwrap()
                         == change_instance_handle
                         && cc.kind() == ChangeKind::Alive
@@ -145,7 +152,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc.data_value())
+                            .build_instance_handle(&cc)
                             .unwrap()
                             == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
@@ -164,7 +171,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(cc.data_value())
+                    .build_instance_handle(&cc)
                     .unwrap()
             })
             .collect();
@@ -187,7 +194,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc.data_value())
+                            .build_instance_handle(&cc)
                             .unwrap()
                             == change_instance_handle
                     })
@@ -254,7 +261,7 @@ impl RtpsReader {
         {
             let instance_handle = self
                 .instance_handle_builder
-                .build_instance_handle(cache_change.data_value())
+                .build_instance_handle(&cache_change)
                 .unwrap();
             let sample_state = cache_change.sample_state();
             let view_state = self.instances.get(&instance_handle).unwrap().view_state;
@@ -360,7 +367,7 @@ impl RtpsReader {
                 absolute_generation_rank: 0,
                 source_timestamp: *cache_change.source_timestamp(),
                 instance_handle: instance_handle_builder
-                    .build_instance_handle(cache_change.data_value())
+                    .build_instance_handle(&cache_change)
                     .unwrap(),
                 publication_handle: cache_change.writer_guid().into(),
                 valid_data,
