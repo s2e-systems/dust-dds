@@ -1065,7 +1065,7 @@ mod tests {
     }
 
     #[test]
-    fn reader_sample_info_generation_rank() {
+    fn reader_sample_info_absolute_generation_rank() {
         let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
@@ -1171,5 +1171,116 @@ mod tests {
         assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
         assert_eq!(samples[4].sample_info.absolute_generation_rank, 1);
         assert_eq!(samples[5].sample_info.absolute_generation_rank, 0);
+    }
+
+    #[test]
+    fn reader_sample_info_generation_rank() {
+        let (sender, _receiver) = sync_channel(10);
+        let qos = DataReaderQos {
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepAll,
+                depth: LENGTH_UNLIMITED,
+            },
+            ..Default::default()
+        };
+        let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+        let mut reader = RtpsReader::new::<KeyedType>(
+            endpoint,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
+            qos,
+            sender,
+        );
+
+        let change1 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            1,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [1; 5],
+            }),
+            vec![],
+            None,
+        );
+        let change2 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [2; 5],
+            }),
+            vec![],
+            None,
+        );
+        let change3 = RtpsReaderCacheChange::new(
+            ChangeKind::NotAliveDisposed,
+            GUID_UNKNOWN,
+            2,
+            KeyedType {
+                key: 1,
+                data: [0; 5],
+            }
+            .get_serialized_key::<LittleEndian>(),
+            vec![],
+            None,
+        );
+        let change4 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [4; 5],
+            }),
+            vec![],
+            None,
+        );
+        let change5 = RtpsReaderCacheChange::new(
+            ChangeKind::NotAliveDisposed,
+            GUID_UNKNOWN,
+            2,
+            KeyedType {
+                key: 1,
+                data: [0; 5],
+            }
+            .get_serialized_key::<LittleEndian>(),
+            vec![],
+            None,
+        );
+        let change6 = RtpsReaderCacheChange::new(
+            ChangeKind::Alive,
+            GUID_UNKNOWN,
+            2,
+            to_bytes_le(&KeyedType {
+                key: 1,
+                data: [6; 5],
+            }),
+            vec![],
+            None,
+        );
+
+        reader.add_change(change1).unwrap();
+        reader.add_change(change2).unwrap();
+        reader.add_change(change3).unwrap();
+        reader.add_change(change4).unwrap();
+        reader.add_change(change5).unwrap();
+        reader.add_change(change6).unwrap();
+
+        let samples = reader
+            .read::<KeyedType>(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .unwrap();
+
+        assert_eq!(samples.len(), 4);
+        assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
+        assert_eq!(samples[0].sample_info.generation_rank, 1);
+        assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
+        assert_eq!(samples[1].sample_info.generation_rank, 1);
+        assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
+        assert_eq!(samples[2].sample_info.generation_rank, 1);
+        assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
+        assert_eq!(samples[3].sample_info.generation_rank, 0);
     }
 }
