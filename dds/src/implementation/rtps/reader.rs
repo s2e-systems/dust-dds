@@ -26,18 +26,6 @@ use super::{
     types::{ChangeKind, Guid},
 };
 
-struct ReaderHistoryCache {
-    changes: Vec<RtpsReaderCacheChange>,
-}
-
-impl ReaderHistoryCache {
-    fn new() -> Self {
-        Self {
-            changes: Vec::new(),
-        }
-    }
-}
-
 struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
 
 impl InstanceHandleBuilder {
@@ -121,7 +109,7 @@ pub struct RtpsReader {
     endpoint: RtpsEndpoint,
     _heartbeat_response_delay: Duration,
     _heartbeat_suppression_duration: Duration,
-    reader_cache: ReaderHistoryCache,
+    changes: Vec<RtpsReaderCacheChange>,
     _expects_inline_qos: bool,
     qos: DataReaderQos,
     status_condition: StatusConditionImpl,
@@ -147,7 +135,7 @@ impl RtpsReader {
             endpoint,
             _heartbeat_response_delay: heartbeat_response_delay,
             _heartbeat_suppression_duration: heartbeat_suppression_duration,
-            reader_cache: ReaderHistoryCache::new(),
+            changes: Vec::new(),
             _expects_inline_qos: expects_inline_qos,
             qos,
             status_condition: StatusConditionImpl::default(),
@@ -170,7 +158,6 @@ impl RtpsReader {
             && change.kind() == ChangeKind::Alive
         {
             let num_instance_samples = self
-                .reader_cache
                 .changes
                 .iter()
                 .filter(|cc| {
@@ -186,7 +173,6 @@ impl RtpsReader {
                 // Remove the lowest sequence number for the instance handle of the cache change
                 // Only one sample is to be removed since cache changes come one by one
                 let min_seq_num = self
-                    .reader_cache
                     .changes
                     .iter()
                     .filter(|cc| {
@@ -205,7 +191,6 @@ impl RtpsReader {
         }
 
         let instance_handle_list: HashSet<_> = self
-            .reader_cache
             .changes
             .iter()
             .map(|cc| {
@@ -217,7 +202,7 @@ impl RtpsReader {
 
         let max_samples_limit_not_reached = self.qos.resource_limits.max_samples
             == LENGTH_UNLIMITED
-            || (self.reader_cache.changes.len() as i32) < self.qos.resource_limits.max_samples;
+            || (self.changes.len() as i32) < self.qos.resource_limits.max_samples;
 
         let max_instances_limit_not_reached = instance_handle_list
             .contains(&change_instance_handle)
@@ -227,7 +212,6 @@ impl RtpsReader {
         let max_samples_per_instance_limit_not_reached =
             self.qos.resource_limits.max_samples_per_instance == LENGTH_UNLIMITED
                 || (self
-                    .reader_cache
                     .changes
                     .as_slice()
                     .iter()
@@ -251,10 +235,10 @@ impl RtpsReader {
 
             instance_entry.update_state(change.kind());
 
-            self.reader_cache.changes.push(change);
+            self.changes.push(change);
 
             if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
-                self.reader_cache.changes.sort_by(|a, b| {
+                self.changes.sort_by(|a, b| {
                     a.source_timestamp()
                         .as_ref()
                         .expect("Missing source timestamp")
@@ -280,7 +264,7 @@ impl RtpsReader {
     where
         F: FnMut(&RtpsReaderCacheChange) -> bool,
     {
-        self.reader_cache.changes.retain(|cc| !f(cc));
+        self.changes.retain(|cc| !f(cc));
     }
 
     pub fn get_qos(&self) -> &DataReaderQos {
@@ -309,7 +293,6 @@ impl RtpsReader {
         let instances = &self.instances;
         let mut instances_in_collection = HashMap::new();
         for (index, cache_change) in self
-            .reader_cache
             .changes
             .iter_mut()
             .filter(|cc| {
@@ -439,7 +422,7 @@ impl RtpsReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         for index in change_index_list {
-            self.reader_cache.changes[index].mark_read();
+            self.changes[index].mark_read();
         }
 
         Ok(samples)
@@ -471,7 +454,7 @@ impl RtpsReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         while let Some(index) = change_index_list.pop() {
-            self.reader_cache.changes.remove(index);
+            self.changes.remove(index);
         }
 
         Ok(samples)
