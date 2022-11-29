@@ -1,10 +1,7 @@
 use std::sync::mpsc::SyncSender;
 
 use crate::{
-    implementation::rtps::{
-        endpoint::RtpsEndpoint, reader::RtpsReader, reader_cache_change::RtpsReaderCacheChange,
-        types::TopicKind,
-    },
+    implementation::rtps::{endpoint::RtpsEndpoint, reader::RtpsReader, types::TopicKind},
     infrastructure::qos::DataReaderQos,
     infrastructure::{
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
@@ -91,16 +88,14 @@ impl DdsShared<BuiltinStatelessReader> {
         if data_reader_id == ENTITYID_UNKNOWN
             || data_reader_id == rtps_reader.reader().guid().entity_id()
         {
-            let a_change = match RtpsReaderCacheChange::try_from_data_submessage(
-                data_submessage,
-                Some(message_receiver.timestamp()),
-                message_receiver.source_guid_prefix(),
-            ) {
-                Ok(a_change) => a_change,
-                Err(_) => return,
-            };
-
-            rtps_reader.reader_mut().add_change(a_change).ok();
+            rtps_reader
+                .reader_mut()
+                .add_change(
+                    data_submessage,
+                    Some(message_receiver.timestamp()),
+                    message_receiver.source_guid_prefix(),
+                )
+                .ok();
         }
     }
 }

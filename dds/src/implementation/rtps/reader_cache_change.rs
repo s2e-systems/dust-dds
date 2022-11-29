@@ -65,10 +65,6 @@ impl RtpsReaderCacheChange {
         self.writer_guid
     }
 
-    pub fn sequence_number(&self) -> SequenceNumber {
-        self.sequence_number
-    }
-
     pub fn data_value(&self) -> &[u8] {
         self.data.as_ref()
     }

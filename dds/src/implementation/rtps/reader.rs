@@ -11,7 +11,7 @@ use crate::{
         qos::DataReaderQos,
         qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, LENGTH_UNLIMITED},
         status::StatusKind,
-        time::Duration,
+        time::{Duration, Time},
     },
     subscription::{
         data_reader::Sample,
@@ -22,8 +22,9 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
+    messages::submessages::DataSubmessage,
     reader_cache_change::RtpsReaderCacheChange,
-    types::{ChangeKind, Guid},
+    types::{ChangeKind, Guid, GuidPrefix},
 };
 
 struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
@@ -149,7 +150,17 @@ impl RtpsReader {
         self.endpoint.guid()
     }
 
-    pub fn add_change(&mut self, change: RtpsReaderCacheChange) -> DdsResult<()> {
+    pub fn add_change(
+        &mut self,
+        data: &DataSubmessage,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+    ) -> DdsResult<()> {
+        let change = RtpsReaderCacheChange::try_from_data_submessage(
+            data,
+            source_timestamp,
+            source_guid_prefix,
+        )?;
         let change_instance_handle = self
             .instance_handle_builder
             .build_instance_handle(&change)?;
@@ -172,21 +183,18 @@ impl RtpsReader {
             if num_instance_samples >= self.qos.history.depth {
                 // Remove the lowest sequence number for the instance handle of the cache change
                 // Only one sample is to be removed since cache changes come one by one
-                let min_seq_num = self
+                let oldest_sample_index = self
                     .changes
                     .iter()
-                    .filter(|cc| {
+                    .position(|cc| {
                         self.instance_handle_builder
                             .build_instance_handle(cc)
                             .unwrap()
                             == change_instance_handle
                             && cc.kind() == ChangeKind::Alive
                     })
-                    .map(|cc| cc.sequence_number())
-                    .min()
                     .expect("If there are samples there must be a min sequence number");
-
-                self.remove_change(|c| c.sequence_number() == min_seq_num);
+                self.changes.remove(oldest_sample_index);
             }
         }
 
@@ -258,13 +266,6 @@ impl RtpsReader {
         } else {
             Err(DdsError::OutOfResources)
         }
-    }
-
-    pub fn remove_change<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&RtpsReaderCacheChange) -> bool,
-    {
-        self.changes.retain(|cc| !f(cc));
     }
 
     pub fn get_qos(&self) -> &DataReaderQos {
@@ -466,7 +467,15 @@ mod tests {
     use std::sync::mpsc::sync_channel;
 
     use crate::{
-        implementation::rtps::types::{ChangeKind, TopicKind, GUID_UNKNOWN},
+        implementation::rtps::{
+            messages::submessage_elements::{
+                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
+                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            },
+            types::{
+                SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
+            },
+        },
         infrastructure::{
             error::DdsError,
             qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
@@ -482,6 +491,60 @@ mod tests {
         let mut writer = Vec::<u8>::new();
         value.serialize::<_, LittleEndian>(&mut writer).unwrap();
         writer
+    }
+
+    fn create_data_submessage_for_alive_change(
+        data: &[u8],
+        sequence_number: SequenceNumber,
+    ) -> DataSubmessage {
+        DataSubmessage {
+            endianness_flag: false,
+            inline_qos_flag: false,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN.into(),
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN.into(),
+            },
+            writer_sn: SequenceNumberSubmessageElement {
+                value: sequence_number,
+            },
+            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        }
+    }
+
+    fn create_data_submessage_for_disposed_change(
+        data: &[u8],
+        sequence_number: SequenceNumber,
+    ) -> DataSubmessage {
+        DataSubmessage {
+            endianness_flag: false,
+            inline_qos_flag: false,
+            data_flag: false,
+            key_flag: true,
+            non_standard_payload_flag: false,
+            reader_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN.into(),
+            },
+            writer_id: EntityIdSubmessageElement {
+                value: ENTITYID_UNKNOWN.into(),
+            },
+            writer_sn: SequenceNumberSubmessageElement {
+                value: sequence_number,
+            },
+            inline_qos: ParameterListSubmessageElement {
+                parameter: vec![Parameter {
+                    parameter_id: 0x71,
+                    length: 4,
+                    value: &[0, 0, 0, 1],
+                }],
+            },
+            serialized_payload: SerializedDataSubmessageElement { value: data },
+        }
     }
 
     #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
@@ -552,24 +615,21 @@ mod tests {
         );
         let data1 = UnkeyedType { data: [1; 5] };
         let data2 = UnkeyedType { data: [2; 5] };
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2),
-            vec![],
-            None,
-        );
-        reader.add_change(change1).unwrap();
-        reader.add_change(change2.clone()).unwrap();
+
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -618,43 +678,35 @@ mod tests {
             data: [2; 5],
         };
 
-        let change1_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1_instance1),
-            vec![],
-            None,
-        );
-        let change2_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2_instance1),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance1).unwrap();
-        reader.add_change(change2_instance1.clone()).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
+                Some(Time { sec: 1, nanosec: 0 }),
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 2),
+                Some(Time { sec: 1, nanosec: 0 }),
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
-        let change1_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1_instance2),
-            vec![],
-            None,
-        );
-        let change2_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2_instance2),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance2).unwrap();
-        reader.add_change(change2_instance2.clone()).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 3),
+                Some(Time { sec: 1, nanosec: 0 }),
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 4),
+                Some(Time { sec: 1, nanosec: 0 }),
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -704,42 +756,34 @@ mod tests {
         let data3 = UnkeyedType { data: [3; 5] };
         let data4 = UnkeyedType { data: [4; 5] };
 
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2),
-            vec![],
-            None,
-        );
-        let change3 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            3,
-            to_bytes_le(&data3),
-            vec![],
-            None,
-        );
-        let change4 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            4,
-            to_bytes_le(&data4),
-            vec![],
-            None,
-        );
-        reader.add_change(change1).unwrap();
-        reader.add_change(change2.clone()).unwrap();
-        reader.add_change(change3.clone()).unwrap();
-        reader.add_change(change4.clone()).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data3), 3),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data4), 4),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -789,42 +833,34 @@ mod tests {
             data: [4; 5],
         };
 
-        let change1_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1_instance1),
-            vec![],
-            None,
-        );
-        let change2_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2_instance1),
-            vec![],
-            None,
-        );
-        let change3_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            3,
-            to_bytes_le(&data3_instance1),
-            vec![],
-            None,
-        );
-        let change4_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            4,
-            to_bytes_le(&data4_instance1),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance1).unwrap();
-        reader.add_change(change2_instance1.clone()).unwrap();
-        reader.add_change(change3_instance1.clone()).unwrap();
-        reader.add_change(change4_instance1.clone()).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance1), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let data1_instance2 = KeyedType {
             key: 2,
@@ -843,42 +879,34 @@ mod tests {
             data: [4; 5],
         };
 
-        let change1_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&data1_instance2),
-            vec![],
-            None,
-        );
-        let change2_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&data2_instance2),
-            vec![],
-            None,
-        );
-        let change3_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            3,
-            to_bytes_le(&data3_instance2),
-            vec![],
-            None,
-        );
-        let change4_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            4,
-            to_bytes_le(&data4_instance2),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance2).unwrap();
-        reader.add_change(change2_instance2.clone()).unwrap();
-        reader.add_change(change3_instance2.clone()).unwrap();
-        reader.add_change(change4_instance2.clone()).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance2), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance2), 1),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -930,25 +958,28 @@ mod tests {
             sender,
         );
 
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&UnkeyedType { data: [1; 5] }),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&UnkeyedType { data: [1; 5] }),
-            vec![],
-            None,
-        );
-        reader.add_change(change1).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&UnkeyedType { data: [1; 5] }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
-        assert_eq!(reader.add_change(change2), Err(DdsError::OutOfResources));
+        assert_eq!(
+            reader.add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&UnkeyedType { data: [1; 5] }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            ),
+            Err(DdsError::OutOfResources)
+        );
     }
 
     #[test]
@@ -976,32 +1007,32 @@ mod tests {
             sender,
         );
 
-        let change1_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change1_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 2,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance1).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         assert_eq!(
-            reader.add_change(change1_instance2),
+            reader.add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 2,
+                        data: [1; 5],
+                    }),
+                    1
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            ),
             Err(DdsError::OutOfResources)
         );
     }
@@ -1031,44 +1062,45 @@ mod tests {
             sender,
         );
 
-        let change1_instance1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change1_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 2,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change2_instance2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            3,
-            to_bytes_le(&KeyedType {
-                key: 2,
-                data: [2; 5],
-            }),
-            vec![],
-            None,
-        );
-        reader.add_change(change1_instance1).unwrap();
-        reader.add_change(change1_instance2).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 2,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         assert_eq!(
-            reader.add_change(change2_instance2),
+            reader.add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 2,
+                        data: [2; 5],
+                    }),
+                    1
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            ),
             Err(DdsError::OutOfResources)
         );
     }
@@ -1093,81 +1125,86 @@ mod tests {
             sender,
         );
 
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [2; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change3 = RtpsReaderCacheChange::new(
-            ChangeKind::NotAliveDisposed,
-            GUID_UNKNOWN,
-            2,
-            KeyedType {
-                key: 1,
-                data: [0; 5],
-            }
-            .get_serialized_key::<LittleEndian>(),
-            vec![],
-            None,
-        );
-        let change4 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [4; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change5 = RtpsReaderCacheChange::new(
-            ChangeKind::NotAliveDisposed,
-            GUID_UNKNOWN,
-            2,
-            KeyedType {
-                key: 1,
-                data: [0; 5],
-            }
-            .get_serialized_key::<LittleEndian>(),
-            vec![],
-            None,
-        );
-        let change6 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [6; 5],
-            }),
-            vec![],
-            None,
-        );
-
-        reader.add_change(change1).unwrap();
-        reader.add_change(change2).unwrap();
-        reader.add_change(change3).unwrap();
-        reader.add_change(change4).unwrap();
-        reader.add_change(change5).unwrap();
-        reader.add_change(change6).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [2; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_disposed_change(
+                    &KeyedType {
+                        key: 1,
+                        data: [0; 5],
+                    }
+                    .get_serialized_key::<LittleEndian>(),
+                    3,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [4; 5],
+                    }),
+                    4,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_disposed_change(
+                    &KeyedType {
+                        key: 1,
+                        data: [0; 5],
+                    }
+                    .get_serialized_key::<LittleEndian>(),
+                    5,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [6; 5],
+                    }),
+                    6,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -1202,81 +1239,86 @@ mod tests {
             sender,
         );
 
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [2; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change3 = RtpsReaderCacheChange::new(
-            ChangeKind::NotAliveDisposed,
-            GUID_UNKNOWN,
-            2,
-            KeyedType {
-                key: 1,
-                data: [0; 5],
-            }
-            .get_serialized_key::<LittleEndian>(),
-            vec![],
-            None,
-        );
-        let change4 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [4; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change5 = RtpsReaderCacheChange::new(
-            ChangeKind::NotAliveDisposed,
-            GUID_UNKNOWN,
-            2,
-            KeyedType {
-                key: 1,
-                data: [0; 5],
-            }
-            .get_serialized_key::<LittleEndian>(),
-            vec![],
-            None,
-        );
-        let change6 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [6; 5],
-            }),
-            vec![],
-            None,
-        );
-
-        reader.add_change(change1).unwrap();
-        reader.add_change(change2).unwrap();
-        reader.add_change(change3).unwrap();
-        reader.add_change(change4).unwrap();
-        reader.add_change(change5).unwrap();
-        reader.add_change(change6).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [2; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_disposed_change(
+                    &KeyedType {
+                        key: 1,
+                        data: [0; 5],
+                    }
+                    .get_serialized_key::<LittleEndian>(),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [4; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_disposed_change(
+                    &KeyedType {
+                        key: 1,
+                        data: [0; 5],
+                    }
+                    .get_serialized_key::<LittleEndian>(),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [6; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<KeyedType>(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -1313,57 +1355,58 @@ mod tests {
             sender,
         );
 
-        let change1 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            1,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [1; 5],
-            }),
-            vec![],
-            None,
-        );
-        let change2 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [2; 5],
-            }),
-            vec![],
-            None,
-        );
-
-        let change3 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [3; 5],
-            }),
-            vec![],
-            None,
-        );
-
-        let change4 = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            2,
-            to_bytes_le(&KeyedType {
-                key: 1,
-                data: [4; 5],
-            }),
-            vec![],
-            None,
-        );
-
-        reader.add_change(change1).unwrap();
-        reader.add_change(change2).unwrap();
-        reader.add_change(change3).unwrap();
-        reader.add_change(change4).unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [1; 5],
+                    }),
+                    1,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [2; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [3; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
+        reader
+            .add_change(
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&KeyedType {
+                        key: 1,
+                        data: [4; 5],
+                    }),
+                    2,
+                ),
+                None,
+                GUIDPREFIX_UNKNOWN,
+            )
+            .unwrap();
 
         let samples = reader
             .read::<KeyedType>(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
