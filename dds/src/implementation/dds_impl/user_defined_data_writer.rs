@@ -20,7 +20,7 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E, EntityKind},
         },
         utils::condvar::DdsCondvar,
     },
@@ -760,7 +760,7 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
                 unicast_locator_list: rtps_writer_lock.writer().unicast_locator_list().to_vec(),
                 multicast_locator_list: rtps_writer_lock.writer().multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([0; 3], 0),
+                remote_group_entity_id: EntityId::new([0; 3], EntityKind::UserDefinedUnknown),
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
@@ -1087,7 +1087,7 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
+                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1176,7 +1176,7 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
+                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],

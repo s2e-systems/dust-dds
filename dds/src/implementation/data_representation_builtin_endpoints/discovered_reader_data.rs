@@ -260,7 +260,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::GuidPrefix;
+    use crate::implementation::rtps::types::{EntityKind, GuidPrefix};
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
@@ -280,9 +280,12 @@ mod tests {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::from([5; 12]),
-                    EntityId::new([11, 12, 13], 15),
+                    EntityId::new([11, 12, 13], EntityKind::UserDefinedReaderWithKey),
                 ),
-                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
+                remote_group_entity_id: EntityId::new(
+                    [21, 22, 23],
+                    EntityKind::BuiltInWriterWithKey,
+                ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
@@ -315,7 +318,8 @@ mod tests {
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25, 0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
+            21, 22, 23, 0xc2, //
+            0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
             3, 0, 0, 0, // ,
@@ -343,9 +347,12 @@ mod tests {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
                     GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], 0),
+                    EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
                 ),
-                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
+                remote_group_entity_id: EntityId::new(
+                    [21, 22, 23],
+                    EntityKind::BuiltInWriterWithKey,
+                ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQosDeserialize::default().0,
@@ -378,7 +385,7 @@ mod tests {
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25, // u8[3], u8
+            21, 22, 23, 0xc2, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,

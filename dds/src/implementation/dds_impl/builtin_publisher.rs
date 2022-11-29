@@ -1,7 +1,7 @@
 use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
 use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
-    EntityId, Guid, GuidPrefix, Locator, BUILT_IN_WRITER_GROUP,
+    EntityId, Guid, GuidPrefix, Locator, EntityKind,
 };
 
 use crate::implementation::rtps::group::RtpsGroupImpl;
@@ -40,7 +40,7 @@ impl BuiltinPublisher {
     ) -> DdsShared<Self> {
         let qos = PublisherQos::default();
 
-        let entity_id = EntityId::new([0, 0, 0], BUILT_IN_WRITER_GROUP);
+        let entity_id = EntityId::new([0, 0, 0], EntityKind::BuiltInWriterGroup);
         let guid = Guid::new(guid_prefix, entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
 
