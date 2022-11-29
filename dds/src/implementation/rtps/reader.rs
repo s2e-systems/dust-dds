@@ -4,7 +4,13 @@ use std::{
 };
 
 use crate::{
-    implementation::dds_impl::status_condition_impl::StatusConditionImpl,
+    implementation::{
+        data_representation_inline_qos::{
+            parameter_id_values::PID_STATUS_INFO,
+            types::{StatusInfo, STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+        },
+        dds_impl::status_condition_impl::StatusConditionImpl,
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -22,10 +28,20 @@ use crate::{
 
 use super::{
     endpoint::RtpsEndpoint,
-    messages::submessages::DataSubmessage,
-    reader_cache_change::RtpsReaderCacheChange,
+    history_cache::RtpsParameter,
+    messages::{submessages::DataSubmessage, types::ParameterId},
     types::{ChangeKind, Guid, GuidPrefix},
 };
+
+pub struct RtpsReaderCacheChange {
+    kind: ChangeKind,
+    writer_guid: Guid,
+    data: Vec<u8>,
+    source_timestamp: Option<Time>,
+    sample_state: SampleStateKind,
+    disposed_generation_count: i32,
+    no_writers_generation_count: i32,
+}
 
 struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
 
@@ -37,14 +53,14 @@ impl InstanceHandleBuilder {
         Self(Foo::deserialize_key)
     }
 
-    fn build_instance_handle(&self, change: &RtpsReaderCacheChange) -> DdsResult<InstanceHandle> {
-        Ok(match change.kind() {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => {
-                (self.0)(change.data_value())?.as_slice().into()
-            }
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                change.data_value().into()
-            }
+    fn build_instance_handle(
+        &self,
+        change_kind: ChangeKind,
+        data: &[u8],
+    ) -> DdsResult<InstanceHandle> {
+        Ok(match change_kind {
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.as_slice().into(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => data.into(),
         })
     }
 }
@@ -152,31 +168,65 @@ impl RtpsReader {
 
     pub fn add_change(
         &mut self,
-        data: &DataSubmessage,
+        data_submessage: &DataSubmessage,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
     ) -> DdsResult<()> {
-        let change = RtpsReaderCacheChange::try_from_data_submessage(
-            data,
-            source_timestamp,
-            source_guid_prefix,
-        )?;
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value.into());
+
+        let data = data_submessage.serialized_payload.value.to_vec();
+
+        let inline_qos: Vec<RtpsParameter> = data_submessage
+            .inline_qos
+            .parameter
+            .iter()
+            .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
+            .collect();
+
+        let change_kind = match (data_submessage.data_flag, data_submessage.key_flag) {
+            (true, false) => Ok(ChangeKind::Alive),
+            (false, true) => {
+                if let Some(p) = inline_qos
+                    .iter()
+                    .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+                {
+                    let mut deserializer =
+                        cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+                    let status_info: StatusInfo =
+                        serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    match status_info {
+                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
+                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                        _ => Err(DdsError::PreconditionNotMet(
+                            "Unknown status info value".to_string(),
+                        )),
+                    }
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Missing mandatory StatusInfo parameter".to_string(),
+                    ))
+                }
+            }
+            _ => Err(DdsError::PreconditionNotMet(
+                "Invalid data submessage data and key flag combination".to_string(),
+            )),
+        }?;
         let change_instance_handle = self
             .instance_handle_builder
-            .build_instance_handle(&change)?;
+            .build_instance_handle(change_kind, data.as_slice())?;
 
         if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
-            && change.kind() == ChangeKind::Alive
+            && change_kind == ChangeKind::Alive
         {
             let num_instance_samples = self
                 .changes
                 .iter()
                 .filter(|cc| {
                     self.instance_handle_builder
-                        .build_instance_handle(cc)
+                        .build_instance_handle(change_kind, cc.data.as_slice())
                         .unwrap()
                         == change_instance_handle
-                        && cc.kind() == ChangeKind::Alive
+                        && cc.kind == ChangeKind::Alive
                 })
                 .count() as i32;
 
@@ -188,10 +238,10 @@ impl RtpsReader {
                     .iter()
                     .position(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc)
+                            .build_instance_handle(change_kind, cc.data.as_slice())
                             .unwrap()
                             == change_instance_handle
-                            && cc.kind() == ChangeKind::Alive
+                            && cc.kind == ChangeKind::Alive
                     })
                     .expect("If there are samples there must be a min sequence number");
                 self.changes.remove(oldest_sample_index);
@@ -203,7 +253,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(cc)
+                    .build_instance_handle(cc.kind, cc.data.as_slice())
                     .unwrap()
             })
             .collect();
@@ -225,7 +275,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc)
+                            .build_instance_handle(change_kind, cc.data.as_slice())
                             .unwrap()
                             == change_instance_handle
                     })
@@ -241,17 +291,27 @@ impl RtpsReader {
                 .entry(change_instance_handle)
                 .or_insert_with(Instance::new);
 
-            instance_entry.update_state(change.kind());
+            instance_entry.update_state(change_kind);
+
+            let change = RtpsReaderCacheChange {
+                kind: change_kind,
+                writer_guid,
+                data,
+                source_timestamp,
+                sample_state: SampleStateKind::NotRead,
+                disposed_generation_count: instance_entry.most_recent_disposed_generation_count,
+                no_writers_generation_count: instance_entry.most_recent_no_writers_generation_count,
+            };
 
             self.changes.push(change);
 
             if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
                 self.changes.sort_by(|a, b| {
-                    a.source_timestamp()
+                    a.source_timestamp
                         .as_ref()
                         .expect("Missing source timestamp")
                         .cmp(
-                            b.source_timestamp()
+                            b.source_timestamp
                                 .as_ref()
                                 .expect("Missing source timestamp"),
                         )
@@ -297,10 +357,11 @@ impl RtpsReader {
             .changes
             .iter_mut()
             .filter(|cc| {
-                let sample_instance_handle =
-                    instance_handle_build.build_instance_handle(cc).unwrap();
+                let sample_instance_handle = instance_handle_build
+                    .build_instance_handle(cc.kind, cc.data.as_slice())
+                    .unwrap();
 
-                sample_states.contains(&cc.sample_state())
+                sample_states.contains(&cc.sample_state)
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
                     && instance_states.contains(&instances[&sample_instance_handle].instance_state)
             })
@@ -309,7 +370,7 @@ impl RtpsReader {
         {
             let sample_instance_handle = self
                 .instance_handle_builder
-                .build_instance_handle(cache_change)
+                .build_instance_handle(cache_change.kind, cache_change.data.as_slice())
                 .unwrap();
             instances_in_collection
                 .entry(sample_instance_handle)
@@ -318,8 +379,8 @@ impl RtpsReader {
             instances_in_collection
                 .get_mut(&sample_instance_handle)
                 .unwrap()
-                .update_state(cache_change.kind());
-            let sample_state = cache_change.sample_state();
+                .update_state(cache_change.kind);
+            let sample_state = cache_change.sample_state;
             let view_state = self.instances[&sample_instance_handle].view_state;
             let instance_state = self.instances[&sample_instance_handle].instance_state;
 
@@ -331,9 +392,11 @@ impl RtpsReader {
                     + instances_in_collection[&sample_instance_handle]
                         .most_recent_no_writers_generation_count);
 
-            let (data, valid_data) = match cache_change.kind() {
+            let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(DdsDeserialize::deserialize(&mut cache_change.data_value())?),
+                    Some(DdsDeserialize::deserialize(
+                        &mut cache_change.data.as_slice(),
+                    )?),
                     true,
                 ),
                 ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (None, false),
@@ -343,14 +406,14 @@ impl RtpsReader {
                 sample_state,
                 view_state,
                 instance_state,
-                disposed_generation_count: 0,
-                no_writers_generation_count: 0,
-                sample_rank: 0,
+                disposed_generation_count: cache_change.disposed_generation_count,
+                no_writers_generation_count: cache_change.no_writers_generation_count,
+                sample_rank: 0,     // To be filled up after collection is created
                 generation_rank: 0, // To be filled up after collection is created
                 absolute_generation_rank,
-                source_timestamp: *cache_change.source_timestamp(),
+                source_timestamp: cache_change.source_timestamp,
                 instance_handle: sample_instance_handle,
-                publication_handle: cache_change.writer_guid().into(),
+                publication_handle: cache_change.writer_guid.into(),
                 valid_data,
             };
 
@@ -423,7 +486,7 @@ impl RtpsReader {
         (change_index_list, samples) = indexed_sample_list.into_iter().map(|(i, s)| (i, s)).unzip();
 
         for index in change_index_list {
-            self.changes[index].mark_read();
+            self.changes[index].sample_state = SampleStateKind::Read;
         }
 
         Ok(samples)
