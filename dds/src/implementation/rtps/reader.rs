@@ -1283,7 +1283,7 @@ mod tests {
     }
 
     #[test]
-    fn reader_sample_info_generation_rank() {
+    fn reader_sample_info_generation_rank_and_count() {
         let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
@@ -1390,12 +1390,23 @@ mod tests {
         assert_eq!(samples.len(), 4);
         assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
         assert_eq!(samples[0].sample_info.generation_rank, 1);
+        assert_eq!(samples[0].sample_info.disposed_generation_count, 0);
+        assert_eq!(samples[0].sample_info.no_writers_generation_count, 0);
+
         assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
         assert_eq!(samples[1].sample_info.generation_rank, 1);
+        assert_eq!(samples[1].sample_info.disposed_generation_count, 0);
+        assert_eq!(samples[1].sample_info.no_writers_generation_count, 0);
+
         assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
         assert_eq!(samples[2].sample_info.generation_rank, 1);
+        assert_eq!(samples[2].sample_info.disposed_generation_count, 0);
+        assert_eq!(samples[2].sample_info.no_writers_generation_count, 0);
+
         assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
         assert_eq!(samples[3].sample_info.generation_rank, 0);
+        assert_eq!(samples[3].sample_info.disposed_generation_count, 1);
+        assert_eq!(samples[3].sample_info.no_writers_generation_count, 0);
     }
 
     #[test]
