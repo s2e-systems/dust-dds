@@ -2,7 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{DeadlineQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{RequestedDeadlineMissedStatus, StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -72,6 +72,9 @@ fn deadline_missed_listener() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
+        deadline: DeadlineQosPolicy {
+            period: Duration::new(1, 0),
+        },
         ..Default::default()
     };
 
@@ -109,4 +112,6 @@ fn deadline_missed_listener() {
         .unwrap();
 
     assert_eq!(samples.len(), 1);
+
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }
