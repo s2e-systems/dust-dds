@@ -41,6 +41,7 @@ pub struct RtpsReaderCacheChange {
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
+    reception_timestamp: Time,
 }
 
 struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
@@ -132,6 +133,7 @@ pub struct RtpsReader {
     status_condition: StatusConditionImpl,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
+    instance_reception_time: HashMap<InstanceHandle, Time>,
     notifications_sender: SyncSender<ReceivedDataChannel>,
     data_available: bool,
 }
@@ -159,6 +161,7 @@ impl RtpsReader {
             status_condition: StatusConditionImpl::default(),
             instance_handle_builder,
             instances: HashMap::new(),
+            instance_reception_time: HashMap::new(),
             notifications_sender,
             data_available: false,
         }
@@ -304,21 +307,30 @@ impl RtpsReader {
                 sample_state: SampleStateKind::NotRead,
                 disposed_generation_count: instance_entry.most_recent_disposed_generation_count,
                 no_writers_generation_count: instance_entry.most_recent_no_writers_generation_count,
+                reception_timestamp,
             };
 
             self.changes.push(change);
 
-            if self.qos.destination_order.kind == DestinationOrderQosPolicyKind::BySourceTimestamp {
-                self.changes.sort_by(|a, b| {
-                    a.source_timestamp
-                        .as_ref()
-                        .expect("Missing source timestamp")
-                        .cmp(
-                            b.source_timestamp
-                                .as_ref()
-                                .expect("Missing source timestamp"),
-                        )
-                });
+            self.instance_reception_time
+                .insert(change_instance_handle, reception_timestamp);
+
+            match self.qos.destination_order.kind {
+                DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                    self.changes.sort_by(|a, b| {
+                        a.source_timestamp
+                            .as_ref()
+                            .expect("Missing source timestamp")
+                            .cmp(
+                                b.source_timestamp
+                                    .as_ref()
+                                    .expect("Missing source timestamp"),
+                            )
+                    });
+                }
+                DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                    .changes
+                    .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
             }
 
             self.data_available = true;
@@ -540,6 +552,17 @@ impl RtpsReader {
         let data_available = self.data_available;
         self.data_available = false;
         data_available
+    }
+
+    pub fn get_deadline_missed_instances(&mut self, now: Time) -> Vec<InstanceHandle> {
+        let (missed_deadline_instances, instance_reception_time) = self
+            .instance_reception_time
+            .iter()
+            .partition(|&(_, received_time)| now - *received_time > self.qos.deadline.period);
+
+        self.instance_reception_time = instance_reception_time;
+
+        missed_deadline_instances.iter().map(|(i, _)| *i).collect()
     }
 }
 

@@ -14,7 +14,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{Guid, GuidPrefix},
+            types::GuidPrefix,
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -31,7 +31,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::Duration,
+        time::{Duration, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -745,43 +745,20 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.write_lock().send_message(transport);
     }
 
-    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
-        if self.rtps_reader.read_lock().reader().guid() == guid {
-            self.status_condition
-                .write_lock()
-                .add_communication_state(status_kind);
-
-            if let Some(listener) = self.listener.write_lock().as_mut() {
-                match status_kind {
-                    StatusKind::InconsistentTopic => todo!(),
-                    StatusKind::OfferedDeadlineMissed => unimplemented!(),
-                    StatusKind::RequestedDeadlineMissed => {
-                        let status = self.get_requested_deadline_missed_status().unwrap();
-                        listener.trigger_on_requested_deadline_missed(self, status);
-                    }
-                    StatusKind::OfferedIncompatibleQos => todo!(),
-                    StatusKind::RequestedIncompatibleQos => todo!(),
-                    StatusKind::SampleLost => todo!(),
-                    StatusKind::SampleRejected => todo!(),
-                    StatusKind::DataOnReaders => todo!(),
-                    StatusKind::DataAvailable => {
-                        listener.trigger_on_data_available(self);
-                    }
-                    StatusKind::LivelinessLost => todo!(),
-                    StatusKind::LivelinessChanged => todo!(),
-                    StatusKind::PublicationMatched => todo!(),
-                    StatusKind::SubscriptionMatched => todo!(),
-                }
-            }
-        }
-    }
-
-    pub fn update_communication_status(&self) {
+    pub fn update_communication_status(&self, now: Time) {
         let mut rtps_reader = self.rtps_reader.write_lock();
 
         if rtps_reader.reader_mut().is_data_available() {
             self.on_data_available()
         };
+
+        if !rtps_reader
+            .reader_mut()
+            .get_deadline_missed_instances(now)
+            .is_empty()
+        {
+            self.on_requested_deadline_missed()
+        }
     }
 
     fn on_data_available(&self) {
@@ -791,6 +768,17 @@ impl DdsShared<UserDefinedDataReader> {
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             listener.trigger_on_data_available(self);
+        }
+    }
+
+    fn on_requested_deadline_missed(&self) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedDeadlineMissed);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            let status = self.get_requested_deadline_missed_status().unwrap();
+            listener.trigger_on_requested_deadline_missed(self, status);
         }
     }
 }

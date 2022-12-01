@@ -11,7 +11,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::qos::QosKind;
 use crate::infrastructure::status::{SampleLostStatus, StatusKind};
-use crate::infrastructure::time::DURATION_ZERO;
+use crate::infrastructure::time::{DURATION_ZERO, Time};
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::topic_definition::type_support::DdsDeserialize;
 use crate::{
@@ -230,15 +230,9 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn update_communication_status(&self) {
+    pub fn update_communication_status(&self, now: Time) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.update_communication_status();
-        }
-    }
-
-    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_notification_received(guid, status_kind)
+            data_reader.update_communication_status(now);
         }
     }
 }

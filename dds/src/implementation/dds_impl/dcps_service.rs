@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
@@ -20,7 +19,6 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::DomainParticipantQos,
-        status::StatusKind,
         time::{Duration, Time},
     },
 };
@@ -72,36 +70,13 @@ impl DcpsService {
         {
             let domain_participant = participant.clone();
             let task_quit = quit.clone();
-            let mut instances = HashMap::new();
 
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
-                if let Ok(notification) = notifications_receiver.try_recv() {
-                    instances.insert(
-                        (notification.guid, notification.instance_handle),
-                        (notification.time, notification.deadline),
-                    );
-                }
 
-                // Remove all instances for which the deadline has expired to prevent calling two times
-                let (deadline_elapsed_instances, valid_instances): (HashMap<_, _>, HashMap<_, _>) =
-                    instances.into_iter().partition(
-                        |(_, (reception_timestamp, deadline_period))| {
-                            domain_participant.get_current_time().unwrap() - *reception_timestamp
-                                > *deadline_period
-                        },
-                    );
-
-                for ((guid, _), _) in deadline_elapsed_instances {
-                    domain_participant
-                        .on_notification_received(guid, StatusKind::RequestedDeadlineMissed);
-                }
-
-                instances = valid_instances;
-
-                domain_participant.update_communication_status();
+                domain_participant.update_communication_status().ok();
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
