@@ -11,7 +11,7 @@ use std::ops::AddAssign;
 /// The following values are reserved by the protocol: GUID_UNKNOWN
 ///
 /// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -79,7 +79,7 @@ impl From<[u8; 16]> for Guid {
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
@@ -99,7 +99,7 @@ impl From<[u8; 12]> for GuidPrefix {
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.
 /// The following values are reserved by the protocol: ENTITYID_UNKNOWN Additional pre-defined values are defined by the Discovery module in 8.5
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct EntityId {
     entity_key: EntityKey,
     entity_kind: EntityKind,
@@ -154,9 +154,7 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: EntityKind::BuiltInParticipant,
 };
 
-// pub type EntityKind = u8;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EntityKind {
     UserDefinedUnknown,
     BuiltInUnknown,
@@ -182,10 +180,7 @@ impl serde::Serialize for EntityKind {
     where
         S: serde::Serializer,
     {
-        serde::Serialize::serialize(
-            &Into::<u8>::into(*self),
-            serializer,
-        )
+        serde::Serialize::serialize(&Into::<u8>::into(*self), serializer)
     }
 }
 
@@ -208,7 +203,8 @@ impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
 
 impl<'de> serde::Deserialize<'de> for EntityKind {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: serde::Deserializer<'de>
+    where
+        D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_u8(EntityKindVisitor)
     }

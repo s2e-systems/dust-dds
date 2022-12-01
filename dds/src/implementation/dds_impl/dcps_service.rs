@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
@@ -71,16 +72,30 @@ impl DcpsService {
         {
             let domain_participant = participant.clone();
             let task_quit = quit.clone();
+            let mut instances = HashMap::new();
 
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
-
                 if let Ok(notification) = notifications_receiver.try_recv() {
+                    instances.insert(
+                        (notification.guid, notification.instance_handle),
+                        (notification.time, notification.deadline),
+                    );
                     domain_participant
                         .on_notification_received(notification.guid, StatusKind::DataAvailable)
                 }
+
+                for (&(guid, _), &(reception_timestamp, deadline_period)) in instances.iter() {
+                    if domain_participant.get_current_time().unwrap() - reception_timestamp
+                        > deadline_period
+                    {
+                        domain_participant
+                            .on_notification_received(guid, StatusKind::RequestedDeadlineMissed);
+                    }
+                }
+
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
