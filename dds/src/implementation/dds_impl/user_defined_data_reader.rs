@@ -782,24 +782,19 @@ mod tests {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
-            reader_cache_change::RtpsReaderCacheChange,
-            types::{
-                ChangeKind, EntityId, Guid, SequenceNumber, TopicKind, ENTITYID_UNKNOWN,
-                GUID_UNKNOWN, EntityKind,
-            },
+            types::{EntityId, EntityKind, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
+        infrastructure::time::DURATION_ZERO,
         infrastructure::{
             qos::{SubscriberQos, TopicQos},
             qos_policy::{
                 DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-                LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                GroupDataQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
                 ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
                 UserDataQosPolicy,
             },
         },
-        infrastructure::{qos_policy::HistoryQosPolicyKind, time::DURATION_ZERO},
-        subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::DdsSerialize,
     };
     use crate::{
@@ -845,112 +840,6 @@ mod tests {
         }
     }
 
-    fn cache_change(value: u8, sn: SequenceNumber) -> RtpsReaderCacheChange {
-        let cache_change = RtpsReaderCacheChange::new(
-            ChangeKind::Alive,
-            GUID_UNKNOWN,
-            sn,
-            vec![value],
-            vec![],
-            None,
-        );
-
-        cache_change
-    }
-
-    fn reader_with_changes(
-        changes: Vec<RtpsReaderCacheChange>,
-    ) -> DdsShared<UserDefinedDataReader> {
-        let (notifications_sender, _notifications_receiver) = sync_channel(10);
-        let qos = DataReaderQos {
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-                depth: 0,
-            },
-            ..Default::default()
-        };
-        let mut stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            notifications_sender,
-        ));
-        for change in changes {
-            stateful_reader.reader_mut().add_change(change).unwrap();
-        }
-
-        let data_reader = UserDefinedDataReader::new(
-            stateful_reader,
-            TopicImpl::new(
-                GUID_UNKNOWN,
-                Default::default(),
-                "type_name",
-                "topic_name",
-                DdsWeak::new(),
-            ),
-            None,
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        *data_reader.enabled.write_lock() = true;
-        data_reader
-    }
-
-    #[test]
-    fn read_all_samples() {
-        let reader = DdsShared::new(reader_with_changes(vec![
-            cache_change(1, 1),
-            cache_change(0, 2),
-            cache_change(2, 3),
-            cache_change(5, 4),
-        ]));
-
-        let all_samples: Vec<Sample<UserData>> = reader
-            .read(
-                i32::MAX,
-                ANY_SAMPLE_STATE,
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .unwrap();
-        assert_eq!(4, all_samples.len());
-
-        assert_eq!(
-            vec![1, 0, 2, 5],
-            all_samples
-                .into_iter()
-                .map(|s| s.data.unwrap().0)
-                .collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn read_only_unread() {
-        let reader = reader_with_changes(vec![cache_change(1, 1)]);
-
-        let unread_samples = reader
-            .read::<UserData>(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .unwrap();
-
-        assert_eq!(1, unread_samples.len());
-
-        assert!(reader
-            .read::<UserData>(
-                i32::MAX,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            )
-            .is_err());
-    }
-
     mock! {
         Listener {}
         impl AnyDataReaderListener for Listener {
@@ -991,7 +880,10 @@ mod tests {
     #[test]
     fn get_instance_handle() {
         let (notifications_sender, _notifications_receiver) = sync_channel(1);
-        let guid = Guid::new(GuidPrefix::from([4; 12]), EntityId::new([3; 3], EntityKind::BuiltInParticipant));
+        let guid = Guid::new(
+            GuidPrefix::from([4; 12]),
+            EntityId::new([3; 3], EntityKind::BuiltInParticipant),
+        );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
         let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
@@ -1077,7 +969,10 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
+                remote_writer_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1165,7 +1060,10 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
+                remote_writer_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
