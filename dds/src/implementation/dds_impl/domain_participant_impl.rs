@@ -1004,6 +1004,12 @@ impl DdsShared<DomainParticipantImpl> {
             .unwrap();
     }
 
+    pub fn update_communication_status(&self) {
+        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+            subscriber.update_communication_status();
+        }
+    }
+
     pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
         match guid.entity_id().entity_kind() {
             crate::implementation::rtps::types::EntityKind::UserDefinedReaderNoKey

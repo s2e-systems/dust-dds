@@ -775,6 +775,24 @@ impl DdsShared<UserDefinedDataReader> {
             }
         }
     }
+
+    pub fn update_communication_status(&self) {
+        let mut rtps_reader = self.rtps_reader.write_lock();
+
+        if rtps_reader.reader_mut().is_data_available() {
+            self.on_data_available()
+        };
+    }
+
+    fn on_data_available(&self) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            listener.trigger_on_data_available(self);
+        }
+    }
 }
 
 #[cfg(test)]

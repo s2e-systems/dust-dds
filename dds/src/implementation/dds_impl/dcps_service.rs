@@ -83,8 +83,6 @@ impl DcpsService {
                         (notification.guid, notification.instance_handle),
                         (notification.time, notification.deadline),
                     );
-                    domain_participant
-                        .on_notification_received(notification.guid, StatusKind::DataAvailable)
                 }
 
                 // Remove all instances for which the deadline has expired to prevent calling two times
@@ -102,6 +100,8 @@ impl DcpsService {
                 }
 
                 instances = valid_instances;
+
+                domain_participant.update_communication_status();
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }

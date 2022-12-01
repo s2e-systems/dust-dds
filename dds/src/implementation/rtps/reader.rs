@@ -133,6 +133,7 @@ pub struct RtpsReader {
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
     notifications_sender: SyncSender<ReceivedDataChannel>,
+    data_available: bool,
 }
 
 impl RtpsReader {
@@ -159,6 +160,7 @@ impl RtpsReader {
             instance_handle_builder,
             instances: HashMap::new(),
             notifications_sender,
+            data_available: false,
         }
     }
 
@@ -319,6 +321,8 @@ impl RtpsReader {
                 });
             }
 
+            self.data_available = true;
+
             self.notifications_sender
                 .send(ReceivedDataChannel {
                     guid: self.endpoint.guid(),
@@ -459,6 +463,8 @@ impl RtpsReader {
                 .mark_viewed()
         }
 
+        self.data_available = false;
+
         if indexed_samples.is_empty() {
             Err(DdsError::NoData)
         } else {
@@ -528,6 +534,12 @@ impl RtpsReader {
         }
 
         Ok(samples)
+    }
+
+    pub fn is_data_available(&mut self) -> bool {
+        let data_available = self.data_available;
+        self.data_available = false;
+        data_available
     }
 }
 

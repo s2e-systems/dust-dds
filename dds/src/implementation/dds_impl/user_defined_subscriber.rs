@@ -230,6 +230,12 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
+    pub fn update_communication_status(&self) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.update_communication_status();
+        }
+    }
+
     pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.on_notification_received(guid, status_kind)
