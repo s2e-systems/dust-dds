@@ -87,15 +87,21 @@ impl DcpsService {
                         .on_notification_received(notification.guid, StatusKind::DataAvailable)
                 }
 
-                for (&(guid, _), &(reception_timestamp, deadline_period)) in instances.iter() {
-                    if domain_participant.get_current_time().unwrap() - reception_timestamp
-                        > deadline_period
-                    {
-                        domain_participant
-                            .on_notification_received(guid, StatusKind::RequestedDeadlineMissed);
-                    }
+                // Remove all instances for which the deadline has expired to prevent calling two times
+                let (deadline_elapsed_instances, valid_instances): (HashMap<_, _>, HashMap<_, _>) =
+                    instances.into_iter().partition(
+                        |(_, (reception_timestamp, deadline_period))| {
+                            domain_participant.get_current_time().unwrap() - *reception_timestamp
+                                > *deadline_period
+                        },
+                    );
+
+                for ((guid, _), _) in deadline_elapsed_instances {
+                    domain_participant
+                        .on_notification_received(guid, StatusKind::RequestedDeadlineMissed);
                 }
 
+                instances = valid_instances;
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }

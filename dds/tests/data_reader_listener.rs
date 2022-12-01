@@ -79,7 +79,10 @@ fn deadline_missed_listener() {
     };
 
     let mut reader_listener = MockDeadlineMissedListener::new();
-    reader_listener.expect_on_requested_deadline_missed().once();
+    reader_listener
+        .expect_on_requested_deadline_missed()
+        .once()
+        .return_const(());
 
     let reader = subscriber
         .create_datareader(
