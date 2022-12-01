@@ -205,6 +205,7 @@ impl RtpsStatefulReader {
                                         data_submessage,
                                         Some(message_receiver.timestamp()),
                                         message_receiver.source_guid_prefix(),
+                                        message_receiver.reception_timestamp(),
                                     )
                                     .ok();
                             }
@@ -217,6 +218,7 @@ impl RtpsStatefulReader {
                                     data_submessage,
                                     Some(message_receiver.timestamp()),
                                     message_receiver.source_guid_prefix(),
+                                    message_receiver.reception_timestamp(),
                                 )
                                 .ok();
                         }

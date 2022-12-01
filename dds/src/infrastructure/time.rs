@@ -1,3 +1,5 @@
+use std::ops::Sub;
+
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Duration {
     sec: i32,
@@ -24,6 +26,27 @@ impl Duration {
 pub struct Time {
     pub sec: i32,
     pub nanosec: u32,
+}
+
+impl Sub<Time> for Time {
+    type Output = Duration;
+
+    fn sub(self, rhs: Time) -> Self::Output {
+
+        if rhs.nanosec > self.nanosec {
+            Duration {
+                sec: self.sec - rhs.sec - 1,
+                nanosec: 1_000_000_000 - rhs.nanosec,
+            }
+        } else {
+            Duration {
+                sec: self.sec - rhs.sec,
+                nanosec: self.nanosec - rhs.nanosec,
+            }
+        }
+
+
+    }
 }
 
 const SEC_IN_NANOSEC: u64 = 1000000000;
@@ -75,5 +98,12 @@ mod tests {
         assert_eq!(time, expected_time);
 
         assert_eq!(value_u64, time_u64);
+    }
+
+    #[test]
+    fn time_subtraction()
+    {
+        let duration = Time{sec: 2, nanosec: 0} - Time{sec: 1, nanosec: 900_000_000};
+        assert_eq!(duration, Duration{ sec: 0, nanosec: 100_000_000 });
     }
 }

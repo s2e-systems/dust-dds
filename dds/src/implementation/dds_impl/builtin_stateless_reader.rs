@@ -19,15 +19,14 @@ use crate::{
         },
         utils::shared_object::{DdsRwLock, DdsShared},
     },
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        status::StatusKind,
-    },
+    infrastructure::error::{DdsError, DdsResult},
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{message_receiver::MessageReceiver, topic_impl::TopicImpl};
+use super::{
+    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver, topic_impl::TopicImpl,
+};
 
 pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
@@ -39,7 +38,7 @@ impl BuiltinStatelessReader {
     pub fn new<Foo>(
         guid: Guid,
         topic: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -94,6 +93,7 @@ impl DdsShared<BuiltinStatelessReader> {
                     data_submessage,
                     Some(message_receiver.timestamp()),
                     message_receiver.source_guid_prefix(),
+                    message_receiver.reception_timestamp(),
                 )
                 .ok();
         }

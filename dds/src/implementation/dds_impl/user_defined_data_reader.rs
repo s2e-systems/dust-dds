@@ -745,8 +745,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.write_lock().send_message(transport);
     }
 
-    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
-        let (guid, status_kind) = notification;
+    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
         if self.rtps_reader.read_lock().reader().guid() == guid {
             self.status_condition
                 .write_lock()
@@ -755,8 +754,11 @@ impl DdsShared<UserDefinedDataReader> {
             if let Some(listener) = self.listener.write_lock().as_mut() {
                 match status_kind {
                     StatusKind::InconsistentTopic => todo!(),
-                    StatusKind::OfferedDeadlineMissed => todo!(),
-                    StatusKind::RequestedDeadlineMissed => todo!(),
+                    StatusKind::OfferedDeadlineMissed => unimplemented!(),
+                    StatusKind::RequestedDeadlineMissed => {
+                        let status = self.get_requested_deadline_missed_status().unwrap();
+                        listener.trigger_on_requested_deadline_missed(self, status);
+                    }
                     StatusKind::OfferedIncompatibleQos => todo!(),
                     StatusKind::RequestedIncompatibleQos => todo!(),
                     StatusKind::SampleLost => todo!(),

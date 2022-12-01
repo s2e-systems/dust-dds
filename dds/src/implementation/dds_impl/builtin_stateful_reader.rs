@@ -38,7 +38,7 @@ use crate::{
         qos_policy::ReliabilityQosPolicyKind,
         status::{
             LivelinessChangedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
+            SampleRejectedStatus, SampleRejectedStatusKind, SubscriptionMatchedStatus,
         },
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
@@ -46,8 +46,8 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl,
+    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
 };
 
 pub struct BuiltinStatefulReader {
@@ -66,7 +66,7 @@ impl BuiltinStatefulReader {
     pub fn new<Foo>(
         guid: Guid,
         topic: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,

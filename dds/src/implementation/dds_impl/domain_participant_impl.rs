@@ -58,9 +58,9 @@ use crate::implementation::{
 
 use super::{
     builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::UserDefinedSubscriber,
+    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
@@ -114,7 +114,7 @@ pub struct DomainParticipantImpl {
     enabled: DdsRwLock<bool>,
     announce_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
-    notifications_sender: SyncSender<(Guid, StatusKind)>,
+    notifications_sender: SyncSender<ReceivedDataChannel>,
 }
 
 impl DomainParticipantImpl {
@@ -128,7 +128,7 @@ impl DomainParticipantImpl {
         metatraffic_multicast_locator_list: Vec<Locator>,
         announce_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -251,7 +251,10 @@ impl DdsShared<DomainParticipantImpl> {
         let publisher_counter = self
             .user_defined_publisher_counter
             .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new([publisher_counter, 0, 0], EntityKind::UserDefinedWriterGroup);
+        let entity_id = EntityId::new(
+            [publisher_counter, 0, 0],
+            EntityKind::UserDefinedWriterGroup,
+        );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let publisher_impl_shared = UserDefinedPublisher::new(
@@ -312,7 +315,10 @@ impl DdsShared<DomainParticipantImpl> {
         let subcriber_counter = self
             .user_defined_subscriber_counter
             .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new([subcriber_counter, 0, 0], EntityKind::UserDefinedWriterGroup);
+        let entity_id = EntityId::new(
+            [subcriber_counter, 0, 0],
+            EntityKind::UserDefinedWriterGroup,
+        );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber_shared = UserDefinedSubscriber::new(
@@ -817,14 +823,18 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn receive_built_in_data(&self, source_locator: Locator, message: RtpsMessage) {
-        MessageReceiver::new().process_message(
+    pub fn receive_built_in_data(
+        &self,
+        source_locator: Locator,
+        message: RtpsMessage,
+    ) -> DdsResult<()> {
+        MessageReceiver::new(self.get_current_time()?).process_message(
             self.rtps_participant.guid().prefix(),
             core::slice::from_ref(&self.builtin_publisher),
             core::slice::from_ref(&self.builtin_subscriber),
             source_locator,
             &message,
-        );
+        )
     }
 }
 
@@ -844,14 +854,18 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn receive_user_defined_data(&self, source_locator: Locator, message: RtpsMessage) {
-        MessageReceiver::new().process_message(
+    pub fn receive_user_defined_data(
+        &self,
+        source_locator: Locator,
+        message: RtpsMessage,
+    ) -> DdsResult<()> {
+        MessageReceiver::new(self.get_current_time()?).process_message(
             self.rtps_participant.guid().prefix(),
             self.user_defined_publisher_list.read_lock().as_slice(),
             self.user_defined_subscriber_list.read_lock().as_slice(),
             source_locator,
             &message,
-        );
+        )
     }
 }
 
@@ -990,13 +1004,12 @@ impl DdsShared<DomainParticipantImpl> {
             .unwrap();
     }
 
-    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
-        let (guid, _) = notification;
+    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
         match guid.entity_id().entity_kind() {
             crate::implementation::rtps::types::EntityKind::UserDefinedReaderNoKey
             | crate::implementation::rtps::types::EntityKind::UserDefinedReaderWithKey => {
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                    subscriber.on_notification_received(notification);
+                    subscriber.on_notification_received(guid, status_kind);
                 }
             }
             _ => (),

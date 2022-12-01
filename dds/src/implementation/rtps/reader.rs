@@ -9,7 +9,7 @@ use crate::{
             parameter_id_values::PID_STATUS_INFO,
             types::{StatusInfo, STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
-        dds_impl::status_condition_impl::StatusConditionImpl,
+        dds_impl::{dcps_service::ReceivedDataChannel, status_condition_impl::StatusConditionImpl},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -132,7 +132,7 @@ pub struct RtpsReader {
     status_condition: StatusConditionImpl,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
-    notifications_sender: SyncSender<(Guid, StatusKind)>,
+    notifications_sender: SyncSender<ReceivedDataChannel>,
 }
 
 impl RtpsReader {
@@ -142,7 +142,7 @@ impl RtpsReader {
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> Self
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -171,6 +171,7 @@ impl RtpsReader {
         data_submessage: &DataSubmessage,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
     ) -> DdsResult<()> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value.into());
 
@@ -319,7 +320,12 @@ impl RtpsReader {
             }
 
             self.notifications_sender
-                .send((self.endpoint.guid(), StatusKind::DataAvailable))
+                .send(ReceivedDataChannel {
+                    guid: self.endpoint.guid(),
+                    instance_handle: change_instance_handle,
+                    time: reception_timestamp,
+                    deadline: self.qos.deadline.period,
+                })
                 .ok();
 
             Ok(())
@@ -542,7 +548,7 @@ mod tests {
         infrastructure::{
             error::DdsError,
             qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
-            time::DURATION_ZERO,
+            time::{DURATION_ZERO, TIME_INVALID},
         },
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         topic_definition::type_support::{DdsSerde, DdsSerialize, DdsType, LittleEndian},
@@ -684,6 +690,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -691,6 +698,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -746,6 +754,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -753,6 +762,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 2),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -761,6 +771,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 3),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -768,6 +779,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 4),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -824,6 +836,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -831,6 +844,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -838,6 +852,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data3), 3),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -845,6 +860,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data4), 4),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -901,6 +917,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -908,6 +925,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -915,6 +933,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -922,6 +941,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance1), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -947,6 +967,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -954,6 +975,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -961,6 +983,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance2), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -968,6 +991,7 @@ mod tests {
                 &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance2), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1029,6 +1053,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1040,6 +1065,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             ),
             Err(DdsError::OutOfResources)
         );
@@ -1081,6 +1107,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1095,6 +1122,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             ),
             Err(DdsError::OutOfResources)
         );
@@ -1136,6 +1164,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1149,6 +1178,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1163,6 +1193,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             ),
             Err(DdsError::OutOfResources)
         );
@@ -1199,6 +1230,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1212,6 +1244,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1226,6 +1259,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1239,6 +1273,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1253,6 +1288,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1266,6 +1302,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1313,6 +1350,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1326,6 +1364,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1340,6 +1379,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1353,6 +1393,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1367,6 +1408,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1380,6 +1422,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
@@ -1440,6 +1483,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1453,6 +1497,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1466,6 +1511,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
         reader
@@ -1479,6 +1525,7 @@ mod tests {
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
+                TIME_INVALID,
             )
             .unwrap();
 
