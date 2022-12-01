@@ -2,7 +2,6 @@ use std::{
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::sync_channel,
         Arc,
     },
     thread::JoinHandle,
@@ -11,26 +10,14 @@ use std::{
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        rtps::{participant::RtpsParticipant, types::Guid},
+        rtps::participant::RtpsParticipant,
         rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::DomainParticipantQos,
-        time::{Duration, Time},
-    },
+    infrastructure::{error::DdsResult, qos::DomainParticipantQos, time::Duration},
 };
 
 use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
-
-pub struct ReceivedDataChannel {
-    pub guid: Guid,
-    pub instance_handle: InstanceHandle,
-    pub time: Time,
-    pub deadline: Duration,
-}
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -48,7 +35,6 @@ impl DcpsService {
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
-        let (notifications_sender, notifications_receiver) = sync_channel(10);
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -58,7 +44,6 @@ impl DcpsService {
             transport.metatraffic_multicast_locator_list(),
             announcer_condvar.clone(),
             user_defined_data_send_condvar.clone(),
-            notifications_sender,
         );
 
         participant.enable()?;

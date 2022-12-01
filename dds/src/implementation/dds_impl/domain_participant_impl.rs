@@ -1,9 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        mpsc::SyncSender,
-    },
+    sync::atomic::{AtomicU8, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -58,9 +55,9 @@ use crate::implementation::{
 
 use super::{
     builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
-    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 use crate::domain::domain_participant_listener::DomainParticipantListener;
@@ -114,7 +111,6 @@ pub struct DomainParticipantImpl {
     enabled: DdsRwLock<bool>,
     announce_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
-    notifications_sender: SyncSender<ReceivedDataChannel>,
 }
 
 impl DomainParticipantImpl {
@@ -128,7 +124,6 @@ impl DomainParticipantImpl {
         metatraffic_multicast_locator_list: Vec<Locator>,
         announce_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -179,7 +174,6 @@ impl DomainParticipantImpl {
             sedp_topic_topics.clone(),
             sedp_topic_publications.clone(),
             sedp_topic_subscriptions.clone(),
-            notifications_sender.clone(),
         );
 
         let builtin_publisher = BuiltinPublisher::new(
@@ -215,7 +209,6 @@ impl DomainParticipantImpl {
             enabled: DdsRwLock::new(false),
             announce_condvar,
             user_defined_data_send_condvar,
-            notifications_sender,
         })
     }
 
@@ -325,7 +318,6 @@ impl DdsShared<DomainParticipantImpl> {
             subscriber_qos,
             rtps_group,
             self.user_defined_data_send_condvar.clone(),
-            self.notifications_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self

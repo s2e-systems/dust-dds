@@ -1,5 +1,3 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::{
     implementation::rtps::{endpoint::RtpsEndpoint, reader::RtpsReader, types::TopicKind},
     infrastructure::qos::DataReaderQos,
@@ -24,9 +22,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{
-    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver, topic_impl::TopicImpl,
-};
+use super::{message_receiver::MessageReceiver, topic_impl::TopicImpl};
 
 pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
@@ -35,11 +31,7 @@ pub struct BuiltinStatelessReader {
 }
 
 impl BuiltinStatelessReader {
-    pub fn new<Foo>(
-        guid: Guid,
-        topic: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
-    ) -> DdsShared<Self>
+    pub fn new<Foo>(guid: Guid, topic: DdsShared<TopicImpl>) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -63,7 +55,6 @@ impl BuiltinStatelessReader {
                 },
                 ..Default::default()
             },
-            notifications_sender,
         );
         let rtps_reader = RtpsStatelessReader::new(reader);
 

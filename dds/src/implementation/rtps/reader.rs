@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::mpsc::SyncSender,
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     implementation::{
@@ -9,7 +6,7 @@ use crate::{
             parameter_id_values::PID_STATUS_INFO,
             types::{StatusInfo, STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
-        dds_impl::{dcps_service::ReceivedDataChannel, status_condition_impl::StatusConditionImpl},
+        dds_impl::status_condition_impl::StatusConditionImpl,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -134,7 +131,6 @@ pub struct RtpsReader {
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
     instance_reception_time: HashMap<InstanceHandle, Time>,
-    notifications_sender: SyncSender<ReceivedDataChannel>,
     data_available: bool,
 }
 
@@ -145,7 +141,6 @@ impl RtpsReader {
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
         qos: DataReaderQos,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> Self
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -162,7 +157,6 @@ impl RtpsReader {
             instance_handle_builder,
             instances: HashMap::new(),
             instance_reception_time: HashMap::new(),
-            notifications_sender,
             data_available: false,
         }
     }
@@ -334,15 +328,6 @@ impl RtpsReader {
             }
 
             self.data_available = true;
-
-            self.notifications_sender
-                .send(ReceivedDataChannel {
-                    guid: self.endpoint.guid(),
-                    instance_handle: change_instance_handle,
-                    time: reception_timestamp,
-                    deadline: self.qos.deadline.period,
-                })
-                .ok();
 
             Ok(())
         } else {
@@ -568,8 +553,6 @@ impl RtpsReader {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::sync_channel;
-
     use crate::{
         implementation::rtps::{
             messages::submessage_elements::{
@@ -700,7 +683,6 @@ mod tests {
 
     #[test]
     fn reader_no_key_add_change_keep_last_1() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast,
@@ -709,14 +691,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new::<UnkeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
         let data1 = UnkeyedType { data: [1; 5] };
         let data2 = UnkeyedType { data: [2; 5] };
 
@@ -746,8 +722,6 @@ mod tests {
 
     #[test]
     fn reader_with_key_add_change_keep_last_1() {
-        let (sender, _receiver) = sync_channel(10);
-
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast,
@@ -756,14 +730,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let data1_instance1 = KeyedType {
             key: 1,
@@ -843,7 +811,6 @@ mod tests {
 
     #[test]
     fn reader_no_key_add_change_keep_last_3() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast,
@@ -852,14 +819,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new::<UnkeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let data1 = UnkeyedType { data: [1; 5] };
         let data2 = UnkeyedType { data: [2; 5] };
@@ -912,7 +873,6 @@ mod tests {
 
     #[test]
     fn reader_with_key_add_change_keep_last_3() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast,
@@ -921,14 +881,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         let data1_instance1 = KeyedType {
             key: 1,
@@ -1057,7 +1011,6 @@ mod tests {
 
     #[test]
     fn reader_max_samples() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1071,14 +1024,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new::<UnkeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(
@@ -1108,7 +1055,6 @@ mod tests {
 
     #[test]
     fn reader_max_instances() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1122,14 +1068,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(
@@ -1165,7 +1105,6 @@ mod tests {
 
     #[test]
     fn reader_max_samples_per_instance() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1179,14 +1118,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(
@@ -1236,7 +1169,6 @@ mod tests {
 
     #[test]
     fn reader_sample_info_absolute_generation_rank() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1245,14 +1177,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(
@@ -1356,7 +1282,6 @@ mod tests {
 
     #[test]
     fn reader_sample_info_generation_rank_and_count() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1365,14 +1290,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(
@@ -1489,7 +1408,6 @@ mod tests {
 
     #[test]
     fn reader_sample_info_sample_rank() {
-        let (sender, _receiver) = sync_channel(10);
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
@@ -1498,14 +1416,8 @@ mod tests {
             ..Default::default()
         };
         let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-        let mut reader = RtpsReader::new::<KeyedType>(
-            endpoint,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-            sender,
-        );
+        let mut reader =
+            RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
         reader
             .add_change(

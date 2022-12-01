@@ -815,7 +815,7 @@ mod tests {
     };
 
     use mockall::mock;
-    use std::{io::Write, sync::mpsc::sync_channel};
+    use std::io::Write;
 
     struct UserData(u8);
 
@@ -887,7 +887,6 @@ mod tests {
 
     #[test]
     fn get_instance_handle() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let guid = Guid::new(
             GuidPrefix::from([4; 12]),
             EntityId::new([3; 3], EntityKind::BuiltInParticipant),
@@ -900,7 +899,6 @@ mod tests {
             DURATION_ZERO,
             false,
             qos,
-            notifications_sender,
         ));
 
         let data_reader: DdsShared<UserDefinedDataReader> = UserDefinedDataReader::new(
@@ -919,14 +917,12 @@ mod tests {
 
     #[test]
     fn add_compatible_matched_writer() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
             DdsCondvar::new(),
-            notifications_sender.clone(),
         );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
@@ -942,7 +938,6 @@ mod tests {
             DURATION_ZERO,
             false,
             DataReaderQos::default(),
-            notifications_sender,
         ));
 
         let data_reader = UserDefinedDataReader::new(
@@ -1007,14 +1002,12 @@ mod tests {
 
     #[test]
     fn add_incompatible_matched_writer() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
             DdsCondvar::new(),
-            notifications_sender.clone(),
         );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
@@ -1033,7 +1026,6 @@ mod tests {
             DURATION_ZERO,
             false,
             data_reader_qos,
-            notifications_sender,
         ));
 
         let data_reader = UserDefinedDataReader::new(
