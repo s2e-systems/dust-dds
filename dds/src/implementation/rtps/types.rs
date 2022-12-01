@@ -195,7 +195,7 @@ impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
     type Value = EntityKind;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str(&format!("value must be valid EntityKind"))
+        formatter.write_str("value must be valid EntityKind")
     }
 
     fn visit_u8<E>(self, value: u8) -> Result<Self::Value, E>
