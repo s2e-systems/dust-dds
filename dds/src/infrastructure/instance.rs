@@ -39,7 +39,7 @@ impl From<InstanceHandle> for Guid {
         let prefix = GuidPrefix::from(<[u8; 12]>::try_from(&x.0[0..12]).expect("Invalid length"));
         let entity_id = EntityId::new(
             <[u8; 3]>::try_from(&x.0[12..15]).expect("Invalid length"),
-            x.0[15],
+            x.0[15].into(),
         );
         Guid::new(prefix, entity_id)
     }

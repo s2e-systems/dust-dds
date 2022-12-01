@@ -254,7 +254,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::GuidPrefix;
+    use crate::implementation::rtps::types::{GuidPrefix, EntityKind};
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
@@ -276,12 +276,12 @@ mod tests {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix::from([5; 12]),
-                    EntityId::new([11, 12, 13], 15),
+                    EntityId::new([11, 12, 13], EntityKind::BuiltInWriterWithKey),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
+                remote_group_entity_id: EntityId::new([21, 22, 23], EntityKind::BuiltInReaderGroup),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -311,7 +311,7 @@ mod tests {
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25, // u8[3], u8
+            21, 22, 23, 0xc9, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,
@@ -340,12 +340,12 @@ mod tests {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
                     GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], 0),
+                    EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], 25),
+                remote_group_entity_id: EntityId::new([21, 22, 23], EntityKind::BuiltInParticipant),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -375,7 +375,7 @@ mod tests {
         let mut data = &[
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
-            21, 22, 23, 25, // u8[3], u8
+            21, 22, 23, 0xc1, // u8[3], u8
             0x5a, 0x00, 16, 0, //PID_ENDPOINT_GUID, length
             1, 0, 0, 0, // ,
             2, 0, 0, 0, // ,

@@ -178,13 +178,13 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps::types::{EntityId, GuidPrefix};
+    use crate::implementation::rtps::types::{EntityId, GuidPrefix, EntityKind};
 
     use super::*;
 
     #[test]
     fn get_instance_handle() {
-        let guid = Guid::new(GuidPrefix::from([2; 12]), EntityId::new([3; 3], 1));
+        let guid = Guid::new(GuidPrefix::from([2; 12]), EntityId::new([3; 3], EntityKind::BuiltInParticipant));
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;
 

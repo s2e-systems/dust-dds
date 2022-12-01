@@ -4,9 +4,7 @@ use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
 use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{
-    EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-};
+use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, GuidPrefix, TopicKind};
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
 use crate::implementation::utils::condvar::DdsCondvar;
 use crate::infrastructure::error::{DdsError, DdsResult};
@@ -92,8 +90,8 @@ impl DdsShared<UserDefinedSubscriber> {
         // /////// Build the GUID
         let entity_id = {
             let entity_kind = match Foo::has_key() {
-                true => USER_DEFINED_READER_WITH_KEY,
-                false => USER_DEFINED_READER_NO_KEY,
+                true => EntityKind::UserDefinedReaderWithKey,
+                false => EntityKind::UserDefinedReaderNoKey,
             };
 
             EntityId::new(

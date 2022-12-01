@@ -3,9 +3,7 @@ use std::sync::atomic::{self, AtomicU8};
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
 use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{
-    EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
-};
+use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, TopicKind};
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
 use crate::implementation::utils::condvar::DdsCondvar;
@@ -92,8 +90,8 @@ impl DdsShared<UserDefinedPublisher> {
                 .fetch_add(1, atomic::Ordering::SeqCst);
 
             let entity_kind = match Foo::has_key() {
-                true => USER_DEFINED_WRITER_WITH_KEY,
-                false => USER_DEFINED_WRITER_NO_KEY,
+                true => EntityKind::UserDefinedWriterWithKey,
+                false => EntityKind::UserDefinedWriterNoKey,
             };
 
             Guid::new(
