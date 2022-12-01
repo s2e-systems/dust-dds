@@ -782,7 +782,7 @@ mod tests {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
-            types::{EntityId, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{EntityId, EntityKind, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
         infrastructure::time::DURATION_ZERO,
         infrastructure::{
@@ -880,7 +880,10 @@ mod tests {
     #[test]
     fn get_instance_handle() {
         let (notifications_sender, _notifications_receiver) = sync_channel(1);
-        let guid = Guid::new(GuidPrefix::from([4; 12]), EntityId::new([3; 3], 1));
+        let guid = Guid::new(
+            GuidPrefix::from([4; 12]),
+            EntityId::new([3; 3], EntityKind::BuiltInParticipant),
+        );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
         let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
@@ -966,7 +969,10 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
+                remote_writer_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1054,7 +1060,10 @@ mod tests {
         };
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], 2)),
+                remote_writer_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],

@@ -7,7 +7,7 @@ use crate::implementation::data_representation_builtin_endpoints::spdp_discovere
 use crate::implementation::rtps::group::RtpsGroupImpl;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP};
+use crate::implementation::rtps::types::{EntityId, Guid, GuidPrefix, EntityKind};
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::status::StatusKind;
@@ -49,7 +49,7 @@ impl BuiltInSubscriber {
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
-        let entity_id = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
+        let entity_id = EntityId::new([0, 0, 0], EntityKind::BuiltInReaderGroup);
         let guid = Guid::new(guid_prefix, entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
 
