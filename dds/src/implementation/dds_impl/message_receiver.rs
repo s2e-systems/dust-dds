@@ -11,7 +11,10 @@ use crate::{
             LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
         },
     },
-    infrastructure::time::{Time, TIME_INVALID},
+    infrastructure::{
+        error::DdsResult,
+        time::{Time, TIME_INVALID},
+    },
 };
 
 pub trait PublisherMessageReceiver {
@@ -45,10 +48,11 @@ pub struct MessageReceiver {
     multicast_reply_locator_list: Vec<Locator>,
     have_timestamp: bool,
     timestamp: Time,
+    reception_timestamp: Time,
 }
 
 impl MessageReceiver {
-    pub fn new() -> Self {
+    pub fn new(reception_timestamp: Time) -> Self {
         Self {
             source_version: PROTOCOLVERSION,
             source_vendor_id: VENDOR_ID_UNKNOWN,
@@ -58,6 +62,7 @@ impl MessageReceiver {
             multicast_reply_locator_list: Vec::new(),
             have_timestamp: false,
             timestamp: TIME_INVALID,
+            reception_timestamp,
         }
     }
 
@@ -68,7 +73,7 @@ impl MessageReceiver {
         subscriber_list: &[impl SubscriberSubmessageReceiver],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
-    ) {
+    ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version.value.into();
         self.source_vendor_id = message.header.vendor_id.value;
@@ -117,6 +122,8 @@ impl MessageReceiver {
                 RtpsSubmessageType::Pad(_) => todo!(),
             }
         }
+
+        Ok(())
     }
 
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
@@ -168,11 +175,9 @@ impl MessageReceiver {
     pub fn timestamp(&self) -> Time {
         self.timestamp
     }
-}
 
-impl Default for MessageReceiver {
-    fn default() -> Self {
-        MessageReceiver::new()
+    pub fn reception_timestamp(&self) -> Time {
+        self.reception_timestamp
     }
 }
 
@@ -187,7 +192,7 @@ mod tests {
 
     #[test]
     fn process_info_timestamp_submessage_valid_time() {
-        let mut message_receiver = MessageReceiver::new();
+        let mut message_receiver = MessageReceiver::new(TIME_INVALID);
         let info_timestamp = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
@@ -203,7 +208,7 @@ mod tests {
 
     #[test]
     fn process_info_timestamp_submessage_invalid_time() {
-        let mut message_receiver = MessageReceiver::new();
+        let mut message_receiver = MessageReceiver::new(TIME_INVALID);
         let info_timestamp = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: true,

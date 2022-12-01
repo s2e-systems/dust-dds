@@ -21,6 +21,7 @@ use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
 
 use super::builtin_stateful_reader::BuiltinStatefulReader;
 use super::builtin_stateless_reader::BuiltinStatelessReader;
+use super::dcps_service::ReceivedDataChannel;
 use super::domain_participant_impl::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -45,7 +46,7 @@ impl BuiltInSubscriber {
         sedp_topic_topics: DdsShared<TopicImpl>,
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 

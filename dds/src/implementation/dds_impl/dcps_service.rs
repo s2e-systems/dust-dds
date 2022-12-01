@@ -11,14 +11,27 @@ use std::{
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        rtps::participant::RtpsParticipant,
+        rtps::{participant::RtpsParticipant, types::Guid},
         rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{error::DdsResult, qos::DomainParticipantQos, time::Duration},
+    infrastructure::{
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::DomainParticipantQos,
+        status::StatusKind,
+        time::{Duration, Time},
+    },
 };
 
 use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
+
+pub struct ReceivedDataChannel {
+    pub guid: Guid,
+    pub instance_handle: InstanceHandle,
+    pub time: Time,
+    pub deadline: Duration,
+}
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -65,7 +78,8 @@ impl DcpsService {
                 }
 
                 if let Ok(notification) = notifications_receiver.try_recv() {
-                    domain_participant.on_notification_received(notification)
+                    domain_participant
+                        .on_notification_received(notification.guid, StatusKind::DataAvailable)
                 }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
@@ -88,7 +102,9 @@ impl DcpsService {
                 if let Some((locator, message)) = metatraffic_multicast_transport
                     .read(Some(std::time::Duration::from_millis(1000)))
                 {
-                    domain_participant.receive_built_in_data(locator, message);
+                    domain_participant
+                        .receive_built_in_data(locator, message)
+                        .ok();
                 }
             }));
         }
@@ -127,7 +143,9 @@ impl DcpsService {
                 if let Some((locator, message)) =
                     metatraffic_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
                 {
-                    domain_participant.receive_built_in_data(locator, message);
+                    domain_participant
+                        .receive_built_in_data(locator, message)
+                        .ok();
                 }
             }));
         }
@@ -190,7 +208,9 @@ impl DcpsService {
                 if let Some((locator, message)) =
                     default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
                 {
-                    domain_participant.receive_user_defined_data(locator, message);
+                    domain_participant
+                        .receive_user_defined_data(locator, message)
+                        .ok();
                 }
             }));
         }

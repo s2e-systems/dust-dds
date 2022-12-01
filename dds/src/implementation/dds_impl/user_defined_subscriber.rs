@@ -27,6 +27,7 @@ use crate::implementation::{
     utils::shared_object::{DdsRwLock, DdsShared},
 };
 
+use super::dcps_service::ReceivedDataChannel;
 use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
 use super::user_defined_data_reader::AnyDataReaderListener;
 use super::{
@@ -42,7 +43,7 @@ pub struct UserDefinedSubscriber {
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
-    notifications_sender: SyncSender<(Guid, StatusKind)>,
+    notifications_sender: SyncSender<ReceivedDataChannel>,
 }
 
 impl UserDefinedSubscriber {
@@ -50,7 +51,7 @@ impl UserDefinedSubscriber {
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
         user_defined_data_send_condvar: DdsCondvar,
-        notifications_sender: SyncSender<(Guid, StatusKind)>,
+        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
@@ -229,9 +230,9 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn on_notification_received(&self, notification: (Guid, StatusKind)) {
+    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_notification_received(notification)
+            data_reader.on_notification_received(guid, status_kind)
         }
     }
 }
