@@ -746,13 +746,18 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn update_communication_status(&self, now: Time) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-
-        if rtps_reader.reader_mut().take_data_available() {
+        if self
+            .rtps_reader
+            .write_lock()
+            .reader_mut()
+            .take_data_available()
+        {
             self.on_data_available()
         };
 
-        if !rtps_reader
+        if !self
+            .rtps_reader
+            .write_lock()
             .reader_mut()
             .get_deadline_missed_instances(now)
             .is_empty()
