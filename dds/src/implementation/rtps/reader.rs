@@ -533,7 +533,7 @@ impl RtpsReader {
         Ok(samples)
     }
 
-    pub fn is_data_available(&mut self) -> bool {
+    pub fn take_data_available(&mut self) -> bool {
         let data_available = self.data_available;
         self.data_available = false;
         data_available
