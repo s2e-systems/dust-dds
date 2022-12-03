@@ -1,9 +1,7 @@
 use std::{
-    collections::HashMap,
     net::UdpSocket,
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::sync_channel,
         Arc,
     },
     thread::JoinHandle,
@@ -12,27 +10,14 @@ use std::{
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::{
-        rtps::{participant::RtpsParticipant, types::Guid},
+        rtps::participant::RtpsParticipant,
         rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::DomainParticipantQos,
-        status::StatusKind,
-        time::{Duration, Time},
-    },
+    infrastructure::{error::DdsResult, qos::DomainParticipantQos, time::Duration},
 };
 
 use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
-
-pub struct ReceivedDataChannel {
-    pub guid: Guid,
-    pub instance_handle: InstanceHandle,
-    pub time: Time,
-    pub deadline: Duration,
-}
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -50,7 +35,6 @@ impl DcpsService {
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
-        let (notifications_sender, notifications_receiver) = sync_channel(10);
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -60,7 +44,6 @@ impl DcpsService {
             transport.metatraffic_multicast_locator_list(),
             announcer_condvar.clone(),
             user_defined_data_send_condvar.clone(),
-            notifications_sender,
         );
 
         participant.enable()?;
@@ -72,36 +55,13 @@ impl DcpsService {
         {
             let domain_participant = participant.clone();
             let task_quit = quit.clone();
-            let mut instances = HashMap::new();
 
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
-                if let Ok(notification) = notifications_receiver.try_recv() {
-                    instances.insert(
-                        (notification.guid, notification.instance_handle),
-                        (notification.time, notification.deadline),
-                    );
-                    domain_participant
-                        .on_notification_received(notification.guid, StatusKind::DataAvailable)
-                }
 
-                // Remove all instances for which the deadline has expired to prevent calling two times
-                let (deadline_elapsed_instances, valid_instances): (HashMap<_, _>, HashMap<_, _>) =
-                    instances.into_iter().partition(
-                        |(_, (reception_timestamp, deadline_period))| {
-                            domain_participant.get_current_time().unwrap() - *reception_timestamp
-                                > *deadline_period
-                        },
-                    );
-
-                for ((guid, _), _) in deadline_elapsed_instances {
-                    domain_participant
-                        .on_notification_received(guid, StatusKind::RequestedDeadlineMissed);
-                }
-
-                instances = valid_instances;
+                domain_participant.update_communication_status().ok();
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }

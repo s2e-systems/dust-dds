@@ -14,7 +14,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{Guid, GuidPrefix},
+            types::GuidPrefix,
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -31,7 +31,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::Duration,
+        time::{Duration, Time},
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -745,34 +745,45 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.write_lock().send_message(transport);
     }
 
-    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
-        if self.rtps_reader.read_lock().reader().guid() == guid {
-            self.status_condition
-                .write_lock()
-                .add_communication_state(status_kind);
+    pub fn update_communication_status(&self, now: Time) {
+        if self
+            .rtps_reader
+            .write_lock()
+            .reader_mut()
+            .take_data_available()
+        {
+            self.on_data_available()
+        };
 
-            if let Some(listener) = self.listener.write_lock().as_mut() {
-                match status_kind {
-                    StatusKind::InconsistentTopic => todo!(),
-                    StatusKind::OfferedDeadlineMissed => unimplemented!(),
-                    StatusKind::RequestedDeadlineMissed => {
-                        let status = self.get_requested_deadline_missed_status().unwrap();
-                        listener.trigger_on_requested_deadline_missed(self, status);
-                    }
-                    StatusKind::OfferedIncompatibleQos => todo!(),
-                    StatusKind::RequestedIncompatibleQos => todo!(),
-                    StatusKind::SampleLost => todo!(),
-                    StatusKind::SampleRejected => todo!(),
-                    StatusKind::DataOnReaders => todo!(),
-                    StatusKind::DataAvailable => {
-                        listener.trigger_on_data_available(self);
-                    }
-                    StatusKind::LivelinessLost => todo!(),
-                    StatusKind::LivelinessChanged => todo!(),
-                    StatusKind::PublicationMatched => todo!(),
-                    StatusKind::SubscriptionMatched => todo!(),
-                }
-            }
+        if !self
+            .rtps_reader
+            .write_lock()
+            .reader_mut()
+            .get_deadline_missed_instances(now)
+            .is_empty()
+        {
+            self.on_requested_deadline_missed()
+        }
+    }
+
+    fn on_data_available(&self) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            listener.trigger_on_data_available(self);
+        }
+    }
+
+    fn on_requested_deadline_missed(&self) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedDeadlineMissed);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            let status = self.get_requested_deadline_missed_status().unwrap();
+            listener.trigger_on_requested_deadline_missed(self, status);
         }
     }
 }
@@ -809,7 +820,7 @@ mod tests {
     };
 
     use mockall::mock;
-    use std::{io::Write, sync::mpsc::sync_channel};
+    use std::io::Write;
 
     struct UserData(u8);
 
@@ -881,7 +892,6 @@ mod tests {
 
     #[test]
     fn get_instance_handle() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let guid = Guid::new(
             GuidPrefix::from([4; 12]),
             EntityId::new([3; 3], EntityKind::BuiltInParticipant),
@@ -894,7 +904,6 @@ mod tests {
             DURATION_ZERO,
             false,
             qos,
-            notifications_sender,
         ));
 
         let data_reader: DdsShared<UserDefinedDataReader> = UserDefinedDataReader::new(
@@ -913,14 +922,12 @@ mod tests {
 
     #[test]
     fn add_compatible_matched_writer() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
             DdsCondvar::new(),
-            notifications_sender.clone(),
         );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
@@ -936,7 +943,6 @@ mod tests {
             DURATION_ZERO,
             false,
             DataReaderQos::default(),
-            notifications_sender,
         ));
 
         let data_reader = UserDefinedDataReader::new(
@@ -1001,14 +1007,12 @@ mod tests {
 
     #[test]
     fn add_incompatible_matched_writer() {
-        let (notifications_sender, _notifications_receiver) = sync_channel(1);
         let type_name = "test_type";
         let topic_name = "test_topic".to_string();
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
             DdsCondvar::new(),
-            notifications_sender.clone(),
         );
         let test_topic = TopicImpl::new(
             GUID_UNKNOWN,
@@ -1027,7 +1031,6 @@ mod tests {
             DURATION_ZERO,
             false,
             data_reader_qos,
-            notifications_sender,
         ));
 
         let data_reader = UserDefinedDataReader::new(

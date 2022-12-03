@@ -1,5 +1,3 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::implementation::rtps::endpoint::RtpsEndpoint;
 use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
 use crate::implementation::rtps::reader::RtpsReader;
@@ -11,7 +9,7 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
 use crate::infrastructure::qos::QosKind;
 use crate::infrastructure::status::{SampleLostStatus, StatusKind};
-use crate::infrastructure::time::DURATION_ZERO;
+use crate::infrastructure::time::{Time, DURATION_ZERO};
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::topic_definition::type_support::DdsDeserialize;
 use crate::{
@@ -27,7 +25,6 @@ use crate::implementation::{
     utils::shared_object::{DdsRwLock, DdsShared},
 };
 
-use super::dcps_service::ReceivedDataChannel;
 use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
 use super::user_defined_data_reader::AnyDataReaderListener;
 use super::{
@@ -43,7 +40,6 @@ pub struct UserDefinedSubscriber {
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
-    notifications_sender: SyncSender<ReceivedDataChannel>,
 }
 
 impl UserDefinedSubscriber {
@@ -51,7 +47,6 @@ impl UserDefinedSubscriber {
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
         user_defined_data_send_condvar: DdsCondvar,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
@@ -61,7 +56,6 @@ impl UserDefinedSubscriber {
             default_data_reader_qos: DataReaderQos::default(),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
-            notifications_sender,
         })
     }
 
@@ -131,7 +125,6 @@ impl DdsShared<UserDefinedSubscriber> {
                 DURATION_ZERO,
                 false,
                 qos,
-                self.notifications_sender.clone(),
             ));
 
             let data_reader_shared = UserDefinedDataReader::new(
@@ -230,9 +223,9 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn on_notification_received(&self, guid: Guid, status_kind: StatusKind) {
+    pub fn update_communication_status(&self, now: Time) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_notification_received(guid, status_kind)
+            data_reader.update_communication_status(now);
         }
     }
 }

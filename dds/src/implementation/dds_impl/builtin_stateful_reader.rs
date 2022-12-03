@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::mpsc::SyncSender};
+use std::collections::HashMap;
 
 use crate::{
     implementation::rtps::{
@@ -46,8 +46,8 @@ use crate::{
 };
 
 use super::{
-    dcps_service::ReceivedDataChannel, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    topic_impl::TopicImpl,
 };
 
 pub struct BuiltinStatefulReader {
@@ -63,11 +63,7 @@ pub struct BuiltinStatefulReader {
 }
 
 impl BuiltinStatefulReader {
-    pub fn new<Foo>(
-        guid: Guid,
-        topic: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
-    ) -> DdsShared<Self>
+    pub fn new<Foo>(guid: Guid, topic: DdsShared<TopicImpl>) -> DdsShared<Self>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -100,7 +96,6 @@ impl BuiltinStatefulReader {
                 heartbeat_suppression_duration,
                 expects_inline_qos,
                 qos,
-                notifications_sender,
             ));
 
         DdsShared::new(BuiltinStatefulReader {

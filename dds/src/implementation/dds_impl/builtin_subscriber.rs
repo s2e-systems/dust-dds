@@ -1,5 +1,3 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData;
 use crate::implementation::data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData;
 use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData;
@@ -21,7 +19,6 @@ use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
 
 use super::builtin_stateful_reader::BuiltinStatefulReader;
 use super::builtin_stateless_reader::BuiltinStatelessReader;
-use super::dcps_service::ReceivedDataChannel;
 use super::domain_participant_impl::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -46,7 +43,6 @@ impl BuiltInSubscriber {
         sedp_topic_topics: DdsShared<TopicImpl>,
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
-        notifications_sender: SyncSender<ReceivedDataChannel>,
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
@@ -60,7 +56,6 @@ impl BuiltInSubscriber {
             BuiltinStatelessReader::new::<SpdpDiscoveredParticipantData>(
                 spdp_builtin_participant_reader_guid,
                 spdp_topic_participant,
-                notifications_sender.clone(),
             );
 
         let sedp_builtin_topics_guid =
@@ -68,7 +63,6 @@ impl BuiltInSubscriber {
         let sedp_builtin_topics_reader = BuiltinStatefulReader::new::<DiscoveredTopicData>(
             sedp_builtin_topics_guid,
             sedp_topic_topics,
-            notifications_sender.clone(),
         );
 
         let sedp_builtin_publications_guid =
@@ -76,7 +70,6 @@ impl BuiltInSubscriber {
         let sedp_builtin_publications_reader = BuiltinStatefulReader::new::<DiscoveredWriterData>(
             sedp_builtin_publications_guid,
             sedp_topic_publications,
-            notifications_sender.clone(),
         );
 
         let sedp_builtin_subscriptions_reader =
@@ -84,7 +77,6 @@ impl BuiltInSubscriber {
         let sedp_builtin_subscriptions_reader = BuiltinStatefulReader::new::<DiscoveredReaderData>(
             sedp_builtin_subscriptions_reader,
             sedp_topic_subscriptions,
-            notifications_sender,
         );
 
         DdsShared::new(BuiltInSubscriber {
