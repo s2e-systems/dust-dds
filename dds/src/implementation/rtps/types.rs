@@ -1,4 +1,9 @@
-use std::ops::AddAssign;
+use std::{
+    convert::{TryFrom, TryInto},
+    ops::AddAssign,
+};
+
+use crate::infrastructure::error::DdsError;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -197,7 +202,9 @@ impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(value.into())
+        value.try_into().map_err(|e| {
+            serde::de::Error::invalid_value(serde::de::Unexpected::Unsigned(value as u64), &self)
+        })
     }
 }
 
@@ -207,6 +214,33 @@ impl<'de> serde::Deserialize<'de> for EntityKind {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_u8(EntityKindVisitor)
+    }
+}
+
+impl TryFrom<u8> for EntityKind {
+    type Error = DdsError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0x00 => EntityKind::UserDefinedUnknown,
+            0xc0 => EntityKind::BuiltInUnknown,
+            0xc1 => EntityKind::BuiltInParticipant,
+            0x02 => EntityKind::UserDefinedWriterWithKey,
+            0xc2 => EntityKind::BuiltInWriterWithKey,
+            0x03 => EntityKind::UserDefinedWriterNoKey,
+            0xc3 => EntityKind::BuiltInWriterNoKey,
+            0x07 => EntityKind::UserDefinedReaderWithKey,
+            0xc7 => EntityKind::BuiltInReaderWithKey,
+            0x04 => EntityKind::UserDefinedReaderNoKey,
+            0xc4 => EntityKind::BuiltInReaderNoKey,
+            0x08 => EntityKind::UserDefinedWriterGroup,
+            0xc8 => EntityKind::BuiltInWriterGroup,
+            0x09 => EntityKind::UserDefinedReaderGroup,
+            0xc9 => EntityKind::BuiltInReaderGroup,
+            0x0a => EntityKind::UserDefinedTopic,
+            0xca => EntityKind::BuiltInTopic,
+            _ => return Err(DdsError::Error),
+        })
     }
 }
 
