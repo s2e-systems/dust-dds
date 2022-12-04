@@ -74,7 +74,7 @@ impl From<[u8; 16]> for Guid {
             ]),
             entity_id: EntityId {
                 entity_key: [value[12], value[13], value[14]],
-                entity_kind: value[15].into(),
+                entity_kind: value[15].try_into().unwrap(),
             },
         }
     }
@@ -137,15 +137,6 @@ impl From<EntityId> for [u8; 4] {
             value.entity_key[2],
             value.entity_kind.into(),
         ]
-    }
-}
-
-impl From<[u8; 4]> for EntityId {
-    fn from(value: [u8; 4]) -> Self {
-        Self {
-            entity_key: [value[0], value[1], value[2]],
-            entity_kind: value[3].into(),
-        }
     }
 }
 
@@ -264,31 +255,6 @@ impl From<EntityKind> for u8 {
             EntityKind::BuiltInReaderGroup => 0xc9,
             EntityKind::UserDefinedTopic => 0x0a,
             EntityKind::BuiltInTopic => 0xca,
-        }
-    }
-}
-
-impl From<u8> for EntityKind {
-    fn from(value: u8) -> Self {
-        match value {
-            0x00 => EntityKind::UserDefinedUnknown,
-            0xc0 => EntityKind::BuiltInUnknown,
-            0xc1 => EntityKind::BuiltInParticipant,
-            0x02 => EntityKind::UserDefinedWriterWithKey,
-            0xc2 => EntityKind::BuiltInWriterWithKey,
-            0x03 => EntityKind::UserDefinedWriterNoKey,
-            0xc3 => EntityKind::BuiltInWriterNoKey,
-            0x07 => EntityKind::UserDefinedReaderWithKey,
-            0xc7 => EntityKind::BuiltInReaderWithKey,
-            0x04 => EntityKind::UserDefinedReaderNoKey,
-            0xc4 => EntityKind::BuiltInReaderNoKey,
-            0x08 => EntityKind::UserDefinedWriterGroup,
-            0xc8 => EntityKind::BuiltInWriterGroup,
-            0x09 => EntityKind::UserDefinedReaderGroup,
-            0xc9 => EntityKind::BuiltInReaderGroup,
-            0x0a => EntityKind::UserDefinedTopic,
-            0xca => EntityKind::BuiltInTopic,
-            _ => EntityKind::UserDefinedUnknown,
         }
     }
 }
