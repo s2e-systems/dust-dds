@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::implementation::rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer};
 use crate::{
     implementation::rtps::{
@@ -19,7 +17,7 @@ use crate::{
             DEFAULT_NACK_SUPPRESSION_DURATION,
         },
         transport::TransportWrite,
-        types::{ChangeKind, Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
         writer::RtpsWriter,
     },
     infrastructure::{
@@ -27,11 +25,8 @@ use crate::{
         qos::DataWriterQos,
         time::Time,
     },
-    infrastructure::{
-        instance::{InstanceHandle, HANDLE_NIL},
-        qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
-    },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    infrastructure::{instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind},
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use crate::implementation::{
@@ -49,7 +44,6 @@ use super::{
 
 pub struct BuiltinStatefulWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
-    registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
 }
@@ -81,7 +75,6 @@ impl BuiltinStatefulWriter {
 
         DdsShared::new(BuiltinStatefulWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
             enabled: DdsRwLock::new(false),
         })
@@ -130,49 +123,10 @@ impl DdsShared<BuiltinStatefulWriter> {
 }
 
 impl DdsShared<BuiltinStatefulWriter> {
-    pub fn register_instance_w_timestamp<Foo>(
-        &self,
-        instance: &Foo,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
-
-        let mut registered_instances_lock = self.registered_instance_list.write_lock();
-        let rtps_writer_lock = self.rtps_writer.read_lock();
-        if !registered_instances_lock.contains_key(&instance_handle) {
-            if rtps_writer_lock
-                .writer()
-                .get_qos()
-                .resource_limits
-                .max_instances
-                == LENGTH_UNLIMITED
-                || (registered_instances_lock.len() as i32)
-                    < rtps_writer_lock
-                        .writer()
-                        .get_qos()
-                        .resource_limits
-                        .max_instances
-            {
-                registered_instances_lock.insert(instance_handle, serialized_key);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
-    }
-
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
-        _handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
@@ -182,22 +136,9 @@ impl DdsShared<BuiltinStatefulWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
-        let handle = self
-            .register_instance_w_timestamp(data, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let change = rtps_writer_lock.writer_mut().new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
-            handle,
-            timestamp,
-        );
-        rtps_writer_lock.add_change(change);
-
-        Ok(())
+        self.rtps_writer
+            .write_lock()
+            .write_w_timestamp(data, handle, timestamp)
     }
 }
 

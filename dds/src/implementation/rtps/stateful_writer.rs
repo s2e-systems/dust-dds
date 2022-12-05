@@ -11,6 +11,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
+        qos::DataWriterQos,
         qos_policy::ReliabilityQosPolicyKind,
         time::{Duration, Time, DURATION_ZERO},
     },
@@ -33,9 +34,7 @@ use super::{
 };
 
 pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-
 pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct RtpsStatefulWriter<T> {
@@ -48,10 +47,6 @@ pub struct RtpsStatefulWriter<T> {
 impl<T> RtpsStatefulWriter<T> {
     pub fn writer(&self) -> &RtpsWriter {
         &self.writer
-    }
-
-    pub fn writer_mut(&mut self) -> &mut RtpsWriter {
-        &mut self.writer
     }
 }
 
@@ -512,9 +507,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
         }
         destined_submessages
     }
-}
 
-impl<T> RtpsStatefulWriter<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
@@ -534,5 +527,9 @@ impl<T> RtpsStatefulWriter<T> {
                 reader_proxy.reliable_receive_acknack(acknack_submessage);
             }
         }
+    }
+
+    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+        self.writer.set_qos(qos)
     }
 }

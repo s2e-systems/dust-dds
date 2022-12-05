@@ -546,7 +546,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 .check_immutability(&qos)?;
         }
 
-        rtps_writer_lock.writer_mut().set_qos(qos)
+        rtps_writer_lock.set_qos(qos)
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
