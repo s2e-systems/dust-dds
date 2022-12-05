@@ -44,12 +44,6 @@ pub struct RtpsStatefulWriter<T> {
     heartbeat_count: Count,
 }
 
-impl<T> RtpsStatefulWriter<T> {
-    pub fn matched_readers(&mut self) -> &mut Vec<RtpsReaderProxy> {
-        &mut self.matched_readers
-    }
-}
-
 impl<T: TimerConstructor> RtpsStatefulWriter<T> {
     pub fn new(writer: RtpsWriter) -> Self {
         Self {
@@ -142,13 +136,10 @@ impl<T> RtpsStatefulWriter<T> {
         );
         self.add_change(change);
 
-        // TODO: Trigger condvar
-        // self.user_defined_data_send_condvar.notify_all();
-
         Ok(())
     }
 
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+    fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let sequence_number = change.sequence_number();
         self.writer.writer_cache_mut().add_change(change);
 
