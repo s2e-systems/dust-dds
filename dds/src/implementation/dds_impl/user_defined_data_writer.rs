@@ -15,12 +15,12 @@ use crate::{
                     VendorIdSubmessageElement,
                 },
                 submessages::AckNackSubmessage,
-                types::{ParameterId, ProtocolId},
+                types::ProtocolId,
                 RtpsMessage,
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{ChangeKind, EntityId, EntityKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{EntityId, EntityKind, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
@@ -34,7 +34,7 @@ use crate::{
         },
     },
     publication::data_writer::DataWriter,
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -52,18 +52,10 @@ use crate::{
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-        data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO, types::STATUS_INFO_UNREGISTERED_FLAG,
-        },
-        rtps::{
-            history_cache::RtpsParameter, stateful_writer::RtpsStatefulWriter,
-            utils::clock::StdTimer,
-        },
+        rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer},
     },
     publication::data_writer_listener::DataWriterListener,
 };
-
-use serde::Serialize;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -77,38 +69,6 @@ use super::{
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
     user_defined_publisher::UserDefinedPublisher,
 };
-
-fn retrieve_instance_handle(
-    handle: Option<InstanceHandle>,
-    registered_instance_list: &HashMap<InstanceHandle, Vec<u8>>,
-    serialized_key: &[u8],
-) -> DdsResult<InstanceHandle> {
-    match handle {
-        Some(h) => {
-            if let Some(stored_key) = registered_instance_list.get(&h) {
-                if stored_key == serialized_key {
-                    Ok(h)
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Handle does not match instance".to_string(),
-                    ))
-                }
-            } else {
-                Err(DdsError::BadParameter)
-            }
-        }
-        None => {
-            let instance_handle = serialized_key.into();
-            if registered_instance_list.contains_key(&instance_handle) {
-                Ok(instance_handle)
-            } else {
-                Err(DdsError::PreconditionNotMet(
-                    "Instance not registered with this DataWriter".to_string(),
-                ))
-            }
-        }
-    }
-}
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
@@ -392,46 +352,9 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        if Foo::has_key() {
-            let serialized_key = instance.get_serialized_key::<LittleEndian>();
-
-            let mut rtps_writer_lock = self.rtps_writer.write_lock();
-            let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
-
-            let instance_handle = retrieve_instance_handle(
-                handle,
-                &registered_instance_list_lock,
-                serialized_key.as_ref(),
-            )?;
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_UNREGISTERED_FLAG
-                .serialize(&mut serializer)
-                .unwrap();
-
-            let inline_qos = vec![RtpsParameter::new(
-                ParameterId(PID_STATUS_INFO),
-                serialized_status_info,
-            )];
-
-            // Hardcoded CDR header to satisfy wireshark
-            let mut data = vec![0, 1, 0, 0];
-            data.extend(serialized_key);
-
-            let change = rtps_writer_lock.writer_mut().new_change(
-                ChangeKind::NotAliveUnregistered,
-                data,
-                inline_qos,
-                instance_handle,
-                timestamp,
-            );
-            rtps_writer_lock.add_change(change);
-            registered_instance_list_lock.remove(&instance_handle);
-            Ok(())
-        } else {
-            Err(DdsError::IllegalOperation)
-        }
+        self.rtps_writer
+            .write_lock()
+            .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>

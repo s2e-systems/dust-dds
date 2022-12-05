@@ -3,7 +3,8 @@ use serde::Serialize;
 use crate::{
     implementation::{
         data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO, types::STATUS_INFO_DISPOSED_FLAG,
+            parameter_id_values::PID_STATUS_INFO,
+            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
         },
         rtps::utils::clock::{Timer, TimerConstructor},
     },
@@ -242,6 +243,73 @@ impl<T> RtpsStatefulWriter<T> {
             );
             self.add_change(change);
 
+            Ok(())
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
+    }
+
+    pub fn unregister_instance_w_timestamp<Foo>(
+        &mut self,
+        instance: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        if Foo::has_key() {
+            let serialized_key = instance.get_serialized_key::<LittleEndian>();
+
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_handle) = self.writer.lookup_instance(instance) {
+                        if stored_handle == h {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    if let Some(stored_handle) = self.writer.lookup_instance(instance) {
+                        Ok(stored_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
+            let mut serialized_status_info = Vec::new();
+            let mut serializer =
+                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            STATUS_INFO_UNREGISTERED_FLAG
+                .serialize(&mut serializer)
+                .unwrap();
+
+            let inline_qos = vec![RtpsParameter::new(
+                ParameterId(PID_STATUS_INFO),
+                serialized_status_info,
+            )];
+
+            // Hardcoded CDR header to satisfy wireshark
+            let mut data = vec![0, 1, 0, 0];
+            data.extend(serialized_key);
+
+            let change = self.writer.new_change(
+                ChangeKind::NotAliveUnregistered,
+                data,
+                inline_qos,
+                instance_handle,
+                timestamp,
+            );
+            self.add_change(change);
             Ok(())
         } else {
             Err(DdsError::IllegalOperation)
