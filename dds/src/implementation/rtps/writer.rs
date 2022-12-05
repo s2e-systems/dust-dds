@@ -1,8 +1,14 @@
-use crate::infrastructure::{
-    error::DdsResult,
-    instance::InstanceHandle,
-    qos::DataWriterQos,
-    time::{Duration, Time},
+use std::collections::HashMap;
+
+use crate::{
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::DataWriterQos,
+        qos_policy::LENGTH_UNLIMITED,
+        time::{Duration, Time},
+    },
+    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
 };
 
 use super::{
@@ -21,6 +27,7 @@ pub struct RtpsWriter {
     _data_max_size_serialized: Option<i32>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
+    registered_instance_list: HashMap<InstanceHandle, Vec<u8>>,
 }
 
 impl RtpsWriter {
@@ -43,17 +50,14 @@ impl RtpsWriter {
             _data_max_size_serialized: data_max_size_serialized,
             writer_cache: WriterHistoryCache::new(),
             qos,
+            registered_instance_list: HashMap::new(),
         }
     }
-}
 
-impl RtpsWriter {
     pub fn guid(&self) -> Guid {
         self.endpoint.guid()
     }
-}
 
-impl RtpsWriter {
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.endpoint.unicast_locator_list()
     }
@@ -61,9 +65,7 @@ impl RtpsWriter {
     pub fn multicast_locator_list(&self) -> &[Locator] {
         self.endpoint.multicast_locator_list()
     }
-}
 
-impl RtpsWriter {
     pub fn push_mode(&self) -> bool {
         self.push_mode
     }
@@ -79,9 +81,7 @@ impl RtpsWriter {
     pub fn writer_cache_mut(&mut self) -> &mut WriterHistoryCache {
         &mut self.writer_cache
     }
-}
 
-impl RtpsWriter {
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -101,9 +101,7 @@ impl RtpsWriter {
             inline_qos,
         )
     }
-}
 
-impl RtpsWriter {
     pub fn get_qos(&self) -> &DataWriterQos {
         &self.qos
     }
@@ -112,5 +110,55 @@ impl RtpsWriter {
         qos.is_consistent()?;
         self.qos = qos;
         Ok(())
+    }
+
+    pub fn register_instance_w_timestamp<Foo>(
+        &mut self,
+        instance: &Foo,
+        _timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        let serialized_key = instance.get_serialized_key::<LittleEndian>();
+        let instance_handle = serialized_key.as_slice().into();
+
+        if !self.registered_instance_list.contains_key(&instance_handle) {
+            if self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
+                || (self.registered_instance_list.len() as i32)
+                    < self.qos.resource_limits.max_instances
+            {
+                self.registered_instance_list
+                    .insert(instance_handle, serialized_key);
+            } else {
+                return Err(DdsError::OutOfResources);
+            }
+        }
+        Ok(Some(instance_handle))
+    }
+
+    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
+        let serialized_key = self
+            .registered_instance_list
+            .get(&handle)
+            .ok_or(DdsError::BadParameter)?;
+
+        key_holder.set_key_fields_from_serialized_key::<LittleEndian>(serialized_key.as_ref())
+    }
+
+    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> Option<InstanceHandle>
+    where
+        Foo: DdsType,
+    {
+        let serialized_key = instance.get_serialized_key::<LittleEndian>();
+        let instance_handle = serialized_key.as_slice().into();
+        if self.registered_instance_list.contains_key(&instance_handle) {
+            Some(instance_handle)
+        } else {
+            None
+        }
     }
 }
