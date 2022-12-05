@@ -132,7 +132,6 @@ where
 
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
-    registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -182,7 +181,6 @@ impl UserDefinedDataWriter {
 
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
             publisher,
             publication_matched_status: DdsRwLock::new(publication_matched_status),
