@@ -1,24 +1,25 @@
-use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+use crate::{
+    infrastructure::{
+        error::DdsResult,
+        instance::{InstanceHandle, HANDLE_NIL},
+        qos_policy::ReliabilityQosPolicyKind,
+        time::Time,
+    },
+    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+};
 
 use super::{
-    history_cache::RtpsWriterCacheChange, messages::RtpsSubmessageType,
-    reader_locator::RtpsReaderLocator, types::Count, writer::RtpsWriter,
+    history_cache::RtpsWriterCacheChange,
+    messages::RtpsSubmessageType,
+    reader_locator::RtpsReaderLocator,
+    types::{ChangeKind, Count, Guid},
+    writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
     writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
     _heartbeat_count: Count,
-}
-
-impl RtpsStatelessWriter {
-    pub fn writer(&self) -> &RtpsWriter {
-        &self.writer
-    }
-
-    pub fn writer_mut(&mut self) -> &mut RtpsWriter {
-        &mut self.writer
-    }
 }
 
 impl RtpsStatelessWriter {
@@ -29,9 +30,11 @@ impl RtpsStatelessWriter {
             _heartbeat_count: Count(0),
         }
     }
-}
 
-impl RtpsStatelessWriter {
+    pub fn guid(&self) -> Guid {
+        self.writer.guid()
+    }
+
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
             .writer
@@ -42,10 +45,8 @@ impl RtpsStatelessWriter {
             .collect();
         self.reader_locators.push(a_locator);
     }
-}
 
-impl RtpsStatelessWriter {
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+    fn add_change(&mut self, change: RtpsWriterCacheChange) {
         for reader_locator in &mut self.reader_locators {
             reader_locator
                 .unsent_changes_mut()
@@ -53,9 +54,34 @@ impl RtpsStatelessWriter {
         }
         self.writer.writer_cache_mut().add_change(change);
     }
-}
 
-impl RtpsStatelessWriter {
+    pub fn write_w_timestamp<Foo>(
+        &mut self,
+        data: &Foo,
+        _handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+        let handle = self
+            .writer
+            .register_instance_w_timestamp(data, timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.writer.new_change(
+            ChangeKind::Alive,
+            serialized_data,
+            vec![],
+            handle,
+            timestamp,
+        );
+        self.add_change(change);
+
+        Ok(())
+    }
+
     pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageType>)> {
         let mut destined_submessages = Vec::new();
         let reliability_kind = &self.writer.get_qos().reliability.kind;
