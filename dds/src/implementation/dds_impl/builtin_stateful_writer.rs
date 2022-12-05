@@ -111,9 +111,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         message_receiver: &MessageReceiver,
     ) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if rtps_writer_lock.writer().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             rtps_writer_lock.on_acknack_submessage_received(
                 acknack_submessage,
                 message_receiver.source_guid_prefix(),
@@ -153,7 +151,7 @@ impl DdsShared<BuiltinStatefulWriter> {
 impl DdsShared<BuiltinStatefulWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.writer().guid().prefix();
+        let guid_prefix = rtps_writer_lock.guid().prefix();
 
         let destined_submessages = rtps_writer_lock.produce_submessages();
 

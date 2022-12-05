@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsParameter, RtpsWriterCacheChange},
+    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
@@ -29,7 +29,7 @@ use super::{
         RtpsSubmessageType,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{ChangeKind, Count, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
@@ -42,12 +42,6 @@ pub struct RtpsStatefulWriter<T> {
     matched_readers: Vec<RtpsReaderProxy>,
     heartbeat_timer: T,
     heartbeat_count: Count,
-}
-
-impl<T> RtpsStatefulWriter<T> {
-    pub fn writer(&self) -> &RtpsWriter {
-        &self.writer
-    }
 }
 
 impl<T> RtpsStatefulWriter<T> {
@@ -317,6 +311,30 @@ impl<T> RtpsStatefulWriter<T> {
     {
         self.writer.lookup_instance(instance)
     }
+
+    pub fn guid(&self) -> Guid {
+        self.writer.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.writer.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.writer.multicast_locator_list()
+    }
+
+    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+        self.writer.set_qos(qos)
+    }
+
+    pub fn get_qos(&self) -> &DataWriterQos {
+        self.writer.get_qos()
+    }
+
+    pub fn writer_cache(&self) -> &WriterHistoryCache {
+        self.writer.writer_cache()
+    }
 }
 
 impl<T: Timer> RtpsStatefulWriter<T> {
@@ -527,9 +545,5 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                 reader_proxy.reliable_receive_acknack(acknack_submessage);
             }
         }
-    }
-
-    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
-        self.writer.set_qos(qos)
     }
 }

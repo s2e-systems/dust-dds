@@ -203,9 +203,7 @@ impl DdsShared<UserDefinedDataWriter> {
         message_receiver: &MessageReceiver,
     ) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if rtps_writer_lock.writer().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             rtps_writer_lock.on_acknack_submessage_received(
                 acknack_submessage,
                 message_receiver.source_guid_prefix(),
@@ -224,7 +222,7 @@ impl DdsShared<UserDefinedDataWriter> {
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
             let parent_publisher_qos = self.get_publisher().get_qos();
-            let qos = rtps_writer_lock.writer().get_qos();
+            let qos = rtps_writer_lock.get_qos();
             let mut incompatible_qos_policy_list = Vec::new();
             if qos.durability < reader_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
@@ -430,8 +428,10 @@ impl DdsShared<UserDefinedDataWriter> {
 
         while start_time.elapsed() < max_wait_time_std {
             {
+                // This is done in an inner scope such that the lock can be dropped and new acknowledgements
+                // can be processed when received
                 let rtps_writer_lock = self.rtps_writer.write_lock();
-                let changes = rtps_writer_lock.writer().writer_cache().changes();
+                let changes = rtps_writer_lock.writer_cache().changes();
 
                 if changes
                     .iter()
@@ -540,17 +540,14 @@ impl DdsShared<UserDefinedDataWriter> {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
 
         if *self.enabled.read_lock() {
-            rtps_writer_lock
-                .writer()
-                .get_qos()
-                .check_immutability(&qos)?;
+            rtps_writer_lock.get_qos().check_immutability(&qos)?;
         }
 
         rtps_writer_lock.set_qos(qos)
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
-        self.rtps_writer.read_lock().writer().get_qos().clone()
+        self.rtps_writer.read_lock().get_qos().clone()
     }
 
     pub fn set_listener(
@@ -584,7 +581,7 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.read_lock().writer().guid().into()
+        self.rtps_writer.read_lock().guid().into()
     }
 }
 
@@ -593,16 +590,16 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
 
     fn try_from(val: &DdsShared<UserDefinedDataWriter>) -> DdsResult<Self> {
         let rtps_writer_lock = val.rtps_writer.read_lock();
-        let guid = val.rtps_writer.read_lock().writer().guid();
-        let writer_qos = rtps_writer_lock.writer().get_qos();
+        let guid = val.rtps_writer.read_lock().guid();
+        let writer_qos = rtps_writer_lock.get_qos();
         let topic_qos = val.topic.get_qos()?;
         let publisher_qos = val.publisher.upgrade()?.get_qos();
 
         Ok(DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: rtps_writer_lock.writer().guid(),
-                unicast_locator_list: rtps_writer_lock.writer().unicast_locator_list().to_vec(),
-                multicast_locator_list: rtps_writer_lock.writer().multicast_locator_list().to_vec(),
+                remote_writer_guid: rtps_writer_lock.guid(),
+                unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
+                multicast_locator_list: rtps_writer_lock.multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
                 remote_group_entity_id: EntityId::new([0; 3], EntityKind::UserDefinedUnknown),
             },
@@ -633,7 +630,7 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
 impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.writer().guid().prefix();
+        let guid_prefix = rtps_writer_lock.guid().prefix();
 
         let destined_submessages = rtps_writer_lock.produce_submessages();
 
