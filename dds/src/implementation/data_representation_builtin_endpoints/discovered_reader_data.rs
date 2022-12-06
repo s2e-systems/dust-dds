@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::io::Write;
 
 use crate::builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData};
@@ -185,7 +186,7 @@ impl DdsSerialize for DiscoveredReaderData {
 
 impl DdsDeserialize<'_> for DiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf)?;
 
         // reader_proxy
         let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
@@ -220,7 +221,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
-        let remote_reader_guid = key.value.into();
+        let remote_reader_guid = key.clone().try_into()?;
 
         Ok(Self {
             reader_proxy: ReaderProxy {

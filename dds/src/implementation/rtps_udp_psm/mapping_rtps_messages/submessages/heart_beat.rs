@@ -74,9 +74,9 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessage {
 mod tests {
 
     use crate::implementation::{
-        rtps::messages::submessage_elements::{
+        rtps::{messages::submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-        },
+        }, types::{EntityId, EntityKind}},
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -88,10 +88,10 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
@@ -126,10 +126,10 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };

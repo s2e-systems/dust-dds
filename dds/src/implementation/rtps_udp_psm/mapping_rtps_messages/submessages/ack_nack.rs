@@ -76,9 +76,9 @@ impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::messages::submessage_elements::{
+        rtps::{messages::submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-        },
+        }, types::{EntityId, EntityKind}},
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -89,10 +89,10 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let submessage = AckNackSubmessage {
             endianness_flag,
@@ -136,10 +136,10 @@ mod tests {
                 endianness_flag: true,
                 final_flag: false,
                 reader_id: EntityIdSubmessageElement {
-                    value: [1, 2, 3, 0x04],
+                    value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
                 },
                 writer_id: EntityIdSubmessageElement {
-                    value: [6, 7, 8, 0x09],
+                    value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
                 },
                 reader_sn_state: SequenceNumberSetSubmessageElement {
                     base: 10,

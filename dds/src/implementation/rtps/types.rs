@@ -1,4 +1,9 @@
-use std::ops::AddAssign;
+use std::{
+    convert::{TryFrom, TryInto},
+    ops::AddAssign,
+};
+
+use crate::{builtin_topics::BuiltInTopicKey, infrastructure::error::DdsError};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -60,18 +65,21 @@ impl From<Guid> for [u8; 16] {
     }
 }
 
-impl From<[u8; 16]> for Guid {
-    fn from(value: [u8; 16]) -> Self {
-        Guid {
+impl TryFrom<BuiltInTopicKey> for Guid {
+    type Error = DdsError;
+
+    fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
+        let bytes = value.value;
+        Ok(Guid {
             prefix: GuidPrefix([
-                value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-                value[8], value[9], value[10], value[11],
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                bytes[8], bytes[9], bytes[10], bytes[11],
             ]),
             entity_id: EntityId {
-                entity_key: [value[12], value[13], value[14]],
-                entity_kind: value[15].into(),
+                entity_key: [bytes[12], bytes[13], bytes[14]],
+                entity_kind: bytes[15].try_into()?,
             },
-        }
+        })
     }
 }
 
@@ -135,15 +143,6 @@ impl From<EntityId> for [u8; 4] {
     }
 }
 
-impl From<[u8; 4]> for EntityId {
-    fn from(value: [u8; 4]) -> Self {
-        Self {
-            entity_key: [value[0], value[1], value[2]],
-            entity_kind: value[3].into(),
-        }
-    }
-}
-
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
     entity_key: [0; 3],
     entity_kind: EntityKind::UserDefinedUnknown,
@@ -197,7 +196,9 @@ impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(value.into())
+        value.try_into().map_err(|_| {
+            serde::de::Error::invalid_value(serde::de::Unexpected::Unsigned(value as u64), &self)
+        })
     }
 }
 
@@ -207,6 +208,33 @@ impl<'de> serde::Deserialize<'de> for EntityKind {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_u8(EntityKindVisitor)
+    }
+}
+
+impl TryFrom<u8> for EntityKind {
+    type Error = DdsError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        Ok(match value {
+            0x00 => EntityKind::UserDefinedUnknown,
+            0xc0 => EntityKind::BuiltInUnknown,
+            0xc1 => EntityKind::BuiltInParticipant,
+            0x02 => EntityKind::UserDefinedWriterWithKey,
+            0xc2 => EntityKind::BuiltInWriterWithKey,
+            0x03 => EntityKind::UserDefinedWriterNoKey,
+            0xc3 => EntityKind::BuiltInWriterNoKey,
+            0x07 => EntityKind::UserDefinedReaderWithKey,
+            0xc7 => EntityKind::BuiltInReaderWithKey,
+            0x04 => EntityKind::UserDefinedReaderNoKey,
+            0xc4 => EntityKind::BuiltInReaderNoKey,
+            0x08 => EntityKind::UserDefinedWriterGroup,
+            0xc8 => EntityKind::BuiltInWriterGroup,
+            0x09 => EntityKind::UserDefinedReaderGroup,
+            0xc9 => EntityKind::BuiltInReaderGroup,
+            0x0a => EntityKind::UserDefinedTopic,
+            0xca => EntityKind::BuiltInTopic,
+            _ => return Err(DdsError::Error),
+        })
     }
 }
 
@@ -230,31 +258,6 @@ impl From<EntityKind> for u8 {
             EntityKind::BuiltInReaderGroup => 0xc9,
             EntityKind::UserDefinedTopic => 0x0a,
             EntityKind::BuiltInTopic => 0xca,
-        }
-    }
-}
-
-impl From<u8> for EntityKind {
-    fn from(value: u8) -> Self {
-        match value {
-            0x00 => EntityKind::UserDefinedUnknown,
-            0xc0 => EntityKind::BuiltInUnknown,
-            0xc1 => EntityKind::BuiltInParticipant,
-            0x02 => EntityKind::UserDefinedWriterWithKey,
-            0xc2 => EntityKind::BuiltInWriterWithKey,
-            0x03 => EntityKind::UserDefinedWriterNoKey,
-            0xc3 => EntityKind::BuiltInWriterNoKey,
-            0x07 => EntityKind::UserDefinedReaderWithKey,
-            0xc7 => EntityKind::BuiltInReaderWithKey,
-            0x04 => EntityKind::UserDefinedReaderNoKey,
-            0xc4 => EntityKind::BuiltInReaderNoKey,
-            0x08 => EntityKind::UserDefinedWriterGroup,
-            0xc8 => EntityKind::BuiltInWriterGroup,
-            0x09 => EntityKind::UserDefinedReaderGroup,
-            0xc9 => EntityKind::BuiltInReaderGroup,
-            0x0a => EntityKind::UserDefinedTopic,
-            0xca => EntityKind::BuiltInTopic,
-            _ => EntityKind::UserDefinedUnknown,
         }
     }
 }
