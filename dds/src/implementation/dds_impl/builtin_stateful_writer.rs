@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::implementation::rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer};
 use crate::{
     implementation::rtps::{
@@ -19,7 +17,7 @@ use crate::{
             DEFAULT_NACK_SUPPRESSION_DURATION,
         },
         transport::TransportWrite,
-        types::{ChangeKind, Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+        types::{Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
         writer::RtpsWriter,
     },
     infrastructure::{
@@ -27,11 +25,8 @@ use crate::{
         qos::DataWriterQos,
         time::Time,
     },
-    infrastructure::{
-        instance::{InstanceHandle, HANDLE_NIL},
-        qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
-    },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    infrastructure::{instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind},
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use crate::implementation::{
@@ -49,7 +44,6 @@ use super::{
 
 pub struct BuiltinStatefulWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
-    registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
 }
@@ -81,7 +75,6 @@ impl BuiltinStatefulWriter {
 
         DdsShared::new(BuiltinStatefulWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
             enabled: DdsRwLock::new(false),
         })
@@ -91,22 +84,15 @@ impl BuiltinStatefulWriter {
     /// type for those.
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if !rtps_writer_lock
-            .matched_readers()
-            .iter_mut()
-            .any(|r| r.remote_reader_guid().prefix() == participant_discovery.guid_prefix())
-        {
-            let type_name = self.topic.get_type_name().unwrap();
-            if type_name == DiscoveredWriterData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
-            } else if type_name == DiscoveredReaderData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_subscriptions_writer(&mut rtps_writer_lock);
-            } else if type_name == DiscoveredTopicData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_topics_writer(&mut rtps_writer_lock);
-            }
+        let type_name = self.topic.get_type_name().unwrap();
+        if type_name == DiscoveredWriterData::type_name() {
+            participant_discovery
+                .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
+        } else if type_name == DiscoveredReaderData::type_name() {
+            participant_discovery
+                .discovered_participant_add_subscriptions_writer(&mut rtps_writer_lock);
+        } else if type_name == DiscoveredTopicData::type_name() {
+            participant_discovery.discovered_participant_add_topics_writer(&mut rtps_writer_lock);
         }
     }
 }
@@ -118,9 +104,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         message_receiver: &MessageReceiver,
     ) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if rtps_writer_lock.writer().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             rtps_writer_lock.on_acknack_submessage_received(
                 acknack_submessage,
                 message_receiver.source_guid_prefix(),
@@ -130,49 +114,10 @@ impl DdsShared<BuiltinStatefulWriter> {
 }
 
 impl DdsShared<BuiltinStatefulWriter> {
-    pub fn register_instance_w_timestamp<Foo>(
-        &self,
-        instance: &Foo,
-        _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
-
-        let mut registered_instances_lock = self.registered_instance_list.write_lock();
-        let rtps_writer_lock = self.rtps_writer.read_lock();
-        if !registered_instances_lock.contains_key(&instance_handle) {
-            if rtps_writer_lock
-                .writer()
-                .get_qos()
-                .resource_limits
-                .max_instances
-                == LENGTH_UNLIMITED
-                || (registered_instances_lock.len() as i32)
-                    < rtps_writer_lock
-                        .writer()
-                        .get_qos()
-                        .resource_limits
-                        .max_instances
-            {
-                registered_instances_lock.insert(instance_handle, serialized_key);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
-    }
-
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
-        _handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
@@ -182,22 +127,9 @@ impl DdsShared<BuiltinStatefulWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
-        let handle = self
-            .register_instance_w_timestamp(data, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let change = rtps_writer_lock.writer_mut().new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
-            handle,
-            timestamp,
-        );
-        rtps_writer_lock.add_change(change);
-
-        Ok(())
+        self.rtps_writer
+            .write_lock()
+            .write_w_timestamp(data, handle, timestamp)
     }
 }
 
@@ -212,7 +144,7 @@ impl DdsShared<BuiltinStatefulWriter> {
 impl DdsShared<BuiltinStatefulWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.writer().guid().prefix();
+        let guid_prefix = rtps_writer_lock.guid().prefix();
 
         let destined_submessages = rtps_writer_lock.produce_submessages();
 
