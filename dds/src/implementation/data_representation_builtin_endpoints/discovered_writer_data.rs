@@ -10,7 +10,7 @@ use crate::infrastructure::qos_policy::{
     PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
     UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
 };
-use crate::topic_definition::type_support::LittleEndian;
+use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
@@ -71,11 +71,15 @@ impl DdsType for DiscoveredWriterData {
         true
     }
 
-    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
-        self.publication_builtin_topic_data.key.value.to_vec()
+    fn get_serialized_key(&self) -> DdsSerializedKey {
+        self.publication_builtin_topic_data
+            .key
+            .value
+            .as_ref()
+            .into()
     }
 
-    fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, _key: &[u8]) -> DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -247,15 +251,11 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
             },
         })
     }
-
-    fn deserialize_key(mut buf: &[u8]) -> DdsResult<Vec<u8>> {
-        Ok(Self::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::{GuidPrefix, EntityKind};
+    use crate::implementation::rtps::types::{EntityKind, GuidPrefix};
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,

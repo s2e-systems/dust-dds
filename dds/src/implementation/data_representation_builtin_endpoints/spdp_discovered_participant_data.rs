@@ -7,7 +7,7 @@ use crate::implementation::rtps::types::{
 };
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::UserDataQosPolicy;
-use crate::topic_definition::type_support::LittleEndian;
+use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
@@ -111,11 +111,11 @@ impl DdsType for SpdpDiscoveredParticipantData {
         true
     }
 
-    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
-        self.dds_participant_data.key.value.to_vec()
+    fn get_serialized_key(&self) -> DdsSerializedKey {
+        self.dds_participant_data.key.value.as_ref().into()
     }
 
-    fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, _key: &[u8]) -> DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -240,10 +240,6 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             lease_duration,
         })
     }
-
-    fn deserialize_key(mut buf: &[u8]) -> DdsResult<Vec<u8>> {
-        Ok(Self::deserialize(&mut buf)?.get_serialized_key::<LittleEndian>())
-    }
 }
 
 #[cfg(test)]
@@ -268,7 +264,10 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix::from([8; 12]);
-        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant));
+        let guid = Guid::new(
+            guid_prefix,
+            EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
+        );
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -386,7 +385,10 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let guid_prefix = GuidPrefix::from([8; 12]);
-        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant));
+        let guid = Guid::new(
+            guid_prefix,
+            EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
+        );
         let vendor_id = [73, 74];
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];

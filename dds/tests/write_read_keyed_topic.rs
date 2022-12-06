@@ -2,7 +2,9 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -90,25 +92,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
     assert_eq!(
         samples[0].sample_info.instance_handle,
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data1.get_serialized_key().into()
     );
 
     assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
     assert_eq!(
         samples[1].sample_info.instance_handle,
-        [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data2.get_serialized_key().into()
     );
 
     assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
     assert_eq!(
         samples[2].sample_info.instance_handle,
-        [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data3.get_serialized_key().into()
     );
 }
 
@@ -133,6 +129,10 @@ fn write_read_disposed_samples() {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
         ..Default::default()
     };
     let writer = publisher
@@ -146,6 +146,10 @@ fn write_read_disposed_samples() {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
         },
         ..Default::default()
     };
@@ -180,7 +184,7 @@ fn write_read_disposed_samples() {
     assert_eq!(samples.len(), 2);
     assert_eq!(
         samples[0].sample_info.instance_state,
-        InstanceStateKind::Alive
+        InstanceStateKind::NotAliveDisposed
     );
     assert_eq!(
         samples[1].sample_info.instance_state,

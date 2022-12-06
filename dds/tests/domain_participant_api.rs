@@ -30,10 +30,6 @@ impl<'de> DdsDeserialize<'de> for TestType {
     fn deserialize(_buf: &mut &'de [u8]) -> DdsResult<Self> {
         todo!()
     }
-
-    fn deserialize_key(_buf: &[u8]) -> DdsResult<Vec<u8>> {
-        todo!()
-    }
 }
 
 #[test]

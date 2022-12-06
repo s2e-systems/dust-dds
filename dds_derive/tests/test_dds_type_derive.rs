@@ -1,4 +1,4 @@
-use dust_dds::topic_definition::type_support::{BigEndian, DdsSerde, DdsType, LittleEndian};
+use dust_dds::topic_definition::type_support::{DdsSerde, DdsType};
 use serde::{Deserialize, Serialize};
 
 #[derive(DdsType, DdsSerde)]
@@ -16,13 +16,14 @@ fn test_struct_no_key_info() {
 #[test]
 fn test_struct_no_key_get() {
     let snk = StructNoKey { a: 1, b: 2 };
-    assert!(snk.get_serialized_key::<BigEndian>().is_empty());
+    assert!(snk.get_serialized_key().as_ref().is_empty());
 }
 
 #[test]
 fn test_struct_no_key_set() {
     let mut snk2 = StructNoKey { a: 3, b: 4 };
-    snk2.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
+    snk2.set_key_fields_from_serialized_key(&[][..].into())
+        .unwrap();
     assert_eq!(snk2.a, 3);
     assert_eq!(snk2.b, 4);
 }
@@ -43,17 +44,14 @@ fn test_struct_with_key_info() {
 #[test]
 fn test_struct_with_key_get() {
     let swk = StructWithKey { a: 1, b: 2 };
-    assert_eq!(
-        swk.get_serialized_key::<BigEndian>(),
-        &[0, 0, 0, 2]
-    );
+    assert_eq!(swk.get_serialized_key(), [2, 0, 0, 0][..].into());
 }
 
 #[test]
 fn test_struct_with_key_set() {
     let mut swk = StructWithKey { a: 0, b: 0 };
-    let key = [42, 0, 0, 0];
-    swk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
+    let key = [42, 0, 0, 0][..].into();
+    swk.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(swk.a, 0);
     assert_eq!(swk.b, 42)
 }
@@ -88,10 +86,7 @@ fn test_struct_many_keys_get() {
         c: 'X',
         d: false,
     };
-    assert_eq!(
-        smk.get_serialized_key::<LittleEndian>(),
-        [1, 0, 0, 0, b'X', 0]
-    );
+    assert_eq!(smk.get_serialized_key(), [1, 0, 0, 0, b'X', 0][..].into());
 }
 
 #[test]
@@ -102,8 +97,8 @@ fn test_struct_many_keys_set() {
         c: '\0',
         d: false,
     };
-    let key = [69, 0, 0, 0, b'X', 1];
-    smk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
+    let key = [69, 0, 0, 0, b'X', 1][..].into();
+    smk.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(smk.a, 69);
     assert_eq!(smk.b, 0);
     assert_eq!(smk.c, 'X');
@@ -134,10 +129,7 @@ fn test_dds_type_derive_with_generic_get() {
         a: vec![0, 1, 0],
         b: 42,
     };
-    assert_eq!(
-        twg.get_serialized_key::<LittleEndian>(),
-        [42, 0, 0, 0]
-    )
+    assert_eq!(twg.get_serialized_key(), [42, 0, 0, 0][..].into())
 }
 
 #[test]
@@ -146,8 +138,8 @@ fn test_dds_type_derive_with_generic_set() {
         a: vec![false],
         b: 0,
     };
-    let key = [42, 0, 0, 0];
-    twg.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
+    let key = [42, 0, 0, 0][..].into();
+    twg.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(twg.a, vec![false]);
     assert_eq!(twg.b, 42);
 }
@@ -164,13 +156,14 @@ fn test_tuple_no_key_info() {
 #[test]
 fn test_tuple_no_key_get() {
     let twk = TupleNoKey(10, 25);
-    assert!(twk.get_serialized_key::<LittleEndian>().is_empty());
+    assert!(twk.get_serialized_key().as_ref().is_empty());
 }
 
 #[test]
 fn test_tuple_no_key_set() {
     let mut twk = TupleNoKey(1, 2);
-    twk.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
+    twk.set_key_fields_from_serialized_key(&[][..].into())
+        .unwrap();
     assert_eq!(twk.0, 1);
     assert_eq!(twk.1, 2);
 }
@@ -187,17 +180,14 @@ fn test_tuple_with_keys_info() {
 #[test]
 fn test_tuple_with_keys_get() {
     let twk = TupleWithKeys(1, 2, true, '🦀');
-    assert_eq!(
-        twk.get_serialized_key::<LittleEndian>(),
-        [2, 0, 0, 0, 1]
-    )
+    assert_eq!(twk.get_serialized_key(), [2, 0, 0, 0, 1][..].into())
 }
 
 #[test]
 fn test_tuple_with_keys_set() {
     let mut twk = TupleWithKeys(0, 0, false, '\0');
-    let key = [2, 0, 0, 0, 1];
-    twk.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
+    let key = [2, 0, 0, 0, 1][..].into();
+    twk.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(twk.0, 0);
     assert_eq!(twk.1, 2);
     assert_eq!(twk.2, true);
@@ -220,13 +210,14 @@ fn test_enum_no_key_info() {
 #[test]
 fn test_enum_no_key_get() {
     let enk = EnumNoKey::_Two;
-    assert!(enk.get_serialized_key::<LittleEndian>().is_empty());
+    assert!(enk.get_serialized_key().as_ref().is_empty());
 }
 
 #[test]
 fn test_enum_no_key_set() {
     let mut enk = EnumNoKey::_Two;
-    enk.set_key_fields_from_serialized_key::<LittleEndian>(&[]).unwrap();
+    enk.set_key_fields_from_serialized_key(&[][..].into())
+        .unwrap();
     assert_eq!(enk, EnumNoKey::_Two);
 }
 
@@ -247,16 +238,13 @@ fn test_enum_key_info() {
 #[test]
 fn test_enum_key_get() {
     let ek = EnumKey::_Two;
-    assert_eq!(
-        ek.get_serialized_key::<LittleEndian>(),
-        [1, 0, 0, 0]
-    );
+    assert_eq!(ek.get_serialized_key(), [1, 0, 0, 0][..].into());
 }
 
 #[test]
 fn test_enum_key_set() {
     let mut ek = EnumKey::_One;
-    let key = [1, 0, 0, 0];
-    ek.set_key_fields_from_serialized_key::<LittleEndian>(&key).unwrap();
+    let key = [1, 0, 0, 0][..].into();
+    ek.set_key_fields_from_serialized_key(&key).unwrap();
     assert_eq!(ek, EnumKey::_Two);
 }

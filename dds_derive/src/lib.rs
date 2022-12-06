@@ -49,22 +49,12 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
-                    if E::REPRESENTATION_IDENTIFIER == dust_dds::topic_definition::type_support::PL_CDR_BE {
-                        cdr::ser::serialize_data::<_, _, cdr::BigEndian>(self, cdr::Infinite).unwrap()
-                    } else {
-                        cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(self, cdr::Infinite).unwrap()
-                    }
+                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
+                    cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(self, cdr::Infinite).unwrap().into()
                 }
 
-                fn set_key_fields_from_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&mut self, key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
-                    let mut buf = key.to_owned();
-                    if E::REPRESENTATION_IDENTIFIER == dust_dds::topic_definition::type_support::PL_CDR_BE {
-                        *self = cdr::de::deserialize_data::<_, cdr::BigEndian>(&mut buf).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
-                    } else {
-                        *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&mut buf).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
-                    }
-
+                fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
+                    *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&mut key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
                     Ok(())
                 }
             }
@@ -89,11 +79,11 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     true
                 }
 
-                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
+                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
                     #build_key
                 }
 
-                fn set_key_fields_from_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&mut self, key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     #set_key
                     Ok(())
                 }
@@ -111,11 +101,11 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                     false
                 }
 
-                fn get_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&self) -> Vec<u8> {
-                    vec![]
+                fn get_serialized_key(&self) -> dust_dds::topic_definition::type_support::DdsSerializedKey {
+                    vec![].into()
                 }
 
-                fn set_key_fields_from_serialized_key<E: dust_dds::topic_definition::type_support::Endianness>(&mut self, _key: &[u8]) -> dust_dds::infrastructure::error::DdsResult<()> {
+                fn set_key_fields_from_serialized_key(&mut self, _key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
                     Ok(())
                 }
             }
@@ -143,11 +133,7 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
     }
 
     quote! {
-        if E::REPRESENTATION_IDENTIFIER == dust_dds::topic_definition::type_support::PL_CDR_BE {
-            cdr::ser::serialize_data::<_, _, cdr::BigEndian>(&(#field_list_ts), cdr::Infinite).unwrap()
-        } else {
-            cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(&(#field_list_ts), cdr::Infinite).unwrap()
-        }
+        cdr::ser::serialize_data::<_, _, cdr::LittleEndian>(&(#field_list_ts), cdr::Infinite).unwrap().into()
     }
 }
 
@@ -169,8 +155,7 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
     }
 
     let mut token_stream = quote! {
-        let mut __buf = key.to_owned();
-        let (#identifier_list_ts) = cdr::de::deserialize_data::<_,cdr::LittleEndian>(&mut __buf).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
+        let (#identifier_list_ts) = cdr::de::deserialize_data::<_,cdr::LittleEndian>(&mut key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
     };
 
     for (&(i, field), ident) in indexed_key_fields.iter().zip(identifiers.iter()) {
