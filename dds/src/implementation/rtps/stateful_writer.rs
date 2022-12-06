@@ -1,13 +1,17 @@
 use crate::{
     implementation::rtps::utils::clock::{Timer, TimerConstructor},
     infrastructure::{
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::DataWriterQos,
         qos_policy::ReliabilityQosPolicyKind,
-        time::{Duration, DURATION_ZERO},
+        time::{Duration, Time, DURATION_ZERO},
     },
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use super::{
-    history_cache::RtpsWriterCacheChange,
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
@@ -16,14 +20,12 @@ use super::{
         RtpsSubmessageType,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{Count, Guid, GuidPrefix, ENTITYID_UNKNOWN},
+    types::{Count, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
 pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
-
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
-
 pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 pub struct RtpsStatefulWriter<T> {
@@ -31,22 +33,6 @@ pub struct RtpsStatefulWriter<T> {
     matched_readers: Vec<RtpsReaderProxy>,
     heartbeat_timer: T,
     heartbeat_count: Count,
-}
-
-impl<T> RtpsStatefulWriter<T> {
-    pub fn writer(&self) -> &RtpsWriter {
-        &self.writer
-    }
-
-    pub fn writer_mut(&mut self) -> &mut RtpsWriter {
-        &mut self.writer
-    }
-}
-
-impl<T> RtpsStatefulWriter<T> {
-    pub fn matched_readers(&mut self) -> &mut Vec<RtpsReaderProxy> {
-        &mut self.matched_readers
-    }
 }
 
 impl<T: TimerConstructor> RtpsStatefulWriter<T> {
@@ -106,7 +92,34 @@ impl<T> RtpsStatefulWriter<T> {
 }
 
 impl<T> RtpsStatefulWriter<T> {
-    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+    pub fn register_instance_w_timestamp<Foo>(
+        &mut self,
+        instance: &Foo,
+        timestamp: Time,
+    ) -> DdsResult<Option<InstanceHandle>>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        self.writer
+            .register_instance_w_timestamp(instance, timestamp)
+    }
+
+    pub fn write_w_timestamp<Foo>(
+        &mut self,
+        data: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        let change = self.writer.new_write_change(data, handle, timestamp)?;
+        self.add_change(change);
+
+        Ok(())
+    }
+
+    fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let sequence_number = change.sequence_number();
         self.writer.writer_cache_mut().add_change(change);
 
@@ -120,6 +133,75 @@ impl<T> RtpsStatefulWriter<T> {
                 .changes_for_reader_mut()
                 .push(RtpsChangeForReader::new(status, true, sequence_number))
         }
+    }
+
+    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
+        self.writer.get_key_value(key_holder, handle)
+    }
+
+    pub fn dispose_w_timestamp<Foo>(
+        &mut self,
+        data: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
+        let change = self.writer.new_dispose_change(data, handle, timestamp)?;
+        self.add_change(change);
+
+        Ok(())
+    }
+
+    pub fn unregister_instance_w_timestamp<Foo>(
+        &mut self,
+        instance: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        let change = self
+            .writer
+            .new_unregister_change(instance, handle, timestamp)?;
+        self.add_change(change);
+        Ok(())
+    }
+
+    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> Option<InstanceHandle>
+    where
+        Foo: DdsType,
+    {
+        self.writer.lookup_instance(instance)
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.writer.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.writer.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.writer.multicast_locator_list()
+    }
+
+    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+        self.writer.set_qos(qos)
+    }
+
+    pub fn get_qos(&self) -> &DataWriterQos {
+        self.writer.get_qos()
+    }
+
+    pub fn writer_cache(&self) -> &WriterHistoryCache {
+        self.writer.writer_cache()
     }
 }
 
@@ -311,9 +393,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
         }
         destined_submessages
     }
-}
 
-impl<T> RtpsStatefulWriter<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,

@@ -15,26 +15,26 @@ use crate::{
                     VendorIdSubmessageElement,
                 },
                 submessages::AckNackSubmessage,
-                types::{ParameterId, ProtocolId},
+                types::ProtocolId,
                 RtpsMessage,
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{ChangeKind, EntityId, PROTOCOLVERSION, VENDOR_ID_S2E, EntityKind},
+            types::{EntityId, EntityKind, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::QosKind,
-        qos_policy::{ReliabilityQosPolicyKind, LENGTH_UNLIMITED},
+        qos_policy::ReliabilityQosPolicyKind,
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     publication::data_writer::DataWriter,
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -52,19 +52,10 @@ use crate::{
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-        data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
-            types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
-        },
-        rtps::{
-            history_cache::RtpsParameter, stateful_writer::RtpsStatefulWriter,
-            utils::clock::StdTimer,
-        },
+        rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer},
     },
     publication::data_writer_listener::DataWriterListener,
 };
-
-use serde::Serialize;
 
 use crate::implementation::{
     data_representation_builtin_endpoints::{
@@ -78,38 +69,6 @@ use super::{
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
     user_defined_publisher::UserDefinedPublisher,
 };
-
-fn retrieve_instance_handle(
-    handle: Option<InstanceHandle>,
-    registered_instance_list: &HashMap<InstanceHandle, Vec<u8>>,
-    serialized_key: &[u8],
-) -> DdsResult<InstanceHandle> {
-    match handle {
-        Some(h) => {
-            if let Some(stored_key) = registered_instance_list.get(&h) {
-                if stored_key == serialized_key {
-                    Ok(h)
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Handle does not match instance".to_string(),
-                    ))
-                }
-            } else {
-                Err(DdsError::BadParameter)
-            }
-        }
-        None => {
-            let instance_handle = serialized_key.into();
-            if registered_instance_list.contains_key(&instance_handle) {
-                Ok(instance_handle)
-            } else {
-                Err(DdsError::PreconditionNotMet(
-                    "Instance not registered with this DataWriter".to_string(),
-                ))
-            }
-        }
-    }
-}
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(
@@ -173,7 +132,6 @@ where
 
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
-    registered_instance_list: DdsRwLock<HashMap<InstanceHandle, Vec<u8>>>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -223,7 +181,6 @@ impl UserDefinedDataWriter {
 
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            registered_instance_list: DdsRwLock::new(HashMap::new()),
             topic,
             publisher,
             publication_matched_status: DdsRwLock::new(publication_matched_status),
@@ -246,9 +203,7 @@ impl DdsShared<UserDefinedDataWriter> {
         message_receiver: &MessageReceiver,
     ) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if rtps_writer_lock.writer().get_qos().reliability.kind
-            == ReliabilityQosPolicyKind::Reliable
-        {
+        if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             rtps_writer_lock.on_acknack_submessage_received(
                 acknack_submessage,
                 message_receiver.source_guid_prefix(),
@@ -267,7 +222,7 @@ impl DdsShared<UserDefinedDataWriter> {
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
             let parent_publisher_qos = self.get_publisher().get_qos();
-            let qos = rtps_writer_lock.writer().get_qos();
+            let qos = rtps_writer_lock.get_qos();
             let mut incompatible_qos_policy_list = Vec::new();
             if qos.durability < reader_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
@@ -366,7 +321,7 @@ impl DdsShared<UserDefinedDataWriter> {
     pub fn register_instance_w_timestamp<Foo>(
         &self,
         instance: &Foo,
-        _timestamp: Time,
+        timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>>
     where
         Foo: DdsType + DdsSerialize,
@@ -375,31 +330,9 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
-
-        let mut registered_instances_lock = self.registered_instance_list.write_lock();
-        let rtps_writer_lock = self.rtps_writer.read_lock();
-        if !registered_instances_lock.contains_key(&instance_handle) {
-            if rtps_writer_lock
-                .writer()
-                .get_qos()
-                .resource_limits
-                .max_instances
-                == LENGTH_UNLIMITED
-                || (registered_instances_lock.len() as i32)
-                    < rtps_writer_lock
-                        .writer()
-                        .get_qos()
-                        .resource_limits
-                        .max_instances
-            {
-                registered_instances_lock.insert(instance_handle, serialized_key);
-            } else {
-                return Err(DdsError::OutOfResources);
-            }
-        }
-        Ok(Some(instance_handle))
+        self.rtps_writer
+            .write_lock()
+            .register_instance_w_timestamp(instance, timestamp)
     }
 
     pub fn unregister_instance_w_timestamp<Foo>(
@@ -415,46 +348,9 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        if Foo::has_key() {
-            let serialized_key = instance.get_serialized_key::<LittleEndian>();
-
-            let mut rtps_writer_lock = self.rtps_writer.write_lock();
-            let mut registered_instance_list_lock = self.registered_instance_list.write_lock();
-
-            let instance_handle = retrieve_instance_handle(
-                handle,
-                &registered_instance_list_lock,
-                serialized_key.as_ref(),
-            )?;
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_UNREGISTERED_FLAG
-                .serialize(&mut serializer)
-                .unwrap();
-
-            let inline_qos = vec![RtpsParameter::new(
-                ParameterId(PID_STATUS_INFO),
-                serialized_status_info,
-            )];
-
-            // Hardcoded CDR header to satisfy wireshark
-            let mut data = vec![0, 1, 0, 0];
-            data.extend(serialized_key);
-
-            let change = rtps_writer_lock.writer_mut().new_change(
-                ChangeKind::NotAliveUnregistered,
-                data,
-                inline_qos,
-                instance_handle,
-                timestamp,
-            );
-            rtps_writer_lock.add_change(change);
-            registered_instance_list_lock.remove(&instance_handle);
-            Ok(())
-        } else {
-            Err(DdsError::IllegalOperation)
-        }
+        self.rtps_writer
+            .write_lock()
+            .unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
@@ -465,33 +361,26 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        let registered_instance_list_lock = self.registered_instance_list.read_lock();
-
-        let serialized_key = registered_instance_list_lock
-            .get(&handle)
-            .ok_or(DdsError::BadParameter)?;
-
-        key_holder.set_key_fields_from_serialized_key::<LittleEndian>(serialized_key.as_ref())
+        self.rtps_writer
+            .write_lock()
+            .get_key_value(key_holder, handle)
     }
 
     pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
     where
         Foo: DdsType,
     {
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
-        let registered_instance_list_lock = self.registered_instance_list.read_lock();
-        if registered_instance_list_lock.contains_key(&instance_handle) {
-            Ok(Some(instance_handle))
-        } else {
-            Ok(None)
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
         }
+
+        Ok(self.rtps_writer.write_lock().lookup_instance(instance))
     }
 
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
-        _handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
@@ -501,20 +390,9 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
-        let handle = self
-            .register_instance_w_timestamp(data, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let change = rtps_writer_lock.writer_mut().new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
-            handle,
-            timestamp,
-        );
-        rtps_writer_lock.add_change(change);
+        self.rtps_writer
+            .write_lock()
+            .write_w_timestamp(data, handle, timestamp)?;
 
         self.user_defined_data_send_condvar.notify_all();
 
@@ -534,45 +412,9 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        if Foo::has_key() {
-            let serialized_key = data.get_serialized_key::<LittleEndian>();
-
-            let mut rtps_writer_lock = self.rtps_writer.write_lock();
-            let registered_instance_list_lock = self.registered_instance_list.read_lock();
-
-            let instance_handle = retrieve_instance_handle(
-                handle,
-                &registered_instance_list_lock,
-                serialized_key.as_ref(),
-            )?;
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_DISPOSED_FLAG
-                .serialize(&mut serializer)
-                .unwrap();
-
-            let inline_qos = vec![RtpsParameter::new(
-                ParameterId(PID_STATUS_INFO),
-                serialized_status_info,
-            )];
-
-            // Hardcoded CDR header to satisfy wireshark
-            let mut data = vec![0, 1, 0, 0];
-            data.extend(serialized_key);
-            let change = rtps_writer_lock.writer_mut().new_change(
-                ChangeKind::NotAliveDisposed,
-                data,
-                inline_qos,
-                instance_handle,
-                timestamp,
-            );
-            rtps_writer_lock.add_change(change);
-
-            Ok(())
-        } else {
-            Err(DdsError::IllegalOperation)
-        }
+        self.rtps_writer
+            .write_lock()
+            .dispose_w_timestamp(data, handle, timestamp)
     }
 
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
@@ -586,8 +428,10 @@ impl DdsShared<UserDefinedDataWriter> {
 
         while start_time.elapsed() < max_wait_time_std {
             {
+                // This is done in an inner scope such that the lock can be dropped and new acknowledgements
+                // can be processed when received
                 let rtps_writer_lock = self.rtps_writer.write_lock();
-                let changes = rtps_writer_lock.writer().writer_cache().changes();
+                let changes = rtps_writer_lock.writer_cache().changes();
 
                 if changes
                     .iter()
@@ -696,17 +540,14 @@ impl DdsShared<UserDefinedDataWriter> {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
 
         if *self.enabled.read_lock() {
-            rtps_writer_lock
-                .writer()
-                .get_qos()
-                .check_immutability(&qos)?;
+            rtps_writer_lock.get_qos().check_immutability(&qos)?;
         }
 
-        rtps_writer_lock.writer_mut().set_qos(qos)
+        rtps_writer_lock.set_qos(qos)
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
-        self.rtps_writer.read_lock().writer().get_qos().clone()
+        self.rtps_writer.read_lock().get_qos().clone()
     }
 
     pub fn set_listener(
@@ -740,7 +581,7 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.read_lock().writer().guid().into()
+        self.rtps_writer.read_lock().guid().into()
     }
 }
 
@@ -749,16 +590,16 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
 
     fn try_from(val: &DdsShared<UserDefinedDataWriter>) -> DdsResult<Self> {
         let rtps_writer_lock = val.rtps_writer.read_lock();
-        let guid = val.rtps_writer.read_lock().writer().guid();
-        let writer_qos = rtps_writer_lock.writer().get_qos();
+        let guid = val.rtps_writer.read_lock().guid();
+        let writer_qos = rtps_writer_lock.get_qos();
         let topic_qos = val.topic.get_qos()?;
         let publisher_qos = val.publisher.upgrade()?.get_qos();
 
         Ok(DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: rtps_writer_lock.writer().guid(),
-                unicast_locator_list: rtps_writer_lock.writer().unicast_locator_list().to_vec(),
-                multicast_locator_list: rtps_writer_lock.writer().multicast_locator_list().to_vec(),
+                remote_writer_guid: rtps_writer_lock.guid(),
+                unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
+                multicast_locator_list: rtps_writer_lock.multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
                 remote_group_entity_id: EntityId::new([0; 3], EntityKind::UserDefinedUnknown),
             },
@@ -789,7 +630,7 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
 impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.writer().guid().prefix();
+        let guid_prefix = rtps_writer_lock.guid().prefix();
 
         let destined_submessages = rtps_writer_lock.produce_submessages();
 
@@ -1087,7 +928,10 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
+                remote_reader_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1176,7 +1020,10 @@ mod test {
         };
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(GuidPrefix::from([2; 12]), EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey)),
+                remote_reader_guid: Guid::new(
+                    GuidPrefix::from([2; 12]),
+                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
