@@ -352,6 +352,12 @@ impl DdsShared<UserDefinedPublisher> {
         }
     }
 
+    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+        for data_writer in self.data_writer_list.read_lock().iter() {
+            data_writer.remove_matched_reader(discovered_reader_handle)
+        }
+    }
+
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);

@@ -104,8 +104,6 @@ impl Subscriber {
                             Box::new(x)
                         }),
                         mask,
-                        &THE_PARTICIPANT_FACTORY
-                            .lookup_participant_by_entity_handle(self.get_instance_handle()?),
                     )
                     .map(|x| DataReader::new(x.downgrade()))
             }

@@ -313,6 +313,7 @@ impl DdsShared<DomainParticipantImpl> {
         let subscriber_shared = UserDefinedSubscriber::new(
             subscriber_qos,
             rtps_group,
+            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
         if *self.enabled.read_lock()
@@ -901,16 +902,24 @@ impl DdsShared<DomainParticipantImpl> {
         let sedp_builtin_subscription_reader =
             self.builtin_subscriber.sedp_builtin_subscriptions_reader();
 
-        let samples = sedp_builtin_subscription_reader.take(
+        if let Ok(samples) = sedp_builtin_subscription_reader.take(
             1,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
-        );
-
-        for discovered_reader_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
-            for publisher in user_defined_publishers.iter() {
-                publisher.add_matched_reader(discovered_reader_data_sample.data.as_ref().unwrap())
+        ) {
+            for discovered_reader_data_sample in samples.iter() {
+                for publisher in user_defined_publishers.iter() {
+                    match discovered_reader_data_sample.sample_info.instance_state {
+                        InstanceStateKind::Alive => publisher.add_matched_reader(
+                            discovered_reader_data_sample.data.as_ref().unwrap(),
+                        ),
+                        InstanceStateKind::NotAliveDisposed => publisher.remove_matched_reader(
+                            discovered_reader_data_sample.sample_info.instance_handle,
+                        ),
+                        InstanceStateKind::NotAliveNoWriters => todo!(),
+                    }
+                }
             }
         }
 
@@ -977,6 +986,15 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_subscriptions_writer()
             .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
             .unwrap();
+    }
+
+    pub fn announce_deleted_datareader(
+        &self,
+        sedp_discovered_reader_data: DiscoveredReaderData,
+    ) -> DdsResult<()> {
+        self.builtin_publisher
+            .sedp_builtin_subscriptions_writer()
+            .dispose_w_timestamp(&sedp_discovered_reader_data, None, self.get_current_time()?)
     }
 
     pub fn update_communication_status(&self) -> DdsResult<()> {

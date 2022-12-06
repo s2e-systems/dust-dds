@@ -1,35 +1,37 @@
-use crate::implementation::rtps::endpoint::RtpsEndpoint;
-use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
-use crate::implementation::rtps::reader::RtpsReader;
-use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, GuidPrefix, TopicKind};
-use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_reader::RtpsStatefulReader};
-use crate::implementation::utils::condvar::DdsCondvar;
-use crate::infrastructure::error::{DdsError, DdsResult};
-use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::QosKind;
-use crate::infrastructure::status::{SampleLostStatus, StatusKind};
-use crate::infrastructure::time::{Time, DURATION_ZERO};
-use crate::subscription::subscriber_listener::SubscriberListener;
-use crate::topic_definition::type_support::DdsDeserialize;
 use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        rtps::{
+            endpoint::RtpsEndpoint,
+            group::RtpsGroupImpl,
+            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
+            reader::RtpsReader,
+            stateful_reader::RtpsStatefulReader,
+            transport::TransportWrite,
+            types::{EntityId, EntityKind, Guid, GuidPrefix, TopicKind},
+        },
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        },
+    },
     infrastructure::{
         condition::StatusCondition,
-        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
+        status::{SampleLostStatus, StatusKind},
+        time::{Time, DURATION_ZERO},
     },
-    topic_definition::type_support::DdsType,
+    subscription::subscriber_listener::SubscriberListener,
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
-    utils::shared_object::{DdsRwLock, DdsShared},
-};
-
-use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
-use super::user_defined_data_reader::AnyDataReaderListener;
 use super::{
-    domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    domain_participant_impl::DomainParticipantImpl,
+    message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    topic_impl::TopicImpl,
+    user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
 };
 
 pub struct UserDefinedSubscriber {
@@ -39,6 +41,7 @@ pub struct UserDefinedSubscriber {
     user_defined_data_reader_counter: u8,
     default_data_reader_qos: DataReaderQos,
     enabled: DdsRwLock<bool>,
+    parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
 }
 
@@ -46,6 +49,7 @@ impl UserDefinedSubscriber {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
+        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
@@ -55,6 +59,7 @@ impl UserDefinedSubscriber {
             user_defined_data_reader_counter: 0,
             default_data_reader_qos: DataReaderQos::default(),
             enabled: DdsRwLock::new(false),
+            parent_participant,
             user_defined_data_send_condvar,
         })
     }
@@ -68,6 +73,12 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn is_empty(&self) -> bool {
         self.data_reader_list.read_lock().is_empty()
     }
+
+    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
+        self.parent_participant
+            .upgrade()
+            .expect("Parent participant of subscriber must exist")
+    }
 }
 
 impl DdsShared<UserDefinedSubscriber> {
@@ -77,7 +88,6 @@ impl DdsShared<UserDefinedSubscriber> {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         _mask: &[StatusKind],
-        parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -118,8 +128,8 @@ impl DdsShared<UserDefinedSubscriber> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    parent_participant.default_unicast_locator_list(),
-                    parent_participant.default_multicast_locator_list(),
+                    self.get_participant().default_unicast_locator_list(),
+                    self.get_participant().default_multicast_locator_list(),
                 ),
                 DURATION_ZERO,
                 DURATION_ZERO,
@@ -149,7 +159,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_reader_shared.enable(parent_participant)?;
+            data_reader_shared.enable()?;
         }
 
         Ok(data_reader_shared)
@@ -165,7 +175,12 @@ impl DdsShared<UserDefinedSubscriber> {
                     "Data reader can only be deleted from its parent subscriber".to_string(),
                 )
             })?;
-        data_reader_list.remove(data_reader_list_position);
+        let data_reader = data_reader_list.remove(data_reader_list_position);
+
+        if data_reader.is_enabled() {
+            self.get_participant()
+                .announce_deleted_datareader(data_reader.as_discovered_reader_data())?;
+        }
 
         Ok(())
     }
@@ -295,7 +310,7 @@ impl DdsShared<UserDefinedSubscriber> {
             .autoenable_created_entities
         {
             for data_reader in self.data_reader_list.read_lock().iter() {
-                data_reader.enable(parent_participant)?;
+                data_reader.enable()?;
             }
         }
 
