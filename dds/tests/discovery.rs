@@ -90,50 +90,50 @@ fn reader_discovers_writer_in_same_participant() {
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 1);
 }
 
-// #[test]
-// fn participant_records_discovered_topics() {
-//     let domain_id = 0;
+#[test]
+fn participant_records_discovered_topics() {
+    let domain_id = 0;
 
-//     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
 
-//     let participant1 = domain_participant_factory
-//         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-//         .unwrap();
-//     let participant2 = domain_participant_factory
-//         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-//         .unwrap();
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-//     let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
-//     for name in topic_names {
-//         participant1
-//             .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
-//             .unwrap();
-//     }
+    let topic_names = ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"];
+    for name in topic_names {
+        participant1
+            .create_topic::<UserType>(name, QosKind::Default, None, NO_STATUS)
+            .unwrap();
+    }
 
-//     // Wait for topics to be discovered
-//     let waiting_time = Instant::now();
-//     while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
-//         std::thread::sleep(std::time::Duration::from_millis(50));
+    // Wait for topics to be discovered
+    let waiting_time = Instant::now();
+    while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
+        std::thread::sleep(std::time::Duration::from_millis(50));
 
-//         if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
-//             panic!("Topic discovery is taking too long")
-//         }
-//     }
+        if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
+            panic!("Topic discovery is taking too long")
+        }
+    }
 
-//     let mut discovered_topic_names: Vec<String> = participant2
-//         .get_discovered_topics()
-//         .unwrap()
-//         .iter()
-//         .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
-//         .collect();
-//     discovered_topic_names.sort();
+    let mut discovered_topic_names: Vec<String> = participant2
+        .get_discovered_topics()
+        .unwrap()
+        .iter()
+        .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
+        .collect();
+    discovered_topic_names.sort();
 
-//     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
-//     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
-//     assert!(discovered_topic_names.contains(&"Topic 3".to_string()));
-//     assert!(discovered_topic_names.contains(&"Topic 4".to_string()));
-//     assert!(discovered_topic_names.contains(&"Topic 5".to_string()));
-// }
+    assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
+    assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
+    assert!(discovered_topic_names.contains(&"Topic 3".to_string()));
+    assert!(discovered_topic_names.contains(&"Topic 4".to_string()));
+    assert!(discovered_topic_names.contains(&"Topic 5".to_string()));
+}
 
 #[test]
 fn participant_announces_updated_qos() {
