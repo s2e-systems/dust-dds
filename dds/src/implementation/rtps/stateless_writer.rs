@@ -8,7 +8,7 @@ use crate::{
 
 use super::{
     history_cache::RtpsWriterCacheChange,
-    messages::RtpsSubmessageType,
+    messages::RtpsSubmessageKind,
     reader_locator::RtpsReaderLocator,
     types::{Count, Guid},
     writer::RtpsWriter,
@@ -68,7 +68,7 @@ impl RtpsStatelessWriter {
         Ok(())
     }
 
-    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageType>)> {
+    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageKind>)> {
         let mut destined_submessages = Vec::new();
         let reliability_kind = &self.writer.get_qos().reliability.kind;
         let writer_cache = self.writer.writer_cache();
@@ -83,11 +83,11 @@ impl RtpsStatelessWriter {
                         // should be full-filled by next_unsent_change()
                         if change.is_in_cache() {
                             let (info_ts_submessage, data_submessage) = change.into();
-                            submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
-                            submessages.push(RtpsSubmessageType::Data(data_submessage));
+                            submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+                            submessages.push(RtpsSubmessageKind::Data(data_submessage));
                         } else {
                             let gap_submessage = change.into();
-                            submessages.push(RtpsSubmessageType::Gap(gap_submessage));
+                            submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                         }
                     }
                     if !submessages.is_empty() {

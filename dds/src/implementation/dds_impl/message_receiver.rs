@@ -4,7 +4,7 @@ use crate::{
             submessages::{
                 AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoTimestampSubmessage,
             },
-            RtpsMessage, RtpsSubmessageType,
+            RtpsMessage, RtpsSubmessageKind,
         },
         types::{
             GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
@@ -91,19 +91,19 @@ impl MessageReceiver {
 
         for submessage in &message.submessages {
             match submessage {
-                RtpsSubmessageType::AckNack(acknack_submessage) => {
+                RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
                         publisher.on_acknack_submessage_received(acknack_submessage, self)
                     }
                 }
-                RtpsSubmessageType::Data(data_submessage) => {
+                RtpsSubmessageKind::Data(data_submessage) => {
                     for subscriber in subscriber_list {
                         subscriber.on_data_submessage_received(data_submessage, self)
                     }
                 }
-                RtpsSubmessageType::DataFrag(_) => todo!(),
-                RtpsSubmessageType::Gap(_) => todo!(),
-                RtpsSubmessageType::Heartbeat(heartbeat_submessage) => {
+                RtpsSubmessageKind::DataFrag(_) => todo!(),
+                RtpsSubmessageKind::Gap(_) => todo!(),
+                RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
                         subscriber.on_heartbeat_submessage_received(
                             heartbeat_submessage,
@@ -111,15 +111,15 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageType::HeartbeatFrag(_) => todo!(),
-                RtpsSubmessageType::InfoDestination(_) => todo!(),
-                RtpsSubmessageType::InfoReply(_) => todo!(),
-                RtpsSubmessageType::InfoSource(_) => todo!(),
-                RtpsSubmessageType::InfoTimestamp(info_timestamp) => {
+                RtpsSubmessageKind::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageKind::InfoDestination(_) => todo!(),
+                RtpsSubmessageKind::InfoReply(_) => todo!(),
+                RtpsSubmessageKind::InfoSource(_) => todo!(),
+                RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageType::NackFrag(_) => todo!(),
-                RtpsSubmessageType::Pad(_) => todo!(),
+                RtpsSubmessageKind::NackFrag(_) => todo!(),
+                RtpsSubmessageKind::Pad(_) => todo!(),
             }
         }
 
