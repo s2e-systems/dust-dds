@@ -65,9 +65,8 @@ use crate::implementation::{
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 pub trait AnyDataWriterListener {
@@ -490,7 +489,7 @@ impl DdsShared<UserDefinedDataWriter> {
     pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
         self.publisher
             .upgrade()
-            .expect("Failed to get parent publisher of data writer")
+            .expect("Parent publisher of data writer must exist")
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
@@ -567,14 +566,16 @@ impl DdsShared<UserDefinedDataWriter> {
         todo!()
     }
 
-    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
-        if !self.publisher.upgrade()?.is_enabled() {
+    pub fn enable(&self) -> DdsResult<()> {
+        if !self.get_publisher().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent publisher disabled".to_string(),
             ));
         }
 
-        parent_participant.announce_created_datawriter(self.try_into()?);
+        self.get_publisher()
+            .get_participant()
+            .announce_created_datawriter(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -870,6 +871,7 @@ mod test {
         let parent_publisher = UserDefinedPublisher::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
             DdsCondvar::new(),
         );
         let test_topic = TopicImpl::new(
@@ -963,6 +965,7 @@ mod test {
         let parent_publisher = UserDefinedPublisher::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
             DdsCondvar::new(),
         );
         let test_topic = TopicImpl::new(

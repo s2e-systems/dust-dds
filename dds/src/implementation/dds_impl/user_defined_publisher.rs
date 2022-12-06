@@ -7,6 +7,7 @@ use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, TopicKind};
 use crate::implementation::rtps::writer::RtpsWriter;
 use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
 use crate::implementation::utils::condvar::DdsCondvar;
+use crate::implementation::utils::shared_object::DdsWeak;
 use crate::infrastructure::condition::StatusCondition;
 use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::instance::InstanceHandle;
@@ -39,12 +40,14 @@ pub struct UserDefinedPublisher {
     default_datawriter_qos: DataWriterQos,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
+    parent_participant: DdsWeak<DomainParticipantImpl>,
 }
 
 impl UserDefinedPublisher {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
+        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedPublisher {
@@ -55,11 +58,8 @@ impl UserDefinedPublisher {
             default_datawriter_qos: DataWriterQos::default(),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
+            parent_participant,
         })
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
     }
 }
 
@@ -67,16 +67,17 @@ impl DdsShared<UserDefinedPublisher> {
     pub fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
-}
 
-impl DdsShared<UserDefinedPublisher> {
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
     pub fn create_datawriter<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         _mask: &[StatusKind],
-        parent_participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
@@ -124,8 +125,8 @@ impl DdsShared<UserDefinedPublisher> {
                 RtpsEndpoint::new(
                     guid,
                     topic_kind,
-                    parent_participant.default_unicast_locator_list(),
-                    parent_participant.default_multicast_locator_list(),
+                    self.get_participant().default_unicast_locator_list(),
+                    self.get_participant().default_multicast_locator_list(),
                 ),
                 true,
                 Duration::new(0, 200_000_000),
@@ -157,7 +158,7 @@ impl DdsShared<UserDefinedPublisher> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_writer_shared.enable(parent_participant)?;
+            data_writer_shared.enable()?;
         }
 
         Ok(data_writer_shared)
@@ -266,9 +267,13 @@ impl DdsShared<UserDefinedPublisher> {
     ) -> DdsResult<()> {
         todo!()
     }
-}
 
-impl DdsShared<UserDefinedPublisher> {
+    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
+        self.parent_participant
+            .upgrade()
+            .expect("Parent participant of publisher must exist")
+    }
+
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -308,8 +313,8 @@ impl DdsShared<UserDefinedPublisher> {
         todo!()
     }
 
-    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
-        if !parent_participant.is_enabled() {
+    pub fn enable(&self) -> DdsResult<()> {
+        if !self.get_participant().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
@@ -324,7 +329,7 @@ impl DdsShared<UserDefinedPublisher> {
             .autoenable_created_entities
         {
             for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable(parent_participant)?;
+                data_writer.enable()?;
             }
         }
 
@@ -334,12 +339,16 @@ impl DdsShared<UserDefinedPublisher> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
-}
 
-impl DdsShared<UserDefinedPublisher> {
     pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.add_matched_reader(discovered_reader_data)
+        }
+    }
+
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+        for data_writer in self.data_writer_list.read_lock().iter() {
+            data_writer.send_message(transport);
         }
     }
 }
@@ -352,14 +361,6 @@ impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.on_acknack_submessage_received(acknack_submessage, message_receiver);
-        }
-    }
-}
-
-impl DdsShared<UserDefinedPublisher> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.send_message(transport);
         }
     }
 }

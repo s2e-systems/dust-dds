@@ -248,6 +248,7 @@ impl DdsShared<DomainParticipantImpl> {
         let publisher_impl_shared = UserDefinedPublisher::new(
             publisher_qos,
             rtps_group,
+            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
         if *self.enabled.read_lock()
@@ -257,7 +258,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher_impl_shared.enable(self)?;
+            publisher_impl_shared.enable()?;
         }
 
         self.user_defined_publisher_list
@@ -676,7 +677,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .autoenable_created_entities
             {
                 for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    publisher.enable(self)?;
+                    publisher.enable()?;
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
