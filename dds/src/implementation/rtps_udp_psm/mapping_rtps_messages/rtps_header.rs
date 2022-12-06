@@ -4,14 +4,9 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWriteByteOrderInfoInData},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWriteByteOrdered},
 };
 
-impl<const N: usize> MappingWriteByteOrderInfoInData for [u8; N] {
-    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        writer.write_all(self)
-    }
-}
 impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
     fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let mut value = [0; N];
@@ -20,14 +15,20 @@ impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
     }
 }
 
-impl MappingWriteByteOrderInfoInData for RtpsMessageHeader {
-    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrdered for RtpsMessageHeader {
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
+        &self,
+        mut writer: W,
+    ) -> Result<(), Error> {
         match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write_byte_order_info_in_data(&mut writer)?,
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write_byte_ordered::<_, B>(&mut writer)?,
         }
-        self.version.mapping_write_byte_order_info_in_data(&mut writer)?;
-        self.vendor_id.mapping_write_byte_order_info_in_data(&mut writer)?;
-        self.guid_prefix.mapping_write_byte_order_info_in_data(&mut writer)
+        self.version
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.vendor_id
+            .mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        self.guid_prefix
+            .mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -78,7 +79,7 @@ mod tests {
             GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
             VendorIdSubmessageElement,
         },
-        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes_le},
     };
 
     use super::*;
@@ -92,7 +93,7 @@ mod tests {
             guid_prefix: GuidPrefixSubmessageElement { value: [3; 12] },
         };
         #[rustfmt::skip]
-        assert_eq!(to_bytes(&value).unwrap(), vec![
+        assert_eq!(to_bytes_le(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
             2, 3, 9, 8, // ProtocolVersion | VendorId
             3, 3, 3, 3, // GuidPrefix

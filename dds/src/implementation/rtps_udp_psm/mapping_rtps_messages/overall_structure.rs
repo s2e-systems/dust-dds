@@ -1,8 +1,10 @@
 use std::io::{BufRead, Error, Write};
 
+use byteorder::LittleEndian;
+
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageKind},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
 
 use super::submessages::submessage_header::{
@@ -32,7 +34,7 @@ impl MappingWriteByteOrderInfoInData for RtpsSubmessageKind<'_> {
 
 impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        self.header.mapping_write_byte_order_info_in_data(&mut writer)?;
+        self.header.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
         for submessage in &self.submessages {
             submessage.mapping_write_byte_order_info_in_data(&mut writer)?;
         }
