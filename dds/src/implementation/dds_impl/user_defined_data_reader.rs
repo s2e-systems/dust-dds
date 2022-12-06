@@ -687,7 +687,7 @@ impl DdsShared<UserDefinedDataReader> {
             ));
         }
 
-        parent_participant.announce_datareader(self.try_into()?);
+        parent_participant.announce_created_datareader(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
