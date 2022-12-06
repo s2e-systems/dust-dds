@@ -56,6 +56,45 @@ fn writer_discovers_reader_in_same_participant() {
 }
 
 #[test]
+fn deleted_readers_are_disposed_from_writer() {
+    let domain_id = 0;
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond.clone()))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    subscriber.delete_datareader(&data_reader).unwrap();
+
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    assert_eq!(data_writer.get_matched_subscriptions().unwrap().len(), 0);
+}
+
+#[test]
 fn reader_discovers_writer_in_same_participant() {
     let domain_id = 0;
     let dp = DomainParticipantFactory::get_instance()
@@ -118,16 +157,12 @@ fn deleted_writers_are_disposed_from_reader() {
 
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(cond.clone()))
+        .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     publisher.delete_datawriter(&data_writer).unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);

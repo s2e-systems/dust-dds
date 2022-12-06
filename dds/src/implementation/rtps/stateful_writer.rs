@@ -72,6 +72,11 @@ impl<T> RtpsStatefulWriter<T> {
         }
     }
 
+    pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+        self.matched_readers
+            .retain(|x| x.remote_reader_guid() != a_reader_guid)
+    }
+
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
         for matched_reader in self.matched_readers.iter() {
             if let Some(cc) = matched_reader
@@ -400,10 +405,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(
-                source_guid_prefix,
-                acknack_submessage.reader_id.value,
-            );
+            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id.value);
 
             if let Some(reader_proxy) = self
                 .matched_readers
