@@ -434,9 +434,7 @@ impl DdsShared<DomainParticipantImpl> {
             .read_lock()
             .iter()
             .find_map(|topic| {
-                if topic.get_name().unwrap() == topic_name
-                    && topic.get_type_name().unwrap() == Foo::type_name()
-                {
+                if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
                     Some(topic.clone())
                 } else {
                     None
@@ -450,9 +448,7 @@ impl DdsShared<DomainParticipantImpl> {
         Foo: DdsType,
     {
         self.topic_list.read_lock().iter().find_map(|topic| {
-            if topic.get_name().unwrap() == topic_name
-                && topic.get_type_name().unwrap() == Foo::type_name()
-            {
+            if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
                 Some(topic.clone())
             } else {
                 None
@@ -936,7 +932,10 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn announce_created_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
+    pub fn announce_created_datawriter(
+        &self,
+        sedp_discovered_writer_data: DiscoveredWriterData,
+    ) -> DdsResult<()> {
         let writer_data = &DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
@@ -948,12 +947,16 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.builtin_publisher
             .sedp_builtin_publications_writer()
-            .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
-            .unwrap();
+            .write_w_timestamp(writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_deleted_datawriter(&self) {
-        todo!()
+    pub fn announce_deleted_datawriter(
+        &self,
+        sedp_discovered_writer_data: DiscoveredWriterData,
+    ) -> DdsResult<()> {
+        self.builtin_publisher
+            .sedp_builtin_publications_writer()
+            .dispose_w_timestamp(&sedp_discovered_writer_data, None, self.get_current_time()?)
     }
 
     pub fn announce_created_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {

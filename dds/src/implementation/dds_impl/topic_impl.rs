@@ -76,15 +76,15 @@ impl DdsShared<TopicImpl> {
         Ok(self
             .parent_participant
             .upgrade()
-            .expect("Failed to get parent participant of topic"))
+            .expect("Parent participant of topic must exist"))
     }
 
-    pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        Ok(self.type_name)
+    pub fn get_type_name(&self) -> &'static str {
+        self.type_name
     }
 
-    pub fn get_name(&self) -> DdsResult<String> {
-        Ok(self.topic_name.clone())
+    pub fn get_name(&self) -> String {
+        self.topic_name.clone()
     }
 }
 
@@ -105,8 +105,8 @@ impl DdsShared<TopicImpl> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.qos.read_lock().clone())
+    pub fn get_qos(&self) -> TopicQos {
+        self.qos.read_lock().clone()
     }
 
     pub fn set_listener(
@@ -178,13 +178,16 @@ impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps::types::{EntityId, GuidPrefix, EntityKind};
+    use crate::implementation::rtps::types::{EntityId, EntityKind, GuidPrefix};
 
     use super::*;
 
     #[test]
     fn get_instance_handle() {
-        let guid = Guid::new(GuidPrefix::from([2; 12]), EntityId::new([3; 3], EntityKind::BuiltInParticipant));
+        let guid = Guid::new(
+            GuidPrefix::from([2; 12]),
+            EntityId::new([3; 3], EntityKind::BuiltInParticipant),
+        );
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;
 

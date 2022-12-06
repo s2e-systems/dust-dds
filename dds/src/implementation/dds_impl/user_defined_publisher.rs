@@ -174,7 +174,13 @@ impl DdsShared<UserDefinedPublisher> {
                     "Data writer can only be deleted from its parent publisher".to_string(),
                 )
             })?;
-        data_writer_list.remove(data_writer_list_position);
+        let data_writer = data_writer_list.remove(data_writer_list_position);
+
+        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+        if data_writer.is_enabled() {
+            self.get_participant()
+                .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+        }
 
         Ok(())
     }
@@ -193,8 +199,8 @@ impl DdsShared<UserDefinedPublisher> {
             .find_map(|data_writer_shared| {
                 let data_writer_topic = data_writer_shared.get_topic();
 
-                if data_writer_topic.get_name().ok()? == topic.get_name().ok()?
-                    && data_writer_topic.get_type_name().ok()? == Foo::type_name()
+                if data_writer_topic.get_name() == topic.get_name()
+                    && data_writer_topic.get_type_name() == Foo::type_name()
                 {
                     Some(data_writer_shared.clone())
                 } else {

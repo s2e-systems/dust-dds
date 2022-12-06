@@ -251,8 +251,8 @@ impl DdsShared<UserDefinedDataReader> {
 impl DdsShared<UserDefinedDataReader> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
-        let reader_topic_name = self.topic.get_name().unwrap();
-        let reader_type_name = self.topic.get_type_name().unwrap();
+        let reader_topic_name = self.topic.get_name();
+        let reader_type_name = self.topic.get_type_name();
 
         if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
         {
@@ -705,7 +705,7 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
         let rtps_reader_lock = val.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
-        let topic_qos = val.topic.get_qos()?;
+        let topic_qos = val.topic.get_qos();
         let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos();
 
         Ok(DiscoveredReaderData {
@@ -720,8 +720,8 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: val.topic.get_name().unwrap(),
-                type_name: val.topic.get_type_name().unwrap().to_string(),
+                topic_name: val.topic.get_name(),
+                type_name: val.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),
                 deadline: reader_qos.deadline.clone(),
                 latency_budget: reader_qos.latency_budget.clone(),

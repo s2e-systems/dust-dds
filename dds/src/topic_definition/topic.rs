@@ -47,12 +47,12 @@ impl<Foo> Topic<Foo> {
 
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        self.0.upgrade()?.get_type_name()
+        Ok(self.0.upgrade()?.get_type_name())
     }
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
-        self.0.upgrade()?.get_name()
+        Ok(self.0.upgrade()?.get_name())
     }
 }
 
@@ -79,7 +79,7 @@ where
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        self.0.upgrade()?.get_qos()
+        Ok(self.0.upgrade()?.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

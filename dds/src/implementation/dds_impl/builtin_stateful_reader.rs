@@ -146,7 +146,7 @@ impl BuiltinStatefulReader {
             .iter_mut()
             .any(|r| r.remote_writer_guid().prefix() == participant_discovery.guid_prefix())
         {
-            let type_name = self.topic.get_type_name().unwrap();
+            let type_name = self.topic.get_type_name();
             if type_name == DiscoveredWriterData::type_name() {
                 participant_discovery
                     .discovered_participant_add_publications_reader(&mut rtps_reader_lock);

@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    convert::{TryFrom, TryInto},
-    time::Instant,
-};
+use std::{collections::HashMap, time::Instant};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -196,6 +192,10 @@ impl UserDefinedDataWriter {
 }
 
 impl DdsShared<UserDefinedDataWriter> {
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
@@ -214,8 +214,8 @@ impl DdsShared<UserDefinedDataWriter> {
 impl DdsShared<UserDefinedDataWriter> {
     pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
-        let writer_topic_name = self.topic.get_name().unwrap();
-        let writer_type_name = self.topic.get_type_name().unwrap();
+        let writer_topic_name = self.topic.get_name();
+        let writer_type_name = self.topic.get_type_name();
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
 
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
@@ -575,7 +575,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
         self.get_publisher()
             .get_participant()
-            .announce_created_datawriter(self.try_into()?);
+            .announce_created_datawriter(self.as_discovered_writer_data())?;
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -584,19 +584,15 @@ impl DdsShared<UserDefinedDataWriter> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.read_lock().guid().into()
     }
-}
 
-impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
-    type Error = DdsError;
-
-    fn try_from(val: &DdsShared<UserDefinedDataWriter>) -> DdsResult<Self> {
-        let rtps_writer_lock = val.rtps_writer.read_lock();
-        let guid = val.rtps_writer.read_lock().guid();
+    pub fn as_discovered_writer_data(&self) -> DiscoveredWriterData {
+        let rtps_writer_lock = self.rtps_writer.read_lock();
+        let guid = rtps_writer_lock.guid();
         let writer_qos = rtps_writer_lock.get_qos();
-        let topic_qos = val.topic.get_qos()?;
-        let publisher_qos = val.publisher.upgrade()?.get_qos();
+        let topic_qos = self.topic.get_qos();
+        let publisher_qos = self.get_publisher().get_qos();
 
-        Ok(DiscoveredWriterData {
+        DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 remote_writer_guid: rtps_writer_lock.guid(),
                 unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
@@ -608,8 +604,8 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: val.topic.get_name().unwrap(),
-                type_name: val.topic.get_type_name().unwrap().to_string(),
+                topic_name: self.topic.get_name(),
+                type_name: self.topic.get_type_name().to_string(),
                 durability: writer_qos.durability.clone(),
                 deadline: writer_qos.deadline.clone(),
                 latency_budget: writer_qos.latency_budget.clone(),
@@ -624,7 +620,7 @@ impl TryFrom<&DdsShared<UserDefinedDataWriter>> for DiscoveredWriterData {
                 topic_data: topic_qos.topic_data,
                 group_data: publisher_qos.group_data,
             },
-        })
+        }
     }
 }
 
