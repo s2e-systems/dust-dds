@@ -196,7 +196,7 @@ impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
     where
         E: serde::de::Error,
     {
-        value.try_into().map_err(|e| {
+        value.try_into().map_err(|_| {
             serde::de::Error::invalid_value(serde::de::Unexpected::Unsigned(value as u64), &self)
         })
     }

@@ -34,10 +34,10 @@ impl RtpsWriterProxy {
         let endianness_flag = true;
         let final_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: reader_id.into(),
+            value: reader_id,
         };
         let writer_id = EntityIdSubmessageElement {
-            value: self.remote_writer_guid().entity_id().into(),
+            value: self.remote_writer_guid().entity_id(),
         };
 
         let reader_sn_state = SequenceNumberSetSubmessageElement {

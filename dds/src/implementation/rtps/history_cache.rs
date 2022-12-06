@@ -65,10 +65,10 @@ impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
         };
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN.into(),
+            value: ENTITYID_UNKNOWN,
         };
         let writer_id = EntityIdSubmessageElement {
-            value: val.writer_guid().entity_id().into(),
+            value: val.writer_guid().entity_id(),
         };
         let writer_sn = SequenceNumberSubmessageElement {
             value: val.sequence_number(),

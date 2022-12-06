@@ -3,7 +3,6 @@ use std::io::Write;
 
 use crate::builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData};
 use crate::implementation::rtps::types::{EntityId, Guid, Locator};
-use crate::implementation::rtps_udp_psm::mapping_traits::from_bytes_le;
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
