@@ -181,7 +181,7 @@ impl RtpsReader {
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> DdsResult<()> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value.into());
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
 
         let data = data_submessage.serialized_payload.value.to_vec();
 

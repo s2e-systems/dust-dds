@@ -233,13 +233,13 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     if change.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change.into();
                         data_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id().into();
+                            reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageType::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
                         gap_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id().into();
+                            reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
@@ -277,13 +277,13 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     if change.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change.into();
                         data_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id().into();
+                            reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageType::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
                         gap_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id().into();
+                            reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
@@ -295,10 +295,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
+                        value: ENTITYID_UNKNOWN,
                     },
                     writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id().into(),
+                        value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
                         value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
@@ -320,10 +320,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
+                        value: ENTITYID_UNKNOWN,
                     },
                     writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id().into(),
+                        value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
                         value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
@@ -353,12 +353,12 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     // should be full-filled by next_requested_change()
                     if change_for_reader.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change_for_reader.into();
-                        data_submessage.reader_id.value = reader_id.into();
+                        data_submessage.reader_id.value = reader_id;
                         submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageType::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change_for_reader.into();
-                        gap_submessage.reader_id.value = reader_id.into();
+                        gap_submessage.reader_id.value = reader_id;
                         submessages.push(RtpsSubmessageType::Gap(gap_submessage));
                     }
                 }
@@ -369,10 +369,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN.into(),
+                        value: ENTITYID_UNKNOWN,
                     },
                     writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id().into(),
+                        value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
                         value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
@@ -402,7 +402,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let reader_guid = Guid::new(
                 source_guid_prefix,
-                acknack_submessage.reader_id.value.into(),
+                acknack_submessage.reader_id.value,
             );
 
             if let Some(reader_proxy) = self

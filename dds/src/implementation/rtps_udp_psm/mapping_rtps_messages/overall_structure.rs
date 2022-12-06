@@ -85,7 +85,7 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessage<'a> {
 mod tests {
 
     use crate::implementation::{
-        rtps::messages::{
+        rtps::{messages::{
             overall_structure::RtpsMessageHeader,
             submessage_elements::{
                 EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
@@ -95,7 +95,7 @@ mod tests {
             },
             submessages::DataSubmessage,
             types::ProtocolId,
-        },
+        }, types::{EntityId, EntityKind}},
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -137,10 +137,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
@@ -233,10 +233,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {
@@ -306,10 +306,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: [1, 2, 3, 0x04],
+            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: [6, 7, 8, 0x09],
+            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
         };
         let writer_sn = SequenceNumberSubmessageElement { value: 5 };
         let parameter_1 = Parameter {

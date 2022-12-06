@@ -99,7 +99,7 @@ impl RtpsStatefulReader {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             let writer_guid = Guid::new(
                 source_guid_prefix,
-                heartbeat_submessage.writer_id.value.into(),
+                heartbeat_submessage.writer_id.value,
             );
 
             if let Some(writer_proxy) = self
@@ -184,7 +184,7 @@ impl RtpsStatefulReader {
         let sequence_number = data_submessage.writer_sn.value;
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
-            data_submessage.writer_id.value.into(),
+            data_submessage.writer_id.value,
         );
 
         if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
