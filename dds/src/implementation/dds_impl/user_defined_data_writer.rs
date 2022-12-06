@@ -587,7 +587,6 @@ impl DdsShared<UserDefinedDataWriter> {
 
     pub fn as_discovered_writer_data(&self) -> DiscoveredWriterData {
         let rtps_writer_lock = self.rtps_writer.read_lock();
-        let guid = rtps_writer_lock.guid();
         let writer_qos = rtps_writer_lock.get_qos();
         let topic_qos = self.topic.get_qos();
         let publisher_qos = self.get_publisher().get_qos();
@@ -602,7 +601,9 @@ impl DdsShared<UserDefinedDataWriter> {
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey { value: guid.into() },
+                key: BuiltInTopicKey {
+                    value: rtps_writer_lock.guid().into(),
+                },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),

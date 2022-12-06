@@ -37,7 +37,7 @@ use crate::{
     infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind},
     publication::publisher_listener::PublisherListener,
     subscription::{
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
     topic_definition::topic_listener::TopicListener,
@@ -866,16 +866,30 @@ impl DdsShared<DomainParticipantImpl> {
         let sedp_builtin_publication_reader =
             self.builtin_subscriber.sedp_builtin_publications_reader();
 
-        let samples = sedp_builtin_publication_reader.take(
+        if let Ok(samples) = sedp_builtin_publication_reader.take(
             1,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
-        );
-
-        for discovered_writer_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
-            for subscriber in user_defined_subscribers.iter() {
-                subscriber.add_matched_writer(discovered_writer_data_sample.data.as_ref().unwrap());
+        ) {
+            for discovered_writer_data_sample in samples.iter() {
+                match discovered_writer_data_sample.sample_info.instance_state {
+                    InstanceStateKind::Alive => {
+                        for subscriber in user_defined_subscribers.iter() {
+                            subscriber.add_matched_writer(
+                                discovered_writer_data_sample.data.as_ref().unwrap(),
+                            );
+                        }
+                    }
+                    InstanceStateKind::NotAliveDisposed => {
+                        for subscriber in user_defined_subscribers.iter() {
+                            subscriber.remove_matched_writer(
+                                discovered_writer_data_sample.sample_info.instance_handle,
+                            );
+                        }
+                    }
+                    InstanceStateKind::NotAliveNoWriters => todo!(),
+                }
             }
         }
 

@@ -313,6 +313,12 @@ impl DdsShared<UserDefinedSubscriber> {
             data_reader.add_matched_writer(discovered_writer_data)
         }
     }
+
+    pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.remove_matched_writer(discovered_writer_handle)
+        }
+    }
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
