@@ -1,9 +1,15 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
+
 use crate::{
+    implementation::data_representation_inline_qos::{
+        parameter_id_values::PID_STATUS_INFO,
+        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+    },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
+        instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
         qos_policy::LENGTH_UNLIMITED,
         time::{Duration, Time},
@@ -14,6 +20,7 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
+    messages::types::ParameterId,
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
 
@@ -82,7 +89,161 @@ impl RtpsWriter {
         &mut self.writer_cache
     }
 
-    pub fn new_change(
+    pub fn new_write_change<Foo>(
+        &mut self,
+        data: &Foo,
+        _handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<RtpsWriterCacheChange>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+        let handle = self
+            .register_instance_w_timestamp(data, timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.new_change(
+            ChangeKind::Alive,
+            serialized_data,
+            vec![],
+            handle,
+            timestamp,
+        );
+
+        Ok(change)
+    }
+
+    pub fn new_dispose_change<Foo>(
+        &mut self,
+        data: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<RtpsWriterCacheChange>
+    where
+        Foo: DdsType,
+    {
+        if Foo::has_key() {
+            let serialized_key = data.get_serialized_key::<LittleEndian>();
+
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_handle) = self.lookup_instance(data) {
+                        if stored_handle == h {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    if let Some(stored_handle) = self.lookup_instance(data) {
+                        Ok(stored_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
+            let mut serialized_status_info = Vec::new();
+            let mut serializer =
+                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            STATUS_INFO_DISPOSED_FLAG
+                .serialize(&mut serializer)
+                .unwrap();
+
+            let inline_qos = vec![RtpsParameter::new(
+                ParameterId(PID_STATUS_INFO),
+                serialized_status_info,
+            )];
+
+            // Hardcoded CDR header to satisfy wireshark
+            let mut data = vec![0, 1, 0, 0];
+            data.extend(serialized_key);
+            Ok(self.new_change(
+                ChangeKind::NotAliveDisposed,
+                data,
+                inline_qos,
+                instance_handle,
+                timestamp,
+            ))
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
+    }
+
+    pub fn new_unregister_change<Foo>(
+        &mut self,
+        instance: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<RtpsWriterCacheChange>
+    where
+        Foo: DdsType + DdsSerialize,
+    {
+        if Foo::has_key() {
+            let serialized_key = instance.get_serialized_key::<LittleEndian>();
+
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_handle) = self.lookup_instance(instance) {
+                        if stored_handle == h {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    if let Some(stored_handle) = self.lookup_instance(instance) {
+                        Ok(stored_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
+            let mut serialized_status_info = Vec::new();
+            let mut serializer =
+                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+            STATUS_INFO_UNREGISTERED_FLAG
+                .serialize(&mut serializer)
+                .unwrap();
+
+            let inline_qos = vec![RtpsParameter::new(
+                ParameterId(PID_STATUS_INFO),
+                serialized_status_info,
+            )];
+
+            // Hardcoded CDR header to satisfy wireshark
+            let mut data = vec![0, 1, 0, 0];
+            data.extend(serialized_key);
+
+            Ok(self.new_change(
+                ChangeKind::NotAliveUnregistered,
+                data,
+                inline_qos,
+                instance_handle,
+                timestamp,
+            ))
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
+    }
+
+    fn new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,

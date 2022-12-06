@@ -1,18 +1,16 @@
 use crate::{
     infrastructure::{
-        error::DdsResult,
-        instance::{InstanceHandle, HANDLE_NIL},
-        qos_policy::ReliabilityQosPolicyKind,
+        error::DdsResult, instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
 use super::{
     history_cache::RtpsWriterCacheChange,
     messages::RtpsSubmessageType,
     reader_locator::RtpsReaderLocator,
-    types::{ChangeKind, Count, Guid},
+    types::{Count, Guid},
     writer::RtpsWriter,
 };
 
@@ -58,25 +56,13 @@ impl RtpsStatelessWriter {
     pub fn write_w_timestamp<Foo>(
         &mut self,
         data: &Foo,
-        _handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
         Foo: DdsType + DdsSerialize,
     {
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
-        let handle = self
-            .writer
-            .register_instance_w_timestamp(data, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let change = self.writer.new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
-            handle,
-            timestamp,
-        );
+        let change = self.writer.new_write_change(data, handle, timestamp)?;
         self.add_change(change);
 
         Ok(())
