@@ -307,9 +307,10 @@ impl DdsShared<UserDefinedDataReader> {
 
                 rtps_reader_lock.matched_writer_add(writer_proxy);
 
-                self.matched_publication_list
-                    .write_lock()
-                    .insert(writer_info.key.value.as_ref().into(), writer_info.clone());
+                self.matched_publication_list.write_lock().insert(
+                    discovered_writer_data.get_serialized_key().into(),
+                    writer_info.clone(),
+                );
 
                 // Drop the subscription_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -860,10 +861,6 @@ mod tests {
         fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
             Ok(UserData(buf[0]))
         }
-
-        fn deserialize_key(_buf: &[u8]) -> DdsResult<Vec<u8>> {
-            Ok(vec![])
-        }
     }
 
     impl DdsSerialize for UserData {
@@ -997,12 +994,13 @@ mod tests {
             group_data: GroupDataQosPolicy::default(),
             lifespan: LifespanQosPolicy::default(),
         };
+        let remote_writer_guid = Guid::new(
+            GuidPrefix::from([2; 12]),
+            EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+        );
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: Guid::new(
-                    GuidPrefix::from([2; 12]),
-                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
-                ),
+                remote_writer_guid,
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -1020,7 +1018,7 @@ mod tests {
 
         let matched_publications = data_reader.get_matched_publications().unwrap();
         assert_eq!(matched_publications.len(), 1);
-        assert_eq!(matched_publications[0], [2; 16].as_ref().into());
+        assert_eq!(matched_publications[0], remote_writer_guid.into());
         let matched_publication_data = data_reader
             .get_matched_publication_data(matched_publications[0])
             .unwrap();

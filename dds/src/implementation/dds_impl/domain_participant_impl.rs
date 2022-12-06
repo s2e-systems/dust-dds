@@ -771,12 +771,7 @@ impl DdsShared<DomainParticipantImpl> {
             sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
 
             self.discovered_participant_list.write_lock().insert(
-                discovered_participant_data
-                    .dds_participant_data
-                    .key
-                    .value
-                    .as_ref()
-                    .into(),
+                discovered_participant_data.get_serialized_key().into(),
                 discovered_participant_data.dds_participant_data.clone(),
             );
         }
@@ -931,12 +926,7 @@ impl DdsShared<DomainParticipantImpl> {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
                     self.discovered_topic_list.write_lock().insert(
-                        topic_data
-                            .topic_builtin_topic_data
-                            .key
-                            .value
-                            .as_ref()
-                            .into(),
+                        topic_data.get_serialized_key().into(),
                         topic_data.topic_builtin_topic_data.clone(),
                     );
                 }

@@ -269,9 +269,10 @@ impl DdsShared<UserDefinedDataWriter> {
 
                 rtps_writer_lock.matched_reader_add(reader_proxy);
 
-                self.matched_subscription_list
-                    .write_lock()
-                    .insert(reader_info.key.value.as_ref().into(), reader_info.clone());
+                self.matched_subscription_list.write_lock().insert(
+                    discovered_reader_data.get_serialized_key().into(),
+                    reader_info.clone(),
+                );
 
                 // Drop the publication_matched_status_lock such that the listener can be triggered
                 // if needed
@@ -678,7 +679,7 @@ mod test {
                 TopicDataQosPolicy, UserDataQosPolicy,
             },
         },
-        topic_definition::type_support::Endianness,
+        topic_definition::type_support::{DdsSerializedKey, Endianness},
     };
 
     use mockall::mock;
@@ -725,15 +726,12 @@ mod test {
             true
         }
 
-        fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
-            self.key.clone()
+        fn get_serialized_key(&self) -> DdsSerializedKey {
+            self.key.as_slice().into()
         }
 
-        fn set_key_fields_from_serialized_key<E: Endianness>(
-            &mut self,
-            key: &[u8],
-        ) -> DdsResult<()> {
-            self.key = key.to_vec();
+        fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
+            self.key = key.as_ref().to_vec();
             Ok(())
         }
     }
@@ -846,17 +844,18 @@ mod test {
     #[test]
     fn get_key_value_unknown_instance() {
         let data_writer = create_data_writer_test_fixture();
-
+        let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
+        let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer
-            .register_instance_w_timestamp(
-                &MockKeyedFoo { key: vec![1, 2] },
-                Time { sec: 0, nanosec: 0 },
-            )
+            .register_instance_w_timestamp(&registered_foo, Time { sec: 0, nanosec: 0 })
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
         assert_eq!(
-            data_writer.get_key_value(&mut keyed_foo, [1; 16].as_ref().into()),
+            data_writer.get_key_value(
+                &mut keyed_foo,
+                not_registered_foo.get_serialized_key().into()
+            ),
             Err(DdsError::BadParameter)
         );
     }
@@ -925,12 +924,13 @@ mod test {
             topic_data: TopicDataQosPolicy::default(),
             group_data: GroupDataQosPolicy::default(),
         };
+        let remote_reader_guid = Guid::new(
+            GuidPrefix::from([2; 12]),
+            EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+        );
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(
-                    GuidPrefix::from([2; 12]),
-                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
-                ),
+                remote_reader_guid,
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
@@ -948,7 +948,7 @@ mod test {
 
         let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
         assert_eq!(matched_subscriptions.len(), 1);
-        assert_eq!(matched_subscriptions[0], [2; 16].as_ref().into());
+        assert_eq!(matched_subscriptions[0], remote_reader_guid.into());
         let matched_subscription_data = data_writer
             .get_matched_subscription_data(matched_subscriptions[0])
             .unwrap();

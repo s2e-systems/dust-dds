@@ -30,6 +30,29 @@ impl Endianness for BigEndian {
     const REPRESENTATION_OPTIONS: RepresentationType = [0, 0];
 }
 
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DdsSerializedKey(Vec<u8>);
+
+impl From<&[u8]> for DdsSerializedKey {
+    fn from(x: &[u8]) -> Self {
+        Self(x.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for DdsSerializedKey {
+    fn from(x: Vec<u8>) -> Self {
+        Self(x)
+    }
+}
+
+impl AsRef<[u8]> for DdsSerializedKey {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl DdsSerde for DdsSerializedKey {}
+
 pub trait DdsType {
     fn type_name() -> &'static str;
 
@@ -37,15 +60,15 @@ pub trait DdsType {
         false
     }
 
-    fn get_serialized_key<E: Endianness>(&self) -> Vec<u8> {
+    fn get_serialized_key(&self) -> DdsSerializedKey {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for get_serialized_key")
         } else {
-            vec![]
+            DdsSerializedKey(vec![])
         }
     }
 
-    fn set_key_fields_from_serialized_key<E: Endianness>(&mut self, _key: &[u8]) -> DdsResult<()> {
+    fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
         if Self::has_key() {
             unimplemented!("DdsType with key must provide an implementation for set_key_fields_from_serialized_key")
         }
@@ -59,8 +82,6 @@ pub trait DdsSerialize {
 
 pub trait DdsDeserialize<'de>: Sized {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
-
-    fn deserialize_key(buf: &[u8]) -> DdsResult<Vec<u8>>;
 }
 
 pub trait DdsSerde {}
@@ -93,15 +114,9 @@ where
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo
 where
-    Foo: serde::Deserialize<'de> + DdsSerde + DdsType,
+    Foo: serde::Deserialize<'de> + DdsSerde,
 {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-    }
-
-    fn deserialize_key(buf: &[u8]) -> DdsResult<Vec<u8>> {
-        let deserialized: Self =
-            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-        Ok(deserialized.get_serialized_key::<LittleEndian>())
     }
 }
