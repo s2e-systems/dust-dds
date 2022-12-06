@@ -1,6 +1,6 @@
 use std::io::{Error, Write};
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, WriteBytesExt};
 
 use crate::implementation::{
     rtps::messages::{
@@ -8,7 +8,8 @@ use crate::implementation::{
         types::{SubmessageFlag, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
-        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
+        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData,
+        MappingWriteByteOrdered,
     },
 };
 
@@ -67,17 +68,6 @@ impl<'de> MappingReadByteOrdered<'de> for [SubmessageFlag; 8] {
     }
 }
 
-impl<'de> MappingReadByteOrderInfoInData<'de> for [SubmessageFlag; 8] {
-    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let value: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
-        let mut flags = [false; 8];
-        for (index, flag) in flags.iter_mut().enumerate() {
-            *flag = value & (0b_0000_0001 << index) != 0;
-        }
-        Ok(flags)
-    }
-}
-
 impl MappingWriteByteOrderInfoInData for RtpsSubmessageHeader {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let submessage_id = match self.submessage_id {
@@ -102,12 +92,14 @@ impl MappingWriteByteOrderInfoInData for RtpsSubmessageHeader {
         };
         if self.flags[0] {
             submessage_id.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
-            self.flags.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            self.flags
+                .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
             self.submessage_length
                 .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)
         } else {
             submessage_id.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
-            self.flags.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
+            self.flags
+                .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
             self.submessage_length
                 .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)
         }
@@ -147,7 +139,8 @@ impl MappingWriteByteOrdered for RtpsSubmessageHeader {
 
 impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsSubmessageHeader {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let submessage_id: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
+        let submessage_id: u8 =
+            MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
         let submessage_id = match submessage_id {
             DATA => SubmessageKind::DATA,
             GAP => SubmessageKind::GAP,
@@ -163,7 +156,8 @@ impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsSubmessageHeader {
             HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
             _ => SubmessageKind::UNKNOWN,
         };
-        let flags: [SubmessageFlag; 8] = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
+        let flags: [SubmessageFlag; 8] =
+            MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
         let submessage_length = if flags[0] {
             MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?
         } else {
@@ -177,37 +171,11 @@ impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsSubmessageHeader {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for RtpsSubmessageHeader {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let submessage_id: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let submessage_id = match submessage_id {
-            DATA => SubmessageKind::DATA,
-            GAP => SubmessageKind::GAP,
-            HEARTBEAT => SubmessageKind::HEARTBEAT,
-            ACKNACK => SubmessageKind::ACKNACK,
-            PAD => SubmessageKind::PAD,
-            INFO_TS => SubmessageKind::INFO_TS,
-            INFO_REPLY => SubmessageKind::INFO_REPLY,
-            INFO_DST => SubmessageKind::INFO_DST,
-            INFO_SRC => SubmessageKind::INFO_SRC,
-            DATA_FRAG => SubmessageKind::DATA_FRAG,
-            NACK_FRAG => SubmessageKind::NACK_FRAG,
-            HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
-            _ => SubmessageKind::UNKNOWN,
-        };
-        let flags = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
-        let submessage_length = buf.read_u16::<B>()?;
-        Ok(Self {
-            submessage_id,
-            flags,
-            submessage_length,
-        })
-    }
-}
+
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le};
+    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le, from_bytes};
 
     use super::*;
 
@@ -244,7 +212,7 @@ mod tests {
             flags: [true; 8],
             submessage_length: 16,
         };
-        let result = from_bytes_le(&[0x06, 0b_1111_1111, 16, 0]).unwrap();
+        let result = from_bytes(&[0x06, 0b_1111_1111, 16, 0]).unwrap();
         assert_eq!(expected, result);
     }
 }
