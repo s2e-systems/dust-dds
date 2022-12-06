@@ -55,6 +55,8 @@ impl MappingWriteByteOrderInfoInData for RtpsSubmessageKind<'_> {
 
 impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        // The byteorder is determined by each submessage individually. Hence
+        // decide here for a byteorder for the header
         self.header
             .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
         for submessage in &self.submessages {
@@ -66,6 +68,8 @@ impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
 
 impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        // The byteorder is determined by each submessage individually. Hence
+        // decide here for a byteorder for the header
         let header = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
