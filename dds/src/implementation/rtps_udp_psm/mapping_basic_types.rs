@@ -6,7 +6,7 @@ use std::{
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
 use super::mapping_traits::{
-    MappingRead, MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+    MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
 };
 
 impl MappingWriteByteOrdered for u8 {
@@ -94,8 +94,8 @@ impl MappingWriteByteOrdered for bool {
     }
 }
 
-impl<'de> MappingRead<'de> for u8 {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrderInfoInData<'de> for u8 {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         buf.read_u8()
     }
 }

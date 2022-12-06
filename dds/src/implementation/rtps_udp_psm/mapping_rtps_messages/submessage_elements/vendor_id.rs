@@ -4,13 +4,13 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::submessage_elements::VendorIdSubmessageElement,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrdered},
 };
 
-impl<'de> MappingRead<'de> for VendorIdSubmessageElement {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrderInfoInData<'de> for VendorIdSubmessageElement {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: MappingRead::mapping_read(buf)?,
+            value: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
         })
     }
 }

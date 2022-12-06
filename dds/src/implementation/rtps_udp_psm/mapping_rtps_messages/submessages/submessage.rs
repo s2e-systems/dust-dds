@@ -4,7 +4,7 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian};
 
 use crate::implementation::{
     rtps::messages::overall_structure::RtpsSubmessageHeader,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData},
 };
 
 pub trait MappingWriteSubmessage {
@@ -36,12 +36,12 @@ pub trait MappingReadSubmessage<'de>: Sized {
     ) -> Result<Self, Error>;
 }
 
-impl<'a, 'de: 'a, T> MappingRead<'de> for T
+impl<'a, 'de: 'a, T> MappingReadByteOrderInfoInData<'de> for T
 where
     T: MappingReadSubmessage<'de>,
 {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let header: RtpsSubmessageHeader = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         if header.flags[0] {
             Self::mapping_read_submessage::<LittleEndian>(buf, header)
         } else {

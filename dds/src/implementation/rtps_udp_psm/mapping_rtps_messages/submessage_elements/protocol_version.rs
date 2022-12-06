@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::submessage_elements::ProtocolVersionSubmessageElement,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrdered, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingWriteByteOrdered, NumberOfBytes},
 };
 
 impl NumberOfBytes for ProtocolVersionSubmessageElement {
@@ -22,10 +22,10 @@ impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
     }
 }
 
-impl<'de> MappingRead<'de> for ProtocolVersionSubmessageElement {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrderInfoInData<'de> for ProtocolVersionSubmessageElement {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: MappingRead::mapping_read(buf)?,
+            value: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
         })
     }
 }

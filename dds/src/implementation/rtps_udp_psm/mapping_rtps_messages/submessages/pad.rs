@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsSubmessageHeader, submessages::PadSubmessage},
-    rtps_udp_psm::mapping_traits::MappingRead,
+    rtps_udp_psm::mapping_traits::MappingReadByteOrderInfoInData,
 };
 
 use super::submessage::MappingWriteSubmessage;
@@ -22,8 +22,8 @@ impl MappingWriteSubmessage for PadSubmessage {
     }
 }
 
-impl<'de> MappingRead<'de> for PadSubmessage {
-    fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrderInfoInData<'de> for PadSubmessage {
+    fn mapping_read_byte_order_info_in_data(_buf: &mut &'de [u8]) -> Result<Self, Error> {
         todo!()
     }
 }

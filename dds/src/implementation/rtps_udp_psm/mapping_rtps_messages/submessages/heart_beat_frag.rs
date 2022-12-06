@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::messages::submessages::HeartbeatFragSubmessage, rtps_udp_psm::mapping_traits::MappingRead,
+    rtps::messages::submessages::HeartbeatFragSubmessage, rtps_udp_psm::mapping_traits::MappingReadByteOrderInfoInData,
 };
 
 use super::submessage::MappingWriteSubmessage;
@@ -23,8 +23,8 @@ impl MappingWriteSubmessage for HeartbeatFragSubmessage {
     }
 }
 
-impl<'de> MappingRead<'de> for HeartbeatFragSubmessage {
-    fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrderInfoInData<'de> for HeartbeatFragSubmessage {
+    fn mapping_read_byte_order_info_in_data(_buf: &mut &'de [u8]) -> Result<Self, Error> {
         todo!()
     }
 }

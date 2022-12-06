@@ -14,8 +14,8 @@ pub trait NumberOfBytes {
     fn number_of_bytes(&self) -> usize;
 }
 
-pub trait MappingRead<'de>: Sized {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error>;
+pub trait MappingReadByteOrderInfoInData<'de>: Sized {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error>;
 }
 
 pub trait MappingReadByteOrdered<'de>: Sized {
@@ -42,6 +42,6 @@ pub fn from_bytes_le<'de, D: MappingReadByteOrdered<'de>>(mut buf: &'de [u8]) ->
     D::mapping_read_byte_ordered::<LittleEndian>(&mut buf)
 }
 
-pub fn from_bytes<'de, D: MappingRead<'de>>(mut buf: &'de [u8]) -> Result<D, Error> {
-    D::mapping_read(&mut buf)
+pub fn from_bytes<'de, D: MappingReadByteOrderInfoInData<'de>>(mut buf: &'de [u8]) -> Result<D, Error> {
+    D::mapping_read_byte_order_info_in_data(&mut buf)
 }

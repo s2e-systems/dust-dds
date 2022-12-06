@@ -4,11 +4,11 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrdered},
 };
 
-impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de, const N: usize> MappingReadByteOrderInfoInData<'de> for [u8; N] {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let mut value = [0; N];
         buf.read_exact(value.as_mut())?;
         Ok(value)
@@ -45,16 +45,16 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: MappingRead::mapping_read(buf)?,
+            version: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
             vendor_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
             guid_prefix: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
 
-impl<'de> MappingRead<'de> for RtpsMessageHeader {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let protocol: [u8; 4] = MappingRead::mapping_read(buf)?;
+impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsMessageHeader {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let protocol: [u8; 4] = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         let protocol = if &protocol == b"RTPS" {
             ProtocolId::PROTOCOL_RTPS
         } else {
@@ -65,9 +65,9 @@ impl<'de> MappingRead<'de> for RtpsMessageHeader {
         };
         Ok(Self {
             protocol,
-            version: MappingRead::mapping_read(buf)?,
-            vendor_id: MappingRead::mapping_read(buf)?,
-            guid_prefix: MappingRead::mapping_read(buf)?,
+            version: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+            vendor_id: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+            guid_prefix: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
         })
     }
 }

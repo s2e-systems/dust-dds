@@ -4,7 +4,7 @@ use byteorder::LittleEndian;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageKind},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
 };
 
 use super::submessages::submessage_header::{
@@ -42,9 +42,9 @@ impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     }
 }
 
-impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessage<'a> {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let header = MappingRead::mapping_read(buf)?;
+impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let header = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
         for _ in 0..MAX_SUBMESSAGES {
@@ -54,22 +54,22 @@ impl<'a, 'de: 'a> MappingRead<'de> for RtpsMessage<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageKind::AckNack(MappingRead::mapping_read(buf)?),
-                DATA => RtpsSubmessageKind::Data(MappingRead::mapping_read(buf)?),
-                DATA_FRAG => RtpsSubmessageKind::DataFrag(MappingRead::mapping_read(buf)?),
-                GAP => RtpsSubmessageKind::Gap(MappingRead::mapping_read(buf)?),
-                HEARTBEAT => RtpsSubmessageKind::Heartbeat(MappingRead::mapping_read(buf)?),
+                ACKNACK => RtpsSubmessageKind::AckNack(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                DATA => RtpsSubmessageKind::Data(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                DATA_FRAG => RtpsSubmessageKind::DataFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                GAP => RtpsSubmessageKind::Gap(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                HEARTBEAT => RtpsSubmessageKind::Heartbeat(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
                 HEARTBEAT_FRAG => {
-                    RtpsSubmessageKind::HeartbeatFrag(MappingRead::mapping_read(buf)?)
+                    RtpsSubmessageKind::HeartbeatFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?)
                 }
-                INFO_DST => RtpsSubmessageKind::InfoDestination(MappingRead::mapping_read(buf)?),
-                INFO_REPLY => RtpsSubmessageKind::InfoReply(MappingRead::mapping_read(buf)?),
-                INFO_SRC => RtpsSubmessageKind::InfoSource(MappingRead::mapping_read(buf)?),
-                INFO_TS => RtpsSubmessageKind::InfoTimestamp(MappingRead::mapping_read(buf)?),
-                NACK_FRAG => RtpsSubmessageKind::NackFrag(MappingRead::mapping_read(buf)?),
-                PAD => RtpsSubmessageKind::Pad(MappingRead::mapping_read(buf)?),
+                INFO_DST => RtpsSubmessageKind::InfoDestination(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                INFO_REPLY => RtpsSubmessageKind::InfoReply(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                INFO_SRC => RtpsSubmessageKind::InfoSource(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                INFO_TS => RtpsSubmessageKind::InfoTimestamp(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                NACK_FRAG => RtpsSubmessageKind::NackFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                PAD => RtpsSubmessageKind::Pad(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
                 _ => {
-                    let submessage_header: RtpsSubmessageHeader = MappingRead::mapping_read(buf)?;
+                    let submessage_header: RtpsSubmessageHeader = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
                     buf.consume(submessage_header.submessage_length as usize);
                     continue;
                 }

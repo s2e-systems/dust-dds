@@ -8,7 +8,7 @@ use crate::implementation::{
         types::{SubmessageFlag, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
-        MappingRead, MappingReadByteOrdered, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
+        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
     },
 };
 
@@ -67,9 +67,9 @@ impl<'de> MappingReadByteOrdered<'de> for [SubmessageFlag; 8] {
     }
 }
 
-impl<'de> MappingRead<'de> for [SubmessageFlag; 8] {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let value: u8 = MappingRead::mapping_read(buf)?;
+impl<'de> MappingReadByteOrderInfoInData<'de> for [SubmessageFlag; 8] {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let value: u8 = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         let mut flags = [false; 8];
         for (index, flag) in flags.iter_mut().enumerate() {
             *flag = value & (0b_0000_0001 << index) != 0;
@@ -145,9 +145,9 @@ impl MappingWriteByteOrdered for RtpsSubmessageHeader {
     }
 }
 
-impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let submessage_id: u8 = MappingRead::mapping_read(buf)?;
+impl<'de> MappingReadByteOrderInfoInData<'de> for RtpsSubmessageHeader {
+    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+        let submessage_id: u8 = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         let submessage_id = match submessage_id {
             DATA => SubmessageKind::DATA,
             GAP => SubmessageKind::GAP,
@@ -163,7 +163,7 @@ impl<'de> MappingRead<'de> for RtpsSubmessageHeader {
             HEARTBEAT_FRAG => SubmessageKind::HEARTBEAT_FRAG,
             _ => SubmessageKind::UNKNOWN,
         };
-        let flags: [SubmessageFlag; 8] = MappingRead::mapping_read(buf)?;
+        let flags: [SubmessageFlag; 8] = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
         let submessage_length = if flags[0] {
             MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?
         } else {
