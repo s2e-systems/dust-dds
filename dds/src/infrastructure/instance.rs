@@ -1,6 +1,9 @@
 use std::convert::TryFrom;
 
-use crate::implementation::rtps::types::{EntityId, Guid, GuidPrefix};
+use crate::{
+    implementation::rtps::types::{EntityId, Guid, GuidPrefix},
+    topic_definition::type_support::DdsSerializedKey,
+};
 
 /// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
@@ -9,14 +12,15 @@ pub struct InstanceHandle([u8; 16]);
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
-impl From<&[u8]> for InstanceHandle {
-    fn from(x: &[u8]) -> Self {
-        let handle = if x.len() <= 16 {
+impl From<DdsSerializedKey> for InstanceHandle {
+    fn from(x: DdsSerializedKey) -> Self {
+        let data = x.as_ref();
+        let handle = if data.len() <= 16 {
             let mut h = [0; 16];
-            h[..x.len()].clone_from_slice(x);
+            h[..data.len()].clone_from_slice(data);
             h
         } else {
-            <[u8; 16]>::from(md5::compute(x))
+            <[u8; 16]>::from(md5::compute(data))
         };
         Self(handle)
     }

@@ -14,7 +14,7 @@ use crate::{
         qos_policy::LENGTH_UNLIMITED,
         time::{Duration, Time},
     },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
 
 use super::{
@@ -34,7 +34,7 @@ pub struct RtpsWriter {
     _data_max_size_serialized: Option<i32>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
-    registered_instance_list: HashMap<InstanceHandle, Vec<u8>>,
+    registered_instance_list: HashMap<InstanceHandle, DdsSerializedKey>,
 }
 
 impl RtpsWriter {
@@ -124,7 +124,11 @@ impl RtpsWriter {
         Foo: DdsType,
     {
         if Foo::has_key() {
-            let serialized_key = data.get_serialized_key::<LittleEndian>();
+            let mut serialized_key = Vec::new();
+            DdsSerialize::serialize::<_, LittleEndian>(
+                &data.get_serialized_key(),
+                &mut serialized_key,
+            )?;
 
             let instance_handle = match handle {
                 Some(h) => {
@@ -163,12 +167,9 @@ impl RtpsWriter {
                 serialized_status_info,
             )];
 
-            // Hardcoded CDR header to satisfy wireshark
-            let mut data = vec![0, 1, 0, 0];
-            data.extend(serialized_key);
             Ok(self.new_change(
                 ChangeKind::NotAliveDisposed,
-                data,
+                serialized_key,
                 inline_qos,
                 instance_handle,
                 timestamp,
@@ -188,7 +189,11 @@ impl RtpsWriter {
         Foo: DdsType + DdsSerialize,
     {
         if Foo::has_key() {
-            let serialized_key = instance.get_serialized_key::<LittleEndian>();
+            let mut serialized_key = Vec::new();
+            DdsSerialize::serialize::<_, LittleEndian>(
+                &instance.get_serialized_key(),
+                &mut serialized_key,
+            )?;
 
             let instance_handle = match handle {
                 Some(h) => {
@@ -281,8 +286,8 @@ impl RtpsWriter {
     where
         Foo: DdsType + DdsSerialize,
     {
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
+        let serialized_key = instance.get_serialized_key();
+        let instance_handle = instance.get_serialized_key().into();
 
         if !self.registered_instance_list.contains_key(&instance_handle) {
             if self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
@@ -307,15 +312,14 @@ impl RtpsWriter {
             .get(&handle)
             .ok_or(DdsError::BadParameter)?;
 
-        key_holder.set_key_fields_from_serialized_key::<LittleEndian>(serialized_key.as_ref())
+        key_holder.set_key_fields_from_serialized_key(serialized_key)
     }
 
     pub fn lookup_instance<Foo>(&self, instance: &Foo) -> Option<InstanceHandle>
     where
         Foo: DdsType,
     {
-        let serialized_key = instance.get_serialized_key::<LittleEndian>();
-        let instance_handle = serialized_key.as_slice().into();
+        let instance_handle = instance.get_serialized_key().into();
         if self.registered_instance_list.contains_key(&instance_handle) {
             Some(instance_handle)
         } else {

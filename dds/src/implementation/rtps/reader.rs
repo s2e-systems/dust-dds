@@ -20,7 +20,7 @@ use crate::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::{DdsDeserialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -41,24 +41,33 @@ pub struct RtpsReaderCacheChange {
     reception_timestamp: Time,
 }
 
-struct InstanceHandleBuilder(fn(&[u8]) -> DdsResult<Vec<u8>>);
+struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
 
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
         Foo: for<'de> DdsDeserialize<'de> + DdsType,
     {
-        Self(Foo::deserialize_key)
+        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
+        where
+            Foo: for<'de> DdsDeserialize<'de> + DdsType,
+        {
+            Ok(Foo::deserialize(data)?.get_serialized_key())
+        }
+
+        Self(deserialize_data_to_key::<Foo>)
     }
 
     fn build_instance_handle(
         &self,
         change_kind: ChangeKind,
-        data: &[u8],
+        mut data: &[u8],
     ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
-            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.as_slice().into(),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => data.into(),
+            ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
+                DdsSerializedKey::deserialize(&mut data)?.into()
+            }
         })
     }
 }
@@ -569,7 +578,9 @@ mod tests {
             time::{DURATION_ZERO, TIME_INVALID},
         },
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
-        topic_definition::type_support::{DdsSerde, DdsSerialize, DdsType, LittleEndian},
+        topic_definition::type_support::{
+            DdsSerde, DdsSerialize, DdsSerializedKey, DdsType, LittleEndian,
+        },
     };
 
     use super::*;
@@ -649,19 +660,12 @@ mod tests {
             true
         }
 
-        fn get_serialized_key<E: crate::topic_definition::type_support::Endianness>(
-            &self,
-        ) -> Vec<u8> {
-            vec![self.key]
+        fn get_serialized_key(&self) -> DdsSerializedKey {
+            vec![self.key].into()
         }
 
-        fn set_key_fields_from_serialized_key<
-            E: crate::topic_definition::type_support::Endianness,
-        >(
-            &mut self,
-            key: &[u8],
-        ) -> DdsResult<()> {
-            self.key = key[0];
+        fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
+            self.key = key.as_ref()[0];
             Ok(())
         }
     }
@@ -1215,7 +1219,8 @@ mod tests {
                         key: 1,
                         data: [0; 5],
                     }
-                    .get_serialized_key::<LittleEndian>(),
+                    .get_serialized_key()
+                    .as_ref(),
                     3,
                 ),
                 None,
@@ -1244,7 +1249,8 @@ mod tests {
                         key: 1,
                         data: [0; 5],
                     }
-                    .get_serialized_key::<LittleEndian>(),
+                    .get_serialized_key()
+                    .as_ref(),
                     5,
                 ),
                 None,
@@ -1328,7 +1334,8 @@ mod tests {
                         key: 1,
                         data: [0; 5],
                     }
-                    .get_serialized_key::<LittleEndian>(),
+                    .get_serialized_key()
+                    .as_ref(),
                     2,
                 ),
                 None,
@@ -1357,7 +1364,8 @@ mod tests {
                         key: 1,
                         data: [0; 5],
                     }
-                    .get_serialized_key::<LittleEndian>(),
+                    .get_serialized_key()
+                    .as_ref(),
                     2,
                 ),
                 None,
