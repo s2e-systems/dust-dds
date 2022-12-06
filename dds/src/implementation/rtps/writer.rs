@@ -232,13 +232,9 @@ impl RtpsWriter {
                 serialized_status_info,
             )];
 
-            // Hardcoded CDR header to satisfy wireshark
-            let mut data = vec![0, 1, 0, 0];
-            data.extend(serialized_key);
-
             Ok(self.new_change(
                 ChangeKind::NotAliveUnregistered,
-                data,
+                serialized_key,
                 inline_qos,
                 instance_handle,
                 timestamp,

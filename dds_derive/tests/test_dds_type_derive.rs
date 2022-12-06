@@ -44,7 +44,7 @@ fn test_struct_with_key_info() {
 #[test]
 fn test_struct_with_key_get() {
     let swk = StructWithKey { a: 1, b: 2 };
-    assert_eq!(swk.get_serialized_key(), [0, 0, 0, 2][..].into());
+    assert_eq!(swk.get_serialized_key(), [2, 0, 0, 0][..].into());
 }
 
 #[test]
