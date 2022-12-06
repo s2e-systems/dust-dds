@@ -1,16 +1,5 @@
 use crate::{
-    domain::{
-        domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
-    },
-    infrastructure::{
-        condition::StatusCondition,
-        error::DdsResult,
-        instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
-        time::Duration,
-    },
-};
-use crate::{
+    domain::domain_participant::DomainParticipant,
     implementation::{
         dds_impl::{
             user_defined_data_writer::AnyDataWriterListener,
@@ -18,10 +7,14 @@ use crate::{
         },
         utils::shared_object::DdsWeak,
     },
-    infrastructure::status::StatusKind,
-};
-
-use crate::{
+    infrastructure::{
+        condition::StatusCondition,
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        status::StatusKind,
+        time::Duration,
+    },
     publication::data_writer::DataWriter,
     topic_definition::topic::Topic,
     topic_definition::type_support::{DdsSerialize, DdsType},
@@ -88,8 +81,6 @@ impl Publisher {
                 qos,
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
-                &THE_PARTICIPANT_FACTORY
-                    .lookup_participant_by_entity_handle(self.get_instance_handle()?),
             )
             .map(|x| DataWriter::new(x.downgrade()))
     }
@@ -179,10 +170,9 @@ impl Publisher {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        let dp = THE_PARTICIPANT_FACTORY
-            .lookup_participant_by_entity_handle(self.get_instance_handle()?);
-
-        Ok(DomainParticipant::new(dp.downgrade()))
+        Ok(DomainParticipant::new(
+            self.0.upgrade()?.get_participant().downgrade(),
+        ))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -310,10 +300,7 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.upgrade()?.enable(
-            &THE_PARTICIPANT_FACTORY
-                .lookup_participant_by_entity_handle(self.get_instance_handle()?),
-        )
+        self.0.upgrade()?.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.

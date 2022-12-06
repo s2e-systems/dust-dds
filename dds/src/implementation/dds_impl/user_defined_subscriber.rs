@@ -184,8 +184,8 @@ impl DdsShared<UserDefinedSubscriber> {
             .find_map(|data_reader_shared| {
                 let data_reader_topic = data_reader_shared.get_topicdescription();
 
-                if data_reader_topic.get_name().ok()? == topic.get_name().ok()?
-                    && data_reader_topic.get_type_name().ok()? == Foo::type_name()
+                if data_reader_topic.get_name() == topic.get_name()
+                    && data_reader_topic.get_type_name() == Foo::type_name()
                 {
                     Some(data_reader_shared.clone())
                 } else {
@@ -311,6 +311,12 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.add_matched_writer(discovered_writer_data)
+        }
+    }
+
+    pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.remove_matched_writer(discovered_writer_handle)
         }
     }
 }

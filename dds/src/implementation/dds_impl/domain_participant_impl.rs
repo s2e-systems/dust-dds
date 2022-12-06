@@ -4,29 +4,40 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::implementation::{
-    rtps::{group::RtpsGroupImpl, participant::RtpsParticipant},
-    utils::condvar::DdsCondvar,
-};
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::ReaderProxy, discovered_writer_data::WriterProxy,
+            discovered_reader_data::ReaderProxy,
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::WriterProxy,
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::{
+                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+            },
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            group::RtpsGroupImpl,
             messages::RtpsMessage,
+            participant::RtpsParticipant,
             transport::TransportWrite,
             types::{Count, EntityId, EntityKind, Guid, Locator},
         },
-        utils::shared_object::DdsWeak,
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        },
     },
     infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind},
     publication::publisher_listener::PublisherListener,
     subscription::{
-        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
     topic_definition::topic_listener::TopicListener,
@@ -41,26 +52,12 @@ use crate::{
     },
 };
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
-        discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
-        discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-        spdp_discovered_participant_data::{
-            ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-        },
-    },
-    utils::shared_object::{DdsRwLock, DdsShared},
-};
-
 use super::{
     builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
     message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
     topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
-
-use crate::domain::domain_participant_listener::DomainParticipantListener;
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
     EntityId::new([0x00, 0x01, 0x00], EntityKind::BuiltInWriterWithKey);
@@ -211,13 +208,13 @@ impl DomainParticipantImpl {
             user_defined_data_send_condvar,
         })
     }
-
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
-    }
 }
 
 impl DdsShared<DomainParticipantImpl> {
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
     pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
         self.builtin_publisher
             .sedp_builtin_topics_writer()
@@ -228,9 +225,7 @@ impl DdsShared<DomainParticipantImpl> {
             )
             .unwrap();
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
@@ -253,6 +248,7 @@ impl DdsShared<DomainParticipantImpl> {
         let publisher_impl_shared = UserDefinedPublisher::new(
             publisher_qos,
             rtps_group,
+            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
         if *self.enabled.read_lock()
@@ -262,7 +258,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher_impl_shared.enable(self)?;
+            publisher_impl_shared.enable()?;
         }
 
         self.user_defined_publisher_list
@@ -438,9 +434,7 @@ impl DdsShared<DomainParticipantImpl> {
             .read_lock()
             .iter()
             .find_map(|topic| {
-                if topic.get_name().unwrap() == topic_name
-                    && topic.get_type_name().unwrap() == Foo::type_name()
-                {
+                if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
                     Some(topic.clone())
                 } else {
                     None
@@ -454,9 +448,7 @@ impl DdsShared<DomainParticipantImpl> {
         Foo: DdsType,
     {
         self.topic_list.read_lock().iter().find_map(|topic| {
-            if topic.get_name().unwrap() == topic_name
-                && topic.get_type_name().unwrap() == Foo::type_name()
-            {
+            if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
                 Some(topic.clone())
             } else {
                 None
@@ -630,9 +622,7 @@ impl DdsShared<DomainParticipantImpl> {
             Err(_) => Err(DdsError::Error),
         }
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
         *self.qos.write_lock() = match qos {
             QosKind::Default => DomainParticipantQos::default(),
@@ -683,7 +673,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .autoenable_created_entities
             {
                 for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    publisher.enable(self)?;
+                    publisher.enable()?;
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
@@ -706,9 +696,7 @@ impl DdsShared<DomainParticipantImpl> {
 
         Ok(self.rtps_participant.guid().into())
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn announce_participant(&self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
@@ -748,9 +736,7 @@ impl DdsShared<DomainParticipantImpl> {
                 self.get_current_time().unwrap(),
             )
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn add_discovered_participant(
         &self,
         discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -790,9 +776,7 @@ impl DdsShared<DomainParticipantImpl> {
             );
         }
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn default_unicast_locator_list(&self) -> &[Locator] {
         self.rtps_participant.default_unicast_locator_list()
     }
@@ -800,16 +784,12 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         self.rtps_participant.default_multicast_locator_list()
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
         self.builtin_publisher.send_message(transport);
         self.builtin_subscriber.send_message(transport);
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn receive_built_in_data(
         &self,
         source_locator: Locator,
@@ -823,9 +803,7 @@ impl DdsShared<DomainParticipantImpl> {
             &message,
         )
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
         let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
         let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
@@ -838,9 +816,7 @@ impl DdsShared<DomainParticipantImpl> {
             subscriber.send_message(transport)
         }
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn receive_user_defined_data(
         &self,
         source_locator: Locator,
@@ -854,9 +830,7 @@ impl DdsShared<DomainParticipantImpl> {
             &message,
         )
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn discover_matched_participants(&self) -> DdsResult<()> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
@@ -876,9 +850,7 @@ impl DdsShared<DomainParticipantImpl> {
 
         Ok(())
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn discover_matched_writers(&self) -> DdsResult<()> {
         let user_defined_subscribers = self.user_defined_subscriber_list.read_lock();
 
@@ -889,24 +861,36 @@ impl DdsShared<DomainParticipantImpl> {
         let sedp_builtin_publication_reader =
             self.builtin_subscriber.sedp_builtin_publications_reader();
 
-        let samples = sedp_builtin_publication_reader.take(
+        if let Ok(samples) = sedp_builtin_publication_reader.take(
             1,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
-        );
-
-        for discovered_writer_data_sample in samples.unwrap_or_else(|_| vec![]).iter() {
-            for subscriber in user_defined_subscribers.iter() {
-                subscriber.add_matched_writer(discovered_writer_data_sample.data.as_ref().unwrap());
+        ) {
+            for discovered_writer_data_sample in samples.iter() {
+                match discovered_writer_data_sample.sample_info.instance_state {
+                    InstanceStateKind::Alive => {
+                        for subscriber in user_defined_subscribers.iter() {
+                            subscriber.add_matched_writer(
+                                discovered_writer_data_sample.data.as_ref().unwrap(),
+                            );
+                        }
+                    }
+                    InstanceStateKind::NotAliveDisposed => {
+                        for subscriber in user_defined_subscribers.iter() {
+                            subscriber.remove_matched_writer(
+                                discovered_writer_data_sample.sample_info.instance_handle,
+                            );
+                        }
+                    }
+                    InstanceStateKind::NotAliveNoWriters => todo!(),
+                }
             }
         }
 
         Ok(())
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn discover_matched_readers(&self) -> DdsResult<()> {
         let user_defined_publishers = self.user_defined_publisher_list.read_lock();
 
@@ -951,10 +935,11 @@ impl DdsShared<DomainParticipantImpl> {
 
         Ok(())
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
-    pub fn announce_datawriter(&self, sedp_discovered_writer_data: DiscoveredWriterData) {
+    pub fn announce_created_datawriter(
+        &self,
+        sedp_discovered_writer_data: DiscoveredWriterData,
+    ) -> DdsResult<()> {
         let writer_data = &DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
@@ -966,11 +951,19 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.builtin_publisher
             .sedp_builtin_publications_writer()
-            .write_w_timestamp(writer_data, None, self.get_current_time().unwrap())
-            .unwrap();
+            .write_w_timestamp(writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
+    pub fn announce_deleted_datawriter(
+        &self,
+        sedp_discovered_writer_data: DiscoveredWriterData,
+    ) -> DdsResult<()> {
+        self.builtin_publisher
+            .sedp_builtin_publications_writer()
+            .dispose_w_timestamp(&sedp_discovered_writer_data, None, self.get_current_time()?)
+    }
+
+    pub fn announce_created_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
         let reader_data = &DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),

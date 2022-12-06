@@ -84,7 +84,7 @@ impl BuiltinStatefulWriter {
     /// type for those.
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let type_name = self.topic.get_type_name().unwrap();
+        let type_name = self.topic.get_type_name();
         if type_name == DiscoveredWriterData::type_name() {
             participant_discovery
                 .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
@@ -130,6 +130,20 @@ impl DdsShared<BuiltinStatefulWriter> {
         self.rtps_writer
             .write_lock()
             .write_w_timestamp(data, handle, timestamp)
+    }
+
+    pub fn dispose_w_timestamp<Foo>(
+        &self,
+        data: &Foo,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
+    ) -> DdsResult<()>
+    where
+        Foo: DdsType,
+    {
+        self.rtps_writer
+            .write_lock()
+            .dispose_w_timestamp(data, handle, timestamp)
     }
 }
 

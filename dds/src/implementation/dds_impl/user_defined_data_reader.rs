@@ -251,8 +251,8 @@ impl DdsShared<UserDefinedDataReader> {
 impl DdsShared<UserDefinedDataReader> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
-        let reader_topic_name = self.topic.get_name().unwrap();
-        let reader_type_name = self.topic.get_type_name().unwrap();
+        let reader_topic_name = self.topic.get_name();
+        let reader_type_name = self.topic.get_type_name();
 
         if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
         {
@@ -369,6 +369,28 @@ impl DdsShared<UserDefinedDataReader> {
                 }
             }
         }
+    }
+
+    pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
+        self.rtps_reader
+            .write_lock()
+            .matched_writer_remove(discovered_writer_handle.into());
+
+        self.matched_publication_list
+            .write_lock()
+            .remove(&discovered_writer_handle);
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SubscriptionMatched);
+
+        if let Some(l) = self.listener.write_lock().as_mut() {
+            self.status_condition
+                .write_lock()
+                .remove_communication_state(StatusKind::SubscriptionMatched);
+            let subscription_matched_status = self.get_subscription_matched_status().unwrap();
+            l.trigger_on_subscription_matched(self, subscription_matched_status)
+        };
     }
 }
 
@@ -688,7 +710,7 @@ impl DdsShared<UserDefinedDataReader> {
             ));
         }
 
-        parent_participant.announce_datareader(self.try_into()?);
+        parent_participant.announce_created_datareader(self.try_into()?);
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -706,7 +728,7 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
         let rtps_reader_lock = val.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
-        let topic_qos = val.topic.get_qos()?;
+        let topic_qos = val.topic.get_qos();
         let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos();
 
         Ok(DiscoveredReaderData {
@@ -721,8 +743,8 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: val.topic.get_name().unwrap(),
-                type_name: val.topic.get_type_name().unwrap().to_string(),
+                topic_name: val.topic.get_name(),
+                type_name: val.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),
                 deadline: reader_qos.deadline.clone(),
                 latency_budget: reader_qos.latency_budget.clone(),
