@@ -2,12 +2,11 @@ use std::io::{Error, Write};
 
 use byteorder::ByteOrder;
 
-use crate::implementation::{
-    rtps::messages::{overall_structure::RtpsSubmessageHeader, submessages::DataFragSubmessage},
-    rtps_udp_psm::mapping_traits::MappingReadByteOrderInfoInData,
+use crate::implementation::rtps::messages::{
+    overall_structure::RtpsSubmessageHeader, submessages::DataFragSubmessage,
 };
 
-use super::submessage::MappingWriteSubmessage;
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
 impl MappingWriteSubmessage for DataFragSubmessage<'_> {
     fn submessage_header(&self) -> RtpsSubmessageHeader {
@@ -21,8 +20,12 @@ impl MappingWriteSubmessage for DataFragSubmessage<'_> {
         todo!()
     }
 }
-impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for DataFragSubmessage<'a> {
-    fn mapping_read_byte_order_info_in_data(_buf: &mut &'de [u8]) -> Result<Self, Error> {
+
+impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
+    fn mapping_read_submessage<B: ByteOrder>(
+        _buf: &mut &'de [u8],
+        _header: RtpsSubmessageHeader,
+    ) -> Result<Self, Error> {
         todo!()
     }
 }
