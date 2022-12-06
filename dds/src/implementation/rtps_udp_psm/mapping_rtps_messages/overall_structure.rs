@@ -4,7 +4,10 @@ use byteorder::LittleEndian;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageKind},
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{
+        MappingReadByteOrderInfoInData, MappingReadByteOrdered, MappingWriteByteOrderInfoInData,
+        MappingWriteByteOrdered,
+    },
 };
 
 use super::submessages::submessage_header::{
@@ -15,17 +18,35 @@ use super::submessages::submessage_header::{
 impl MappingWriteByteOrderInfoInData for RtpsSubmessageKind<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self {
-            RtpsSubmessageKind::AckNack(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageKind::AckNack(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
             RtpsSubmessageKind::Data(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::DataFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageKind::DataFrag(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
             RtpsSubmessageKind::Gap(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::Heartbeat(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::HeartbeatFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::InfoDestination(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::InfoReply(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::InfoSource(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::InfoTimestamp(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
-            RtpsSubmessageKind::NackFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageKind::Heartbeat(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::HeartbeatFrag(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::InfoDestination(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::InfoReply(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::InfoSource(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::InfoTimestamp(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
+            RtpsSubmessageKind::NackFrag(s) => {
+                s.mapping_write_byte_order_info_in_data(&mut writer)?
+            }
             RtpsSubmessageKind::Pad(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
         };
         Ok(())
@@ -34,7 +55,8 @@ impl MappingWriteByteOrderInfoInData for RtpsSubmessageKind<'_> {
 
 impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        self.header.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+        self.header
+            .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
         for submessage in &self.submessages {
             submessage.mapping_write_byte_order_info_in_data(&mut writer)?;
         }
@@ -44,7 +66,7 @@ impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
 
 impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        let header = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
+        let header = MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?;
         const MAX_SUBMESSAGES: usize = 2_usize.pow(16);
         let mut submessages = vec![];
         for _ in 0..MAX_SUBMESSAGES {
@@ -54,22 +76,45 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
             // Preview byte only (to allow full deserialization of submessage header)
             let submessage_id = buf[0];
             let submessage = match submessage_id {
-                ACKNACK => RtpsSubmessageKind::AckNack(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                DATA => RtpsSubmessageKind::Data(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                DATA_FRAG => RtpsSubmessageKind::DataFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                GAP => RtpsSubmessageKind::Gap(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                HEARTBEAT => RtpsSubmessageKind::Heartbeat(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                HEARTBEAT_FRAG => {
-                    RtpsSubmessageKind::HeartbeatFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?)
-                }
-                INFO_DST => RtpsSubmessageKind::InfoDestination(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                INFO_REPLY => RtpsSubmessageKind::InfoReply(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                INFO_SRC => RtpsSubmessageKind::InfoSource(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                INFO_TS => RtpsSubmessageKind::InfoTimestamp(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                NACK_FRAG => RtpsSubmessageKind::NackFrag(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
-                PAD => RtpsSubmessageKind::Pad(MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?),
+                ACKNACK => RtpsSubmessageKind::AckNack(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                DATA => RtpsSubmessageKind::Data(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                DATA_FRAG => RtpsSubmessageKind::DataFrag(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                GAP => RtpsSubmessageKind::Gap(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                HEARTBEAT => RtpsSubmessageKind::Heartbeat(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                HEARTBEAT_FRAG => RtpsSubmessageKind::HeartbeatFrag(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                INFO_DST => RtpsSubmessageKind::InfoDestination(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                INFO_REPLY => RtpsSubmessageKind::InfoReply(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                INFO_SRC => RtpsSubmessageKind::InfoSource(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                INFO_TS => RtpsSubmessageKind::InfoTimestamp(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                NACK_FRAG => RtpsSubmessageKind::NackFrag(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
+                PAD => RtpsSubmessageKind::Pad(
+                    MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+                ),
                 _ => {
-                    let submessage_header: RtpsSubmessageHeader = MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
+                    let submessage_header: RtpsSubmessageHeader =
+                        MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?;
                     buf.consume(submessage_header.submessage_length as usize);
                     continue;
                 }
@@ -87,17 +132,20 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
 mod tests {
 
     use crate::implementation::{
-        rtps::{messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
-                ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-                VendorIdSubmessageElement,
+        rtps::{
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessage_elements::{
+                    EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
+                    ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
+                    SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                    VendorIdSubmessageElement,
+                },
+                submessages::DataSubmessage,
+                types::ProtocolId,
             },
-            submessages::DataSubmessage,
-            types::ProtocolId,
-        }, types::{EntityId, EntityKind}},
+            types::{EntityId, EntityKind},
+        },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 

@@ -19,9 +19,7 @@ pub trait MappingReadByteOrderInfoInData<'de>: Sized {
 }
 
 pub trait MappingReadByteOrdered<'de>: Sized {
-    fn mapping_read_byte_ordered<B>(buf: &mut &'de [u8]) -> Result<Self, Error>
-    where
-        B: ByteOrder;
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error>;
 }
 
 #[allow(dead_code)]

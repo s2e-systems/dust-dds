@@ -1,6 +1,6 @@
 use std::io::{Error, Write};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder, LittleEndian};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::VendorIdSubmessageElement,
@@ -10,7 +10,7 @@ use crate::implementation::{
 impl<'de> MappingReadByteOrderInfoInData<'de> for VendorIdSubmessageElement {
     fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<LittleEndian>(buf)?,
         })
     }
 }

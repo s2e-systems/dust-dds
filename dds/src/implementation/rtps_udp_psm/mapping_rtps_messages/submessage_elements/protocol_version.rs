@@ -1,10 +1,13 @@
 use std::io::{Error, Write};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::ProtocolVersionSubmessageElement,
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrderInfoInData, MappingWriteByteOrdered, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{
+        MappingReadByteOrdered, MappingWriteByteOrdered,
+        NumberOfBytes,
+    },
 };
 
 impl NumberOfBytes for ProtocolVersionSubmessageElement {
@@ -22,17 +25,17 @@ impl MappingWriteByteOrdered for ProtocolVersionSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrderInfoInData<'de> for ProtocolVersionSubmessageElement {
-    fn mapping_read_byte_order_info_in_data(buf: &mut &'de [u8]) -> Result<Self, Error> {
+impl<'de> MappingReadByteOrdered<'de> for ProtocolVersionSubmessageElement {
+    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         Ok(Self {
-            value: MappingReadByteOrderInfoInData::mapping_read_byte_order_info_in_data(buf)?,
+            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes, to_bytes_le};
+    use crate::implementation::rtps_udp_psm::mapping_traits::{to_bytes_le, from_bytes_le};
 
     use super::*;
 
@@ -45,6 +48,6 @@ mod tests {
     #[test]
     fn deserialize_protocol_version() {
         let expected = ProtocolVersionSubmessageElement { value: [2, 3] };
-        assert_eq!(expected, from_bytes(&[2, 3]).unwrap());
+        assert_eq!(expected, from_bytes_le(&[2, 3]).unwrap());
     }
 }
