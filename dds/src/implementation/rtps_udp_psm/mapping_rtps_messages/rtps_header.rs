@@ -4,11 +4,11 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWrite},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingReadByteOrdered, MappingWriteByteOrderInfoInData},
 };
 
-impl<const N: usize> MappingWrite for [u8; N] {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl<const N: usize> MappingWriteByteOrderInfoInData for [u8; N] {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         writer.write_all(self)
     }
 }
@@ -20,14 +20,14 @@ impl<'de, const N: usize> MappingRead<'de> for [u8; N] {
     }
 }
 
-impl MappingWrite for RtpsMessageHeader {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrderInfoInData for RtpsMessageHeader {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self.protocol {
-            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write(&mut writer)?,
+            ProtocolId::PROTOCOL_RTPS => b"RTPS".mapping_write_byte_order_info_in_data(&mut writer)?,
         }
-        self.version.mapping_write(&mut writer)?;
-        self.vendor_id.mapping_write(&mut writer)?;
-        self.guid_prefix.mapping_write(&mut writer)
+        self.version.mapping_write_byte_order_info_in_data(&mut writer)?;
+        self.vendor_id.mapping_write_byte_order_info_in_data(&mut writer)?;
+        self.guid_prefix.mapping_write_byte_order_info_in_data(&mut writer)
     }
 }
 

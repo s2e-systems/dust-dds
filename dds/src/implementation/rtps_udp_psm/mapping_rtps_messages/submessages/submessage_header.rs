@@ -8,7 +8,7 @@ use crate::implementation::{
         types::{SubmessageFlag, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
-        MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
+        MappingRead, MappingReadByteOrdered, MappingWriteByteOrderInfoInData, MappingWriteByteOrdered,
     },
 };
 
@@ -44,8 +44,8 @@ impl MappingWriteByteOrdered for [SubmessageFlag; 8] {
     }
 }
 
-impl MappingWrite for [SubmessageFlag; 8] {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrderInfoInData for [SubmessageFlag; 8] {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let mut flags = 0b_0000_0000_u8;
         for (i, &item) in self.iter().enumerate() {
             if item {
@@ -78,8 +78,8 @@ impl<'de> MappingRead<'de> for [SubmessageFlag; 8] {
     }
 }
 
-impl MappingWrite for RtpsSubmessageHeader {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrderInfoInData for RtpsSubmessageHeader {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         let submessage_id = match self.submessage_id {
             SubmessageKind::DATA => DATA,
             SubmessageKind::GAP => GAP,
@@ -100,12 +100,14 @@ impl MappingWrite for RtpsSubmessageHeader {
                 ))
             }
         };
-        submessage_id.mapping_write(&mut writer)?;
-        self.flags.mapping_write(&mut writer)?;
         if self.flags[0] {
+            submessage_id.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
+            self.flags.mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
             self.submessage_length
                 .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)
         } else {
+            submessage_id.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
+            self.flags.mapping_write_byte_ordered::<_, BigEndian>(&mut writer)?;
             self.submessage_length
                 .mapping_write_byte_ordered::<_, BigEndian>(&mut writer)
         }

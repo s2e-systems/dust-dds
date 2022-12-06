@@ -2,8 +2,8 @@ use std::io::{Error, Write};
 
 use byteorder::{ByteOrder, LittleEndian};
 
-pub trait MappingWrite {
-    fn mapping_write<W: Write>(&self, writer: W) -> Result<(), Error>;
+pub trait MappingWriteByteOrderInfoInData {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, writer: W) -> Result<(), Error>;
 }
 
 pub trait MappingWriteByteOrdered {
@@ -31,9 +31,9 @@ pub fn to_bytes_le<S: MappingWriteByteOrdered>(value: &S) -> Result<Vec<u8>, Err
     Ok(writer)
 }
 
-pub fn to_bytes<S: MappingWrite>(value: &S) -> Result<Vec<u8>, Error> {
+pub fn to_bytes<S: MappingWriteByteOrderInfoInData>(value: &S) -> Result<Vec<u8>, Error> {
     let mut writer = Vec::<u8>::new();
-    value.mapping_write(&mut writer)?;
+    value.mapping_write_byte_order_info_in_data(&mut writer)?;
     Ok(writer)
 }
 

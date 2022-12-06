@@ -6,14 +6,8 @@ use std::{
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
 use super::mapping_traits::{
-    MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered, NumberOfBytes,
+    MappingRead, MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
 };
-
-impl MappingWrite for u8 {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        writer.write_u8(*self)
-    }
-}
 
 impl MappingWriteByteOrdered for u8 {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

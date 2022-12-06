@@ -2,11 +2,11 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::submessages::HeartbeatFragSubmessage,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWrite},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData},
 };
 
-impl MappingWrite for HeartbeatFragSubmessage {
-    fn mapping_write<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrderInfoInData for HeartbeatFragSubmessage {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
         todo!()
     }
 }

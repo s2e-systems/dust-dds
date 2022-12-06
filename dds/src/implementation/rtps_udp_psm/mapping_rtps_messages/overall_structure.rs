@@ -2,7 +2,7 @@ use std::io::{BufRead, Error, Write};
 
 use crate::implementation::{
     rtps::messages::{overall_structure::RtpsSubmessageHeader, RtpsMessage, RtpsSubmessageType},
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWrite},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData},
 };
 
 use super::submessages::submessage_header::{
@@ -10,31 +10,31 @@ use super::submessages::submessage_header::{
     INFO_TS, NACK_FRAG, PAD,
 };
 
-impl MappingWrite for RtpsSubmessageType<'_> {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+impl MappingWriteByteOrderInfoInData for RtpsSubmessageType<'_> {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         match self {
-            RtpsSubmessageType::AckNack(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::Data(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::DataFrag(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::Gap(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::Heartbeat(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::HeartbeatFrag(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::InfoDestination(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::InfoReply(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::InfoSource(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::InfoTimestamp(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::NackFrag(s) => s.mapping_write(&mut writer)?,
-            RtpsSubmessageType::Pad(s) => s.mapping_write(&mut writer)?,
+            RtpsSubmessageType::AckNack(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::Data(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::DataFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::Gap(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::Heartbeat(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::HeartbeatFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::InfoDestination(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::InfoReply(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::InfoSource(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::InfoTimestamp(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::NackFrag(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
+            RtpsSubmessageType::Pad(s) => s.mapping_write_byte_order_info_in_data(&mut writer)?,
         };
         Ok(())
     }
 }
 
-impl MappingWrite for RtpsMessage<'_> {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        self.header.mapping_write(&mut writer)?;
+impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        self.header.mapping_write_byte_order_info_in_data(&mut writer)?;
         for submessage in &self.submessages {
-            submessage.mapping_write(&mut writer)?;
+            submessage.mapping_write_byte_order_info_in_data(&mut writer)?;
         }
         Ok(())
     }

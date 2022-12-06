@@ -2,7 +2,7 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::ProtocolVersionSubmessageElement,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWrite, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{MappingRead, MappingWriteByteOrderInfoInData, NumberOfBytes},
 };
 
 impl NumberOfBytes for ProtocolVersionSubmessageElement {
@@ -11,9 +11,9 @@ impl NumberOfBytes for ProtocolVersionSubmessageElement {
     }
 }
 
-impl MappingWrite for ProtocolVersionSubmessageElement {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        self.value.mapping_write(&mut writer)
+impl MappingWriteByteOrderInfoInData for ProtocolVersionSubmessageElement {
+    fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
+        self.value.mapping_write_byte_order_info_in_data(&mut writer)
     }
 }
 
