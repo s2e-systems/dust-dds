@@ -166,7 +166,7 @@ fn write_read_disposed_samples() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(50, 0)).unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
 
@@ -174,14 +174,13 @@ fn write_read_disposed_samples() {
     writer.dispose(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(100, 0))
+        .wait_for_acknowledgments(Duration::new(1, 0))
         .unwrap();
 
     let samples = reader
         .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    
     assert_eq!(samples.len(), 2);
     assert_eq!(
         samples[0].sample_info.instance_state,
