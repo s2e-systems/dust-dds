@@ -313,6 +313,7 @@ impl DdsShared<DomainParticipantImpl> {
         let subscriber_shared = UserDefinedSubscriber::new(
             subscriber_qos,
             rtps_group,
+            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
         if *self.enabled.read_lock()

@@ -1,10 +1,7 @@
-use std::{
-    collections::HashMap,
-    convert::{TryFrom, TryInto},
-};
+use std::collections::HashMap;
 
 use crate::{
-    builtin_topics::BuiltInTopicKey,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -25,7 +22,12 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::QosKind,
+        qos::{DataReaderQos, QosKind},
+        qos_policy::{
+            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
+            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
+            RELIABILITY_QOS_POLICY_ID,
+        },
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
@@ -33,31 +35,17 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
-    topic_definition::type_support::{DdsDeserialize, DdsType},
-};
-use crate::{
     subscription::{
         data_reader::{DataReader, Sample},
         data_reader_listener::DataReaderListener,
+        sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     },
-    {
-        builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
-        infrastructure::{
-            qos::DataReaderQos,
-            qos_policy::{
-                DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-                LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-                RELIABILITY_QOS_POLICY_ID,
-            },
-        },
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_subscriber::UserDefinedSubscriber,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub trait AnyDataReaderListener {
@@ -622,7 +610,7 @@ impl DdsShared<UserDefinedDataReader> {
     pub fn get_subscriber(&self) -> DdsShared<UserDefinedSubscriber> {
         self.parent_subscriber
             .upgrade()
-            .expect("Failed to get parent subscriber of data reader")
+            .expect("Parent subscriber of data reader must exist")
     }
 
     pub fn wait_for_historical_data(&self, _max_wait: Duration) -> DdsResult<()> {
@@ -703,14 +691,16 @@ impl DdsShared<UserDefinedDataReader> {
         self.status_condition.write_lock().get_enabled_statuses()
     }
 
-    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
-        if !self.parent_subscriber.upgrade()?.is_enabled() {
+    pub fn enable(&self) -> DdsResult<()> {
+        if !self.get_subscriber().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent subscriber disabled".to_string(),
             ));
         }
 
-        parent_participant.announce_created_datareader(self.try_into()?);
+        self.get_subscriber()
+            .get_participant()
+            .announce_created_datareader(self.as_discovered_reader_data());
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -719,19 +709,15 @@ impl DdsShared<UserDefinedDataReader> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_reader.read_lock().reader().guid().into()
     }
-}
 
-impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
-    type Error = DdsError;
-
-    fn try_from(val: &DdsShared<UserDefinedDataReader>) -> DdsResult<Self> {
-        let rtps_reader_lock = val.rtps_reader.read_lock();
+    fn as_discovered_reader_data(&self) -> DiscoveredReaderData {
+        let rtps_reader_lock = self.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
-        let topic_qos = val.topic.get_qos();
-        let subscriber_qos = val.parent_subscriber.upgrade()?.get_qos();
+        let topic_qos = self.topic.get_qos();
+        let subscriber_qos = self.get_subscriber().get_qos();
 
-        Ok(DiscoveredReaderData {
+        DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: guid,
                 remote_group_entity_id: guid.entity_id(),
@@ -743,8 +729,8 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey { value: [1; 16] },
-                topic_name: val.topic.get_name(),
-                type_name: val.topic.get_type_name().to_string(),
+                topic_name: self.topic.get_name(),
+                type_name: self.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),
                 deadline: reader_qos.deadline.clone(),
                 latency_budget: reader_qos.latency_budget.clone(),
@@ -759,7 +745,7 @@ impl TryFrom<&DdsShared<UserDefinedDataReader>> for DiscoveredReaderData {
                 topic_data: topic_qos.topic_data,
                 group_data: subscriber_qos.group_data,
             },
-        })
+        }
     }
 }
 
@@ -946,6 +932,7 @@ mod tests {
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
             DdsCondvar::new(),
         );
         let test_topic = TopicImpl::new(
@@ -1032,6 +1019,7 @@ mod tests {
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            DdsWeak::new(),
             DdsCondvar::new(),
         );
         let test_topic = TopicImpl::new(

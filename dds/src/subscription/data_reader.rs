@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant_factory::THE_PARTICIPANT_FACTORY,
     implementation::{
         dds_impl::user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
         utils::shared_object::DdsWeak,
@@ -474,10 +473,7 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.upgrade()?.enable(
-            &THE_PARTICIPANT_FACTORY
-                .lookup_participant_by_entity_handle(self.get_instance_handle()?),
-        )
+        self.0.upgrade()?.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
