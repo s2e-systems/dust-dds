@@ -222,9 +222,7 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -234,9 +232,7 @@ impl DdsShared<UserDefinedDataReader> {
         rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.user_defined_data_send_condvar.notify_all();
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_topic_name = self.topic.get_name();
@@ -380,9 +376,7 @@ impl DdsShared<UserDefinedDataReader> {
             l.trigger_on_subscription_matched(self, subscription_matched_status)
         };
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn read<Foo>(
         &self,
         max_samples: i32,
@@ -648,9 +642,7 @@ impl DdsShared<UserDefinedDataReader> {
             .map(|(&key, _)| key)
             .collect())
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -691,6 +683,10 @@ impl DdsShared<UserDefinedDataReader> {
         self.status_condition.write_lock().get_enabled_statuses()
     }
 
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
     pub fn enable(&self) -> DdsResult<()> {
         if !self.get_subscriber().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
@@ -710,7 +706,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.read_lock().reader().guid().into()
     }
 
-    fn as_discovered_reader_data(&self) -> DiscoveredReaderData {
+    pub fn as_discovered_reader_data(&self) -> DiscoveredReaderData {
         let rtps_reader_lock = self.rtps_reader.read_lock();
         let guid = rtps_reader_lock.reader().guid();
         let reader_qos = rtps_reader_lock.reader().get_qos();
@@ -747,9 +743,7 @@ impl DdsShared<UserDefinedDataReader> {
             },
         }
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         self.rtps_reader.write_lock().send_message(transport);
     }

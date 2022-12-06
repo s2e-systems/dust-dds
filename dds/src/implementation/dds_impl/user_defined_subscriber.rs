@@ -175,7 +175,12 @@ impl DdsShared<UserDefinedSubscriber> {
                     "Data reader can only be deleted from its parent subscriber".to_string(),
                 )
             })?;
-        data_reader_list.remove(data_reader_list_position);
+        let data_reader = data_reader_list.remove(data_reader_list_position);
+
+        if data_reader.is_enabled() {
+            self.get_participant()
+                .announce_deleted_datareader(data_reader.as_discovered_reader_data())?;
+        }
 
         Ok(())
     }

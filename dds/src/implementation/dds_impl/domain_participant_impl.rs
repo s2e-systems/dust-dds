@@ -980,6 +980,15 @@ impl DdsShared<DomainParticipantImpl> {
             .unwrap();
     }
 
+    pub fn announce_deleted_datareader(
+        &self,
+        sedp_discovered_reader_data: DiscoveredReaderData,
+    ) -> DdsResult<()> {
+        self.builtin_publisher
+            .sedp_builtin_subscriptions_writer()
+            .dispose_w_timestamp(&sedp_discovered_reader_data, None, self.get_current_time()?)
+    }
+
     pub fn update_communication_status(&self) -> DdsResult<()> {
         let now = self.get_current_time()?;
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
