@@ -90,25 +90,19 @@ fn each_key_sample_is_read() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
     assert_eq!(
         samples[0].sample_info.instance_handle,
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data1.get_serialized_key().into()
     );
 
     assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
     assert_eq!(
         samples[1].sample_info.instance_handle,
-        [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data2.get_serialized_key().into()
     );
 
     assert_eq!(samples[2].data.as_ref().unwrap(), &data3);
     assert_eq!(
         samples[2].sample_info.instance_handle,
-        [3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            .as_ref()
-            .into()
+        data3.get_serialized_key().into()
     );
 }
 

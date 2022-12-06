@@ -1215,12 +1215,13 @@ mod tests {
         reader
             .add_change(
                 &create_data_submessage_for_disposed_change(
-                    &KeyedType {
-                        key: 1,
-                        data: [0; 5],
-                    }
-                    .get_serialized_key()
-                    .as_ref(),
+                    &to_bytes_le(
+                        &KeyedType {
+                            key: 1,
+                            data: [0; 5],
+                        }
+                        .get_serialized_key(),
+                    ),
                     3,
                 ),
                 None,
@@ -1245,12 +1246,13 @@ mod tests {
         reader
             .add_change(
                 &create_data_submessage_for_disposed_change(
-                    &KeyedType {
-                        key: 1,
-                        data: [0; 5],
-                    }
-                    .get_serialized_key()
-                    .as_ref(),
+                    &to_bytes_le(
+                        &KeyedType {
+                            key: 1,
+                            data: [0; 5],
+                        }
+                        .get_serialized_key(),
+                    ),
                     5,
                 ),
                 None,
@@ -1330,12 +1332,13 @@ mod tests {
         reader
             .add_change(
                 &create_data_submessage_for_disposed_change(
-                    &KeyedType {
-                        key: 1,
-                        data: [0; 5],
-                    }
-                    .get_serialized_key()
-                    .as_ref(),
+                    &to_bytes_le(
+                        &KeyedType {
+                            key: 1,
+                            data: [0; 5],
+                        }
+                        .get_serialized_key(),
+                    ),
                     2,
                 ),
                 None,
@@ -1360,12 +1363,13 @@ mod tests {
         reader
             .add_change(
                 &create_data_submessage_for_disposed_change(
-                    &KeyedType {
-                        key: 1,
-                        data: [0; 5],
-                    }
-                    .get_serialized_key()
-                    .as_ref(),
+                    &to_bytes_le(
+                        &KeyedType {
+                            key: 1,
+                            data: [0; 5],
+                        }
+                        .get_serialized_key(),
+                    ),
                     2,
                 ),
                 None,

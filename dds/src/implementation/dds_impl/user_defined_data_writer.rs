@@ -846,14 +846,18 @@ mod test {
     #[test]
     fn get_key_value_unknown_instance() {
         let data_writer = create_data_writer_test_fixture();
-        let foo = MockKeyedFoo { key: vec![1, 2] };
+        let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
+        let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer
-            .register_instance_w_timestamp(&foo, Time { sec: 0, nanosec: 0 })
+            .register_instance_w_timestamp(&registered_foo, Time { sec: 0, nanosec: 0 })
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
         assert_eq!(
-            data_writer.get_key_value(&mut keyed_foo, foo.get_serialized_key().into()),
+            data_writer.get_key_value(
+                &mut keyed_foo,
+                not_registered_foo.get_serialized_key().into()
+            ),
             Err(DdsError::BadParameter)
         );
     }
