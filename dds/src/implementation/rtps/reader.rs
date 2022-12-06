@@ -58,7 +58,7 @@ impl InstanceHandleBuilder {
     ) -> DdsResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(data)?.as_slice().into(),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => data.into(),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => data[4..].into(), // Ignore the first 4 bytes which are the header
         })
     }
 }
