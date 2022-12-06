@@ -1,7 +1,9 @@
+use std::convert::TryInto;
 use std::io::Write;
 
 use crate::builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData};
 use crate::implementation::rtps::types::{EntityId, Guid, Locator};
+use crate::implementation::rtps_udp_psm::mapping_traits::from_bytes_le;
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -185,7 +187,7 @@ impl DdsSerialize for DiscoveredWriterData {
 
 impl DdsDeserialize<'_> for DiscoveredWriterData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf)?;
 
         // writer_proxy
         let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
@@ -216,7 +218,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
-        let remote_writer_guid = key.value.into();
+        let remote_writer_guid = key.clone().try_into()?;
         Ok(Self {
             writer_proxy: WriterProxy {
                 remote_writer_guid,

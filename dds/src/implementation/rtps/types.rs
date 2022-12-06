@@ -3,7 +3,7 @@ use std::{
     ops::AddAssign,
 };
 
-use crate::infrastructure::error::DdsError;
+use crate::{builtin_topics::BuiltInTopicKey, infrastructure::error::DdsError};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -65,18 +65,21 @@ impl From<Guid> for [u8; 16] {
     }
 }
 
-impl From<[u8; 16]> for Guid {
-    fn from(value: [u8; 16]) -> Self {
-        Guid {
+impl TryFrom<BuiltInTopicKey> for Guid {
+    type Error = DdsError;
+
+    fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
+        let bytes = value.value;
+        Ok(Guid {
             prefix: GuidPrefix([
-                value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-                value[8], value[9], value[10], value[11],
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                bytes[8], bytes[9], bytes[10], bytes[11],
             ]),
             entity_id: EntityId {
-                entity_key: [value[12], value[13], value[14]],
-                entity_kind: value[15].try_into().unwrap(),
+                entity_key: [bytes[12], bytes[13], bytes[14]],
+                entity_kind: bytes[15].try_into()?,
             },
-        }
+        })
     }
 }
 
