@@ -148,7 +148,7 @@ mod tests {
                 submessages::DataSubmessage,
                 types::ProtocolId,
             },
-            types::{EntityId, EntityKind, GuidPrefix},
+            types::{EntityId, EntityKind, GuidPrefix, VendorId},
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -160,7 +160,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         let value = RtpsMessage {
@@ -182,7 +182,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         let endianness_flag = true;
@@ -254,7 +254,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
 
@@ -278,7 +278,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         let endianness_flag = true;
@@ -351,7 +351,7 @@ mod tests {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         let endianness_flag = true;

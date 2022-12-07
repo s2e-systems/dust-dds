@@ -262,31 +262,6 @@ impl From<EntityKind> for u8 {
     }
 }
 
-// // Table 9.1 - entityKind octet of an EntityId_t
-// pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
-// #[allow(dead_code)]
-// pub const BUILT_IN_UNKNOWN: EntityKind = 0xc0;
-// pub const BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
-// pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
-// pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
-// pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
-// #[allow(dead_code)]
-// pub const BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
-// #[allow(dead_code)]
-// pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x07;
-// pub const BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
-// #[allow(dead_code)]
-// pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x04;
-// #[allow(dead_code)]
-// pub const BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
-// pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
-// pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
-// pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
-// pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
-// // Added in comparison to the RTPS standard
-// pub const BUILT_IN_TOPIC: EntityKind = 0xca;
-// pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
-
 pub type EntityKey = [u8; 3];
 
 /// SequenceNumber_t
@@ -362,10 +337,22 @@ impl From<[u8; 2]> for ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-pub type VendorId = [u8; 2];
-pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
-pub const VENDOR_ID_S2E: VendorId = [99, 99];
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VendorId([u8; 2]);
+pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
+pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
+impl VendorId {
+    pub fn new(value: [u8; 2]) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<[u8; 2]> for VendorId {
+    fn as_ref(&self) -> &[u8; 2] {
+        &self.0
+    }
+}
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]

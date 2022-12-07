@@ -50,7 +50,7 @@ mod tests {
         rtps::{messages::submessage_elements::{
             GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
             VendorIdSubmessageElement,
-        }, types::GuidPrefix},
+        }, types::{GuidPrefix, VendorId}},
         rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
     };
 
@@ -61,7 +61,7 @@ mod tests {
         let value = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         #[rustfmt::skip]
@@ -79,7 +79,7 @@ mod tests {
         let expected = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: [9, 8] },
+            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
             guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         #[rustfmt::skip]

@@ -142,7 +142,7 @@ impl MessageReceiver {
     }
 
     #[allow(dead_code)]
-    pub fn source_vendor_id(&self) -> [u8; 2] {
+    pub fn source_vendor_id(&self) -> VendorId {
         self.source_vendor_id
     }
 
