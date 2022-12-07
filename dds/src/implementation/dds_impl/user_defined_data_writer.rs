@@ -555,13 +555,22 @@ impl DdsShared<UserDefinedDataWriter> {
             QosKind::Specific(q) => q,
         };
 
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-
-        if *self.enabled.read_lock() {
-            rtps_writer_lock.get_qos().check_immutability(&qos)?;
+        if self.is_enabled() {
+            self.rtps_writer
+                .write_lock()
+                .get_qos()
+                .check_immutability(&qos)?;
         }
 
-        rtps_writer_lock.set_qos(qos)
+        self.rtps_writer.write_lock().set_qos(qos)?;
+
+        if self.is_enabled() {
+            self.get_publisher()
+                .get_participant()
+                .announce_created_datawriter(self.as_discovered_writer_data())?;
+        }
+
+        Ok(())
     }
 
     pub fn get_qos(&self) -> DataWriterQos {

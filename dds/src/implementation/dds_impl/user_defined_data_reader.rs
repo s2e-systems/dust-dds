@@ -649,15 +649,21 @@ impl DdsShared<UserDefinedDataReader> {
             QosKind::Specific(q) => q,
         };
 
-        let mut rtps_reader_lock = self.rtps_reader.write_lock();
-        if *self.enabled.read_lock() {
-            rtps_reader_lock
+        if self.is_enabled() {
+            self.rtps_reader
+                .write_lock()
                 .reader()
                 .get_qos()
                 .check_immutability(&qos)?;
         }
 
-        rtps_reader_lock.reader_mut().set_qos(qos)?;
+        self.rtps_reader.write_lock().reader_mut().set_qos(qos)?;
+
+        if self.is_enabled() {
+            self.get_subscriber()
+                .get_participant()
+                .announce_created_datareader(self.as_discovered_reader_data());
+        }
 
         Ok(())
     }

@@ -72,11 +72,10 @@ impl DdsShared<TopicImpl> {
         todo!()
     }
 
-    pub fn get_participant(&self) -> DdsResult<DdsShared<DomainParticipantImpl>> {
-        Ok(self
-            .parent_participant
+    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
+        self.parent_participant
             .upgrade()
-            .expect("Parent participant of topic must exist"))
+            .expect("Parent participant of topic must exist")
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -86,9 +85,7 @@ impl DdsShared<TopicImpl> {
     pub fn get_name(&self) -> String {
         self.topic_name.clone()
     }
-}
 
-impl DdsShared<TopicImpl> {
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -129,15 +126,14 @@ impl DdsShared<TopicImpl> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.parent_participant.upgrade()?.is_enabled() {
+        if !self.get_participant().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
         }
 
-        self.parent_participant
-            .upgrade()?
-            .announce_topic(self.into());
+        self.get_participant()
+            .announce_topic(self.as_discovered_topic_data());
 
         *self.enabled.write_lock() = true;
         Ok(())
@@ -146,18 +142,16 @@ impl DdsShared<TopicImpl> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.guid.into()
     }
-}
 
-impl From<&DdsShared<TopicImpl>> for DiscoveredTopicData {
-    fn from(val: &DdsShared<TopicImpl>) -> Self {
-        let qos = val.qos.read_lock();
+    pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
+        let qos = self.qos.read_lock();
         DiscoveredTopicData {
             topic_builtin_topic_data: TopicBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: val.guid.into(),
+                    value: self.guid.into(),
                 },
-                name: val.topic_name.to_string(),
-                type_name: val.type_name.to_string(),
+                name: self.topic_name.to_string(),
+                type_name: self.type_name.to_string(),
                 durability: qos.durability.clone(),
                 deadline: qos.deadline.clone(),
                 latency_budget: qos.latency_budget.clone(),
