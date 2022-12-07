@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{Locator, EntityId};
+use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -27,7 +27,7 @@ pub struct LongSubmessageElementConstructor {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuidPrefixSubmessageElement {
-    pub value: [u8; 12],
+    pub value: GuidPrefix,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

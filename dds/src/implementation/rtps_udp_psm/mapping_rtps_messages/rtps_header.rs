@@ -47,10 +47,10 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::messages::submessage_elements::{
+        rtps::{messages::submessage_elements::{
             GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
             VendorIdSubmessageElement,
-        },
+        }, types::GuidPrefix},
         rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
     };
 
@@ -62,7 +62,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
             vendor_id: VendorIdSubmessageElement { value: [9, 8] },
-            guid_prefix: GuidPrefixSubmessageElement { value: [3; 12] },
+            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&value).unwrap(), vec![
@@ -80,7 +80,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersionSubmessageElement { value: [2, 3] },
             vendor_id: VendorIdSubmessageElement { value: [9, 8] },
-            guid_prefix: GuidPrefixSubmessageElement { value: [3; 12] },
+            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[

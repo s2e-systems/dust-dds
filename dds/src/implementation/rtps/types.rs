@@ -91,6 +91,18 @@ impl TryFrom<BuiltInTopicKey> for Guid {
 pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
+impl GuidPrefix {
+    pub fn new(value: [u8; 12]) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<[u8; 12]> for GuidPrefix {
+    fn as_ref(&self) -> &[u8; 12] {
+        &self.0
+    }
+}
+
 impl From<GuidPrefix> for [u8; 12] {
     fn from(value: GuidPrefix) -> Self {
         value.0
