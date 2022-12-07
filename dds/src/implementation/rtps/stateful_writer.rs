@@ -17,7 +17,7 @@ use super::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
         },
         submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
-        RtpsSubmessageType,
+        RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     types::{Count, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
@@ -211,7 +211,7 @@ impl<T> RtpsStatefulWriter<T> {
 }
 
 impl<T: Timer> RtpsStatefulWriter<T> {
-    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => self.produce_submessages_best_effort(),
             ReliabilityQosPolicyKind::Reliable => self.produce_submessages_reliable(),
@@ -220,7 +220,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
 
     fn produce_submessages_best_effort(
         &mut self,
-    ) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+    ) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
         let mut destined_submessages = Vec::new();
         for reader_proxy in self.matched_readers.iter_mut() {
             let mut submessages = Vec::new();
@@ -239,13 +239,13 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         let (info_ts_submessage, mut data_submessage) = change.into();
                         data_submessage.reader_id.value =
                             reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                        submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
                         gap_submessage.reader_id.value =
                             reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
+                        submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
             }
@@ -256,7 +256,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
         destined_submessages
     }
 
-    fn produce_submessages_reliable(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageType>)> {
+    fn produce_submessages_reliable(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
         let mut destined_submessages = Vec::new();
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
@@ -283,13 +283,13 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         let (info_ts_submessage, mut data_submessage) = change.into();
                         data_submessage.reader_id.value =
                             reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                        submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
                         gap_submessage.reader_id.value =
                             reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
+                        submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
 
@@ -316,7 +316,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     },
                 };
 
-                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
+                submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             } else if reader_proxy.unacked_changes().is_empty() {
                 // Idle
             } else if time_for_heartbeat {
@@ -341,7 +341,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     },
                 };
 
-                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
+                submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             }
 
             // Middle-part of the state-machine - Figure 8.19 RTPS standard
@@ -359,12 +359,12 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     if change_for_reader.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change_for_reader.into();
                         data_submessage.reader_id.value = reader_id;
-                        submessages.push(RtpsSubmessageType::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageType::Data(data_submessage));
+                        submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change_for_reader.into();
                         gap_submessage.reader_id.value = reader_id;
-                        submessages.push(RtpsSubmessageType::Gap(gap_submessage));
+                        submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
                 self.heartbeat_timer.reset();
@@ -390,7 +390,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     },
                 };
 
-                submessages.push(RtpsSubmessageType::Heartbeat(heartbeat));
+                submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             }
             if !submessages.is_empty() {
                 destined_submessages.push((&*reader_proxy, submessages));

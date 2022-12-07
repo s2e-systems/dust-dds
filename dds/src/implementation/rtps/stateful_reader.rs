@@ -15,7 +15,7 @@ use super::{
         },
         submessages::{AckNackSubmessage, DataSubmessage, HeartbeatSubmessage},
         types::ProtocolId,
-        RtpsMessage, RtpsSubmessageType,
+        RtpsMessage, RtpsSubmessageKind,
     },
     reader::RtpsReader,
     transport::TransportWrite,
@@ -147,7 +147,7 @@ impl RtpsStatefulReader {
         self.send_submessages(|wp, acknack| {
             acknacks.push((
                 wp.unicast_locator_list().to_vec(),
-                vec![RtpsSubmessageType::AckNack(acknack)],
+                vec![RtpsSubmessageKind::AckNack(acknack)],
             ))
         });
 

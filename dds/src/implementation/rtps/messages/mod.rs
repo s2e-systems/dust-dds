@@ -16,11 +16,11 @@ pub mod types;
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessage<'a> {
     pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageType<'a>>,
+    pub submessages: Vec<RtpsSubmessageKind<'a>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum RtpsSubmessageType<'a> {
+pub enum RtpsSubmessageKind<'a> {
     AckNack(AckNackSubmessage),
     Data(DataSubmessage<'a>),
     DataFrag(DataFragSubmessage<'a>),

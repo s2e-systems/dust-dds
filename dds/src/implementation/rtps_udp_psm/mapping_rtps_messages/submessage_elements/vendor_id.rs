@@ -1,27 +1,11 @@
 use std::io::{Error, Write};
 
-use byteorder::ByteOrder;
+use byteorder::{ByteOrder};
 
 use crate::implementation::{
     rtps::messages::submessage_elements::VendorIdSubmessageElement,
-    rtps_udp_psm::mapping_traits::{
-        MappingRead, MappingReadByteOrdered, MappingWrite, MappingWriteByteOrdered,
-    },
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
 };
-
-impl MappingWrite for VendorIdSubmessageElement {
-    fn mapping_write<W: Write>(&self, mut writer: W) -> Result<(), Error> {
-        self.value.mapping_write(&mut writer)
-    }
-}
-
-impl<'de> MappingRead<'de> for VendorIdSubmessageElement {
-    fn mapping_read(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(Self {
-            value: MappingRead::mapping_read(buf)?,
-        })
-    }
-}
 
 impl MappingWriteByteOrdered for VendorIdSubmessageElement {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(

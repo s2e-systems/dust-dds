@@ -1,17 +1,31 @@
 use std::io::{Error, Write};
 
-use crate::implementation::{
-    rtps::messages::submessages::InfoReplySubmessage,
-    rtps_udp_psm::mapping_traits::{MappingRead, MappingWrite},
+use byteorder::ByteOrder;
+
+use crate::implementation::rtps::messages::{
+    overall_structure::RtpsSubmessageHeader, submessages::InfoReplySubmessage,
 };
 
-impl MappingWrite for InfoReplySubmessage {
-    fn mapping_write<W: Write>(&self, mut _writer: W) -> Result<(), Error> {
+use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
+
+impl MappingWriteSubmessage for InfoReplySubmessage {
+    fn submessage_header(&self) -> RtpsSubmessageHeader {
+        todo!()
+    }
+
+    fn mapping_write_submessage_elements<W: Write, B: ByteOrder>(
+        &self,
+        _writer: W,
+    ) -> Result<(), Error> {
         todo!()
     }
 }
-impl<'de> MappingRead<'de> for InfoReplySubmessage {
-    fn mapping_read(_buf: &mut &'de [u8]) -> Result<Self, Error> {
+
+impl<'de> MappingReadSubmessage<'de> for InfoReplySubmessage {
+    fn mapping_read_submessage<B: ByteOrder>(
+        _buf: &mut &'de [u8],
+        _header: RtpsSubmessageHeader,
+    ) -> Result<Self, Error> {
         todo!()
     }
 }
