@@ -39,10 +39,9 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        self.0
-            .upgrade()?
-            .get_participant()
-            .map(|x| DomainParticipant::new(x.downgrade()))
+        Ok(DomainParticipant::new(
+            self.0.upgrade()?.get_participant().downgrade(),
+        ))
     }
 
     /// The name of the type used to create the [`Topic`]
