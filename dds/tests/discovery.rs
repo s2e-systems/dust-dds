@@ -3,7 +3,7 @@ use std::time::Instant;
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::{DataReaderQos, QosKind},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::UserDataQosPolicy,
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -217,6 +217,57 @@ fn deleted_writers_are_disposed_from_reader() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
+}
+
+#[test]
+fn updated_writers_are_announced_to_reader() {
+    let domain_id = 0;
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let user_data_qos_policy = UserDataQosPolicy {
+        value: vec![1, 2, 3, 4],
+    };
+    let qos = DataWriterQos {
+        user_data: user_data_qos_policy.clone(),
+        ..Default::default()
+    };
+    data_writer.set_qos(QosKind::Specific(qos)).unwrap();
+
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let matched_publications = data_reader.get_matched_publications().unwrap();
+    let matched_publication_data = data_reader
+        .get_matched_publication_data(matched_publications[0])
+        .unwrap();
+
+    assert_eq!(matched_publication_data.user_data, user_data_qos_policy);
 }
 
 #[test]
