@@ -276,7 +276,7 @@ mod tests {
         let data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
-                    GuidPrefix::from([5; 12]),
+                    GuidPrefix::new([5; 12]),
                     EntityId::new([11, 12, 13], EntityKind::BuiltInWriterWithKey),
                 ),
                 unicast_locator_list: vec![],
@@ -340,7 +340,7 @@ mod tests {
             writer_proxy: WriterProxy {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
-                    GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
                     EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
                 ),
                 unicast_locator_list: vec![],

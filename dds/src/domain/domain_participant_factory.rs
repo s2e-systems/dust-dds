@@ -82,7 +82,7 @@ impl DomainParticipantFactory {
 
         let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
         let rtps_participant = RtpsParticipant::new(
-            GuidPrefix::from(rtps_udp_psm.guid_prefix()),
+            GuidPrefix::new(rtps_udp_psm.guid_prefix()),
             rtps_udp_psm.default_unicast_locator_list().as_ref(),
             rtps_udp_psm.default_multicast_locator_list(),
             PROTOCOLVERSION,

@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn get_instance_handle() {
         let guid = Guid::new(
-            GuidPrefix::from([2; 12]),
+            GuidPrefix::new([2; 12]),
             EntityId::new([3; 3], EntityKind::BuiltInParticipant),
         );
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());

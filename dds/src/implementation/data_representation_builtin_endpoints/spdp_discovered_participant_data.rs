@@ -263,7 +263,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix::from([8; 12]);
+        let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
@@ -384,7 +384,7 @@ mod tests {
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix::from([8; 12]);
+        let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),

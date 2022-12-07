@@ -103,18 +103,6 @@ impl AsRef<[u8; 12]> for GuidPrefix {
     }
 }
 
-impl From<GuidPrefix> for [u8; 12] {
-    fn from(value: GuidPrefix) -> Self {
-        value.0
-    }
-}
-
-impl From<[u8; 12]> for GuidPrefix {
-    fn from(value: [u8; 12]) -> Self {
-        Self(value)
-    }
-}
-
 /// EntityId_t
 /// Type used to hold the suffix part of the globally-unique RTPS-entity identifiers. The
 /// EntityId_t uniquely identifies an Entity within a Participant. Must be possible to represent using 4 octets.

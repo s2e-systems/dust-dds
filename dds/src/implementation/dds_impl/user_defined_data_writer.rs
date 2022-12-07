@@ -952,7 +952,7 @@ mod test {
             group_data: GroupDataQosPolicy::default(),
         };
         let remote_reader_guid = Guid::new(
-            GuidPrefix::from([2; 12]),
+            GuidPrefix::new([2; 12]),
             EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
         );
         let discovered_reader_data = DiscoveredReaderData {
@@ -1048,7 +1048,7 @@ mod test {
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
-                    GuidPrefix::from([2; 12]),
+                    GuidPrefix::new([2; 12]),
                     EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
