@@ -301,8 +301,8 @@ pub enum ChangeKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
-    pub major: u8,
-    pub minor: u8,
+    major: u8,
+    minor: u8,
 }
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
@@ -320,17 +320,15 @@ pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, min
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
 
-impl From<ProtocolVersion> for [u8; 2] {
-    fn from(value: ProtocolVersion) -> Self {
-        [value.major, value.minor]
+impl ProtocolVersion {
+    pub fn new(major: u8, minor: u8) -> Self {
+        Self { major, minor }
     }
-}
-impl From<[u8; 2]> for ProtocolVersion {
-    fn from(value: [u8; 2]) -> Self {
-        Self {
-            major: value[0],
-            minor: value[1],
-        }
+    pub fn major(&self) -> u8 {
+        self.major
+    }
+    pub fn minor(&self) -> u8 {
+        self.minor
     }
 }
 

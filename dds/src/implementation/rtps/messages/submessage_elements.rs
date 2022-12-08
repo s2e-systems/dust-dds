@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId};
+use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -11,18 +11,8 @@ pub struct UShortSubmessageElement {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ShortSubmessageElement {
-    pub value: i16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ULongSubmessageElement {
     pub value: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LongSubmessageElementConstructor {
-    pub value: i32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,7 +32,7 @@ pub struct VendorIdSubmessageElement {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolVersionSubmessageElement {
-    pub value: [u8; 2],
+    pub value: ProtocolVersion,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

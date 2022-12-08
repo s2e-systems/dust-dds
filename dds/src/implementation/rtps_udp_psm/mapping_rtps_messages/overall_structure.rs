@@ -148,7 +148,7 @@ mod tests {
                 submessages::DataSubmessage,
                 types::ProtocolId,
             },
-            types::{EntityId, EntityKind, GuidPrefix, VendorId},
+            types::{EntityId, EntityKind, GuidPrefix, ProtocolVersion, VendorId},
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -159,9 +159,15 @@ mod tests {
     fn serialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
-            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
+            version: ProtocolVersionSubmessageElement {
+                value: ProtocolVersion::new(2, 3),
+            },
+            vendor_id: VendorIdSubmessageElement {
+                value: VendorId::new([9, 8]),
+            },
+            guid_prefix: GuidPrefixSubmessageElement {
+                value: GuidPrefix::new([3; 12]),
+            },
         };
         let value = RtpsMessage {
             header,
@@ -181,9 +187,15 @@ mod tests {
     fn serialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
-            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
+            version: ProtocolVersionSubmessageElement {
+                value: ProtocolVersion::new(2, 3),
+            },
+            vendor_id: VendorIdSubmessageElement {
+                value: VendorId::new([9, 8]),
+            },
+            guid_prefix: GuidPrefixSubmessageElement {
+                value: GuidPrefix::new([3; 12]),
+            },
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -253,9 +265,15 @@ mod tests {
     fn deserialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
-            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
+            version: ProtocolVersionSubmessageElement {
+                value: ProtocolVersion::new(2, 3),
+            },
+            vendor_id: VendorIdSubmessageElement {
+                value: VendorId::new([9, 8]),
+            },
+            guid_prefix: GuidPrefixSubmessageElement {
+                value: GuidPrefix::new([3; 12]),
+            },
         };
 
         let expected = RtpsMessage {
@@ -277,9 +295,15 @@ mod tests {
     fn deserialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
-            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
+            version: ProtocolVersionSubmessageElement {
+                value: ProtocolVersion::new(2, 3),
+            },
+            vendor_id: VendorIdSubmessageElement {
+                value: VendorId::new([9, 8]),
+            },
+            guid_prefix: GuidPrefixSubmessageElement {
+                value: GuidPrefix::new([3; 12]),
+            },
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -350,9 +374,15 @@ mod tests {
     fn deserialize_rtps_message_unknown_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement { value: [2, 3] },
-            vendor_id: VendorIdSubmessageElement { value: VendorId::new([9, 8]) },
-            guid_prefix: GuidPrefixSubmessageElement { value: GuidPrefix::new([3; 12]) },
+            version: ProtocolVersionSubmessageElement {
+                value: ProtocolVersion::new(2, 3),
+            },
+            vendor_id: VendorIdSubmessageElement {
+                value: VendorId::new([9, 8]),
+            },
+            guid_prefix: GuidPrefixSubmessageElement {
+                value: GuidPrefix::new([3; 12]),
+            },
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
