@@ -354,23 +354,29 @@ impl AsRef<[u8; 2]> for VendorId {
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Count(pub i32);
+pub struct Count(i32);
 
+impl Count {
+    pub const fn new(value: i32) -> Self {
+        Self(value)
+    }
+    pub const fn wrapping_add(self, rhs: i32) -> Self {
+        Self(self.0.wrapping_add(rhs))
+    }
+}
+impl PartialOrd<Count> for Count {
+    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
 impl AddAssign for Count {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
-
-impl From<i32> for Count {
-    fn from(value: i32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Count> for i32 {
-    fn from(value: Count) -> Self {
-        value.0
+impl AsRef<i32> for Count {
+    fn as_ref(&self) -> &i32 {
+        &self.0
     }
 }
 
@@ -380,9 +386,9 @@ impl From<Count> for i32 {
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDPv4 LOCATOR_KIND_UDPv6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
-    pub kind: LocatorKind,
-    pub port: LocatorPort,
-    pub address: LocatorAddress,
+    kind: LocatorKind,
+    port: LocatorPort,
+    address: LocatorAddress,
 }
 type LocatorKind = i32;
 type LocatorPort = u32;

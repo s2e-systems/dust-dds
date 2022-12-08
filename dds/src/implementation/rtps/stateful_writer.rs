@@ -41,7 +41,7 @@ impl<T: TimerConstructor> RtpsStatefulWriter<T> {
             writer,
             matched_readers: Vec::new(),
             heartbeat_timer: T::new(),
-            heartbeat_count: Count(0),
+            heartbeat_count: Count::new(0),
         }
     }
 }
@@ -263,7 +263,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                 + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
         if time_for_heartbeat {
             self.heartbeat_timer.reset();
-            self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
         }
         for reader_proxy in self.matched_readers.iter_mut() {
             let mut submessages = Vec::new();
@@ -294,7 +294,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                 }
 
                 self.heartbeat_timer.reset();
-                self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+                self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
                 let heartbeat = HeartbeatSubmessage {
                     endianness_flag: true,
                     final_flag: false,
@@ -368,7 +368,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     }
                 }
                 self.heartbeat_timer.reset();
-                self.heartbeat_count = Count(self.heartbeat_count.0.wrapping_add(1));
+                self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
                 let heartbeat = HeartbeatSubmessage {
                     endianness_flag: true,
                     final_flag: false,

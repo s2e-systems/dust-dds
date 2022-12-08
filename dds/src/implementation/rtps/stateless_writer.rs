@@ -25,7 +25,7 @@ impl RtpsStatelessWriter {
         Self {
             writer,
             reader_locators: Vec::new(),
-            _heartbeat_count: Count(0),
+            _heartbeat_count: Count::new(0),
         }
     }
 

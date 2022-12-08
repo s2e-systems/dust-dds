@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion};
+use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -76,7 +76,7 @@ pub struct ParameterListSubmessageElement<'a> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountSubmessageElement {
-    pub value: i32,
+    pub value: Count,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -74,9 +74,12 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessage {
 mod tests {
 
     use crate::implementation::{
-        rtps::{messages::submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-        }, types::{EntityId, EntityKind}},
+        rtps::{
+            messages::submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            },
+            types::{Count, EntityId, EntityKind},
+        },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -95,7 +98,9 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement { value: 2 };
+        let count = CountSubmessageElement {
+            value: Count::new(2),
+        };
         let submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -133,7 +138,9 @@ mod tests {
         };
         let first_sn = SequenceNumberSubmessageElement { value: 5 };
         let last_sn = SequenceNumberSubmessageElement { value: 7 };
-        let count = CountSubmessageElement { value: 2 };
+        let count = CountSubmessageElement {
+            value: Count::new(2),
+        };
         let expected = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
