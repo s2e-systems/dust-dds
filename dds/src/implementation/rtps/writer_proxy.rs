@@ -45,7 +45,7 @@ impl RtpsWriterProxy {
             set: self.missing_changes(),
         };
         let count = CountSubmessageElement {
-            value: acknack_count.into(),
+            value: acknack_count,
         };
 
         let acknack_submessage = AckNackSubmessage {

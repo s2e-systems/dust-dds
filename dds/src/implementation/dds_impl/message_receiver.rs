@@ -75,9 +75,9 @@ impl MessageReceiver {
         message: &RtpsMessage<'_>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid_prefix;
-        self.source_version = message.header.version.value.into();
+        self.source_version = message.header.version.value;
         self.source_vendor_id = message.header.vendor_id.value;
-        self.source_guid_prefix = message.header.guid_prefix.value.into();
+        self.source_guid_prefix = message.header.guid_prefix.value;
         self.unicast_reply_locator_list.push(Locator::new(
             *source_locator.kind(),
             LOCATOR_PORT_INVALID,

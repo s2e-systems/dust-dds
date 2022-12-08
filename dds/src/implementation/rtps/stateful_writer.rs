@@ -312,7 +312,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
                     },
                     count: CountSubmessageElement {
-                        value: self.heartbeat_count.into(),
+                        value: self.heartbeat_count,
                     },
                 };
 
@@ -337,7 +337,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
                     },
                     count: CountSubmessageElement {
-                        value: self.heartbeat_count.into(),
+                        value: self.heartbeat_count,
                     },
                 };
 
@@ -386,7 +386,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
                     },
                     count: CountSubmessageElement {
-                        value: self.heartbeat_count.into(),
+                        value: self.heartbeat_count,
                     },
                 };
 

@@ -151,13 +151,13 @@ impl RtpsStatefulReader {
             let header = RtpsMessageHeader {
                 protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
+                    value: PROTOCOLVERSION,
                 },
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
                 guid_prefix: GuidPrefixSubmessageElement {
-                    value: self.reader().guid().prefix().into(),
+                    value: self.reader().guid().prefix(),
                 },
             };
 
