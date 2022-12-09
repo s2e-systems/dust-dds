@@ -356,25 +356,27 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
-        self.rtps_reader
+        if let Some(w) = self
+            .matched_publication_list
             .write_lock()
-            .matched_writer_remove(discovered_writer_handle.into());
+            .remove(&discovered_writer_handle)
+        {
+            self.rtps_reader
+                .write_lock()
+                .matched_writer_remove(w.key.value.into());
 
-        self.matched_publication_list
-            .write_lock()
-            .remove(&discovered_writer_handle);
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SubscriptionMatched);
-
-        if let Some(l) = self.listener.write_lock().as_mut() {
             self.status_condition
                 .write_lock()
-                .remove_communication_state(StatusKind::SubscriptionMatched);
-            let subscription_matched_status = self.get_subscription_matched_status().unwrap();
-            l.trigger_on_subscription_matched(self, subscription_matched_status)
-        };
+                .add_communication_state(StatusKind::SubscriptionMatched);
+
+            if let Some(l) = self.listener.write_lock().as_mut() {
+                self.status_condition
+                    .write_lock()
+                    .remove_communication_state(StatusKind::SubscriptionMatched);
+                let subscription_matched_status = self.get_subscription_matched_status().unwrap();
+                l.trigger_on_subscription_matched(self, subscription_matched_status)
+            };
+        }
     }
 
     pub fn read<Foo>(

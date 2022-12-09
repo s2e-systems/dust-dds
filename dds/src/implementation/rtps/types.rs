@@ -37,6 +37,17 @@ impl Guid {
     }
 }
 
+impl From<[u8; 16]> for Guid {
+    fn from(value: [u8; 16]) -> Self {
+        let prefix = GuidPrefix::new([
+            value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
+            value[8], value[9], value[10], value[11],
+        ]);
+        let entity_id = EntityId::new([value[12], value[13], value[14]], EntityKind(value[15]));
+        Self { prefix, entity_id }
+    }
+}
+
 impl From<Guid> for [u8; 16] {
     fn from(guid: Guid) -> Self {
         [

@@ -315,25 +315,27 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
-        self.rtps_writer
+        if let Some(r) = self
+            .matched_subscription_list
             .write_lock()
-            .matched_reader_remove(discovered_reader_handle.into());
+            .remove(&discovered_reader_handle)
+        {
+            self.rtps_writer
+                .write_lock()
+                .matched_reader_remove(r.key.value.into());
 
-        self.matched_subscription_list
-            .write_lock()
-            .remove(&discovered_reader_handle);
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::PublicationMatched);
-
-        if let Some(l) = self.listener.write_lock().as_mut() {
             self.status_condition
                 .write_lock()
-                .remove_communication_state(StatusKind::PublicationMatched);
-            let publication_matched_status = self.get_publication_matched_status().unwrap();
-            l.trigger_on_publication_matched(self, publication_matched_status)
-        };
+                .add_communication_state(StatusKind::PublicationMatched);
+
+            if let Some(l) = self.listener.write_lock().as_mut() {
+                self.status_condition
+                    .write_lock()
+                    .remove_communication_state(StatusKind::PublicationMatched);
+                let publication_matched_status = self.get_publication_matched_status().unwrap();
+                l.trigger_on_publication_matched(self, publication_matched_status)
+            };
+        }
     }
 
     pub fn register_instance_w_timestamp<Foo>(
