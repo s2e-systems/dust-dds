@@ -160,10 +160,8 @@ pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = EntityKind(0xc2);
 pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = EntityKind(0x03);
 #[allow(dead_code)]
 pub const BUILT_IN_WRITER_NO_KEY: EntityKind = EntityKind(0xc3);
-#[allow(dead_code)]
 pub const USER_DEFINED_READER_WITH_KEY: EntityKind = EntityKind(0x07);
 pub const BUILT_IN_READER_WITH_KEY: EntityKind = EntityKind(0xc7);
-#[allow(dead_code)]
 pub const USER_DEFINED_READER_NO_KEY: EntityKind = EntityKind(0x04);
 #[allow(dead_code)]
 pub const BUILT_IN_READER_NO_KEY: EntityKind = EntityKind(0xc4);
