@@ -1,23 +1,28 @@
-use std::convert::{TryFrom, TryInto};
 use std::io::Write;
 
-use crate::builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData};
-use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator};
-use crate::infrastructure::error::{DdsError, DdsResult};
-use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-    LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-    UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-};
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    implementation::{
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+            serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+        },
+        rtps::types::{EntityId, Guid, Locator},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{
+        error::DdsResult,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy,
+            TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+    },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{
@@ -188,24 +193,6 @@ impl DdsSerialize for DiscoveredReaderData {
     }
 }
 
-impl TryFrom<BuiltInTopicKey> for Guid {
-    type Error = DdsError;
-
-    fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
-        let bytes = value.value;
-        Ok(Guid::new(
-            GuidPrefix::new([
-                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-                bytes[8], bytes[9], bytes[10], bytes[11],
-            ]),
-            EntityId::new(
-                [bytes[12], bytes[13], bytes[14]],
-                EntityKind::new(bytes[15]),
-            ),
-        ))
-    }
-}
-
 impl DdsDeserialize<'_> for DiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
@@ -243,7 +230,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
-        let remote_reader_guid = key.clone().try_into()?;
+        let remote_reader_guid = key.value.into();
 
         Ok(Self {
             reader_proxy: ReaderProxy {
