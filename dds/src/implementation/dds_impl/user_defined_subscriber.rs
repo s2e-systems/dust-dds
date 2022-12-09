@@ -8,7 +8,10 @@ use crate::{
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{EntityId, EntityKind, Guid, GuidPrefix, TopicKind},
+            types::{
+                EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY,
+                USER_DEFINED_READER_WITH_KEY,
+            },
         },
         utils::{
             condvar::DdsCondvar,
@@ -95,8 +98,8 @@ impl DdsShared<UserDefinedSubscriber> {
         // /////// Build the GUID
         let entity_id = {
             let entity_kind = match Foo::has_key() {
-                true => EntityKind::UserDefinedReaderWithKey,
-                false => EntityKind::UserDefinedReaderNoKey,
+                true => USER_DEFINED_READER_WITH_KEY,
+                false => USER_DEFINED_READER_NO_KEY,
             };
 
             EntityId::new(

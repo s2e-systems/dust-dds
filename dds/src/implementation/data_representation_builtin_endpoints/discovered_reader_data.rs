@@ -1,9 +1,9 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::io::Write;
 
 use crate::builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData};
-use crate::implementation::rtps::types::{EntityId, Guid, Locator};
-use crate::infrastructure::error::DdsResult;
+use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, GuidPrefix, Locator};
+use crate::infrastructure::error::{DdsError, DdsResult};
 use crate::infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
     LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
@@ -188,6 +188,24 @@ impl DdsSerialize for DiscoveredReaderData {
     }
 }
 
+impl TryFrom<BuiltInTopicKey> for Guid {
+    type Error = DdsError;
+
+    fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
+        let bytes = value.value;
+        Ok(Guid::new(
+            GuidPrefix::new([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+                bytes[8], bytes[9], bytes[10], bytes[11],
+            ]),
+            EntityId::new(
+                [bytes[12], bytes[13], bytes[14]],
+                EntityKind::new(bytes[15]),
+            ),
+        ))
+    }
+}
+
 impl DdsDeserialize<'_> for DiscoveredReaderData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
@@ -261,7 +279,9 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{EntityKind, GuidPrefix};
+    use crate::implementation::rtps::types::{
+        GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+    };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
@@ -281,12 +301,9 @@ mod tests {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([5; 12]),
-                    EntityId::new([11, 12, 13], EntityKind::UserDefinedReaderWithKey),
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
                 ),
-                remote_group_entity_id: EntityId::new(
-                    [21, 22, 23],
-                    EntityKind::BuiltInWriterWithKey,
-                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
@@ -348,12 +365,9 @@ mod tests {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                remote_group_entity_id: EntityId::new(
-                    [21, 22, 23],
-                    EntityKind::BuiltInWriterWithKey,
-                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQosDeserialize::default().0,

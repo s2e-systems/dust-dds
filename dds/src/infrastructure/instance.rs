@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use crate::{
-    implementation::rtps::types::{EntityId, Guid, GuidPrefix},
+    implementation::rtps::types::{EntityId, Guid, GuidPrefix, EntityKind},
     topic_definition::type_support::DdsSerializedKey,
 };
 
@@ -43,7 +43,7 @@ impl From<InstanceHandle> for Guid {
         let prefix = GuidPrefix::new(<[u8; 12]>::try_from(&x.0[0..12]).expect("Invalid length"));
         let entity_id = EntityId::new(
             <[u8; 3]>::try_from(&x.0[12..15]).expect("Invalid length"),
-            TryFrom::try_from(x.0[15]).unwrap(),
+            EntityKind::new(x.0[15]),
         );
         Guid::new(prefix, entity_id)
     }

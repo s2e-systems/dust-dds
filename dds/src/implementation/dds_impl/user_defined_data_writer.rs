@@ -16,7 +16,7 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, EntityKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{EntityId, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
@@ -625,7 +625,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
                 multicast_locator_list: rtps_writer_lock.multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([0; 3], EntityKind::UserDefinedUnknown),
+                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
@@ -669,9 +669,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix,
-                },
+                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
             };
 
             let rtps_message = RtpsMessage {
@@ -692,7 +690,10 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{
+                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
@@ -953,7 +954,7 @@ mod test {
         };
         let remote_reader_guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+            EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
         );
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
@@ -1049,7 +1050,7 @@ mod test {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([2; 12]),
-                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                    EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],

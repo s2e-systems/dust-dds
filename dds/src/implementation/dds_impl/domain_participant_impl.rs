@@ -27,7 +27,11 @@ use crate::{
             messages::RtpsMessage,
             participant::RtpsParticipant,
             transport::TransportWrite,
-            types::{Count, EntityId, EntityKind, Guid, Locator},
+            types::{
+                Count, EntityId, Guid, Locator, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
+            },
         },
         utils::{
             condvar::DdsCondvar,
@@ -60,28 +64,28 @@ use super::{
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
-    EntityId::new([0x00, 0x01, 0x00], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER: EntityId =
-    EntityId::new([0x00, 0x01, 0x00], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0x00, 0x01, 0x00], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x02], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x02], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x02], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x02], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x03], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x03], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x03], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x03], BUILT_IN_READER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
-    EntityId::new([0, 0, 0x04], EntityKind::BuiltInWriterWithKey);
+    EntityId::new([0, 0, 0x04], BUILT_IN_WRITER_WITH_KEY);
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
-    EntityId::new([0, 0, 0x04], EntityKind::BuiltInReaderWithKey);
+    EntityId::new([0, 0, 0x04], BUILT_IN_READER_WITH_KEY);
 
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipant,
@@ -125,7 +129,7 @@ impl DomainParticipantImpl {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
-        let spdp_topic_entity_id = EntityId::new([0, 0, 0], EntityKind::BuiltInTopic);
+        let spdp_topic_entity_id = EntityId::new([0, 0, 0], BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
         let spdp_topic_participant = TopicImpl::new(
             spdp_topic_guid,
@@ -135,7 +139,7 @@ impl DomainParticipantImpl {
             DdsWeak::new(),
         );
 
-        let sedp_topics_entity_id = EntityId::new([0, 0, 1], EntityKind::BuiltInTopic);
+        let sedp_topics_entity_id = EntityId::new([0, 0, 1], BUILT_IN_TOPIC);
         let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
         let sedp_topic_topics = TopicImpl::new(
             sedp_topics_guid,
@@ -145,7 +149,7 @@ impl DomainParticipantImpl {
             DdsWeak::new(),
         );
 
-        let sedp_publications_entity_id = EntityId::new([0, 0, 2], EntityKind::BuiltInTopic);
+        let sedp_publications_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
         let sedp_topic_publications = TopicImpl::new(
             sedp_publications_guid,
@@ -155,7 +159,7 @@ impl DomainParticipantImpl {
             DdsWeak::new(),
         );
 
-        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], EntityKind::BuiltInTopic);
+        let sedp_subscriptions_entity_id = EntityId::new([0, 0, 2], BUILT_IN_TOPIC);
         let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
         let sedp_topic_subscriptions = TopicImpl::new(
             sedp_subscriptions_guid,
@@ -239,10 +243,7 @@ impl DdsShared<DomainParticipantImpl> {
         let publisher_counter = self
             .user_defined_publisher_counter
             .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new(
-            [publisher_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
-        );
+        let entity_id = EntityId::new([publisher_counter, 0, 0], USER_DEFINED_WRITER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let publisher_impl_shared = UserDefinedPublisher::new(
@@ -304,10 +305,7 @@ impl DdsShared<DomainParticipantImpl> {
         let subcriber_counter = self
             .user_defined_subscriber_counter
             .fetch_add(1, Ordering::Relaxed);
-        let entity_id = EntityId::new(
-            [subcriber_counter, 0, 0],
-            EntityKind::UserDefinedWriterGroup,
-        );
+        let entity_id = EntityId::new([subcriber_counter, 0, 0], USER_DEFINED_READER_GROUP);
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
         let subscriber_shared = UserDefinedSubscriber::new(
@@ -371,7 +369,7 @@ impl DdsShared<DomainParticipantImpl> {
             .fetch_add(1, Ordering::Relaxed);
         let topic_guid = Guid::new(
             self.rtps_participant.guid().prefix(),
-            EntityId::new([topic_counter, 0, 0], EntityKind::UserDefinedTopic),
+            EntityId::new([topic_counter, 0, 0], USER_DEFINED_TOPIC),
         );
         let qos = match qos {
             QosKind::Default => self.default_topic_qos.clone(),

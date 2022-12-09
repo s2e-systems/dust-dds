@@ -1,35 +1,41 @@
 use std::sync::atomic::{self, AtomicU8};
 
-use crate::implementation::rtps::endpoint::RtpsEndpoint;
-use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
-use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{EntityId, EntityKind, Guid, TopicKind};
-use crate::implementation::rtps::writer::RtpsWriter;
-use crate::implementation::rtps::{group::RtpsGroupImpl, stateful_writer::RtpsStatefulWriter};
-use crate::implementation::utils::condvar::DdsCondvar;
-use crate::implementation::utils::shared_object::DdsWeak;
-use crate::infrastructure::condition::StatusCondition;
-use crate::infrastructure::error::{DdsError, DdsResult};
-use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::QosKind;
-use crate::infrastructure::status::StatusKind;
-use crate::infrastructure::time::{Duration, DURATION_ZERO};
-use crate::topic_definition::type_support::DdsType;
 use crate::{
-    infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
+        rtps::{
+            endpoint::RtpsEndpoint,
+            group::RtpsGroupImpl,
+            messages::submessages::AckNackSubmessage,
+            stateful_writer::RtpsStatefulWriter,
+            transport::TransportWrite,
+            types::{
+                EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        },
+    },
+    infrastructure::{
+        condition::StatusCondition,
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        status::StatusKind,
+        time::{Duration, DURATION_ZERO},
+    },
     publication::publisher_listener::PublisherListener,
+    topic_definition::type_support::DdsType,
 };
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
-    utils::shared_object::{DdsRwLock, DdsShared},
-};
-
-use super::message_receiver::{MessageReceiver, PublisherMessageReceiver};
-use super::user_defined_data_writer::AnyDataWriterListener;
 use super::{
-    domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
-    user_defined_data_writer::UserDefinedDataWriter,
+    domain_participant_impl::DomainParticipantImpl,
+    message_receiver::{MessageReceiver, PublisherMessageReceiver},
+    topic_impl::TopicImpl,
+    user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
 };
 
 pub struct UserDefinedPublisher {
@@ -91,8 +97,8 @@ impl DdsShared<UserDefinedPublisher> {
                 .fetch_add(1, atomic::Ordering::SeqCst);
 
             let entity_kind = match Foo::has_key() {
-                true => EntityKind::UserDefinedWriterWithKey,
-                false => EntityKind::UserDefinedWriterNoKey,
+                true => USER_DEFINED_WRITER_WITH_KEY,
+                false => USER_DEFINED_WRITER_NO_KEY,
             };
 
             Guid::new(

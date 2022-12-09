@@ -804,7 +804,10 @@ mod tests {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
-            types::{EntityId, EntityKind, Guid, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{
+                EntityId, Guid, TopicKind, BUILT_IN_PARTICIPANT, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
         },
         infrastructure::time::DURATION_ZERO,
         infrastructure::{
@@ -899,7 +902,7 @@ mod tests {
     fn get_instance_handle() {
         let guid = Guid::new(
             GuidPrefix::new([4; 12]),
-            EntityId::new([3; 3], EntityKind::BuiltInParticipant),
+            EntityId::new([3; 3], BUILT_IN_PARTICIPANT),
         );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
@@ -983,7 +986,7 @@ mod tests {
         };
         let remote_writer_guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+            EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
         );
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -1075,7 +1078,7 @@ mod tests {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([2; 12]),
-                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                    EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],

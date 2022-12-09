@@ -81,7 +81,7 @@ mod tests {
                 CountSubmessageElement, EntityIdSubmessageElement,
                 SequenceNumberSetSubmessageElement,
             },
-            types::{Count, EntityId, EntityKind},
+            types::{Count, EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP},
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -93,10 +93,10 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let submessage = AckNackSubmessage {
             endianness_flag,
@@ -142,10 +142,10 @@ mod tests {
                 endianness_flag: true,
                 final_flag: false,
                 reader_id: EntityIdSubmessageElement {
-                    value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+                    value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
                 },
                 writer_id: EntityIdSubmessageElement {
-                    value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+                    value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
                 },
                 reader_sn_state: SequenceNumberSetSubmessageElement {
                     base: 10,

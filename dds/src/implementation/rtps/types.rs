@@ -1,9 +1,4 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    ops::AddAssign,
-};
-
-use crate::{builtin_topics::BuiltInTopicKey, infrastructure::error::DdsError};
+use std::ops::AddAssign;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -60,28 +55,28 @@ impl From<Guid> for [u8; 16] {
             guid.entity_id.entity_key[0],
             guid.entity_id.entity_key[1],
             guid.entity_id.entity_key[2],
-            guid.entity_id.entity_kind.into(),
+            guid.entity_id.entity_kind.0,
         ]
     }
 }
 
-impl TryFrom<BuiltInTopicKey> for Guid {
-    type Error = DdsError;
+// impl TryFrom<BuiltInTopicKey> for Guid {
+//     type Error = DdsError;
 
-    fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
-        let bytes = value.value;
-        Ok(Guid {
-            prefix: GuidPrefix([
-                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-                bytes[8], bytes[9], bytes[10], bytes[11],
-            ]),
-            entity_id: EntityId {
-                entity_key: [bytes[12], bytes[13], bytes[14]],
-                entity_kind: bytes[15].try_into()?,
-            },
-        })
-    }
-}
+//     fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
+//         let bytes = value.value;
+//         Ok(Guid {
+//             prefix: GuidPrefix([
+//                 bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+//                 bytes[8], bytes[9], bytes[10], bytes[11],
+//             ]),
+//             entity_id: EntityId {
+//                 entity_key: [bytes[12], bytes[13], bytes[14]],
+//                 entity_kind: bytes[15].try_into()?,
+//             },
+//         })
+//     }
+// }
 
 /// GuidPrefix_t
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
@@ -97,9 +92,9 @@ impl GuidPrefix {
     }
 }
 
-impl AsRef<[u8; 12]> for GuidPrefix {
-    fn as_ref(&self) -> &[u8; 12] {
-        &self.0
+impl From<GuidPrefix> for [u8; 12] {
+    fn from(value: GuidPrefix) -> Self {
+        value.0
     }
 }
 
@@ -138,129 +133,60 @@ impl From<EntityId> for [u8; 4] {
             value.entity_key[0],
             value.entity_key[1],
             value.entity_key[2],
-            value.entity_kind.into(),
+            value.entity_kind.0,
         ]
     }
 }
 
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
     entity_key: [0; 3],
-    entity_kind: EntityKind::UserDefinedUnknown,
+    entity_kind: USER_DEFINED_UNKNOWN,
 };
 
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_key: [0, 0, 0x01],
-    entity_kind: EntityKind::BuiltInParticipant,
+    entity_kind: BUILT_IN_PARTICIPANT,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum EntityKind {
-    UserDefinedUnknown,
-    BuiltInUnknown,
-    BuiltInParticipant,
-    UserDefinedWriterWithKey,
-    BuiltInWriterWithKey,
-    UserDefinedWriterNoKey,
-    BuiltInWriterNoKey,
-    UserDefinedReaderWithKey,
-    BuiltInReaderWithKey,
-    UserDefinedReaderNoKey,
-    BuiltInReaderNoKey,
-    UserDefinedWriterGroup,
-    BuiltInWriterGroup,
-    UserDefinedReaderGroup,
-    BuiltInReaderGroup,
-    BuiltInTopic,
-    UserDefinedTopic,
-}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct EntityKind(u8);
 
-impl serde::Serialize for EntityKind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serde::Serialize::serialize(&Into::<u8>::into(*self), serializer)
-    }
-}
-
-struct EntityKindVisitor;
-
-impl<'de> serde::de::Visitor<'de> for EntityKindVisitor {
-    type Value = EntityKind;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("value must be valid EntityKind")
-    }
-
-    fn visit_u8<E>(self, value: u8) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        value.try_into().map_err(|_| {
-            serde::de::Error::invalid_value(serde::de::Unexpected::Unsigned(value as u64), &self)
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for EntityKind {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_u8(EntityKindVisitor)
-    }
-}
-
-impl TryFrom<u8> for EntityKind {
-    type Error = DdsError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        Ok(match value {
-            0x00 => EntityKind::UserDefinedUnknown,
-            0xc0 => EntityKind::BuiltInUnknown,
-            0xc1 => EntityKind::BuiltInParticipant,
-            0x02 => EntityKind::UserDefinedWriterWithKey,
-            0xc2 => EntityKind::BuiltInWriterWithKey,
-            0x03 => EntityKind::UserDefinedWriterNoKey,
-            0xc3 => EntityKind::BuiltInWriterNoKey,
-            0x07 => EntityKind::UserDefinedReaderWithKey,
-            0xc7 => EntityKind::BuiltInReaderWithKey,
-            0x04 => EntityKind::UserDefinedReaderNoKey,
-            0xc4 => EntityKind::BuiltInReaderNoKey,
-            0x08 => EntityKind::UserDefinedWriterGroup,
-            0xc8 => EntityKind::BuiltInWriterGroup,
-            0x09 => EntityKind::UserDefinedReaderGroup,
-            0xc9 => EntityKind::BuiltInReaderGroup,
-            0x0a => EntityKind::UserDefinedTopic,
-            0xca => EntityKind::BuiltInTopic,
-            _ => return Err(DdsError::Error),
-        })
+impl EntityKind {
+    pub fn new(value: u8) -> Self {
+        Self(value)
     }
 }
 
 impl From<EntityKind> for u8 {
     fn from(value: EntityKind) -> Self {
-        match value {
-            EntityKind::UserDefinedUnknown => 0x00,
-            EntityKind::BuiltInUnknown => 0xc0,
-            EntityKind::BuiltInParticipant => 0xc1,
-            EntityKind::UserDefinedWriterWithKey => 0x02,
-            EntityKind::BuiltInWriterWithKey => 0xc2,
-            EntityKind::UserDefinedWriterNoKey => 0x03,
-            EntityKind::BuiltInWriterNoKey => 0xc3,
-            EntityKind::UserDefinedReaderWithKey => 0x07,
-            EntityKind::BuiltInReaderWithKey => 0xc7,
-            EntityKind::UserDefinedReaderNoKey => 0x04,
-            EntityKind::BuiltInReaderNoKey => 0xc4,
-            EntityKind::UserDefinedWriterGroup => 0x08,
-            EntityKind::BuiltInWriterGroup => 0xc8,
-            EntityKind::UserDefinedReaderGroup => 0x09,
-            EntityKind::BuiltInReaderGroup => 0xc9,
-            EntityKind::UserDefinedTopic => 0x0a,
-            EntityKind::BuiltInTopic => 0xca,
-        }
+        value.0
     }
 }
+
+// Table 9.1 - entityKind octet of an EntityId_t
+pub const USER_DEFINED_UNKNOWN: EntityKind = EntityKind(0x00);
+#[allow(dead_code)]
+pub const BUILT_IN_UNKNOWN: EntityKind = EntityKind(0xc0);
+pub const BUILT_IN_PARTICIPANT: EntityKind = EntityKind(0xc1);
+pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = EntityKind(0x02);
+pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = EntityKind(0xc2);
+pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = EntityKind(0x03);
+#[allow(dead_code)]
+pub const BUILT_IN_WRITER_NO_KEY: EntityKind = EntityKind(0xc3);
+#[allow(dead_code)]
+pub const USER_DEFINED_READER_WITH_KEY: EntityKind = EntityKind(0x07);
+pub const BUILT_IN_READER_WITH_KEY: EntityKind = EntityKind(0xc7);
+#[allow(dead_code)]
+pub const USER_DEFINED_READER_NO_KEY: EntityKind = EntityKind(0x04);
+#[allow(dead_code)]
+pub const BUILT_IN_READER_NO_KEY: EntityKind = EntityKind(0xc4);
+pub const USER_DEFINED_WRITER_GROUP: EntityKind = EntityKind(0x08);
+pub const BUILT_IN_WRITER_GROUP: EntityKind = EntityKind(0xc8);
+pub const USER_DEFINED_READER_GROUP: EntityKind = EntityKind(0x09);
+pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
+// Added in comparison to the RTPS standard
+pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
+pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
 
 pub type EntityKey = [u8; 3];
 
