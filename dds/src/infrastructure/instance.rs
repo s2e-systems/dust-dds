@@ -1,9 +1,4 @@
-use std::convert::TryFrom;
-
-use crate::{
-    implementation::rtps::types::{EntityId, Guid, GuidPrefix},
-    topic_definition::type_support::DdsSerializedKey,
-};
+use crate::{implementation::rtps::types::Guid, topic_definition::type_support::DdsSerializedKey};
 
 /// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
@@ -35,16 +30,5 @@ impl From<InstanceHandle> for [u8; 16] {
 impl From<Guid> for InstanceHandle {
     fn from(x: Guid) -> Self {
         InstanceHandle(x.into())
-    }
-}
-
-impl From<InstanceHandle> for Guid {
-    fn from(x: InstanceHandle) -> Self {
-        let prefix = GuidPrefix::new(<[u8; 12]>::try_from(&x.0[0..12]).expect("Invalid length"));
-        let entity_id = EntityId::new(
-            <[u8; 3]>::try_from(&x.0[12..15]).expect("Invalid length"),
-            TryFrom::try_from(x.0[15]).unwrap(),
-        );
-        Guid::new(prefix, entity_id)
     }
 }

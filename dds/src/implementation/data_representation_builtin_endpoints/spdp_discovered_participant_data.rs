@@ -127,6 +127,8 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
     fn serialize<W: std::io::Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
         let guid = Guid::new(self.participant_proxy.guid_prefix, ENTITYID_PARTICIPANT);
 
+        let participant_key: BuiltInTopicKey = BuiltInTopicKey { value: guid.into() };
+
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
@@ -140,7 +142,8 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
-        parameter_list_serializer.serialize_parameter::<&Guid, _>(PID_PARTICIPANT_GUID, &guid)?;
+        parameter_list_serializer
+            .serialize_parameter::<&BuiltInTopicKey, _>(PID_PARTICIPANT_GUID, &participant_key)?;
         parameter_list_serializer
             .serialize_parameter::<&VendorId, _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
@@ -192,7 +195,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let guid = param_list.get::<Guid, Guid>(PID_PARTICIPANT_GUID)?;
+        let participant_key =
+            param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
         let domain_id = param_list.get::<i32, _>(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
@@ -217,16 +221,21 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let lease_duration =
             param_list.get::<ParticipantLeaseDuration, _>(PID_PARTICIPANT_LEASE_DURATION)?;
 
+        let v = participant_key.value;
+        let guid_prefix = GuidPrefix::new([
+            v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
+        ]);
+
         Ok(Self {
             dds_participant_data: ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey { value: guid.into() },
+                key: participant_key,
                 user_data,
             },
             participant_proxy: ParticipantProxy {
                 domain_id,
                 domain_tag,
                 protocol_version,
-                guid_prefix: guid.prefix(),
+                guid_prefix,
                 vendor_id,
                 expects_inline_qos,
                 metatraffic_unicast_locator_list,
@@ -245,7 +254,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{EntityId, EntityKind};
+    use crate::implementation::rtps::types::{EntityId, BUILT_IN_PARTICIPANT};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::topic_definition::type_support::LittleEndian;
 
@@ -262,11 +271,11 @@ mod tests {
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion ::new(2, 4);
+        let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
-            EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
+            EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
@@ -383,11 +392,11 @@ mod tests {
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion ::new(2, 4);
+        let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
-            EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
+            EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;

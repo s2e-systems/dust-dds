@@ -1,22 +1,26 @@
-use std::convert::TryInto;
 use std::io::Write;
 
-use crate::builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData};
-use crate::implementation::rtps::types::{EntityId, Guid, Locator};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-    PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
-    UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-};
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
+    implementation::{
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+        },
+        rtps::types::{EntityId, Guid, Locator},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{
+        error::DdsResult,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
+            UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+        },
+    },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{
@@ -221,7 +225,7 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
-        let remote_writer_guid = key.clone().try_into()?;
+        let remote_writer_guid = key.value.into();
         Ok(Self {
             writer_proxy: WriterProxy {
                 remote_writer_guid,
@@ -255,7 +259,10 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
-    use crate::implementation::rtps::types::{EntityKind, GuidPrefix};
+    use crate::implementation::rtps::types::{
+        GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
+        USER_DEFINED_UNKNOWN,
+    };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
@@ -277,12 +284,12 @@ mod tests {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([5; 12]),
-                    EntityId::new([11, 12, 13], EntityKind::BuiltInWriterWithKey),
+                    EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], EntityKind::BuiltInReaderGroup),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -341,12 +348,12 @@ mod tests {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], EntityKind::BuiltInParticipant),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {

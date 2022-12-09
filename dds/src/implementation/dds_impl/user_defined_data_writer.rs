@@ -16,7 +16,7 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, EntityKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{EntityId, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
@@ -315,25 +315,27 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
-        self.rtps_writer
+        if let Some(r) = self
+            .matched_subscription_list
             .write_lock()
-            .matched_reader_remove(discovered_reader_handle.into());
+            .remove(&discovered_reader_handle)
+        {
+            self.rtps_writer
+                .write_lock()
+                .matched_reader_remove(r.key.value.into());
 
-        self.matched_subscription_list
-            .write_lock()
-            .remove(&discovered_reader_handle);
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::PublicationMatched);
-
-        if let Some(l) = self.listener.write_lock().as_mut() {
             self.status_condition
                 .write_lock()
-                .remove_communication_state(StatusKind::PublicationMatched);
-            let publication_matched_status = self.get_publication_matched_status().unwrap();
-            l.trigger_on_publication_matched(self, publication_matched_status)
-        };
+                .add_communication_state(StatusKind::PublicationMatched);
+
+            if let Some(l) = self.listener.write_lock().as_mut() {
+                self.status_condition
+                    .write_lock()
+                    .remove_communication_state(StatusKind::PublicationMatched);
+                let publication_matched_status = self.get_publication_matched_status().unwrap();
+                l.trigger_on_publication_matched(self, publication_matched_status)
+            };
+        }
     }
 
     pub fn register_instance_w_timestamp<Foo>(
@@ -625,7 +627,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
                 multicast_locator_list: rtps_writer_lock.multicast_locator_list().to_vec(),
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([0; 3], EntityKind::UserDefinedUnknown),
+                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
@@ -669,9 +671,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix,
-                },
+                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
             };
 
             let rtps_message = RtpsMessage {
@@ -692,7 +692,10 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            types::{Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{
+                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
@@ -953,7 +956,7 @@ mod test {
         };
         let remote_reader_guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+            EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
         );
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
@@ -1049,7 +1052,7 @@ mod test {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([2; 12]),
-                    EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
+                    EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
