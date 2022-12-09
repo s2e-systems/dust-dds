@@ -142,7 +142,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         )?;
         parameter_list_serializer.serialize_parameter::<&Guid, _>(PID_PARTICIPANT_GUID, &guid)?;
         parameter_list_serializer
-            .serialize_parameter::<&[u8; 2], _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+            .serialize_parameter::<&VendorId, _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
             .serialize_parameter_if_not_default::<ExpectsInlineQosSerialize, _>(
                 PID_EXPECTS_INLINE_QOS,
@@ -197,7 +197,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let domain_id = param_list.get::<i32, _>(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
         let protocol_version = param_list.get::<ProtocolVersion, _>(PID_PROTOCOL_VERSION)?;
-        let vendor_id = param_list.get::<[u8; 2], _>(PID_VENDORID)?;
+        let vendor_id = param_list.get::<VendorId, _>(PID_VENDORID)?;
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
@@ -262,13 +262,13 @@ mod tests {
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix::from([8; 12]);
+        let protocol_version = ProtocolVersion ::new(2, 4);
+        let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
         );
-        let vendor_id = [73, 74];
+        let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
@@ -276,7 +276,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count(2);
+        let manual_liveliness_count = Count::new(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
@@ -383,13 +383,13 @@ mod tests {
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
-        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        let guid_prefix = GuidPrefix::from([8; 12]);
+        let protocol_version = ProtocolVersion ::new(2, 4);
+        let guid_prefix = GuidPrefix::new([8; 12]);
         let guid = Guid::new(
             guid_prefix,
             EntityId::new([0, 0, 1], EntityKind::BuiltInParticipant),
         );
-        let vendor_id = [73, 74];
+        let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
@@ -397,7 +397,7 @@ mod tests {
         let default_multicast_locator_list = vec![locator1];
         let available_builtin_endpoints =
             BuiltinEndpointSet::new(BuiltinEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR);
-        let manual_liveliness_count = Count(2);
+        let manual_liveliness_count = Count::new(2);
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );

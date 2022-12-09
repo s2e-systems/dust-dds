@@ -19,7 +19,7 @@ use super::{
     },
     reader::RtpsReader,
     transport::TransportWrite,
-    types::{Count, Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+    types::{Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -97,19 +97,15 @@ impl RtpsStatefulReader {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(
-                source_guid_prefix,
-                heartbeat_submessage.writer_id.value,
-            );
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
 
             if let Some(writer_proxy) = self
                 .matched_writers
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count.0 != heartbeat_submessage.count.value
-                {
-                    writer_proxy.last_received_heartbeat_count.0 = heartbeat_submessage.count.value;
+                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
+                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
 
                     writer_proxy.must_send_acknacks = !heartbeat_submessage.final_flag
                         || (!heartbeat_submessage.liveliness_flag
@@ -130,7 +126,7 @@ impl RtpsStatefulReader {
         let entity_id = self.reader.guid().entity_id();
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks || !writer_proxy.missing_changes().is_empty() {
-                writer_proxy.acknack_count = Count(writer_proxy.acknack_count.0.wrapping_add(1));
+                writer_proxy.acknack_count = writer_proxy.acknack_count.wrapping_add(1);
 
                 writer_proxy.reliable_send_ack_nack(
                     entity_id,
@@ -155,13 +151,13 @@ impl RtpsStatefulReader {
             let header = RtpsMessageHeader {
                 protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
+                    value: PROTOCOLVERSION,
                 },
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
                 guid_prefix: GuidPrefixSubmessageElement {
-                    value: self.reader().guid().prefix().into(),
+                    value: self.reader().guid().prefix(),
                 },
             };
 

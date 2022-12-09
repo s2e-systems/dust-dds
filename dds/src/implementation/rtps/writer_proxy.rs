@@ -45,7 +45,7 @@ impl RtpsWriterProxy {
             set: self.missing_changes(),
         };
         let count = CountSubmessageElement {
-            value: acknack_count.into(),
+            value: acknack_count,
         };
 
         let acknack_submessage = AckNackSubmessage {
@@ -88,8 +88,8 @@ impl RtpsWriterProxy {
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
             must_send_acknacks: false,
-            last_received_heartbeat_count: Count(0),
-            acknack_count: Count(0),
+            last_received_heartbeat_count: Count::new(0),
+            acknack_count: Count::new(0),
         }
     }
 }

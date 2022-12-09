@@ -197,7 +197,7 @@ impl DomainParticipantImpl {
             topic_list: DdsRwLock::new(Vec::new()),
             user_defined_topic_counter: AtomicU8::new(0),
             default_topic_qos: TopicQos::default(),
-            manual_liveliness_count: Count(0),
+            manual_liveliness_count: Count::new(0),
             lease_duration,
             metatraffic_unicast_locator_list,
             metatraffic_multicast_locator_list,

@@ -280,7 +280,7 @@ mod tests {
         let data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
-                    GuidPrefix::from([5; 12]),
+                    GuidPrefix::new([5; 12]),
                     EntityId::new([11, 12, 13], EntityKind::UserDefinedReaderWithKey),
                 ),
                 remote_group_entity_id: EntityId::new(
@@ -347,7 +347,7 @@ mod tests {
             reader_proxy: ReaderProxy {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
-                    GuidPrefix::from([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
+                    GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
                     EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
                 ),
                 remote_group_entity_id: EntityId::new(

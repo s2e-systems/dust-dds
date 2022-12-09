@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn get_instance_handle() {
         let guid = Guid::new(
-            GuidPrefix::from([4; 12]),
+            GuidPrefix::new([4; 12]),
             EntityId::new([3; 3], EntityKind::BuiltInParticipant),
         );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
@@ -982,7 +982,7 @@ mod tests {
             lifespan: LifespanQosPolicy::default(),
         };
         let remote_writer_guid = Guid::new(
-            GuidPrefix::from([2; 12]),
+            GuidPrefix::new([2; 12]),
             EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
         );
         let discovered_writer_data = DiscoveredWriterData {
@@ -1074,7 +1074,7 @@ mod tests {
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
-                    GuidPrefix::from([2; 12]),
+                    GuidPrefix::new([2; 12]),
                     EntityId::new([2; 3], EntityKind::UserDefinedWriterWithKey),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,

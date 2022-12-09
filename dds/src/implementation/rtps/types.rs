@@ -91,15 +91,15 @@ impl TryFrom<BuiltInTopicKey> for Guid {
 pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
-impl From<GuidPrefix> for [u8; 12] {
-    fn from(value: GuidPrefix) -> Self {
-        value.0
+impl GuidPrefix {
+    pub fn new(value: [u8; 12]) -> Self {
+        Self(value)
     }
 }
 
-impl From<[u8; 12]> for GuidPrefix {
-    fn from(value: [u8; 12]) -> Self {
-        Self(value)
+impl AsRef<[u8; 12]> for GuidPrefix {
+    fn as_ref(&self) -> &[u8; 12] {
+        &self.0
     }
 }
 
@@ -262,31 +262,6 @@ impl From<EntityKind> for u8 {
     }
 }
 
-// // Table 9.1 - entityKind octet of an EntityId_t
-// pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
-// #[allow(dead_code)]
-// pub const BUILT_IN_UNKNOWN: EntityKind = 0xc0;
-// pub const BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
-// pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
-// pub const BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
-// pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
-// #[allow(dead_code)]
-// pub const BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
-// #[allow(dead_code)]
-// pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x07;
-// pub const BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
-// #[allow(dead_code)]
-// pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x04;
-// #[allow(dead_code)]
-// pub const BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
-// pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
-// pub const BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
-// pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
-// pub const BUILT_IN_READER_GROUP: EntityKind = 0xc9;
-// // Added in comparison to the RTPS standard
-// pub const BUILT_IN_TOPIC: EntityKind = 0xca;
-// pub const USER_DEFINED_TOPIC: EntityKind = 0x0a;
-
 pub type EntityKey = [u8; 3];
 
 /// SequenceNumber_t
@@ -326,8 +301,8 @@ pub enum ChangeKind {
 /// PROTOCOLVERSION is an alias for the most recent version, in this case PROTOCOLVERSION_2_4
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProtocolVersion {
-    pub major: u8,
-    pub minor: u8,
+    major: u8,
+    minor: u8,
 }
 
 pub const PROTOCOLVERSION: ProtocolVersion = PROTOCOLVERSION_2_4;
@@ -345,47 +320,63 @@ pub const PROTOCOLVERSION_2_2: ProtocolVersion = ProtocolVersion { major: 2, min
 pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, minor: 3 };
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
 
-impl From<ProtocolVersion> for [u8; 2] {
-    fn from(value: ProtocolVersion) -> Self {
-        [value.major, value.minor]
+impl ProtocolVersion {
+    pub fn new(major: u8, minor: u8) -> Self {
+        Self { major, minor }
     }
-}
-impl From<[u8; 2]> for ProtocolVersion {
-    fn from(value: [u8; 2]) -> Self {
-        Self {
-            major: value[0],
-            minor: value[1],
-        }
+    pub fn major(&self) -> u8 {
+        self.major
+    }
+    pub fn minor(&self) -> u8 {
+        self.minor
     }
 }
 
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-pub type VendorId = [u8; 2];
-pub const VENDOR_ID_UNKNOWN: VendorId = [0, 0];
-pub const VENDOR_ID_S2E: VendorId = [99, 99];
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VendorId([u8; 2]);
+pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
+pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
+impl VendorId {
+    pub fn new(value: [u8; 2]) -> Self {
+        Self(value)
+    }
+}
+
+impl AsRef<[u8; 2]> for VendorId {
+    fn as_ref(&self) -> &[u8; 2] {
+        &self.0
+    }
+}
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
-pub struct Count(pub i32);
+pub struct Count(i32);
 
+impl Count {
+    pub const fn new(value: i32) -> Self {
+        Self(value)
+    }
+    pub const fn wrapping_add(self, rhs: i32) -> Self {
+        Self(self.0.wrapping_add(rhs))
+    }
+}
+impl PartialOrd<Count> for Count {
+    fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
 impl AddAssign for Count {
     fn add_assign(&mut self, rhs: Self) {
         self.0 += rhs.0;
     }
 }
-
-impl From<i32> for Count {
-    fn from(value: i32) -> Self {
-        Self(value)
-    }
-}
-
-impl From<Count> for i32 {
-    fn from(value: Count) -> Self {
-        value.0
+impl AsRef<i32> for Count {
+    fn as_ref(&self) -> &i32 {
+        &self.0
     }
 }
 
@@ -395,9 +386,9 @@ impl From<Count> for i32 {
 /// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDPv4 LOCATOR_KIND_UDPv6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
-    pub kind: LocatorKind,
-    pub port: LocatorPort,
-    pub address: LocatorAddress,
+    kind: LocatorKind,
+    port: LocatorPort,
+    address: LocatorAddress,
 }
 type LocatorKind = i32;
 type LocatorPort = u32;

@@ -76,9 +76,13 @@ impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::{messages::submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-        }, types::{EntityId, EntityKind}},
+        rtps::{
+            messages::submessage_elements::{
+                CountSubmessageElement, EntityIdSubmessageElement,
+                SequenceNumberSetSubmessageElement,
+            },
+            types::{Count, EntityId, EntityKind},
+        },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -103,7 +107,9 @@ mod tests {
                 base: 10,
                 set: vec![],
             },
-            count: CountSubmessageElement { value: 0 },
+            count: CountSubmessageElement {
+                value: Count::new(0),
+            },
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -145,7 +151,9 @@ mod tests {
                     base: 10,
                     set: vec![],
                 },
-                count: CountSubmessageElement { value: 0 },
+                count: CountSubmessageElement {
+                    value: Count::new(0)
+                },
             },
             from_bytes(&buf).unwrap()
         );

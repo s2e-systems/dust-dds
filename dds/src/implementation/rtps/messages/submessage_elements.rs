@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{Locator, EntityId};
+use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -11,23 +11,13 @@ pub struct UShortSubmessageElement {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ShortSubmessageElement {
-    pub value: i16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ULongSubmessageElement {
     pub value: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LongSubmessageElementConstructor {
-    pub value: i32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GuidPrefixSubmessageElement {
-    pub value: [u8; 12],
+    pub value: GuidPrefix,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,12 +27,12 @@ pub struct EntityIdSubmessageElement {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VendorIdSubmessageElement {
-    pub value: [u8; 2],
+    pub value: VendorId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolVersionSubmessageElement {
-    pub value: [u8; 2],
+    pub value: ProtocolVersion,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,7 +76,7 @@ pub struct ParameterListSubmessageElement<'a> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CountSubmessageElement {
-    pub value: i32,
+    pub value: Count,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

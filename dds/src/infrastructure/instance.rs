@@ -40,7 +40,7 @@ impl From<Guid> for InstanceHandle {
 
 impl From<InstanceHandle> for Guid {
     fn from(x: InstanceHandle) -> Self {
-        let prefix = GuidPrefix::from(<[u8; 12]>::try_from(&x.0[0..12]).expect("Invalid length"));
+        let prefix = GuidPrefix::new(<[u8; 12]>::try_from(&x.0[0..12]).expect("Invalid length"));
         let entity_id = EntityId::new(
             <[u8; 3]>::try_from(&x.0[12..15]).expect("Invalid length"),
             TryFrom::try_from(x.0[15]).unwrap(),

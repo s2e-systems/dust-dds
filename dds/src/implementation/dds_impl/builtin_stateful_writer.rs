@@ -166,13 +166,13 @@ impl DdsShared<BuiltinStatefulWriter> {
             let header = RtpsMessageHeader {
                 protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION.into(),
+                    value: PROTOCOLVERSION,
                 },
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
                 guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix.into(),
+                    value: guid_prefix,
                 },
             };
 
