@@ -11,7 +11,7 @@ use std::ops::AddAssign;
 /// The following values are reserved by the protocol: GUID_UNKNOWN
 ///
 /// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -71,41 +71,17 @@ impl From<Guid> for [u8; 16] {
     }
 }
 
-// impl TryFrom<BuiltInTopicKey> for Guid {
-//     type Error = DdsError;
-
-//     fn try_from(value: BuiltInTopicKey) -> Result<Self, Self::Error> {
-//         let bytes = value.value;
-//         Ok(Guid {
-//             prefix: GuidPrefix([
-//                 bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-//                 bytes[8], bytes[9], bytes[10], bytes[11],
-//             ]),
-//             entity_id: EntityId {
-//                 entity_key: [bytes[12], bytes[13], bytes[14]],
-//                 entity_kind: bytes[15].try_into()?,
-//             },
-//         })
-//     }
-// }
-
 /// GuidPrefix_t
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, derive_more::From, derive_more::Into)]
 pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
 impl GuidPrefix {
     pub fn new(value: [u8; 12]) -> Self {
         Self(value)
-    }
-}
-
-impl From<GuidPrefix> for [u8; 12] {
-    fn from(value: GuidPrefix) -> Self {
-        value.0
     }
 }
 
@@ -272,22 +248,12 @@ impl ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
 pub struct VendorId([u8; 2]);
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
-impl VendorId {
-    pub fn new(value: [u8; 2]) -> Self {
-        Self(value)
-    }
-}
 
-impl AsRef<[u8; 2]> for VendorId {
-    fn as_ref(&self) -> &[u8; 2] {
-        &self.0
-    }
-}
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
