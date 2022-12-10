@@ -3,29 +3,11 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::types::{Locator, LocatorKind, LocatorPort, LocatorAddress},
+    rtps::types::Locator,
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
     },
 };
-
-impl MappingWriteByteOrdered for LocatorKind {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
-    }
-}
-
-impl MappingWriteByteOrdered for LocatorPort {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
-    }
-}
-
-impl MappingWriteByteOrdered for LocatorAddress {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
-    }
-}
 
 impl MappingWriteByteOrdered for Locator {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
@@ -38,24 +20,6 @@ impl MappingWriteByteOrdered for Locator {
             .mapping_write_byte_ordered::<_, B>(&mut writer)?;
         self.address()
             .mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for LocatorKind {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for LocatorPort {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
-    }
-}
-
-impl<'de> MappingReadByteOrdered<'de> for LocatorAddress {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
     }
 }
 
