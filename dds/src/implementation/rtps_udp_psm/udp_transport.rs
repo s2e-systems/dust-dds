@@ -13,7 +13,7 @@ use crate::{
     implementation::rtps::{
         messages::RtpsMessage,
         transport::TransportWrite,
-        types::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6, Locator},
+        types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
 };
 
@@ -23,32 +23,35 @@ use super::mapping_traits::{from_bytes, to_bytes};
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: [u8; 16] =
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1];
 
-const PB: u16 = 7400;
-const DG: u16 = 250;
-const PG: u16 = 2;
+const PB: i32 = 7400;
+const DG: i32 = 250;
+const PG: i32 = 2;
 #[allow(non_upper_case_globals)]
-const d0: u16 = 0;
+const d0: i32 = 0;
 #[allow(non_upper_case_globals)]
-const d1: u16 = 10;
+const d1: i32 = 10;
 #[allow(non_upper_case_globals)]
-const _d2: u16 = 1;
+const _d2: i32 = 1;
 #[allow(non_upper_case_globals)]
-const d3: u16 = 11;
+const d3: i32 = 11;
 
-pub fn port_builtin_multicast(domain_id: u16) -> u16 {
-    PB + DG * domain_id + d0
+pub fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d0) as u32)
 }
 
-pub fn port_builtin_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d1 + PG * participant_id
+pub fn port_builtin_unicast(domain_id: DomainId, participant_id: i32) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d1 + PG * participant_id) as u32)
 }
 
-pub fn port_user_unicast(domain_id: u16, participant_id: u16) -> u16 {
-    PB + DG * domain_id + d3 + PG * participant_id
+pub fn port_user_unicast(domain_id: DomainId, participant_id: i32) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d3 + PG * participant_id) as u32)
 }
 
-pub fn get_multicast_socket(multicast_address: Ipv4Addr, port: u16) -> io::Result<UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
+pub fn get_multicast_socket(
+    multicast_address: Ipv4Addr,
+    port: LocatorPort,
+) -> io::Result<UdpSocket> {
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
 
     let socket = Socket::new(
         socket2::Domain::IPV4,
@@ -69,8 +72,11 @@ pub fn get_multicast_socket(multicast_address: Ipv4Addr, port: u16) -> io::Resul
     Ok(socket.into())
 }
 
-pub fn get_unicast_socket(port: u16) -> io::Result<UdpSocket> {
-    let socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)))?;
+pub fn get_unicast_socket(port: LocatorPort) -> io::Result<UdpSocket> {
+    let socket = UdpSocket::bind(SocketAddr::from((
+        Ipv4Addr::UNSPECIFIED,
+        <u32>::from(port) as u16,
+    )))?;
     socket.set_nonblocking(true)?;
 
     Ok(socket)
@@ -81,16 +87,16 @@ fn ipv4_from_locator(address: &[u8; 16]) -> Ipv4Addr {
 }
 
 #[rustfmt::skip]
-fn locator_from_ipv4(address: Ipv4Addr) -> [u8; 16] {
-    [0, 0, 0, 0,
+fn locator_from_ipv4(address: Ipv4Addr) -> LocatorAddress {
+    LocatorAddress::new([0, 0, 0, 0,
      0, 0, 0, 0,
      0, 0, 0, 0,
-     address.octets()[0], address.octets()[1], address.octets()[2], address.octets()[3]]
+     address.octets()[0], address.octets()[1], address.octets()[2], address.octets()[3]])
 }
 
 pub struct RtpsUdpPsm {
     domain_id: DomainId,
-    participant_id: usize,
+    participant_id: i32,
     guid_prefix: [u8; 12],
     unicast_address_list: Vec<Ipv4Addr>,
     multicast_address: Ipv4Addr,
@@ -127,22 +133,16 @@ impl RtpsUdpPsm {
 
         let multicast_address = ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS);
         let metatraffic_multicast_socket =
-            get_multicast_socket(multicast_address, port_builtin_multicast(domain_id as u16))
+            get_multicast_socket(multicast_address, port_builtin_multicast(domain_id))
                 .map_err(|e| format!("{}", e))?;
 
         let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
             .map(
-                |participant_id| -> io::Result<(usize, UdpSocket, UdpSocket)> {
+                |participant_id| -> io::Result<(i32, UdpSocket, UdpSocket)> {
                     Ok((
                         participant_id,
-                        get_unicast_socket(port_builtin_unicast(
-                            domain_id as u16,
-                            participant_id as u16,
-                        ))?,
-                        get_unicast_socket(port_user_unicast(
-                            domain_id as u16,
-                            participant_id as u16,
-                        ))?,
+                        get_unicast_socket(port_builtin_unicast(domain_id, participant_id))?,
+                        get_unicast_socket(port_user_unicast(domain_id, participant_id))?,
                     ))
                 },
             )
@@ -174,8 +174,8 @@ impl RtpsUdpPsm {
 
     pub fn metatraffic_multicast_locator_list(&self) -> Vec<Locator> {
         vec![Locator::new(
-            LOCATOR_KIND_UDPv4,
-            port_builtin_multicast(self.domain_id as u16) as u32,
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(self.domain_id),
             locator_from_ipv4(self.multicast_address),
         )]
     }
@@ -185,8 +185,8 @@ impl RtpsUdpPsm {
             .iter()
             .map(|&address| {
                 Locator::new(
-                    LOCATOR_KIND_UDPv4,
-                    port_builtin_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
+                    LOCATOR_KIND_UDP_V4,
+                    port_builtin_unicast(self.domain_id, self.participant_id),
                     locator_from_ipv4(address),
                 )
             })
@@ -198,8 +198,8 @@ impl RtpsUdpPsm {
             .iter()
             .map(|&address| {
                 Locator::new(
-                    LOCATOR_KIND_UDPv4,
-                    port_user_unicast(self.domain_id as u16, self.participant_id as u16) as u32,
+                    LOCATOR_KIND_UDP_V4,
+                    port_user_unicast(self.domain_id, self.participant_id),
                     locator_from_ipv4(address),
                 )
             })
@@ -296,10 +296,9 @@ impl ToSocketAddrs for UdpLocator {
     type Iter = std::option::IntoIter<SocketAddr>;
 
     fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
-        #[allow(non_upper_case_globals)]
+        let locator_address = <[u8; 16]>::from(*self.0.address());
         match *self.0.kind() {
-            LOCATOR_KIND_UDPv4 => {
-                let locator_address = self.0.address();
+            LOCATOR_KIND_UDP_V4 => {
                 let address = SocketAddrV4::new(
                     Ipv4Addr::new(
                         locator_address[12],
@@ -307,11 +306,11 @@ impl ToSocketAddrs for UdpLocator {
                         locator_address[14],
                         locator_address[15],
                     ),
-                    *self.0.port() as u16,
+                    <u32>::from(*self.0.port()) as u16,
                 );
                 Ok(Some(SocketAddr::V4(address)).into_iter())
             }
-            LOCATOR_KIND_UDPv6 => todo!(),
+            LOCATOR_KIND_UDP_V6 => todo!(),
             _ => Err(std::io::ErrorKind::InvalidInput.into()),
         }
     }
@@ -321,15 +320,15 @@ impl From<SocketAddr> for UdpLocator {
     fn from(socket_addr: SocketAddr) -> Self {
         match socket_addr {
             SocketAddr::V4(socket_addr) => {
-                let port = socket_addr.port() as u32;
+                let port = LocatorPort::new(socket_addr.port() as u32);
                 let address = socket_addr.ip().octets();
                 let locator = Locator::new(
-                    LOCATOR_KIND_UDPv4,
+                    LOCATOR_KIND_UDP_V4,
                     port,
-                    [
+                    LocatorAddress::new([
                         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, address[0], address[1], address[2],
                         address[3],
-                    ],
+                    ]),
                 );
                 UdpLocator(locator)
             }
@@ -340,22 +339,16 @@ impl From<SocketAddr> for UdpLocator {
 
 impl UdpLocator {
     fn is_multicast(&self) -> bool {
-        #[allow(non_upper_case_globals)]
+        let locator_address = <[u8; 16]>::from(*self.0.address());
         match *self.0.kind() {
-            LOCATOR_KIND_UDPv4 => {
-                let locator_address = self.0.address();
-                Ipv4Addr::new(
-                    locator_address[12],
-                    locator_address[13],
-                    locator_address[14],
-                    locator_address[15],
-                )
-                .is_multicast()
-            }
-            LOCATOR_KIND_UDPv6 => {
-                let locator_address = self.0.address();
-                Ipv6Addr::from(*locator_address).is_multicast()
-            }
+            LOCATOR_KIND_UDP_V4 => Ipv4Addr::new(
+                locator_address[12],
+                locator_address[13],
+                locator_address[14],
+                locator_address[15],
+            )
+            .is_multicast(),
+            LOCATOR_KIND_UDP_V6 => Ipv6Addr::from(locator_address).is_multicast(),
             _ => false,
         }
     }
@@ -365,16 +358,16 @@ impl UdpLocator {
 mod tests {
     use std::str::FromStr;
 
-    use crate::implementation::rtps::types::LOCATOR_INVALID;
+    use crate::implementation::rtps::types::{LocatorAddress, LocatorPort, LOCATOR_INVALID};
 
     use super::*;
 
     #[test]
     fn udpv4_locator_conversion_address1() {
         let locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            7400,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+            LOCATOR_KIND_UDP_V4,
+            LocatorPort::new(7400),
+            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]),
         );
 
         let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap().into_iter();
@@ -385,7 +378,7 @@ mod tests {
     #[test]
     fn udpv4_locator_conversion_address2() {
         let locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
+            LOCATOR_KIND_UDP_V4,
             7500,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25],
         );
@@ -404,7 +397,7 @@ mod tests {
     fn socket_addr_to_locator_conversion() {
         let socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
         let locator = UdpLocator::from(socket_addr).0;
-        assert_eq!(locator.kind(), &LOCATOR_KIND_UDPv4);
+        assert_eq!(locator.kind(), &LOCATOR_KIND_UDP_V4);
         assert_eq!(locator.port(), &7400);
         assert_eq!(
             locator.address(),
@@ -435,7 +428,7 @@ mod tests {
     //         guid_prefix: [3; 12],
     //     };
     //     let destination_locator = Locator::new(
-    //         LOCATOR_KIND_UDPv4,
+    //         LOCATOR_KIND_UDP_V4,
     //         socket_port as u32,
     //         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
     //     );
@@ -462,7 +455,7 @@ mod tests {
     //     let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
     //     let mut transport = UdpTransport::new(socket);
     //     let destination_locator = Locator::new(
-    //         LOCATOR_KIND_UDPv4,
+    //         LOCATOR_KIND_UDP_V4,
     //         socket_port as u32,
     //         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
     //     );
