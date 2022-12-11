@@ -10,7 +10,7 @@ use super::qos_policy::{
     PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
     ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
     TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy, LENGTH_UNLIMITED,
+    WriterDataLifecycleQosPolicy,
 };
 
 /// QoS policies applicable to the [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory)
@@ -95,25 +95,15 @@ impl Default for DataWriterQos {
 impl DataWriterQos {
     pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
-        // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-        let limited_samples = self.resource_limits.max_samples != LENGTH_UNLIMITED;
-        let samples_per_instance_over_limit = self.resource_limits.max_samples == LENGTH_UNLIMITED
-            || self.resource_limits.max_samples_per_instance > self.resource_limits.max_samples;
-
-        if limited_samples && samples_per_instance_over_limit {
+        // values to be consistent they must verify that “max_samples >= max_samples_per_instanc
+        if !(self.resource_limits.max_samples >= self.resource_limits.max_samples_per_instance) {
             return Err(DdsError::InconsistentPolicy);
         }
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        let limited_samples_per_instance =
-            self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED;
-        let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
-            || self.history.depth > self.resource_limits.max_samples_per_instance;
-
         if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && limited_samples_per_instance
-            && history_depth_over_limit
+            && !(self.history.depth as usize <= self.resource_limits.max_samples_per_instance)
         {
             return Err(DdsError::InconsistentPolicy);
         }
@@ -199,31 +189,21 @@ impl DataReaderQos {
     pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-        let limited_samples = self.resource_limits.max_samples != LENGTH_UNLIMITED;
-        let samples_per_instance_over_limit = self.resource_limits.max_samples == LENGTH_UNLIMITED
-            || self.resource_limits.max_samples_per_instance > self.resource_limits.max_samples;
-
-        if limited_samples && samples_per_instance_over_limit {
+        if !(self.resource_limits.max_samples >= self.resource_limits.max_samples_per_instance) {
             return Err(DdsError::InconsistentPolicy);
         }
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        let limited_samples_per_instance =
-            self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED;
-        let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
-            || self.history.depth > self.resource_limits.max_samples_per_instance;
-
         if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && limited_samples_per_instance
-            && history_depth_over_limit
+            && !(self.history.depth as usize <= self.resource_limits.max_samples_per_instance)
         {
             return Err(DdsError::InconsistentPolicy);
         }
 
         // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
         // to be consistent the settings must be such that “deadline period>= minimum_separation.”
-        if self.deadline.period < self.time_based_filter.minimum_separation {
+        if !(self.deadline.period >= self.time_based_filter.minimum_separation) {
             return Err(DdsError::InconsistentPolicy);
         }
 
@@ -289,24 +269,14 @@ impl TopicQos {
     pub fn is_consistent(&self) -> DdsResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-        let limited_samples = self.resource_limits.max_samples != LENGTH_UNLIMITED;
-        let samples_per_instance_over_limit = self.resource_limits.max_samples == LENGTH_UNLIMITED
-            || self.resource_limits.max_samples_per_instance > self.resource_limits.max_samples;
-
-        if limited_samples && samples_per_instance_over_limit {
+        if !(self.resource_limits.max_samples >= self.resource_limits.max_samples_per_instance) {
             return Err(DdsError::InconsistentPolicy);
         }
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        let limited_samples_per_instance =
-            self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED;
-        let history_depth_over_limit = self.history.depth == LENGTH_UNLIMITED
-            || self.history.depth > self.resource_limits.max_samples_per_instance;
-
         if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && limited_samples_per_instance
-            && history_depth_over_limit
+            && !(self.history.depth as usize <= self.resource_limits.max_samples_per_instance)
         {
             return Err(DdsError::InconsistentPolicy);
         }

@@ -1,17 +1,20 @@
-use dust_dds::infrastructure::qos::{DataReaderQos, DataWriterQos, QosKind};
-use dust_dds::infrastructure::qos_policy::{
-    DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
-    HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
-    LENGTH_UNLIMITED,
+use dust_dds::{
+    domain::domain_participant_factory::DomainParticipantFactory,
+    infrastructure::{
+        qos::{DataReaderQos, DataWriterQos, QosKind},
+        qos_policy::{
+            DestinationOrderQosPolicy, DestinationOrderQosPolicyKind, HistoryQosPolicy,
+            HistoryQosPolicyKind, Length, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            ResourceLimitsQosPolicy,
+        },
+        status::{StatusKind, NO_STATUS},
+        time::{Duration, Time},
+        wait_set::{Condition, WaitSet},
+    },
+    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    topic_definition::type_support::{DdsSerde, DdsType},
 };
-use dust_dds::topic_definition::type_support::{DdsSerde, DdsType};
 
-use dust_dds::infrastructure::status::{StatusKind, NO_STATUS};
-use dust_dds::infrastructure::time::{Duration, Time};
-use dust_dds::infrastructure::wait_set::{Condition, WaitSet};
-
-use dust_dds::domain::domain_participant_factory::DomainParticipantFactory;
-use dust_dds::subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE};
 #[derive(Debug, PartialEq, DdsType, DdsSerde, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
@@ -109,7 +112,7 @@ fn data_reader_resource_limits() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: LENGTH_UNLIMITED,
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -127,12 +130,12 @@ fn data_reader_resource_limits() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: LENGTH_UNLIMITED,
+            ..Default::default()
         },
         resource_limits: ResourceLimitsQosPolicy {
-            max_samples: 2,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: LENGTH_UNLIMITED,
+            max_samples: Length::Limited(2),
+            max_instances: Length::Unlimited,
+            max_samples_per_instance: Length::Unlimited,
         },
         ..Default::default()
     };
@@ -190,7 +193,7 @@ fn data_reader_order_by_source_timestamp() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: LENGTH_UNLIMITED,
+            ..Default::default()
         },
         ..Default::default()
     };

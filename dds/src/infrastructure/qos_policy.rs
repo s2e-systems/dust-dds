@@ -3,7 +3,62 @@ use core::cmp::Ordering;
 use crate::infrastructure::time::{Duration, DURATION_INFINITE, DURATION_ZERO};
 
 pub type QosPolicyId = i32;
-pub const LENGTH_UNLIMITED: i32 = -1;
+#[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub enum Length {
+    Unlimited,
+    Limited(u32),
+}
+
+impl PartialOrd for Length {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self {
+            Length::Unlimited => match other {
+                Length::Unlimited => Some(Ordering::Equal),
+                Length::Limited(_) => Some(Ordering::Greater),
+            },
+            Length::Limited(value) => match other {
+                Length::Unlimited => Some(Ordering::Less),
+                Length::Limited(other) => value.partial_cmp(other),
+            },
+        }
+    }
+}
+
+impl PartialEq<usize> for Length {
+    fn eq(&self, other: &usize) -> bool {
+        match self {
+            Length::Unlimited => false,
+            Length::Limited(value) => (*value as usize).eq(other),
+        }
+    }
+}
+
+impl PartialOrd<usize> for Length {
+    fn partial_cmp(&self, other: &usize) -> Option<Ordering> {
+        match self {
+            Length::Unlimited => Some(Ordering::Greater),
+            Length::Limited(value) => (*value as usize).partial_cmp(other),
+        }
+    }
+}
+
+impl PartialEq<Length> for usize {
+    fn eq(&self, other: &Length) -> bool {
+        match other {
+            Length::Unlimited => false,
+            Length::Limited(value) => self.eq(&(*value as usize)),
+        }
+    }
+}
+
+impl PartialOrd<Length> for usize {
+    fn partial_cmp(&self, other: &Length) -> Option<Ordering> {
+        match other {
+            Length::Unlimited => Some(Ordering::Less),
+            Length::Limited(value) => self.partial_cmp(&(*value as usize)),
+        }
+    }
+}
 
 /// This class is the abstract root for all the QoS policies.
 /// It provides the basic mechanism for an application to specify quality of service parameters. It has an attribute name that is used
@@ -788,9 +843,9 @@ impl Default for HistoryQosPolicy {
 /// that *[`HistoryQosPolicy::depth`] <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResourceLimitsQosPolicy {
-    pub max_samples: i32,
-    pub max_instances: i32,
-    pub max_samples_per_instance: i32,
+    pub max_samples: Length,
+    pub max_instances: Length,
+    pub max_samples_per_instance: Length,
 }
 
 impl QosPolicy for ResourceLimitsQosPolicy {
@@ -802,21 +857,10 @@ impl QosPolicy for ResourceLimitsQosPolicy {
 impl Default for ResourceLimitsQosPolicy {
     fn default() -> Self {
         Self {
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: LENGTH_UNLIMITED,
+            max_samples: Length::Unlimited,
+            max_instances: Length::Unlimited,
+            max_samples_per_instance: Length::Unlimited,
         }
-    }
-}
-
-impl ResourceLimitsQosPolicy {
-    pub fn is_consistent(&self) -> bool {
-        let no_sample_limit = self.max_samples == LENGTH_UNLIMITED;
-        let samples_per_instance_within_sample_limit = self.max_samples_per_instance
-            != LENGTH_UNLIMITED
-            && self.max_samples_per_instance <= self.max_samples;
-
-        no_sample_limit || samples_per_instance_within_sample_limit
     }
 }
 
@@ -1030,29 +1074,5 @@ mod tests {
             DestinationOrderQosPolicyKind::BySourceTimestamp
                 == DestinationOrderQosPolicyKind::BySourceTimestamp
         );
-    }
-
-    #[test]
-    fn resource_limit_consistency() {
-        let mut resource_limits = ResourceLimitsQosPolicy {
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: LENGTH_UNLIMITED,
-        };
-        assert_eq!(resource_limits.is_consistent(), true);
-
-        resource_limits.max_samples = 5;
-        assert_eq!(resource_limits.is_consistent(), false); // Inconsistent: Max samples per instance bigger than max samples
-
-        resource_limits.max_samples_per_instance = 5;
-        assert_eq!(resource_limits.is_consistent(), true);
-
-        resource_limits.max_samples = 4;
-        assert_eq!(resource_limits.is_consistent(), false); // Inconsistent: Max samples per instance bigger than max samples
-
-        resource_limits.max_samples = LENGTH_UNLIMITED;
-        assert_eq!(resource_limits.is_consistent(), true);
-
-        assert_eq!(ResourceLimitsQosPolicy::default().is_consistent(), true);
     }
 }
