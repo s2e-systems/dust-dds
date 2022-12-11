@@ -1,30 +1,38 @@
-use crate::implementation::data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData;
-use crate::implementation::data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData;
-use crate::implementation::data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData;
-use crate::implementation::data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData;
-use crate::implementation::rtps::group::RtpsGroupImpl;
-use crate::implementation::rtps::messages::submessages::{DataSubmessage, HeartbeatSubmessage};
-use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{EntityId, Guid, GuidPrefix, EntityKind};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::status::StatusKind;
-use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::{
-    infrastructure::{condition::StatusCondition, qos::SubscriberQos},
+    implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+        },
+        rtps::{
+            group::RtpsGroupImpl,
+            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
+            transport::TransportWrite,
+            types::{EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
+        },
+        utils::shared_object::{DdsRwLock, DdsShared},
+    },
+    infrastructure::{
+        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
+        status::StatusKind,
+    },
+    subscription::subscriber_listener::SubscriberListener,
     topic_definition::type_support::DdsType,
 };
 
-use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
-
-use super::builtin_stateful_reader::BuiltinStatefulReader;
-use super::builtin_stateless_reader::BuiltinStatelessReader;
-use super::domain_participant_impl::{
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+use super::{
+    builtin_stateful_reader::BuiltinStatefulReader,
+    builtin_stateless_reader::BuiltinStatelessReader,
+    domain_participant_impl::{
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+    },
+    message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    topic_impl::TopicImpl,
+    user_defined_data_reader::UserDefinedDataReader,
 };
-use super::message_receiver::{MessageReceiver, SubscriberSubmessageReceiver};
-use super::{topic_impl::TopicImpl, user_defined_data_reader::UserDefinedDataReader};
 
 pub struct BuiltInSubscriber {
     qos: DdsRwLock<SubscriberQos>,
@@ -46,7 +54,7 @@ impl BuiltInSubscriber {
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
-        let entity_id = EntityId::new([0, 0, 0], EntityKind::BuiltInReaderGroup);
+        let entity_id = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
 

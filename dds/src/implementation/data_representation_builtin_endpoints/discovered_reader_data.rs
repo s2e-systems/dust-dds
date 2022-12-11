@@ -1,23 +1,28 @@
-use std::convert::TryInto;
 use std::io::Write;
 
-use crate::builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData};
-use crate::implementation::rtps::types::{EntityId, Guid, Locator};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-    LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-    UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-};
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    implementation::{
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+            serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+        },
+        rtps::types::{EntityId, Guid, Locator},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{
+        error::DdsResult,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+            PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy,
+            TopicDataQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+    },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{
@@ -225,7 +230,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
 
-        let remote_reader_guid = key.clone().try_into()?;
+        let remote_reader_guid = key.value.into();
 
         Ok(Self {
             reader_proxy: ReaderProxy {
@@ -261,7 +266,9 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{EntityKind, GuidPrefix};
+    use crate::implementation::rtps::types::{
+        GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+    };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
         LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
@@ -281,12 +288,9 @@ mod tests {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([5; 12]),
-                    EntityId::new([11, 12, 13], EntityKind::UserDefinedReaderWithKey),
+                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
                 ),
-                remote_group_entity_id: EntityId::new(
-                    [21, 22, 23],
-                    EntityKind::BuiltInWriterWithKey,
-                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
@@ -348,12 +352,9 @@ mod tests {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], EntityKind::UserDefinedUnknown),
+                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
                 ),
-                remote_group_entity_id: EntityId::new(
-                    [21, 22, 23],
-                    EntityKind::BuiltInWriterWithKey,
-                ),
+                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQosDeserialize::default().0,

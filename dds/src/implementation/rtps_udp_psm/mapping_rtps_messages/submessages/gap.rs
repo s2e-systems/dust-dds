@@ -71,10 +71,13 @@ impl<'de> MappingReadSubmessage<'de> for GapSubmessage {
 mod tests {
 
     use crate::implementation::{
-        rtps::{messages::submessage_elements::{
-            EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-            SequenceNumberSubmessageElement,
-        }, types::{EntityId, EntityKind}},
+        rtps::{
+            messages::submessage_elements::{
+                EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+                SequenceNumberSubmessageElement,
+            },
+            types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP},
+        },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -84,10 +87,10 @@ mod tests {
     fn serialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElement {
@@ -119,10 +122,10 @@ mod tests {
     fn deserialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], EntityKind::UserDefinedReaderNoKey),
+            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], EntityKind::UserDefinedReaderGroup),
+            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement { value: 5 };
         let gap_list = SequenceNumberSetSubmessageElement {

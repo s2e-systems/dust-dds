@@ -9,7 +9,7 @@ use crate::implementation::{
 
 impl MappingWriteByteOrdered for GuidPrefix {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result<(), Error> {
-        self.as_ref().mapping_write_byte_ordered::<_, B>(&mut writer)
+        <[u8; 12]>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
