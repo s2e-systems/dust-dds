@@ -1075,4 +1075,23 @@ mod tests {
                 == DestinationOrderQosPolicyKind::BySourceTimestamp
         );
     }
+
+    #[test]
+    fn length_ordering() {
+        assert!(Length::Unlimited > Length::Limited(10));
+        assert!(Length::Unlimited == Length::Unlimited);
+        assert!(Length::Limited(10) < Length::Unlimited);
+        assert!(Length::Limited(10) < Length::Limited(20));
+        assert!(Length::Limited(20) > Length::Limited(10));
+    }
+
+    #[test]
+    fn length_usize_ordering() {
+        assert!(Length::Unlimited > 10usize);
+        assert!(10usize < Length::Unlimited);
+        assert!(Length::Limited(20) > 10usize);
+        assert!(10usize < Length::Limited(20));
+        assert!(Length::Limited(10) == 10usize);
+        assert!(10usize == Length::Limited(10));
+    }
 }

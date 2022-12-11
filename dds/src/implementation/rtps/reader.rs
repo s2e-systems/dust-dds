@@ -280,7 +280,7 @@ impl RtpsReader {
             .iter()
             .filter(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(change_kind, cc.data.as_slice())
+                    .build_instance_handle(cc.kind, cc.data.as_slice())
                     .unwrap()
                     == change_instance_handle
             })

@@ -299,3 +299,106 @@ impl TopicQos {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::infrastructure::qos_policy::Length;
+
+    use super::*;
+
+    #[test]
+    fn data_writer_qos_consistency() {
+        assert_eq!(DataWriterQos::default().is_consistent(), Ok(()));
+        assert_eq!(
+            DataWriterQos {
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    max_samples: Length::Limited(1),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+        assert_eq!(
+            DataWriterQos {
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast,
+                    depth: 3
+                },
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+    }
+
+    #[test]
+    fn data_reader_qos_consistency() {
+        assert_eq!(DataReaderQos::default().is_consistent(), Ok(()));
+        assert_eq!(
+            DataReaderQos {
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    max_samples: Length::Limited(1),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+        assert_eq!(
+            DataReaderQos {
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast,
+                    depth: 3
+                },
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+    }
+
+    #[test]
+    fn topic_qos_consistency() {
+        assert_eq!(TopicQos::default().is_consistent(), Ok(()));
+        assert_eq!(
+            TopicQos {
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    max_samples: Length::Limited(1),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+        assert_eq!(
+            TopicQos {
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast,
+                    depth: 3
+                },
+                resource_limits: ResourceLimitsQosPolicy {
+                    max_samples_per_instance: Length::Limited(2),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }
+            .is_consistent(),
+            Err(DdsError::InconsistentPolicy)
+        );
+    }
+}
