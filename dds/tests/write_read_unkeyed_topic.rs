@@ -135,7 +135,7 @@ fn data_reader_resource_limits() {
         resource_limits: ResourceLimitsQosPolicy {
             max_samples: Length::Limited(2),
             max_instances: Length::Unlimited,
-            max_samples_per_instance: Length::Unlimited,
+            max_samples_per_instance: Length::Limited(2),
         },
         ..Default::default()
     };
