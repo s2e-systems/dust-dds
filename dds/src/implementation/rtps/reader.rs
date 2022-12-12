@@ -12,7 +12,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataReaderQos,
-        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind, LENGTH_UNLIMITED},
+        qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -267,29 +267,25 @@ impl RtpsReader {
             })
             .collect();
 
-        let max_samples_limit_not_reached = self.qos.resource_limits.max_samples
-            == LENGTH_UNLIMITED
-            || (self.changes.len() as i32) < self.qos.resource_limits.max_samples;
+        let max_samples_limit_not_reached =
+            self.changes.len() < self.qos.resource_limits.max_samples;
 
         let max_instances_limit_not_reached = instance_handle_list
             .contains(&change_instance_handle)
-            || self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
-            || (instance_handle_list.len() as i32) < self.qos.resource_limits.max_instances;
+            || instance_handle_list.len() < self.qos.resource_limits.max_instances;
 
-        let max_samples_per_instance_limit_not_reached =
-            self.qos.resource_limits.max_samples_per_instance == LENGTH_UNLIMITED
-                || (self
-                    .changes
-                    .as_slice()
-                    .iter()
-                    .filter(|cc| {
-                        self.instance_handle_builder
-                            .build_instance_handle(change_kind, cc.data.as_slice())
-                            .unwrap()
-                            == change_instance_handle
-                    })
-                    .count() as i32)
-                    < self.qos.resource_limits.max_samples_per_instance;
+        let max_samples_per_instance_limit_not_reached = self
+            .changes
+            .as_slice()
+            .iter()
+            .filter(|cc| {
+                self.instance_handle_builder
+                    .build_instance_handle(cc.kind, cc.data.as_slice())
+                    .unwrap()
+                    == change_instance_handle
+            })
+            .count()
+            < self.qos.resource_limits.max_samples_per_instance;
 
         if max_samples_limit_not_reached
             && max_instances_limit_not_reached
@@ -574,7 +570,7 @@ mod tests {
         },
         infrastructure::{
             error::DdsError,
-            qos_policy::{HistoryQosPolicy, ResourceLimitsQosPolicy},
+            qos_policy::{HistoryQosPolicy, Length, ResourceLimitsQosPolicy},
             time::{DURATION_ZERO, TIME_INVALID},
         },
         subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -1018,12 +1014,12 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             resource_limits: ResourceLimitsQosPolicy {
-                max_samples: 1,
-                max_instances: LENGTH_UNLIMITED,
-                max_samples_per_instance: LENGTH_UNLIMITED,
+                max_samples: Length::Limited(1),
+                max_instances: Length::Unlimited,
+                max_samples_per_instance: Length::Unlimited,
             },
             ..Default::default()
         };
@@ -1062,12 +1058,12 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             resource_limits: ResourceLimitsQosPolicy {
-                max_samples: LENGTH_UNLIMITED,
-                max_instances: 1,
-                max_samples_per_instance: LENGTH_UNLIMITED,
+                max_samples: Length::Unlimited,
+                max_instances: Length::Limited(1),
+                max_samples_per_instance: Length::Unlimited,
             },
             ..Default::default()
         };
@@ -1112,12 +1108,12 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             resource_limits: ResourceLimitsQosPolicy {
-                max_samples: LENGTH_UNLIMITED,
-                max_instances: LENGTH_UNLIMITED,
-                max_samples_per_instance: 1,
+                max_samples: Length::Unlimited,
+                max_instances: Length::Unlimited,
+                max_samples_per_instance: Length::Limited(1),
             },
             ..Default::default()
         };
@@ -1176,7 +1172,7 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -1293,7 +1289,7 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -1423,7 +1419,7 @@ mod tests {
         let qos = DataReaderQos {
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepAll,
-                depth: LENGTH_UNLIMITED,
+                ..Default::default()
             },
             ..Default::default()
         };

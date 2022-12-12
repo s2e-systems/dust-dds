@@ -11,7 +11,6 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
-        qos_policy::LENGTH_UNLIMITED,
         time::{Duration, Time},
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
@@ -286,10 +285,7 @@ impl RtpsWriter {
         let instance_handle = instance.get_serialized_key().into();
 
         if !self.registered_instance_list.contains_key(&instance_handle) {
-            if self.qos.resource_limits.max_instances == LENGTH_UNLIMITED
-                || (self.registered_instance_list.len() as i32)
-                    < self.qos.resource_limits.max_instances
-            {
+            if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
                 self.registered_instance_list
                     .insert(instance_handle, serialized_key);
             } else {
