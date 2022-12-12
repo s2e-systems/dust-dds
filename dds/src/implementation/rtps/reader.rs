@@ -30,6 +30,16 @@ use super::{
     types::{ChangeKind, Guid, GuidPrefix},
 };
 
+type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum RtpsReaderError {
+    InvalidData(&'static str),
+    MaxSamples,
+    MaxInstances,
+    MaxSamplesPerInstance,
+}
+
 pub struct RtpsReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
@@ -41,18 +51,20 @@ pub struct RtpsReaderCacheChange {
     reception_timestamp: Time,
 }
 
-struct InstanceHandleBuilder(fn(&mut &[u8]) -> DdsResult<DdsSerializedKey>);
+struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>);
 
 impl InstanceHandleBuilder {
     fn new<Foo>() -> Self
     where
         Foo: for<'de> DdsDeserialize<'de> + DdsType,
     {
-        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> DdsResult<DdsSerializedKey>
+        fn deserialize_data_to_key<Foo>(data: &mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>
         where
             Foo: for<'de> DdsDeserialize<'de> + DdsType,
         {
-            Ok(Foo::deserialize(data)?.get_serialized_key())
+            Ok(Foo::deserialize(data)
+                .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
+                .get_serialized_key())
         }
 
         Self(deserialize_data_to_key::<Foo>)
@@ -62,11 +74,13 @@ impl InstanceHandleBuilder {
         &self,
         change_kind: ChangeKind,
         mut data: &[u8],
-    ) -> DdsResult<InstanceHandle> {
+    ) -> RtpsReaderResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
             ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                DdsSerializedKey::deserialize(&mut data)?.into()
+                DdsSerializedKey::deserialize(&mut data)
+                    .map_err(|_| RtpsReaderError::InvalidData("Feiled to deserialize key"))?
+                    .into()
             }
         })
     }
@@ -174,13 +188,13 @@ impl RtpsReader {
         self.endpoint.guid()
     }
 
-    pub fn add_change(
-        &mut self,
+    fn convert_data_to_cache_change(
+        &self,
         data_submessage: &DataSubmessage,
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
-    ) -> DdsResult<()> {
+    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
 
         let data = data_submessage.serialized_payload.value.to_vec();
@@ -206,109 +220,148 @@ impl RtpsReader {
                     match status_info {
                         STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
                         STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
-                        _ => Err(DdsError::PreconditionNotMet(
-                            "Unknown status info value".to_string(),
-                        )),
+                        _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
                     }
                 } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Missing mandatory StatusInfo parameter".to_string(),
+                    Err(RtpsReaderError::InvalidData(
+                        "Missing mandatory StatusInfo parameter",
                     ))
                 }
             }
-            _ => Err(DdsError::PreconditionNotMet(
-                "Invalid data submessage data and key flag combination".to_string(),
+            _ => Err(RtpsReaderError::InvalidData(
+                "Invalid data and key flag combination",
             )),
         }?;
-        let change_instance_handle = self
-            .instance_handle_builder
-            .build_instance_handle(change_kind, data.as_slice())?;
 
-        if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
-            && change_kind == ChangeKind::Alive
-        {
-            let num_instance_samples = self
-                .changes
-                .iter()
-                .filter(|cc| {
-                    self.instance_handle_builder
-                        .build_instance_handle(change_kind, cc.data.as_slice())
-                        .unwrap()
-                        == change_instance_handle
-                        && cc.kind == ChangeKind::Alive
-                })
-                .count() as i32;
+        Ok(RtpsReaderCacheChange {
+            kind: change_kind,
+            writer_guid,
+            data,
+            source_timestamp,
+            sample_state: SampleStateKind::NotRead,
+            disposed_generation_count: 0, // To be filled up only when getting stored
+            no_writers_generation_count: 0, // To be filled up only when getting stored
+            reception_timestamp,
+        })
+    }
 
-            if num_instance_samples >= self.qos.history.depth {
-                // Remove the lowest sequence number for the instance handle of the cache change
-                // Only one sample is to be removed since cache changes come one by one
-                let oldest_sample_index = self
-                    .changes
-                    .iter()
-                    .position(|cc| {
-                        self.instance_handle_builder
-                            .build_instance_handle(change_kind, cc.data.as_slice())
-                            .unwrap()
-                            == change_instance_handle
-                            && cc.kind == ChangeKind::Alive
-                    })
-                    .expect("If there are samples there must be a min sequence number");
-                self.changes.remove(oldest_sample_index);
-            }
-        }
+    fn is_max_samples_limit_reached(&self, change_instance_handle: &InstanceHandle) -> bool {
+        let total_samples = self
+            .changes
+            .iter()
+            .filter(|cc| {
+                &self
+                    .instance_handle_builder
+                    .build_instance_handle(cc.kind, &cc.data)
+                    .expect("Change in cache must have valid instance handle")
+                    == change_instance_handle
+            })
+            .count();
 
+        total_samples == self.qos.resource_limits.max_samples
+    }
+
+    fn is_max_instances_limit_reached(&self, change_instance_handle: &InstanceHandle) -> bool {
         let instance_handle_list: HashSet<_> = self
             .changes
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
                     .build_instance_handle(cc.kind, cc.data.as_slice())
-                    .unwrap()
+                    .expect("Change in cache must have valid instance handle")
             })
             .collect();
 
-        let max_samples_limit_not_reached =
-            self.changes.len() < self.qos.resource_limits.max_samples;
+        if instance_handle_list.contains(change_instance_handle) {
+            false
+        } else {
+            instance_handle_list.len() == self.qos.resource_limits.max_instances
+        }
+    }
 
-        let max_instances_limit_not_reached = instance_handle_list
-            .contains(&change_instance_handle)
-            || instance_handle_list.len() < self.qos.resource_limits.max_instances;
-
-        let max_samples_per_instance_limit_not_reached = self
+    fn is_max_samples_per_instance_limit_reached(
+        &self,
+        change_instance_handle: &InstanceHandle,
+    ) -> bool {
+        let total_samples_of_instance = self
             .changes
-            .as_slice()
             .iter()
             .filter(|cc| {
-                self.instance_handle_builder
+                &self
+                    .instance_handle_builder
                     .build_instance_handle(cc.kind, cc.data.as_slice())
-                    .unwrap()
+                    .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
-            .count()
-            < self.qos.resource_limits.max_samples_per_instance;
+            .count();
 
-        if max_samples_limit_not_reached
-            && max_instances_limit_not_reached
-            && max_samples_per_instance_limit_not_reached
-        {
+        total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
+    }
+
+    pub fn add_change(
+        &mut self,
+        data_submessage: &DataSubmessage,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
+    ) -> RtpsReaderResult<()> {
+        let mut change = self.convert_data_to_cache_change(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        )?;
+
+        let change_instance_handle = self
+            .instance_handle_builder
+            .build_instance_handle(change.kind, &change.data)?;
+
+        if self.is_max_samples_limit_reached(&change_instance_handle) {
+            Err(RtpsReaderError::MaxSamples)
+        } else if self.is_max_instances_limit_reached(&change_instance_handle) {
+            Err(RtpsReaderError::MaxInstances)
+        } else if self.is_max_samples_per_instance_limit_reached(&change_instance_handle) {
+            Err(RtpsReaderError::MaxSamplesPerInstance)
+        } else {
+            let num_alive_samples_of_instance = self
+                .changes
+                .iter()
+                .filter(|cc| {
+                    self.instance_handle_builder
+                        .build_instance_handle(cc.kind, cc.data.as_slice())
+                        .unwrap()
+                        == change_instance_handle
+                        && cc.kind == ChangeKind::Alive
+                })
+                .count() as i32;
+
+            if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
+                && self.qos.history.depth == num_alive_samples_of_instance
+            {
+                let index_sample_to_remove = self
+                    .changes
+                    .iter()
+                    .position(|cc| {
+                        self.instance_handle_builder
+                            .build_instance_handle(cc.kind, cc.data.as_slice())
+                            .unwrap()
+                            == change_instance_handle
+                            && cc.kind == ChangeKind::Alive
+                    })
+                    .expect("Samples must exist");
+                self.changes.remove(index_sample_to_remove);
+            }
+
             let instance_entry = self
                 .instances
                 .entry(change_instance_handle)
                 .or_insert_with(Instance::new);
 
-            instance_entry.update_state(change_kind);
+            instance_entry.update_state(change.kind);
 
-            let change = RtpsReaderCacheChange {
-                kind: change_kind,
-                writer_guid,
-                data,
-                source_timestamp,
-                sample_state: SampleStateKind::NotRead,
-                disposed_generation_count: instance_entry.most_recent_disposed_generation_count,
-                no_writers_generation_count: instance_entry.most_recent_no_writers_generation_count,
-                reception_timestamp,
-            };
-
+            change.disposed_generation_count = instance_entry.most_recent_disposed_generation_count;
+            change.no_writers_generation_count =
+                instance_entry.most_recent_no_writers_generation_count;
             self.changes.push(change);
 
             self.instance_reception_time
@@ -332,11 +385,7 @@ impl RtpsReader {
                     .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
             }
 
-            self.data_available = true;
-
             Ok(())
-        } else {
-            Err(DdsError::OutOfResources)
         }
     }
 
@@ -569,7 +618,6 @@ mod tests {
             },
         },
         infrastructure::{
-            error::DdsError,
             qos_policy::{HistoryQosPolicy, Length, ResourceLimitsQosPolicy},
             time::{DURATION_ZERO, TIME_INVALID},
         },
@@ -1049,7 +1097,7 @@ mod tests {
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(DdsError::OutOfResources)
+            Err(RtpsReaderError::MaxSamples)
         );
     }
 
@@ -1099,7 +1147,7 @@ mod tests {
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(DdsError::OutOfResources)
+            Err(RtpsReaderError::MaxInstances)
         );
     }
 
@@ -1163,7 +1211,7 @@ mod tests {
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(DdsError::OutOfResources)
+            Err(RtpsReaderError::MaxSamplesPerInstance)
         );
     }
 
