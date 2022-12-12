@@ -9,7 +9,7 @@ use crate::{
         },
         rtps::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
-            stateful_reader::RtpsStatefulReader,
+            stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
             types::GuidPrefix,
             writer_proxy::RtpsWriterProxy,
@@ -218,9 +218,21 @@ impl DdsShared<UserDefinedDataReader> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        self.rtps_reader
+        let data_submessage_received_result = self
+            .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
+
+        match data_submessage_received_result {
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => (),
+            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => (),
+            StatefulReaderDataReceivedResult::NewSampleAdded => {
+                self.on_data_available();
+            }
+            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost => (),
+            StatefulReaderDataReceivedResult::SampleRejected(_) => (),
+            StatefulReaderDataReceivedResult::InvalidData(_) => (),
+        }
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -757,15 +769,6 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn update_communication_status(&self, now: Time) {
-        if self
-            .rtps_reader
-            .write_lock()
-            .reader_mut()
-            .take_data_available()
-        {
-            self.on_data_available()
-        };
-
         if !self
             .rtps_reader
             .write_lock()

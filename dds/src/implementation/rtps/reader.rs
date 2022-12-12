@@ -154,7 +154,6 @@ pub struct RtpsReader {
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
     instance_reception_time: HashMap<InstanceHandle, Time>,
-    data_available: bool,
 }
 
 impl RtpsReader {
@@ -180,7 +179,6 @@ impl RtpsReader {
             instance_handle_builder,
             instances: HashMap::new(),
             instance_reception_time: HashMap::new(),
-            data_available: false,
         }
     }
 
@@ -514,8 +512,6 @@ impl RtpsReader {
                 .mark_viewed()
         }
 
-        self.data_available = false;
-
         if indexed_samples.is_empty() {
             Err(DdsError::NoData)
         } else {
@@ -585,12 +581,6 @@ impl RtpsReader {
         }
 
         Ok(samples)
-    }
-
-    pub fn take_data_available(&mut self) -> bool {
-        let data_available = self.data_available;
-        self.data_available = false;
-        data_available
     }
 
     pub fn get_deadline_missed_instances(&mut self, now: Time) -> Vec<InstanceHandle> {
