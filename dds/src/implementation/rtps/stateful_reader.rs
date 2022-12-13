@@ -1,7 +1,9 @@
 use crate::{
     implementation::dds_impl::message_receiver::MessageReceiver,
     infrastructure::{
+        instance::InstanceHandle,
         qos_policy::ReliabilityQosPolicyKind,
+        status::SampleRejectedStatusKind,
         time::{Duration, DURATION_ZERO},
     },
 };
@@ -20,7 +22,7 @@ use super::{
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
     },
-    reader::RtpsReader,
+    reader::{RtpsReader, RtpsReaderError},
     transport::TransportWrite,
     types::{Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer_proxy::RtpsWriterProxy,
@@ -39,6 +41,26 @@ pub enum ChangeFromWriterStatusKind {
     Missing,
     Received,
     Unknown,
+}
+
+pub enum StatefulReaderDataReceivedResult {
+    NoMatchedWriterProxy,
+    UnexpectedDataSequenceNumber,
+    NewSampleAdded(InstanceHandle),
+    NewSampleAddedAndSamplesLost(InstanceHandle),
+    SampleRejected(InstanceHandle, SampleRejectedStatusKind),
+    InvalidData(&'static str),
+}
+
+impl From<RtpsReaderError> for StatefulReaderDataReceivedResult {
+    fn from(e: RtpsReaderError) -> Self {
+        match e {
+            RtpsReaderError::InvalidData(s) => StatefulReaderDataReceivedResult::InvalidData(s),
+            RtpsReaderError::Rejected(instance_handle, reason) => {
+                StatefulReaderDataReceivedResult::SampleRejected(instance_handle, reason)
+            }
+        }
+    }
 }
 
 pub struct RtpsStatefulReader {
@@ -81,7 +103,7 @@ impl RtpsStatefulReader {
         &mut self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) {
+    ) -> StatefulReaderDataReceivedResult {
         let sequence_number = data_submessage.writer_sn.value;
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
@@ -97,36 +119,56 @@ impl RtpsStatefulReader {
             match self.reader.get_qos().reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     if sequence_number >= expected_seq_num {
-                        writer_proxy.received_change_set(sequence_number);
-                        if sequence_number > expected_seq_num {
-                            writer_proxy.lost_changes_update(sequence_number);
-                        }
+                        let add_change_result = self.reader.add_change(
+                            data_submessage,
+                            Some(message_receiver.timestamp()),
+                            message_receiver.source_guid_prefix(),
+                            message_receiver.reception_timestamp(),
+                        );
 
-                        self.reader
-                            .add_change(
-                                data_submessage,
-                                Some(message_receiver.timestamp()),
-                                message_receiver.source_guid_prefix(),
-                                message_receiver.reception_timestamp(),
-                            )
-                            .ok();
+                        match add_change_result {
+                            Ok(instance_handle) => {
+                                writer_proxy.received_change_set(sequence_number);
+                                if sequence_number > expected_seq_num {
+                                    writer_proxy.lost_changes_update(sequence_number);
+                                    StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(
+                                        instance_handle,
+                                    )
+                                } else {
+                                    StatefulReaderDataReceivedResult::NewSampleAdded(
+                                        instance_handle,
+                                    )
+                                }
+                            }
+                            Err(err) => err.into(),
+                        }
+                    } else {
+                        StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
                     }
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
-                        writer_proxy.received_change_set(data_submessage.writer_sn.value);
+                        let add_change_result = self.reader.add_change(
+                            data_submessage,
+                            Some(message_receiver.timestamp()),
+                            message_receiver.source_guid_prefix(),
+                            message_receiver.reception_timestamp(),
+                        );
 
-                        self.reader
-                            .add_change(
-                                data_submessage,
-                                Some(message_receiver.timestamp()),
-                                message_receiver.source_guid_prefix(),
-                                message_receiver.reception_timestamp(),
-                            )
-                            .ok();
+                        match add_change_result {
+                            Ok(instance_handle) => {
+                                writer_proxy.received_change_set(data_submessage.writer_sn.value);
+                                StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle)
+                            }
+                            Err(err) => err.into(),
+                        }
+                    } else {
+                        StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
                     }
                 }
             }
+        } else {
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy
         }
     }
 
