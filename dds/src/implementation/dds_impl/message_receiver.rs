@@ -2,7 +2,8 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoTimestampSubmessage,
+                AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+                InfoTimestampSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -112,7 +113,9 @@ impl MessageReceiver {
                     }
                 }
                 RtpsSubmessageKind::HeartbeatFrag(_) => todo!(),
-                RtpsSubmessageKind::InfoDestination(_) => todo!(),
+                RtpsSubmessageKind::InfoDestination(info_dst) => {
+                    self.process_info_destination_submessage(info_dst)
+                }
                 RtpsSubmessageKind::InfoReply(_) => todo!(),
                 RtpsSubmessageKind::InfoSource(_) => todo!(),
                 RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
@@ -136,6 +139,13 @@ impl MessageReceiver {
         }
     }
 
+    fn process_info_destination_submessage(
+        &mut self,
+        info_destination: &InfoDestinationSubmessage,
+    ) {
+        self.dest_guid_prefix = info_destination.guid_prefix.value;
+    }
+
     #[allow(dead_code)]
     pub fn source_version(&self) -> ProtocolVersion {
         self.source_version
@@ -146,12 +156,10 @@ impl MessageReceiver {
         self.source_vendor_id
     }
 
-    #[allow(dead_code)]
     pub fn source_guid_prefix(&self) -> GuidPrefix {
         self.source_guid_prefix
     }
 
-    #[allow(dead_code)]
     pub fn dest_guid_prefix(&self) -> GuidPrefix {
         self.dest_guid_prefix
     }
@@ -171,7 +179,6 @@ impl MessageReceiver {
         self.have_timestamp
     }
 
-    #[allow(dead_code)]
     pub fn timestamp(&self) -> Time {
         self.timestamp
     }
