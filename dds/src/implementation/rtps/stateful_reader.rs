@@ -24,7 +24,6 @@ use super::{
 };
 
 pub const DEFAULT_HEARTBEAT_RESPONSE_DELAY: Duration = Duration::new(0, 500);
-
 pub const DEFAULT_HEARTBEAT_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
 /// ChangeFromWriterStatusKind
@@ -45,6 +44,13 @@ pub struct RtpsStatefulReader {
 }
 
 impl RtpsStatefulReader {
+    pub fn new(reader: RtpsReader) -> Self {
+        Self {
+            reader,
+            matched_writers: Vec::new(),
+        }
+    }
+
     pub fn reader(&self) -> &RtpsReader {
         &self.reader
     }
@@ -53,21 +59,6 @@ impl RtpsStatefulReader {
         &mut self.reader
     }
 
-    pub fn matched_writers(&mut self) -> &mut [RtpsWriterProxy] {
-        self.matched_writers.as_mut_slice()
-    }
-}
-
-impl RtpsStatefulReader {
-    pub fn new(reader: RtpsReader) -> Self {
-        Self {
-            reader,
-            matched_writers: Vec::new(),
-        }
-    }
-}
-
-impl RtpsStatefulReader {
     pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {
         if !self
             .matched_writers
@@ -82,9 +73,7 @@ impl RtpsStatefulReader {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != a_writer_guid)
     }
-}
 
-impl RtpsStatefulReader {
     pub fn on_heartbeat_submessage_received(
         &mut self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -114,9 +103,7 @@ impl RtpsStatefulReader {
             }
         }
     }
-}
 
-impl RtpsStatefulReader {
     pub fn send_submessages(
         &mut self,
         mut send_acknack: impl FnMut(&RtpsWriterProxy, AckNackSubmessage),

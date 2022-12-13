@@ -141,22 +141,15 @@ impl BuiltinStatefulReader {
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
 
-        if !rtps_reader_lock
-            .matched_writers()
-            .iter_mut()
-            .any(|r| r.remote_writer_guid().prefix() == participant_discovery.guid_prefix())
-        {
-            let type_name = self.topic.get_type_name();
-            if type_name == DiscoveredWriterData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_publications_reader(&mut rtps_reader_lock);
-            } else if type_name == DiscoveredReaderData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_subscriptions_reader(&mut rtps_reader_lock);
-            } else if type_name == DiscoveredTopicData::type_name() {
-                participant_discovery
-                    .discovered_participant_add_topics_reader(&mut rtps_reader_lock);
-            }
+        let type_name = self.topic.get_type_name();
+        if type_name == DiscoveredWriterData::type_name() {
+            participant_discovery
+                .discovered_participant_add_publications_reader(&mut rtps_reader_lock);
+        } else if type_name == DiscoveredReaderData::type_name() {
+            participant_discovery
+                .discovered_participant_add_subscriptions_reader(&mut rtps_reader_lock);
+        } else if type_name == DiscoveredTopicData::type_name() {
+            participant_discovery.discovered_participant_add_topics_reader(&mut rtps_reader_lock);
         }
     }
 }
