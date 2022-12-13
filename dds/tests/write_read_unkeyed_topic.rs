@@ -157,9 +157,16 @@ fn data_reader_resource_limits() {
     writer.write(&UserData(2), None).unwrap();
     writer.write(&UserData(3), None).unwrap();
 
-    writer
-        .wait_for_acknowledgments(Duration::new(5, 0))
+    let reader_cond = reader.get_statuscondition().unwrap();
+    reader_cond
+        .set_enabled_statuses(&[StatusKind::SampleRejected])
         .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(reader_cond))
+        .unwrap();
+
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let samples = reader
         .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
