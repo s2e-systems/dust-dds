@@ -208,6 +208,7 @@ impl RtpsStatefulReader {
     pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks() || !writer_proxy.missing_changes().is_empty() {
+                writer_proxy.set_must_send_acknacks(false);
                 writer_proxy.increment_acknack_count();
 
                 let info_dst_submessage = InfoDestinationSubmessage {
