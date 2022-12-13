@@ -7,7 +7,7 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
-            types::{Guid, GuidPrefix, ENTITYID_UNKNOWN},
+            types::{Guid, ENTITYID_UNKNOWN},
             utils::clock::StdTimer,
             writer_proxy::RtpsWriterProxy,
         },
@@ -209,12 +209,6 @@ impl<'a> ParticipantDiscovery<'a> {
             );
             reader.matched_writer_add(proxy);
         }
-    }
-}
-
-impl<'a> ParticipantDiscovery<'a> {
-    pub fn guid_prefix(&self) -> GuidPrefix {
-        self.participant_data.guid_prefix()
     }
 }
 
