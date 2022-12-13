@@ -9,3 +9,4 @@ dds_types/target/
 rtps/target/
 tarpaulin-report.html
 *.profraw
+compatibility/build/
