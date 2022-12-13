@@ -12,8 +12,8 @@ pub struct RtpsWriterProxy {
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
     must_send_acknacks: bool,
-    pub last_received_heartbeat_count: Count,
-    pub acknack_count: Count,
+    last_received_heartbeat_count: Count,
+    acknack_count: Count,
 }
 
 impl RtpsWriterProxy {
@@ -135,6 +135,22 @@ impl RtpsWriterProxy {
 
     pub fn must_send_acknacks(&self) -> bool {
         self.must_send_acknacks
+    }
+
+    pub fn last_received_heartbeat_count(&self) -> Count {
+        self.last_received_heartbeat_count
+    }
+
+    pub fn set_last_received_heartbeat_count(&mut self, last_received_heartbeat_count: Count) {
+        self.last_received_heartbeat_count = last_received_heartbeat_count;
+    }
+
+    pub fn acknack_count(&self) -> Count {
+        self.acknack_count
+    }
+
+    pub fn increment_acknack_count(&mut self) {
+        self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 }
 

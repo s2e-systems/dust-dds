@@ -185,8 +185,9 @@ impl RtpsStatefulReader {
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count != heartbeat_submessage.count.value {
-                    writer_proxy.last_received_heartbeat_count = heartbeat_submessage.count.value;
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count.value {
+                    writer_proxy
+                        .set_last_received_heartbeat_count(heartbeat_submessage.count.value);
 
                     writer_proxy.set_must_send_acknacks(
                         !heartbeat_submessage.final_flag
@@ -207,7 +208,7 @@ impl RtpsStatefulReader {
     pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
         for writer_proxy in self.matched_writers.iter_mut() {
             if writer_proxy.must_send_acknacks() || !writer_proxy.missing_changes().is_empty() {
-                writer_proxy.acknack_count = writer_proxy.acknack_count.wrapping_add(1);
+                writer_proxy.increment_acknack_count();
 
                 let info_dst_submessage = InfoDestinationSubmessage {
                     endianness_flag: true,
@@ -230,7 +231,7 @@ impl RtpsStatefulReader {
                         set: writer_proxy.missing_changes(),
                     },
                     count: CountSubmessageElement {
-                        value: writer_proxy.acknack_count,
+                        value: writer_proxy.acknack_count(),
                     },
                 };
 
