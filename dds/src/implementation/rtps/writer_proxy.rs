@@ -3,7 +3,7 @@ use super::{
         submessage_elements::{
             CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
         },
-        submessages::{AckNackSubmessage, HeartbeatSubmessage},
+        submessages::AckNackSubmessage,
     },
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
@@ -15,8 +15,8 @@ pub struct RtpsWriterProxy {
     multicast_locator_list: Vec<Locator>,
     data_max_size_serialized: Option<i32>,
     remote_group_entity_id: EntityId,
-    pub first_available_seq_num: SequenceNumber,
-    pub last_available_seq_num: SequenceNumber,
+    first_available_seq_num: SequenceNumber,
+    last_available_seq_num: SequenceNumber,
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
     pub must_send_acknacks: bool,
@@ -33,9 +33,7 @@ impl RtpsWriterProxy {
     ) {
         let endianness_flag = true;
         let final_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: reader_id,
-        };
+        let reader_id = EntityIdSubmessageElement { value: reader_id };
         let writer_id = EntityIdSubmessageElement {
             value: self.remote_writer_guid().entity_id(),
         };
@@ -58,14 +56,6 @@ impl RtpsWriterProxy {
         };
 
         send_acknack(self, acknack_submessage);
-    }
-
-    pub fn reliable_receive_heartbeat(&mut self, heartbeat: &HeartbeatSubmessage) {
-        if !heartbeat.final_flag {
-            self.must_send_acknacks = true;
-        }
-        self.missing_changes_update(heartbeat.last_sn.value);
-        self.lost_changes_update(heartbeat.first_sn.value);
     }
 }
 
@@ -102,9 +92,7 @@ impl RtpsWriterProxy {
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
     }
-}
 
-impl RtpsWriterProxy {
     pub fn available_changes_max(&self) -> SequenceNumber {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.

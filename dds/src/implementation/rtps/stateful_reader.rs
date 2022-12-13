@@ -82,12 +82,6 @@ impl RtpsStatefulReader {
         self.matched_writers
             .retain(|x| x.remote_writer_guid() != a_writer_guid)
     }
-
-    pub fn matched_writer_lookup(&mut self, a_writer_guid: Guid) -> Option<&mut RtpsWriterProxy> {
-        self.matched_writers
-            .iter_mut()
-            .find(|x| x.remote_writer_guid() == a_writer_guid)
-    }
 }
 
 impl RtpsStatefulReader {
@@ -111,7 +105,11 @@ impl RtpsStatefulReader {
                         || (!heartbeat_submessage.liveliness_flag
                             && !writer_proxy.missing_changes().is_empty());
 
-                    writer_proxy.reliable_receive_heartbeat(heartbeat_submessage);
+                    if !heartbeat_submessage.final_flag {
+                        writer_proxy.must_send_acknacks = true;
+                    }
+                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn.value);
+                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn.value);
                 }
             }
         }
@@ -183,46 +181,42 @@ impl RtpsStatefulReader {
             data_submessage.writer_id.value,
         );
 
-        if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-            if data_submessage.writer_sn.value < writer_proxy.first_available_seq_num
-                || data_submessage.writer_sn.value > writer_proxy.last_available_seq_num
-                || writer_proxy
-                    .missing_changes()
-                    .contains(&data_submessage.writer_sn.value)
-            {
-                let reliability_kind = self.reader().get_qos().reliability.kind.clone();
-                if let Some(writer_proxy) = self.matched_writer_lookup(writer_guid) {
-                    match reliability_kind {
-                        ReliabilityQosPolicyKind::BestEffort => {
-                            let expected_seq_num = writer_proxy.available_changes_max() + 1;
-                            if sequence_number >= expected_seq_num {
-                                writer_proxy.received_change_set(sequence_number);
-                                if sequence_number > expected_seq_num {
-                                    writer_proxy.lost_changes_update(sequence_number);
-                                }
-
-                                self.reader_mut()
-                                    .add_change(
-                                        data_submessage,
-                                        Some(message_receiver.timestamp()),
-                                        message_receiver.source_guid_prefix(),
-                                        message_receiver.reception_timestamp(),
-                                    )
-                                    .ok();
-                            }
+        if let Some(writer_proxy) = self
+            .matched_writers
+            .iter_mut()
+            .find(|wp| wp.remote_writer_guid() == writer_guid)
+        {
+            let expected_seq_num = writer_proxy.available_changes_max() + 1;
+            match self.reader.get_qos().reliability.kind {
+                ReliabilityQosPolicyKind::BestEffort => {
+                    if sequence_number >= expected_seq_num {
+                        writer_proxy.received_change_set(sequence_number);
+                        if sequence_number > expected_seq_num {
+                            writer_proxy.lost_changes_update(sequence_number);
                         }
-                        ReliabilityQosPolicyKind::Reliable => {
-                            writer_proxy.received_change_set(data_submessage.writer_sn.value);
 
-                            self.reader_mut()
-                                .add_change(
-                                    data_submessage,
-                                    Some(message_receiver.timestamp()),
-                                    message_receiver.source_guid_prefix(),
-                                    message_receiver.reception_timestamp(),
-                                )
-                                .ok();
-                        }
+                        self.reader
+                            .add_change(
+                                data_submessage,
+                                Some(message_receiver.timestamp()),
+                                message_receiver.source_guid_prefix(),
+                                message_receiver.reception_timestamp(),
+                            )
+                            .ok();
+                    }
+                }
+                ReliabilityQosPolicyKind::Reliable => {
+                    if sequence_number == expected_seq_num {
+                        writer_proxy.received_change_set(data_submessage.writer_sn.value);
+
+                        self.reader
+                            .add_change(
+                                data_submessage,
+                                Some(message_receiver.timestamp()),
+                                message_receiver.source_guid_prefix(),
+                                message_receiver.reception_timestamp(),
+                            )
+                            .ok();
                     }
                 }
             }
