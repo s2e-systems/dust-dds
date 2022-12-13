@@ -1,6 +1,7 @@
 use crate::{
     implementation::dds_impl::message_receiver::MessageReceiver,
     infrastructure::{
+        instance::InstanceHandle,
         qos_policy::ReliabilityQosPolicyKind,
         status::SampleRejectedStatusKind,
         time::{Duration, DURATION_ZERO},
@@ -43,9 +44,9 @@ pub enum ChangeFromWriterStatusKind {
 pub enum StatefulReaderDataReceivedResult {
     NoMatchedWriterProxy,
     UnexpectedDataSequenceNumber,
-    NewSampleAdded,
-    NewSampleAddedAndSamplesLost,
-    SampleRejected(SampleRejectedStatusKind),
+    NewSampleAdded(InstanceHandle),
+    NewSampleAddedAndSamplesLost(InstanceHandle),
+    SampleRejected(InstanceHandle, SampleRejectedStatusKind),
     InvalidData(&'static str),
 }
 
@@ -53,16 +54,8 @@ impl From<RtpsReaderError> for StatefulReaderDataReceivedResult {
     fn from(e: RtpsReaderError) -> Self {
         match e {
             RtpsReaderError::InvalidData(s) => StatefulReaderDataReceivedResult::InvalidData(s),
-            RtpsReaderError::MaxSamples => StatefulReaderDataReceivedResult::SampleRejected(
-                SampleRejectedStatusKind::RejectedBySamplesLimit,
-            ),
-            RtpsReaderError::MaxInstances => StatefulReaderDataReceivedResult::SampleRejected(
-                SampleRejectedStatusKind::RejectedByInstancesLimit,
-            ),
-            RtpsReaderError::MaxSamplesPerInstance => {
-                StatefulReaderDataReceivedResult::SampleRejected(
-                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-                )
+            RtpsReaderError::Rejected(instance_handle, reason) => {
+                StatefulReaderDataReceivedResult::SampleRejected(instance_handle, reason)
             }
         }
     }
@@ -229,13 +222,15 @@ impl RtpsStatefulReader {
                             );
 
                             match add_change_result {
-                                Ok(_) => {
+                                Ok(instance_handle) => {
                                     writer_proxy.received_change_set(sequence_number);
                                     if sequence_number > expected_seq_num {
                                         writer_proxy.lost_changes_update(sequence_number);
-                                        StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost
+                                        StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle)
                                     } else {
-                                        StatefulReaderDataReceivedResult::NewSampleAdded
+                                        StatefulReaderDataReceivedResult::NewSampleAdded(
+                                            instance_handle,
+                                        )
                                     }
                                 }
                                 Err(err) => err.into(),
@@ -253,9 +248,9 @@ impl RtpsStatefulReader {
                         );
 
                         match add_change_result {
-                            Ok(_) => {
+                            Ok(instance_handle) => {
                                 writer_proxy.received_change_set(data_submessage.writer_sn.value);
-                                StatefulReaderDataReceivedResult::NewSampleAdded
+                                StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle)
                             }
                             Err(err) => err.into(),
                         }

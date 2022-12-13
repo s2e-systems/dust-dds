@@ -13,7 +13,7 @@ use crate::{
         instance::InstanceHandle,
         qos::DataReaderQos,
         qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind},
-        status::StatusKind,
+        status::{SampleRejectedStatusKind, StatusKind},
         time::{Duration, Time},
     },
     subscription::{
@@ -35,9 +35,7 @@ type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsReaderError {
     InvalidData(&'static str),
-    MaxSamples,
-    MaxInstances,
-    MaxSamplesPerInstance,
+    Rejected(InstanceHandle, SampleRejectedStatusKind),
 }
 
 pub struct RtpsReaderCacheChange {
@@ -302,7 +300,7 @@ impl RtpsReader {
         source_timestamp: Option<Time>,
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
-    ) -> RtpsReaderResult<()> {
+    ) -> RtpsReaderResult<InstanceHandle> {
         let mut change = self.convert_data_to_cache_change(
             data_submessage,
             source_timestamp,
@@ -315,11 +313,20 @@ impl RtpsReader {
             .build_instance_handle(change.kind, &change.data)?;
 
         if self.is_max_samples_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::MaxSamples)
+            Err(RtpsReaderError::Rejected(
+                change_instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesLimit,
+            ))
         } else if self.is_max_instances_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::MaxInstances)
+            Err(RtpsReaderError::Rejected(
+                change_instance_handle,
+                SampleRejectedStatusKind::RejectedByInstancesLimit,
+            ))
         } else if self.is_max_samples_per_instance_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::MaxSamplesPerInstance)
+            Err(RtpsReaderError::Rejected(
+                change_instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+            ))
         } else {
             let num_alive_samples_of_instance = self
                 .changes
@@ -383,7 +390,7 @@ impl RtpsReader {
                     .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
             }
 
-            Ok(())
+            Ok(change_instance_handle)
         }
     }
 
@@ -1077,17 +1084,19 @@ mod tests {
             )
             .unwrap();
 
+        let sample = UnkeyedType { data: [1; 5] };
+        let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(
-                    &to_bytes_le(&UnkeyedType { data: [1; 5] }),
-                    1,
-                ),
+                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1,),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(RtpsReaderError::MaxSamples)
+            Err(RtpsReaderError::Rejected(
+                instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesLimit
+            ))
         );
     }
 
@@ -1124,20 +1133,22 @@ mod tests {
             )
             .unwrap();
 
+        let sample = KeyedType {
+            key: 2,
+            data: [1; 5],
+        };
+        let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(
-                    &to_bytes_le(&KeyedType {
-                        key: 2,
-                        data: [1; 5],
-                    }),
-                    1
-                ),
+                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(RtpsReaderError::MaxInstances)
+            Err(RtpsReaderError::Rejected(
+                instance_handle,
+                SampleRejectedStatusKind::RejectedByInstancesLimit
+            ))
         );
     }
 
@@ -1188,20 +1199,22 @@ mod tests {
             )
             .unwrap();
 
+        let sample = KeyedType {
+            key: 2,
+            data: [2; 5],
+        };
+        let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(
-                    &to_bytes_le(&KeyedType {
-                        key: 2,
-                        data: [2; 5],
-                    }),
-                    1
-                ),
+                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             ),
-            Err(RtpsReaderError::MaxSamplesPerInstance)
+            Err(RtpsReaderError::Rejected(
+                instance_handle,
+                SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit
+            ))
         );
     }
 
