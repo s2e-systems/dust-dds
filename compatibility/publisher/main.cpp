@@ -20,12 +20,12 @@ int main(int argc, char *argv[])
 		const dds::pub::qos::PublisherQos publisherQos{dp.default_publisher_qos()};
 		const dds::pub::Publisher publisher{dp, publisherQos};
 		dds::pub::qos::DataWriterQos dataWriterQos{topic.qos()};
-		dataWriterQos << dds::core::policy::Reliability::Reliable();
+		dataWriterQos << dds::core::policy::Reliability::BestEffort();
 		dds::pub::DataWriter<HelloWorldType> dataWriter{publisher, topic, dataWriterQos};
 
 		for (uint8_t id = 0;; id++)
 		{
-			dataWriter << HelloWorldType{id, "Hello world"};
+			dataWriter << HelloWorldType{id, "Hello world!"};
 			std::cout << "Published sample with id: " << int(id) << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
