@@ -292,13 +292,14 @@ pub struct Locator {
     address: LocatorAddress,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Constructor)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
 pub struct LocatorKind(i32);
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
 pub struct LocatorPort(u32);
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
 pub struct LocatorAddress([u8; 16]);
 
+#[allow(dead_code)]
 pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
 #[allow(dead_code)]
 pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
@@ -307,7 +308,7 @@ pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
 pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
 pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
 
-// #[allow(dead_code)]
+#[allow(dead_code)]
 pub const LOCATOR_INVALID: Locator = Locator {
     kind: LOCATOR_KIND_INVALID,
     port: LOCATOR_PORT_INVALID,

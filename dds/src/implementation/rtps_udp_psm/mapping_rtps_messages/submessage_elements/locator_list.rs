@@ -38,7 +38,7 @@ impl<'de> MappingReadByteOrdered<'de> for LocatorListSubmessageElement {
 mod tests {
 
     use crate::implementation::{
-        rtps::types::Locator,
+        rtps::types::{Locator, LocatorAddress, LocatorKind, LocatorPort},
         rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
     };
 
@@ -46,8 +46,16 @@ mod tests {
 
     #[test]
     fn serialize_locator_list() {
-        let locator_1 = Locator::new(1, 2, [3; 16]);
-        let locator_2 = Locator::new(2, 2, [3; 16]);
+        let locator_1 = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let locator_2 = Locator::new(
+            LocatorKind::new(2),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
         let locator_list = LocatorListSubmessageElement {
             value: vec![locator_1, locator_2],
         };
@@ -73,8 +81,16 @@ mod tests {
 
     #[test]
     fn deserialize_locator_list() {
-        let locator_1 = Locator::new(1, 2, [3; 16]);
-        let locator_2 = Locator::new(2, 2, [3; 16]);
+        let locator_1 = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
+        let locator_2 = Locator::new(
+            LocatorKind::new(2),
+            LocatorPort::new(2),
+            LocatorAddress::new([3; 16]),
+        );
         let expected = LocatorListSubmessageElement {
             value: vec![locator_1, locator_2],
         };

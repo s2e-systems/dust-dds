@@ -379,8 +379,8 @@ mod tests {
     fn udpv4_locator_conversion_address2() {
         let locator = Locator::new(
             LOCATOR_KIND_UDP_V4,
-            7500,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25],
+            LocatorPort::new(7500),
+            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 25]),
         );
 
         let mut socket_addrs = UdpLocator(locator).to_socket_addrs().unwrap().into_iter();
@@ -398,10 +398,10 @@ mod tests {
         let socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
         let locator = UdpLocator::from(socket_addr).0;
         assert_eq!(locator.kind(), &LOCATOR_KIND_UDP_V4);
-        assert_eq!(locator.port(), &7400);
+        assert_eq!(locator.port(), &LocatorPort::new(7400));
         assert_eq!(
             locator.address(),
-            &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1]
+            &LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
         );
     }
 
@@ -412,94 +412,4 @@ mod tests {
 
         assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
     }
-
-    // #[test]
-    // fn multicast_write() {
-    //     let socket_port = 17400;
-    //     let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
-    //     socket
-    //         .join_multicast_v4(&Ipv4Addr::new(239, 255, 0, 1), &Ipv4Addr::new(127, 0, 0, 1))
-    //         .unwrap();
-    //     let mut transport = UdpTransport::new(socket);
-    //     let header = RtpsMessageHeader {
-    //         protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-    //         version: PROTOCOLVERSION_2_4,
-    //         vendor_id: VENDOR_ID_S2E,
-    //         guid_prefix: [3; 12],
-    //     };
-    //     let destination_locator = Locator::new(
-    //         LOCATOR_KIND_UDP_V4,
-    //         socket_port as u32,
-    //         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-    //     );
-    //     let message1 = RtpsMessage {
-    //         header,
-    //         submessages: vec![],
-    //     };
-
-    //     transport.write(&message1, &destination_locator);
-    //     let (_locator, received_message1) = transport.read().unwrap();
-    //     assert_eq!(message1, received_message1);
-    // }
-
-    // #[test]
-    // fn roundtrip() {
-    //     let header = RtpsMessageHeader {
-    //         protocol: rtps_pim::messages::types::ProtocolId::PROTOCOL_RTPS,
-    //         version: PROTOCOLVERSION_2_4,
-    //         vendor_id: VENDOR_ID_S2E,
-    //         guid_prefix: [3; 12],
-    //     };
-
-    //     let socket_port = 17405;
-    //     let socket = UdpSocket::bind(SocketAddr::from(([127, 0, 0, 1], socket_port))).unwrap();
-    //     let mut transport = UdpTransport::new(socket);
-    //     let destination_locator = Locator::new(
-    //         LOCATOR_KIND_UDP_V4,
-    //         socket_port as u32,
-    //         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-    //     );
-
-    //     let message1: RtpsMessageUdp = RtpsMessageUdp::new(&header, vec![]);
-    //     transport.write(&message1, &destination_locator);
-    //     let (_locator, received_message1) = transport.read().unwrap();
-    //     assert_eq!(message1, received_message1);
-
-    //     let endianness_flag = true;
-    //     let inline_qos_flag = false;
-    //     let data_flag = false;
-    //     let key_flag = false;
-    //     let non_standard_payload_flag = false;
-    //     let reader_id = EntityIdUdp {
-    //         entity_key: [1, 2, 3],
-    //         entity_kind: 4,
-    //     };
-    //     let writer_id = EntityIdUdp {
-    //         entity_key: [6, 7, 8],
-    //         entity_kind: 9,
-    //     };
-    //     let writer_sn = SequenceNumberUdp::new(&5);
-    //     let inline_qos = ParameterListUdp {
-    //         parameter: vec![].into(),
-    //     };
-    //     let data = [];
-    //     let serialized_payload = SerializedDataUdp(data[..].into());
-    //     let submessage = DataSubmessage{
-    //         endianness_flag,
-    //         inline_qos_flag,
-    //         data_flag,
-    //         key_flag,
-    //         non_standard_payload_flag,
-    //         reader_id,
-    //         writer_id,
-    //         writer_sn,
-    //         inline_qos,
-    //         serialized_payload,
-    //     };
-    //     let message2: RtpsMessageUdp =
-    //         RtpsMessageUdp::new(&header, vec![RtpsSubmessageType::Data(submessage)]);
-    //     transport.write(&message2, &destination_locator);
-    //     let (_locator, received_message2) = transport.read().unwrap();
-    //     assert_eq!(message2, received_message2);
-    // }
 }

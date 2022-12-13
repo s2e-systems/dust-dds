@@ -10,20 +10,20 @@ use crate::implementation::{
 };
 
 impl MappingWriteByteOrdered for LocatorKind {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result<(), Error> {
+        <i32>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl MappingWriteByteOrdered for LocatorPort {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result<(), Error> {
+        <u32>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
 impl MappingWriteByteOrdered for LocatorAddress {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, writer: W) -> Result<(), Error> {
-        todo!()
+    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(&self, mut writer: W) -> Result<(), Error> {
+        <[u8; 16]>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 
@@ -43,19 +43,19 @@ impl MappingWriteByteOrdered for Locator {
 
 impl<'de> MappingReadByteOrdered<'de> for LocatorKind {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
+        Ok(Self::new(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for LocatorPort {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
+        Ok(Self::new(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
     }
 }
 
 impl<'de> MappingReadByteOrdered<'de> for LocatorAddress {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        todo!()
+        Ok(Self::new(MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?))
     }
 }
 
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn serialize_locator() {
-        let locator = Locator::new(1, 2, [3; 16]);
+        let locator = Locator::new(LocatorKind::new(1), LocatorPort::new(2), LocatorAddress::new([3; 16]));
         assert_eq!(
             to_bytes_le(&locator).unwrap(),
             vec![
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn deserialize_locator() {
-        let expected = Locator::new(1, 2, [3; 16]);
+        let expected = Locator::new(LocatorKind::new(1), LocatorPort::new(2), LocatorAddress::new([3; 16]));
         #[rustfmt::skip]
         let result = from_bytes_le(&[
             1, 0, 0, 0, // kind (long)

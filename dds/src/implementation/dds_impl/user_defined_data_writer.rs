@@ -693,8 +693,8 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             types::{
-                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_WRITER_WITH_KEY,
+                Guid, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
+                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -813,7 +813,11 @@ mod test {
                 ..Default::default()
             },
         ));
-        let locator = Locator::new(1, 7400, [1; 16]);
+        let locator = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(7400),
+            LocatorAddress::new([1; 16]),
+        );
         let expects_inline_qos = false;
         let is_active = true;
         let reader_proxy = RtpsReaderProxy::new(

@@ -254,7 +254,9 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{EntityId, BUILT_IN_PARTICIPANT};
+    use crate::implementation::rtps::types::{
+        EntityId, LocatorAddress, LocatorKind, LocatorPort, BUILT_IN_PARTICIPANT,
+    };
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::topic_definition::type_support::LittleEndian;
 
@@ -266,17 +268,22 @@ mod tests {
 
     #[test]
     fn deserialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, [1; 16]);
-        let locator2 = Locator::new(21, 22, [2; 16]);
+        let locator1 = Locator::new(
+            LocatorKind::new(11),
+            LocatorPort::new(12),
+            LocatorAddress::new([1; 16]),
+        );
+        let locator2 = Locator::new(
+            LocatorKind::new(21),
+            LocatorPort::new(22),
+            LocatorAddress::new([2; 16]),
+        );
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
-        let guid = Guid::new(
-            guid_prefix,
-            EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT),
-        );
+        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT));
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -387,17 +394,22 @@ mod tests {
 
     #[test]
     fn serialize_spdp_discovered_participant_data() {
-        let locator1 = Locator::new(11, 12, [1; 16]);
-        let locator2 = Locator::new(21, 22, [2; 16]);
+        let locator1 = Locator::new(
+            LocatorKind::new(11),
+            LocatorPort::new(12),
+            LocatorAddress::new([1; 16]),
+        );
+        let locator2 = Locator::new(
+            LocatorKind::new(21),
+            LocatorPort::new(22),
+            LocatorAddress::new([2; 16]),
+        );
 
         let domain_id = 1;
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
-        let guid = Guid::new(
-            guid_prefix,
-            EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT),
-        );
+        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT));
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
