@@ -1,3 +1,5 @@
+use std::cmp::{max, min};
+
 use super::types::{Count, EntityId, Guid, Locator, SequenceNumber};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,8 +32,8 @@ impl RtpsWriterProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             data_max_size_serialized,
             remote_group_entity_id,
-            first_available_seq_num: 1,
-            last_available_seq_num: 0,
+            first_available_seq_num: SequenceNumber::new(1),
+            last_available_seq_num: SequenceNumber::new(0),
             irrelevant_changes: Vec::new(),
             received_changes: Vec::new(),
             must_send_acknacks: false,
@@ -54,20 +56,20 @@ impl RtpsWriterProxy {
 
         // Any number below first_available_seq_num is missing so that is the minimum
         // If there are missing changes, the minimum will be one above the maximum
-        if let Some(minimum_missing_changes) = self.missing_changes().iter().min() {
+        if let Some(&minimum_missing_changes) = self.missing_changes().iter().min() {
             minimum_missing_changes - 1
         } else {
             // If there are no missing changes then the highest received sequence number
             // with a lower limit of the first_available_seq_num
             let minimum_available_changes_max =
-                i64::min(self.first_available_seq_num, self.last_available_seq_num);
+                min(self.first_available_seq_num, self.last_available_seq_num);
             let highest_received_seq_num = *self
                 .received_changes
                 .iter()
                 .filter(|&x| !self.irrelevant_changes.contains(x))
                 .max()
-                .unwrap_or(&0);
-            i64::max(highest_received_seq_num, minimum_available_changes_max)
+                .unwrap_or(&SequenceNumber::new(0));
+            max(highest_received_seq_num, minimum_available_changes_max)
         }
     }
 
@@ -94,21 +96,33 @@ impl RtpsWriterProxy {
         // return { change IN this.changes_from_writer SUCH-THAT change.status == MISSING};
         let mut missing_changes = Vec::new();
 
-        let highest_received_seq_num = *self.received_changes.iter().max().unwrap_or(&0);
-        let highest_irrelevant_seq_num = *self.irrelevant_changes.iter().max().unwrap_or(&0);
+        let highest_received_seq_num = self
+            .received_changes
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or_else(|| SequenceNumber::new(0));
+        let highest_irrelevant_seq_num = self
+            .irrelevant_changes
+            .iter()
+            .max()
+            .cloned()
+            .unwrap_or_else(|| SequenceNumber::new(0));
         // The highest sequence number of all present
-        let highest_number = i64::max(
-            self.last_available_seq_num,
-            i64::max(highest_received_seq_num, highest_irrelevant_seq_num),
-        );
+        let highest_number = max(
+            self.last_available_seq_num, max(
+            highest_received_seq_num,
+            highest_irrelevant_seq_num));
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
-        for seq_num in self.first_available_seq_num..=highest_number {
+        let mut seq_num = self.first_available_seq_num;
+        while seq_num <= highest_number {
             let received = self.received_changes.contains(&seq_num);
             let irrelevant = self.irrelevant_changes.contains(&seq_num);
             if !(irrelevant || received) {
                 missing_changes.push(seq_num)
             }
+            seq_num += 1;
         }
         missing_changes
     }
@@ -169,37 +183,41 @@ mod tests {
     fn writer_proxy_available_changes_max_empty() {
         let writer_proxy = create_test_proxy();
 
-        assert_eq!(writer_proxy.available_changes_max(), 0);
+        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber::new(0));
     }
 
     #[test]
     fn writer_proxy_available_changes_max_sequential_received_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.received_change_set(1);
-        writer_proxy.received_change_set(2);
+        writer_proxy.received_change_set(SequenceNumber::new(1));
+        writer_proxy.received_change_set(SequenceNumber::new(2));
 
-        assert_eq!(writer_proxy.available_changes_max(), 2);
+        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber::new(2));
     }
 
     #[test]
     fn writer_proxy_available_changes_max_missing_received_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.received_change_set(1);
-        writer_proxy.received_change_set(2);
-        writer_proxy.received_change_set(4);
+        writer_proxy.received_change_set(SequenceNumber::new(1));
+        writer_proxy.received_change_set(SequenceNumber::new(2));
+        writer_proxy.received_change_set(SequenceNumber::new(4));
 
-        assert_eq!(writer_proxy.available_changes_max(), 2);
+        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber::new(2));
     }
 
     #[test]
     fn writer_proxy_missing_changes_without_lost_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.missing_changes_update(3);
+        writer_proxy.missing_changes_update(SequenceNumber::new(3));
 
-        let expected_missing_changes = vec![1, 2, 3];
+        let expected_missing_changes = vec![
+            SequenceNumber::new(1),
+            SequenceNumber::new(2),
+            SequenceNumber::new(3),
+        ];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
@@ -208,10 +226,10 @@ mod tests {
     fn writer_proxy_missing_changes_with_lost_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.lost_changes_update(2);
-        writer_proxy.missing_changes_update(3);
+        writer_proxy.lost_changes_update(SequenceNumber::new(2));
+        writer_proxy.missing_changes_update(SequenceNumber::new(3));
 
-        let expected_missing_changes = vec![2, 3];
+        let expected_missing_changes = vec![SequenceNumber::new(2), SequenceNumber::new(3)];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
@@ -220,10 +238,10 @@ mod tests {
     fn writer_proxy_missing_changes_with_received_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.missing_changes_update(3);
-        writer_proxy.received_change_set(2);
+        writer_proxy.missing_changes_update(SequenceNumber::new(3));
+        writer_proxy.received_change_set(SequenceNumber::new(2));
 
-        let expected_missing_changes = vec![1, 3];
+        let expected_missing_changes = vec![SequenceNumber::new(1), SequenceNumber::new(3)];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
@@ -232,11 +250,11 @@ mod tests {
     fn writer_proxy_missing_changes_with_only_received_changes() {
         let mut writer_proxy = create_test_proxy();
 
-        writer_proxy.received_change_set(1);
-        writer_proxy.received_change_set(2);
-        writer_proxy.received_change_set(4);
+        writer_proxy.received_change_set(SequenceNumber::new(1));
+        writer_proxy.received_change_set(SequenceNumber::new(2));
+        writer_proxy.received_change_set(SequenceNumber::new(4));
 
-        let expected_missing_changes = vec![3];
+        let expected_missing_changes = vec![SequenceNumber::new(3)];
         let missing_changes = writer_proxy.missing_changes();
         assert_eq!(missing_changes, expected_missing_changes);
     }
