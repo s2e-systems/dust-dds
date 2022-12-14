@@ -210,13 +210,13 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            1,
+            SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
             vec![],
         );
         hc.add_change(change);
-        hc.remove_change(|cc| cc.sequence_number() == 1);
+        hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
         assert!(hc.changes().is_empty());
     }
 
@@ -227,7 +227,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            1,
+            SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
             vec![],
@@ -236,14 +236,14 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            2,
+            SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
             vec![],
         );
         hc.add_change(change1);
         hc.add_change(change2);
-        assert_eq!(hc.get_seq_num_min(), Some(1));
+        assert_eq!(hc.get_seq_num_min(), Some(SequenceNumber::new(1)));
     }
 
     #[test]
@@ -253,7 +253,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            1,
+            SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
             vec![],
@@ -262,13 +262,13 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            2,
+            SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
             vec![],
         );
         hc.add_change(change1);
         hc.add_change(change2);
-        assert_eq!(hc.get_seq_num_max(), Some(2));
+        assert_eq!(hc.get_seq_num_max(), Some(SequenceNumber::new(2)));
     }
 }

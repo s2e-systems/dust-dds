@@ -9,9 +9,9 @@ use crate::{
         },
         rtps::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
-            stateful_reader::RtpsStatefulReader,
+            stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
-            types::GuidPrefix,
+            types::{GuidPrefix, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -156,6 +156,32 @@ pub struct UserDefinedDataReader {
     user_defined_data_send_condvar: DdsCondvar,
 }
 
+impl SampleLostStatus {
+    fn increment(&mut self) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let sample_lost_status = self.clone();
+        self.total_count_change = 0;
+        sample_lost_status
+    }
+}
+
+impl SampleRejectedStatus {
+    fn increment(
+        &mut self,
+        instance_handle: InstanceHandle,
+        rejected_reason: SampleRejectedStatusKind,
+    ) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_instance_handle = instance_handle;
+        self.last_reason = rejected_reason;
+    }
+}
+
 impl UserDefinedDataReader {
     pub fn new(
         rtps_reader: RtpsStatefulReader,
@@ -218,9 +244,26 @@ impl DdsShared<UserDefinedDataReader> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        self.rtps_reader
+        let data_submessage_received_result = self
+            .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
+
+        match data_submessage_received_result {
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => (),
+            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => (),
+            StatefulReaderDataReceivedResult::NewSampleAdded(_) => {
+                self.on_data_available();
+            }
+            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(_) => {
+                self.on_sample_lost();
+                self.on_data_available();
+            }
+            StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+                self.on_sample_rejected(instance_handle, rejected_reason);
+            }
+            StatefulReaderDataReceivedResult::InvalidData(_) => (),
+        }
     }
 
     pub fn on_heartbeat_submessage_received(
@@ -228,8 +271,9 @@ impl DdsShared<UserDefinedDataReader> {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-        rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.rtps_reader
+            .write_lock()
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.user_defined_data_send_condvar.notify_all();
     }
 
@@ -240,8 +284,7 @@ impl DdsShared<UserDefinedDataReader> {
 
         if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
         {
-            let mut rtps_reader_lock = self.rtps_reader.write_lock();
-            let reader_qos = rtps_reader_lock.reader().get_qos();
+            let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
             let parent_subscriber_qos = self.get_subscriber().get_qos();
 
             let mut incompatible_qos_policy_list = Vec::new();
@@ -289,7 +332,9 @@ impl DdsShared<UserDefinedDataReader> {
                     discovered_writer_data.writer_proxy.remote_group_entity_id,
                 );
 
-                rtps_reader_lock.matched_writer_add(writer_proxy);
+                self.rtps_reader
+                    .write_lock()
+                    .matched_writer_add(writer_proxy);
 
                 self.matched_publication_list.write_lock().insert(
                     discovered_writer_data.get_serialized_key().into(),
@@ -315,8 +360,7 @@ impl DdsShared<UserDefinedDataReader> {
                     self.status_condition
                         .write_lock()
                         .remove_communication_state(StatusKind::SubscriptionMatched);
-                    let subscription_matched_status =
-                        self.get_subscription_matched_status().unwrap();
+                    let subscription_matched_status = self.get_subscription_matched_status();
                     l.trigger_on_subscription_matched(self, subscription_matched_status)
                 };
             } else {
@@ -373,7 +417,7 @@ impl DdsShared<UserDefinedDataReader> {
                 self.status_condition
                     .write_lock()
                     .remove_communication_state(StatusKind::SubscriptionMatched);
-                let subscription_matched_status = self.get_subscription_matched_status().unwrap();
+                let subscription_matched_status = self.get_subscription_matched_status();
                 l.trigger_on_subscription_matched(self, subscription_matched_status)
             };
         }
@@ -559,44 +603,27 @@ impl DdsShared<UserDefinedDataReader> {
         Ok(requested_incompatible_qos_status)
     }
 
-    pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut sample_lost_status_lock = self.sample_lost_status.write_lock();
-        let sample_lost_status = sample_lost_status_lock.clone();
-
-        sample_lost_status_lock.total_count_change = 0;
-
-        Ok(sample_lost_status)
+    pub fn get_sample_lost_status(&self) -> SampleLostStatus {
+        self.sample_lost_status.write_lock().read_and_reset()
     }
 
-    pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
+    pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
         let mut sample_rejected_status_lock = self.sample_rejected_status.write_lock();
         let sample_rejected_status = sample_rejected_status_lock.clone();
 
         sample_rejected_status_lock.total_count_change = 0;
 
-        Ok(sample_rejected_status)
+        sample_rejected_status
     }
 
-    pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
+    pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
         let mut subscription_matched_status_lock = self.subscription_matched_status.write_lock();
         let subscription_matched_status = subscription_matched_status_lock.clone();
 
         subscription_matched_status_lock.current_count_change = 0;
         subscription_matched_status_lock.total_count_change = 0;
 
-        Ok(subscription_matched_status)
+        subscription_matched_status
     }
 
     pub fn get_topicdescription(&self) -> DdsShared<TopicImpl> {
@@ -632,17 +659,12 @@ impl DdsShared<UserDefinedDataReader> {
             .ok_or(DdsError::BadParameter)
     }
 
-    pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(self
-            .matched_publication_list
+    pub fn get_matched_publications(&self) -> Vec<InstanceHandle> {
+        self.matched_publication_list
             .read_lock()
             .iter()
             .map(|(&key, _)| key)
-            .collect())
+            .collect()
     }
 
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -715,9 +737,8 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn as_discovered_reader_data(&self) -> DiscoveredReaderData {
-        let rtps_reader_lock = self.rtps_reader.read_lock();
-        let guid = rtps_reader_lock.reader().guid();
-        let reader_qos = rtps_reader_lock.reader().get_qos();
+        let guid = self.rtps_reader.read_lock().reader().guid();
+        let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
         let topic_qos = self.topic.get_qos();
         let subscriber_qos = self.get_subscriber().get_qos();
 
@@ -732,7 +753,9 @@ impl DdsShared<UserDefinedDataReader> {
 
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),
@@ -743,7 +766,7 @@ impl DdsShared<UserDefinedDataReader> {
                 ownership: reader_qos.ownership.clone(),
                 destination_order: reader_qos.destination_order.clone(),
                 user_data: reader_qos.user_data.clone(),
-                time_based_filter: reader_qos.time_based_filter.clone(),
+                time_based_filter: reader_qos.time_based_filter,
                 presentation: subscriber_qos.presentation.clone(),
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,
@@ -757,15 +780,6 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn update_communication_status(&self, now: Time) {
-        if self
-            .rtps_reader
-            .write_lock()
-            .reader_mut()
-            .take_data_available()
-        {
-            self.on_data_available()
-        };
-
         if !self
             .rtps_reader
             .write_lock()
@@ -784,6 +798,36 @@ impl DdsShared<UserDefinedDataReader> {
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             listener.trigger_on_data_available(self);
+        }
+    }
+
+    fn on_sample_lost(&self) {
+        self.sample_lost_status.write_lock().increment();
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleLost);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            let status = self.get_sample_lost_status();
+            listener.trigger_on_sample_lost(self, status);
+        }
+    }
+
+    fn on_sample_rejected(
+        &self,
+        instance_handle: InstanceHandle,
+        rejected_reason: SampleRejectedStatusKind,
+    ) {
+        self.sample_rejected_status
+            .write_lock()
+            .increment(instance_handle, rejected_reason);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleRejected);
+
+        if let Some(listener) = self.listener.write_lock().as_mut() {
+            let status = self.get_sample_rejected_status();
+            listener.trigger_on_sample_rejected(self, status);
         }
     }
 
@@ -1002,13 +1046,13 @@ mod tests {
         };
         data_reader.add_matched_writer(&discovered_writer_data);
 
-        let subscription_matched_status = data_reader.get_subscription_matched_status().unwrap();
+        let subscription_matched_status = data_reader.get_subscription_matched_status();
         assert_eq!(subscription_matched_status.current_count, 1);
         assert_eq!(subscription_matched_status.current_count_change, 1);
         assert_eq!(subscription_matched_status.total_count, 1);
         assert_eq!(subscription_matched_status.total_count_change, 1);
 
-        let matched_publications = data_reader.get_matched_publications().unwrap();
+        let matched_publications = data_reader.get_matched_publications();
         assert_eq!(matched_publications.len(), 1);
         assert_eq!(matched_publications[0], remote_writer_guid.into());
         let matched_publication_data = data_reader
@@ -1091,7 +1135,7 @@ mod tests {
         };
         data_reader.add_matched_writer(&discovered_writer_data);
 
-        let matched_publications = data_reader.get_matched_publications().unwrap();
+        let matched_publications = data_reader.get_matched_publications();
         assert_eq!(matched_publications.len(), 0);
 
         let requested_incompatible_qos_status =

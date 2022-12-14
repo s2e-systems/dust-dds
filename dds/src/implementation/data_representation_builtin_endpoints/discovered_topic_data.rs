@@ -1,18 +1,21 @@
-use crate::builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-    LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-    ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
-    DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-};
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{
+        error::DdsResult,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
+            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
+            TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+        },
+    },
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{

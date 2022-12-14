@@ -78,7 +78,10 @@ mod tests {
             messages::submessage_elements::{
                 CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
             },
-            types::{Count, EntityId, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY},
+            types::{
+                Count, EntityId, SequenceNumber, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_READER_NO_KEY,
+            },
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -96,8 +99,12 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement { value: 5 };
-        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(7),
+        };
         let count = CountSubmessageElement {
             value: Count::new(2),
         };
@@ -136,8 +143,12 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement { value: 5 };
-        let last_sn = SequenceNumberSubmessageElement { value: 7 };
+        let first_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
+        let last_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(7),
+        };
         let count = CountSubmessageElement {
             value: Count::new(2),
         };

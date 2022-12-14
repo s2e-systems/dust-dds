@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::{messages::submessage_elements::GuidPrefixSubmessageElement, types::GuidPrefix},
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
 };
 
 impl MappingWriteByteOrdered for GuidPrefix {
@@ -33,6 +33,12 @@ impl<'de> MappingReadByteOrdered<'de> for GuidPrefixSubmessageElement {
         Ok(Self {
             value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
         })
+    }
+}
+
+impl NumberOfBytes for GuidPrefixSubmessageElement {
+    fn number_of_bytes(&self) -> usize {
+        12
     }
 }
 

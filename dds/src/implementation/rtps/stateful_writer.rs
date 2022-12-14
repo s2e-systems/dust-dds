@@ -20,7 +20,7 @@ use super::{
         RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{Count, Guid, GuidPrefix, Locator, ENTITYID_UNKNOWN},
+    types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN},
     writer::RtpsWriter,
 };
 
@@ -306,10 +306,18 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_min()
+                            .unwrap_or_else(|| SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_max()
+                            .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
@@ -331,10 +339,18 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_min()
+                            .unwrap_or_else(|| SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_max()
+                            .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
@@ -380,10 +396,18 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                         value: self.writer.guid().entity_id(),
                     },
                     first_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_min().unwrap_or(1),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_min()
+                            .unwrap_or_else(|| SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
-                        value: self.writer.writer_cache().get_seq_num_max().unwrap_or(0),
+                        value: self
+                            .writer
+                            .writer_cache()
+                            .get_seq_num_max()
+                            .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
@@ -402,10 +426,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
-        source_guid_prefix: GuidPrefix,
+        dst_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(dst_guid_prefix, acknack_submessage.reader_id.value);
 
             if let Some(reader_proxy) = self
                 .matched_readers
