@@ -262,7 +262,7 @@ pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
 pub struct Count(i32);
 
 impl Count {

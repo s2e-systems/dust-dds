@@ -171,7 +171,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_BUILTIN_ENDPOINT_SET,
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter::<&Count, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default::<&Count, _>(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?;
@@ -215,7 +215,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
         let manual_liveliness_count =
-            param_list.get::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
+            param_list.get_or_default::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos =
             param_list.get_or_default::<BuiltinEndpointQos, _>(PID_BUILTIN_ENDPOINT_QOS)?;
         let lease_duration =
