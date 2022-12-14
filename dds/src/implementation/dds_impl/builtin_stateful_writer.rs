@@ -1,40 +1,41 @@
-use crate::implementation::rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer};
 use crate::{
-    implementation::rtps::{
-        endpoint::RtpsEndpoint,
-        messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                VendorIdSubmessageElement,
+    implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
+        rtps::{
+            endpoint::RtpsEndpoint,
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessage_elements::{
+                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
+                    VendorIdSubmessageElement,
+                },
+                submessages::AckNackSubmessage,
+                types::ProtocolId,
+                RtpsMessage,
             },
-            submessages::AckNackSubmessage,
-            types::ProtocolId,
-            RtpsMessage,
+            stateful_writer::{
+                RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
+                DEFAULT_NACK_SUPPRESSION_DURATION,
+            },
+            transport::TransportWrite,
+            types::{Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
+            utils::clock::StdTimer,
+            writer::RtpsWriter,
         },
-        stateful_writer::{
-            DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
-            DEFAULT_NACK_SUPPRESSION_DURATION,
-        },
-        transport::TransportWrite,
-        types::{Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
-        writer::RtpsWriter,
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::DataWriterQos,
+        qos_policy::{DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::Time,
     },
-    infrastructure::{instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind},
     topic_definition::type_support::{DdsSerialize, DdsType},
-};
-
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
-        discovered_writer_data::DiscoveredWriterData,
-    },
-    utils::shared_object::{DdsRwLock, DdsShared},
 };
 
 use super::{
@@ -70,7 +71,12 @@ impl BuiltinStatefulWriter {
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-            DataWriterQos::default(),
+            DataWriterQos {
+                durability: DurabilityQosPolicy {
+                    kind: DurabilityQosPolicyKind::TransientLocal,
+                },
+                ..Default::default()
+            },
         ));
 
         DdsShared::new(BuiltinStatefulWriter {
@@ -171,9 +177,7 @@ impl DdsShared<BuiltinStatefulWriter> {
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix,
-                },
+                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
             };
 
             let rtps_message = RtpsMessage {

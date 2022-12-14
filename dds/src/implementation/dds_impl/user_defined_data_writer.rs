@@ -709,8 +709,8 @@ mod test {
             qos::{PublisherQos, TopicQos},
             qos_policy::{
                 DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
+                DurabilityQosPolicyKind, GroupDataQosPolicy, LatencyBudgetQosPolicy,
+                LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
                 ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
                 TopicDataQosPolicy, UserDataQosPolicy,
             },
@@ -815,6 +815,9 @@ mod test {
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::BestEffort,
                     max_blocking_time: DURATION_ZERO,
+                },
+                durability: DurabilityQosPolicy {
+                    kind: DurabilityQosPolicyKind::TransientLocal,
                 },
                 ..Default::default()
             },

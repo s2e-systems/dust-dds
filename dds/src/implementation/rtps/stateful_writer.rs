@@ -4,7 +4,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::DataWriterQos,
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
@@ -53,11 +53,17 @@ impl<T> RtpsStatefulWriter<T> {
             .iter()
             .any(|x| x.remote_reader_guid() == a_reader_proxy.remote_reader_guid())
         {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
+            let status = match self.writer.get_qos().durability.kind {
+                DurabilityQosPolicyKind::Volatile => ChangeForReaderStatusKind::Acknowledged,
+                DurabilityQosPolicyKind::TransientLocal => {
+                    if self.writer.push_mode() {
+                        ChangeForReaderStatusKind::Unsent
+                    } else {
+                        ChangeForReaderStatusKind::Unacknowledged
+                    }
+                }
             };
+
             for change in self.writer.writer_cache().changes() {
                 a_reader_proxy
                     .changes_for_reader_mut()
@@ -126,17 +132,23 @@ impl<T> RtpsStatefulWriter<T> {
 
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let sequence_number = change.sequence_number();
-        self.writer.writer_cache_mut().add_change(change);
 
-        for reader_proxy in &mut self.matched_readers {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-            reader_proxy
-                .changes_for_reader_mut()
-                .push(RtpsChangeForReader::new(status, true, sequence_number))
+        if self.matched_readers.is_empty() {
+            if self.writer.get_qos().durability.kind == DurabilityQosPolicyKind::TransientLocal {
+                self.writer.writer_cache_mut().add_change(change);
+            }
+        } else {
+            self.writer.writer_cache_mut().add_change(change);
+            for reader_proxy in &mut self.matched_readers {
+                let status = if self.writer.push_mode() {
+                    ChangeForReaderStatusKind::Unsent
+                } else {
+                    ChangeForReaderStatusKind::Unacknowledged
+                };
+                reader_proxy
+                    .changes_for_reader_mut()
+                    .push(RtpsChangeForReader::new(status, true, sequence_number))
+            }
         }
     }
 
@@ -310,7 +322,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                             .writer
                             .writer_cache()
                             .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
+                            .unwrap_or(self.writer.last_change_sequence_number() + 1),
                     },
                     last_sn: SequenceNumberSubmessageElement {
                         value: self

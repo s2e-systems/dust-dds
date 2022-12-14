@@ -318,4 +318,8 @@ impl RtpsWriter {
             None
         }
     }
+
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
+        self.last_change_sequence_number
+    }
 }
