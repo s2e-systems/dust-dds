@@ -11,7 +11,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
-            types::GuidPrefix,
+            types::{GuidPrefix, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -271,8 +271,9 @@ impl DdsShared<UserDefinedDataReader> {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-        rtps_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.rtps_reader
+            .write_lock()
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.user_defined_data_send_condvar.notify_all();
     }
 
@@ -283,8 +284,7 @@ impl DdsShared<UserDefinedDataReader> {
 
         if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
         {
-            let mut rtps_reader_lock = self.rtps_reader.write_lock();
-            let reader_qos = rtps_reader_lock.reader().get_qos();
+            let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
             let parent_subscriber_qos = self.get_subscriber().get_qos();
 
             let mut incompatible_qos_policy_list = Vec::new();
@@ -332,7 +332,9 @@ impl DdsShared<UserDefinedDataReader> {
                     discovered_writer_data.writer_proxy.remote_group_entity_id,
                 );
 
-                rtps_reader_lock.matched_writer_add(writer_proxy);
+                self.rtps_reader
+                    .write_lock()
+                    .matched_writer_add(writer_proxy);
 
                 self.matched_publication_list.write_lock().insert(
                     discovered_writer_data.get_serialized_key().into(),
@@ -735,9 +737,8 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn as_discovered_reader_data(&self) -> DiscoveredReaderData {
-        let rtps_reader_lock = self.rtps_reader.read_lock();
-        let guid = rtps_reader_lock.reader().guid();
-        let reader_qos = rtps_reader_lock.reader().get_qos();
+        let guid = self.rtps_reader.read_lock().reader().guid();
+        let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
         let topic_qos = self.topic.get_qos();
         let subscriber_qos = self.get_subscriber().get_qos();
 
@@ -752,7 +753,9 @@ impl DdsShared<UserDefinedDataReader> {
 
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),
@@ -763,7 +766,7 @@ impl DdsShared<UserDefinedDataReader> {
                 ownership: reader_qos.ownership.clone(),
                 destination_order: reader_qos.destination_order.clone(),
                 user_data: reader_qos.user_data.clone(),
-                time_based_filter: reader_qos.time_based_filter.clone(),
+                time_based_filter: reader_qos.time_based_filter,
                 presentation: subscriber_qos.presentation.clone(),
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,

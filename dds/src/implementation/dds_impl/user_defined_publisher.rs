@@ -198,9 +198,8 @@ impl DdsShared<UserDefinedPublisher> {
     where
         Foo: DdsType,
     {
-        let data_writer_list = &self.data_writer_list.write_lock();
-
-        data_writer_list
+        self.data_writer_list
+            .write_lock()
             .iter()
             .find_map(|data_writer_shared| {
                 let data_writer_topic = data_writer_shared.get_topic();

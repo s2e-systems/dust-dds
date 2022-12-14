@@ -270,24 +270,26 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
-        let mut publisher_list = self.user_defined_publisher_list.write_lock();
-
-        let publisher = publisher_list
+        if !self
+            .user_defined_publisher_list
+            .read_lock()
             .iter()
             .find(|&x| x.get_instance_handle() == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Publisher can only be deleted from its parent participant".to_string(),
                 )
-            })?;
-
-        if !publisher.is_empty() {
+            })?
+            .is_empty()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
             ));
         }
 
-        publisher_list.retain(|x| x.get_instance_handle() != a_publisher_handle);
+        self.user_defined_publisher_list
+            .write_lock()
+            .retain(|x| x.get_instance_handle() != a_publisher_handle);
 
         Ok(())
     }
@@ -332,24 +334,26 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
-        let mut subscriber_list = self.user_defined_subscriber_list.write_lock();
-
-        let subscriber = subscriber_list
+        if !self
+            .user_defined_subscriber_list
+            .read_lock()
             .iter()
             .find(|&x| x.get_instance_handle() == a_subscriber_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Subscriber can only be deleted from its parent participant".to_string(),
                 )
-            })?;
-
-        if !subscriber.is_empty() {
+            })?
+            .is_empty()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber still contains data readers".to_string(),
             ));
         }
 
-        subscriber_list.retain(|x| x.get_instance_handle() != a_subscriber_handle);
+        self.user_defined_subscriber_list
+            .write_lock()
+            .retain(|x| x.get_instance_handle() != a_subscriber_handle);
 
         Ok(())
     }
@@ -400,23 +404,27 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_topic<Foo>(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
-        let mut topic_list = self.topic_list.write_lock();
-        let topic = topic_list
+        if self
+            .topic_list
+            .read_lock()
             .iter()
             .find(|&topic| topic.get_instance_handle() == a_topic_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Topic can only be deleted from its parent publisher".to_string(),
                 )
-            })?;
-
-        if topic.strong_count() > 1 {
+            })?
+            .strong_count()
+            > 1
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Topic still attached to some data reader or data writer".to_string(),
             ));
         }
 
-        topic_list.retain(|x| x.get_instance_handle() != a_topic_handle);
+        self.topic_list
+            .write_lock()
+            .retain(|x| x.get_instance_handle() != a_topic_handle);
 
         Ok(())
     }
@@ -804,14 +812,11 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
-        let user_defined_publisher_list = self.user_defined_publisher_list.read_lock();
-        let user_defined_subscriber_list = self.user_defined_subscriber_list.read_lock();
-
-        for publisher in user_defined_publisher_list.iter() {
+        for publisher in self.user_defined_publisher_list.read_lock().iter() {
             publisher.send_message(transport)
         }
 
-        for subscriber in user_defined_subscriber_list.iter() {
+        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
             subscriber.send_message(transport)
         }
     }
@@ -851,32 +856,22 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn discover_matched_writers(&self) -> DdsResult<()> {
-        let user_defined_subscribers = self.user_defined_subscriber_list.read_lock();
-
-        if user_defined_subscribers.is_empty() {
-            return Ok(());
-        }
-
-        let sedp_builtin_publication_reader =
-            self.builtin_subscriber.sedp_builtin_publications_reader();
-
-        if let Ok(samples) = sedp_builtin_publication_reader.take(
-            1,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-        ) {
+        if let Ok(samples) = self
+            .builtin_subscriber
+            .sedp_builtin_publications_reader()
+            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
             for discovered_writer_data_sample in samples.iter() {
                 match discovered_writer_data_sample.sample_info.instance_state {
                     InstanceStateKind::Alive => {
-                        for subscriber in user_defined_subscribers.iter() {
+                        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
                             subscriber.add_matched_writer(
                                 discovered_writer_data_sample.data.as_ref().unwrap(),
                             );
                         }
                     }
                     InstanceStateKind::NotAliveDisposed => {
-                        for subscriber in user_defined_subscribers.iter() {
+                        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
                             subscriber.remove_matched_writer(
                                 discovered_writer_data_sample.sample_info.instance_handle,
                             );
@@ -891,23 +886,13 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn discover_matched_readers(&self) -> DdsResult<()> {
-        let user_defined_publishers = self.user_defined_publisher_list.read_lock();
-
-        if user_defined_publishers.is_empty() {
-            return Ok(());
-        }
-
-        let sedp_builtin_subscription_reader =
-            self.builtin_subscriber.sedp_builtin_subscriptions_reader();
-
-        if let Ok(samples) = sedp_builtin_subscription_reader.take(
-            1,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-        ) {
+        if let Ok(samples) = self
+            .builtin_subscriber
+            .sedp_builtin_subscriptions_reader()
+            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        {
             for discovered_reader_data_sample in samples.iter() {
-                for publisher in user_defined_publishers.iter() {
+                for publisher in self.user_defined_publisher_list.read_lock().iter() {
                     match discovered_reader_data_sample.sample_info.instance_state {
                         InstanceStateKind::Alive => publisher.add_matched_reader(
                             discovered_reader_data_sample.data.as_ref().unwrap(),
