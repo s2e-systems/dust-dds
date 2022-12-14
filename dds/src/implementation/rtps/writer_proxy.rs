@@ -1,12 +1,4 @@
-use super::{
-    messages::{
-        submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-        },
-        submessages::{AckNackSubmessage, HeartbeatSubmessage},
-    },
-    types::{Count, EntityId, Guid, Locator, SequenceNumber},
-};
+use super::types::{Count, EntityId, Guid, Locator, SequenceNumber};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
@@ -15,58 +7,13 @@ pub struct RtpsWriterProxy {
     multicast_locator_list: Vec<Locator>,
     data_max_size_serialized: Option<i32>,
     remote_group_entity_id: EntityId,
-    pub first_available_seq_num: SequenceNumber,
-    pub last_available_seq_num: SequenceNumber,
+    first_available_seq_num: SequenceNumber,
+    last_available_seq_num: SequenceNumber,
     irrelevant_changes: Vec<SequenceNumber>,
     received_changes: Vec<SequenceNumber>,
-    pub must_send_acknacks: bool,
-    pub last_received_heartbeat_count: Count,
-    pub acknack_count: Count,
-}
-
-impl RtpsWriterProxy {
-    pub fn reliable_send_ack_nack(
-        &mut self,
-        reader_id: EntityId,
-        acknack_count: Count,
-        mut send_acknack: impl FnMut(&Self, AckNackSubmessage),
-    ) {
-        let endianness_flag = true;
-        let final_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: reader_id,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: self.remote_writer_guid().entity_id(),
-        };
-
-        let reader_sn_state = SequenceNumberSetSubmessageElement {
-            base: self.available_changes_max() + 1,
-            set: self.missing_changes(),
-        };
-        let count = CountSubmessageElement {
-            value: acknack_count,
-        };
-
-        let acknack_submessage = AckNackSubmessage {
-            endianness_flag,
-            final_flag,
-            reader_id,
-            writer_id,
-            reader_sn_state,
-            count,
-        };
-
-        send_acknack(self, acknack_submessage);
-    }
-
-    pub fn reliable_receive_heartbeat(&mut self, heartbeat: &HeartbeatSubmessage) {
-        if !heartbeat.final_flag {
-            self.must_send_acknacks = true;
-        }
-        self.missing_changes_update(heartbeat.last_sn.value);
-        self.lost_changes_update(heartbeat.first_sn.value);
-    }
+    must_send_acknacks: bool,
+    last_received_heartbeat_count: Count,
+    acknack_count: Count,
 }
 
 impl RtpsWriterProxy {
@@ -92,9 +39,7 @@ impl RtpsWriterProxy {
             acknack_count: Count::new(0),
         }
     }
-}
 
-impl RtpsWriterProxy {
     pub fn remote_writer_guid(&self) -> Guid {
         self.remote_writer_guid
     }
@@ -102,9 +47,7 @@ impl RtpsWriterProxy {
     pub fn unicast_locator_list(&self) -> &[Locator] {
         self.unicast_locator_list.as_ref()
     }
-}
 
-impl RtpsWriterProxy {
     pub fn available_changes_max(&self) -> SequenceNumber {
         // The condition to make any CacheChange ‘a_change’ available for ‘access’ by the DDS DataReader is that there are no changes
         // from the RTPS Writer with SequenceNumber_t smaller than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN.
@@ -184,6 +127,30 @@ impl RtpsWriterProxy {
         //     SUCH-THAT change.sequenceNumber == a_seq_num;
         // change.status := RECEIVED
         self.received_changes.push(a_seq_num);
+    }
+
+    pub fn set_must_send_acknacks(&mut self, must_send_acknacks: bool) {
+        self.must_send_acknacks = must_send_acknacks;
+    }
+
+    pub fn must_send_acknacks(&self) -> bool {
+        self.must_send_acknacks
+    }
+
+    pub fn last_received_heartbeat_count(&self) -> Count {
+        self.last_received_heartbeat_count
+    }
+
+    pub fn set_last_received_heartbeat_count(&mut self, last_received_heartbeat_count: Count) {
+        self.last_received_heartbeat_count = last_received_heartbeat_count;
+    }
+
+    pub fn acknack_count(&self) -> Count {
+        self.acknack_count
+    }
+
+    pub fn increment_acknack_count(&mut self) {
+        self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 }
 

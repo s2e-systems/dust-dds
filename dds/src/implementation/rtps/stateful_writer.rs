@@ -402,10 +402,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
-        source_guid_prefix: GuidPrefix,
+        dst_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(source_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(dst_guid_prefix, acknack_submessage.reader_id.value);
 
             if let Some(reader_proxy) = self
                 .matched_readers
