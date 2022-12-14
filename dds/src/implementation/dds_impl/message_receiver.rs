@@ -160,6 +160,7 @@ impl MessageReceiver {
         self.source_guid_prefix
     }
 
+    #[allow(dead_code)]
     pub fn dest_guid_prefix(&self) -> GuidPrefix {
         self.dest_guid_prefix
     }

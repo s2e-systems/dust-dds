@@ -107,7 +107,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
             rtps_writer_lock.on_acknack_submessage_received(
                 acknack_submessage,
-                message_receiver.dest_guid_prefix(),
+                message_receiver.source_guid_prefix(),
             );
         }
     }
