@@ -80,7 +80,8 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        let rtps_udp_psm = RtpsUdpPsm::new(domain_id).map_err(DdsError::PreconditionNotMet)?;
+        let rtps_udp_psm = RtpsUdpPsm::new(domain_id, configuration.interface_name.as_ref())
+            .map_err(DdsError::PreconditionNotMet)?;
         let rtps_participant = RtpsParticipant::new(
             GuidPrefix::new(rtps_udp_psm.guid_prefix()),
             rtps_udp_psm.default_unicast_locator_list().as_ref(),
