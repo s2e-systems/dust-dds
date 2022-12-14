@@ -176,7 +176,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         parameter_list_serializer.serialize_parameter_if_not_default::<&Count, _>(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
-        )?;
+        )?; // Default value is a deviation from the standard and is used for interoperability reasons
         parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltinEndpointQos, _>(
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
@@ -216,6 +216,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             param_list.get_list::<Locator, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons
         let manual_liveliness_count =
             param_list.get_or_default::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos =

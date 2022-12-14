@@ -125,7 +125,7 @@ impl DdsSerialize for DiscoveredReaderData {
         parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltInTopicKey, _>(
             PID_PARTICIPANT_GUID,
             &self.subscription_builtin_topic_data.participant_key,
-        )?;
+        )?; // Default value is a deviation from the standard and is used for interoperability reasons
         parameter_list_serializer.serialize_parameter::<String, _>(
             PID_TOPIC_NAME,
             &self.subscription_builtin_topic_data.topic_name,
@@ -206,6 +206,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 
         // subscription_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons
         let participant_key =
             param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
