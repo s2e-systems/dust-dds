@@ -38,7 +38,7 @@ fn main() {
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
+            kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
@@ -56,7 +56,7 @@ fn main() {
         .attach_condition(Condition::StatusCondition(reader_cond.clone()))
         .unwrap();
 
-    wait_set.wait(Duration::new(3660, 0)).unwrap();
+    wait_set.wait(Duration::new(60, 0)).unwrap();
 
     reader_cond
         .set_enabled_statuses(&[StatusKind::DataAvailable])
