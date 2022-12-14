@@ -6,7 +6,7 @@ use crate::infrastructure::qos_policy::{
     TransportPriorityQosPolicy, UserDataQosPolicy,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }

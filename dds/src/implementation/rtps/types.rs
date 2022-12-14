@@ -17,7 +17,6 @@ pub struct Guid {
     entity_id: EntityId,
 }
 
-#[allow(dead_code)]
 pub const GUID_UNKNOWN: Guid = Guid {
     prefix: GUIDPREFIX_UNKNOWN,
     entity_id: ENTITYID_UNKNOWN,
@@ -246,15 +245,24 @@ impl ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
 pub struct VendorId([u8; 2]);
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
-
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
 pub struct Count(i32);
 
 impl Count {
@@ -292,11 +300,41 @@ pub struct Locator {
     address: LocatorAddress,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
 pub struct LocatorKind(i32);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
 pub struct LocatorPort(u32);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
 pub struct LocatorAddress([u8; 16]);
 
 #[allow(dead_code)]

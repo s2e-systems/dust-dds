@@ -1,24 +1,26 @@
-use crate::builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData};
-
-use crate::domain::domain_participant_factory::DomainId;
-use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
-use crate::implementation::rtps::types::{
-    Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos_policy::UserDataQosPolicy;
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{
-            DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
-            ExpectsInlineQosSerialize,
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    domain::domain_participant_factory::DomainId,
+    implementation::{
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+            serde_remote_rtps_pim::{
+                DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
+                ExpectsInlineQosSerialize,
+            },
+        },
+        rtps::{
+            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            types::{
+                Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+            },
         },
     },
-    infrastructure::time::Duration,
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{error::DdsResult, qos_policy::UserDataQosPolicy, time::Duration},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{
@@ -171,10 +173,10 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_BUILTIN_ENDPOINT_SET,
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter::<&Count, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default::<&Count, _>(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
-        )?;
+        )?; // Default value is a deviation from the standard and is used for interoperability reasons
         parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltinEndpointQos, _>(
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
@@ -214,8 +216,9 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             param_list.get_list::<Locator, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons
         let manual_liveliness_count =
-            param_list.get::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
+            param_list.get_or_default::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos =
             param_list.get_or_default::<BuiltinEndpointQos, _>(PID_BUILTIN_ENDPOINT_QOS)?;
         let lease_duration =
