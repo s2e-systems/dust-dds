@@ -1,24 +1,26 @@
-use crate::builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData};
-
-use crate::domain::domain_participant_factory::DomainId;
-use crate::implementation::rtps::discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet};
-use crate::implementation::rtps::types::{
-    Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
-};
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos_policy::UserDataQosPolicy;
-use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
-    implementation::parameter_list_serde::{
-        parameter_list_deserializer::ParameterListDeserializer,
-        parameter_list_serializer::ParameterListSerializer,
-        serde_remote_rtps_pim::{
-            DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
-            ExpectsInlineQosSerialize,
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    domain::domain_participant_factory::DomainId,
+    implementation::{
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+            serde_remote_rtps_pim::{
+                DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
+                ExpectsInlineQosSerialize,
+            },
+        },
+        rtps::{
+            discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
+            types::{
+                Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+            },
         },
     },
-    infrastructure::time::Duration,
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
+    infrastructure::{error::DdsResult, qos_policy::UserDataQosPolicy, time::Duration},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+    },
 };
 
 use super::parameter_id_values::{
