@@ -289,7 +289,7 @@ impl DdsShared<UserDefinedDataReader> {
 
             let mut incompatible_qos_policy_list = Vec::new();
 
-            if reader_qos.durability < writer_info.durability {
+            if reader_qos.durability > writer_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
             }
             if parent_subscriber_qos.presentation.access_scope

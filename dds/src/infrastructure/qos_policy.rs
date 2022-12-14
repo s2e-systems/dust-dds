@@ -977,8 +977,6 @@ mod tests {
 
     #[test]
     fn durability_qos_policy_kind_ordering() {
-        assert!(DurabilityQosPolicyKind::Volatile < DurabilityQosPolicyKind::TransientLocal);
-
         assert!(DurabilityQosPolicyKind::Volatile == DurabilityQosPolicyKind::Volatile);
         assert!(DurabilityQosPolicyKind::Volatile < DurabilityQosPolicyKind::TransientLocal);
 
