@@ -720,7 +720,7 @@ impl DdsShared<DomainParticipantImpl> {
                 vendor_id: self.rtps_participant.vendor_id(),
                 expects_inline_qos: false,
                 metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
-                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+                metatraffic_multicast_locator_list: vec![],
                 default_unicast_locator_list: self
                     .rtps_participant
                     .default_unicast_locator_list()
