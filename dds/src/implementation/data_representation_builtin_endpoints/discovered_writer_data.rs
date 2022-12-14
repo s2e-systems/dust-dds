@@ -112,7 +112,8 @@ impl DdsSerialize for DiscoveredWriterData {
                 data_max_size_serialized,
             )?;
         }
-        parameter_list_serializer.serialize_parameter::<&EntityId, _>(
+
+        parameter_list_serializer.serialize_parameter_if_not_default::<&EntityId, _>(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
         )?;
@@ -200,7 +201,8 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
-        let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id =
+            param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;

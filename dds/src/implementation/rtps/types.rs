@@ -124,6 +124,12 @@ impl From<EntityId> for [u8; 4] {
     }
 }
 
+impl Default for EntityId {
+    fn default() -> Self {
+        ENTITYID_UNKNOWN
+    }
+}
+
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
     entity_key: [0; 3],
     entity_kind: USER_DEFINED_UNKNOWN,

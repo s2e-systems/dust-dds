@@ -36,7 +36,7 @@ impl BuiltinPublisher {
         sedp_topic_topics: DdsShared<TopicImpl>,
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
-        discovery_locator_list: &[Locator],
+        spdp_discovery_locator_list: &[Locator],
     ) -> DdsShared<Self> {
         let qos = PublisherQos::default();
 
@@ -48,7 +48,7 @@ impl BuiltinPublisher {
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
         let spdp_builtin_participant_writer = BuiltinStatelessWriter::new(
             spdp_builtin_participant_writer_guid,
-            discovery_locator_list,
+            spdp_discovery_locator_list,
         );
 
         let sedp_builtin_topics_writer_guid =

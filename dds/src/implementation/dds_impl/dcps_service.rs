@@ -41,7 +41,8 @@ impl DcpsService {
             configuration.domain_tag,
             domain_participant_qos,
             transport.metatraffic_unicast_locator_list(),
-            transport.metatraffic_multicast_locator_list(),
+            vec![],
+            transport.metatraffic_multicast_locator_list().as_slice(),
             announcer_condvar.clone(),
             user_defined_data_send_condvar.clone(),
         );
