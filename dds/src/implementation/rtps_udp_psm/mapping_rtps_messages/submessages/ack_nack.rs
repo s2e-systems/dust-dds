@@ -81,7 +81,7 @@ mod tests {
                 CountSubmessageElement, EntityIdSubmessageElement,
                 SequenceNumberSetSubmessageElement,
             },
-            types::{Count, EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP},
+            types::{Count, EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP, SequenceNumber},
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -104,7 +104,7 @@ mod tests {
             reader_id,
             writer_id,
             reader_sn_state: SequenceNumberSetSubmessageElement {
-                base: 10,
+                base: SequenceNumber::new(10),
                 set: vec![],
             },
             count: CountSubmessageElement {
@@ -148,7 +148,7 @@ mod tests {
                     value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
                 },
                 reader_sn_state: SequenceNumberSetSubmessageElement {
-                    base: 10,
+                    base: SequenceNumber::new(10),
                     set: vec![],
                 },
                 count: CountSubmessageElement {

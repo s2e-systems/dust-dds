@@ -1,4 +1,4 @@
-use std::ops::AddAssign;
+use std::ops::{AddAssign, Add, Sub};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -179,10 +179,50 @@ pub type EntityKey = [u8; 3];
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-pub type SequenceNumber = i64;
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, derive_more::Into, derive_more::Constructor)]
+pub struct SequenceNumber(i64);
 #[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
 
+impl AddAssign for SequenceNumber {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl AddAssign<i64> for SequenceNumber {
+    fn add_assign(&mut self, rhs: i64) {
+        self.0 += rhs;
+    }
+}
+
+impl Add for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        SequenceNumber(self.0 + rhs.0)
+    }
+}
+impl Add<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 + rhs)
+    }
+}
+impl Sub<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 - rhs)
+    }
+}
+impl Sub for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        SequenceNumber(self.0 - rhs.0)
+    }
+}
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY

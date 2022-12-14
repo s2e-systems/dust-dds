@@ -743,7 +743,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -751,7 +754,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2),
+                    SequenceNumber::new(2),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -799,7 +805,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1_instance1),
+                    SequenceNumber::new(1),
+                ),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -807,7 +816,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 2),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2_instance1),
+                    SequenceNumber::new(2),
+                ),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -816,7 +828,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 3),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1_instance2),
+                    SequenceNumber::new(3),
+                ),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -824,7 +839,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 4),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2_instance2),
+                    SequenceNumber::new(4),
+                ),
                 Some(Time { sec: 1, nanosec: 0 }),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -874,7 +892,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -882,7 +903,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2), 2),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2),
+                    SequenceNumber::new(2),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -890,7 +914,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data3), 3),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data3),
+                    SequenceNumber::new(3),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -898,7 +925,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data4), 4),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data4),
+                    SequenceNumber::new(4),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -948,7 +978,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1_instance1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -956,7 +989,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2_instance1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -964,7 +1000,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data3_instance1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -972,7 +1011,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance1), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data4_instance1),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -998,7 +1040,10 @@ mod tests {
 
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data1_instance2), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data1_instance2),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1006,7 +1051,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data2_instance2), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data2_instance2),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1014,7 +1062,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data3_instance2), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data3_instance2),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1022,7 +1073,10 @@ mod tests {
             .unwrap();
         reader
             .add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&data4_instance2), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&data4_instance2),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1076,7 +1130,7 @@ mod tests {
             .add_change(
                 &create_data_submessage_for_alive_change(
                     &to_bytes_le(&UnkeyedType { data: [1; 5] }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1088,7 +1142,10 @@ mod tests {
         let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1,),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&sample),
+                    SequenceNumber::new(1),
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1125,7 +1182,7 @@ mod tests {
                         key: 1,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1140,7 +1197,10 @@ mod tests {
         let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&sample),
+                    SequenceNumber::new(1)
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1177,7 +1237,7 @@ mod tests {
                         key: 1,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1191,7 +1251,7 @@ mod tests {
                         key: 2,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1206,7 +1266,10 @@ mod tests {
         let instance_handle = sample.get_serialized_key().into();
         assert_eq!(
             reader.add_change(
-                &create_data_submessage_for_alive_change(&to_bytes_le(&sample), 1),
+                &create_data_submessage_for_alive_change(
+                    &to_bytes_le(&sample),
+                    SequenceNumber::new(1)
+                ),
                 None,
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
@@ -1238,7 +1301,7 @@ mod tests {
                         key: 1,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1252,7 +1315,7 @@ mod tests {
                         key: 1,
                         data: [2; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1269,7 +1332,7 @@ mod tests {
                         }
                         .get_serialized_key(),
                     ),
-                    3,
+                    SequenceNumber::new(3),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1283,7 +1346,7 @@ mod tests {
                         key: 1,
                         data: [4; 5],
                     }),
-                    4,
+                    SequenceNumber::new(4),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1300,7 +1363,7 @@ mod tests {
                         }
                         .get_serialized_key(),
                     ),
-                    5,
+                    SequenceNumber::new(5),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1314,7 +1377,7 @@ mod tests {
                         key: 1,
                         data: [6; 5],
                     }),
-                    6,
+                    SequenceNumber::new(6),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1355,7 +1418,7 @@ mod tests {
                         key: 1,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1369,7 +1432,7 @@ mod tests {
                         key: 1,
                         data: [2; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1386,7 +1449,7 @@ mod tests {
                         }
                         .get_serialized_key(),
                     ),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1400,7 +1463,7 @@ mod tests {
                         key: 1,
                         data: [4; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1417,7 +1480,7 @@ mod tests {
                         }
                         .get_serialized_key(),
                     ),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1431,7 +1494,7 @@ mod tests {
                         key: 1,
                         data: [6; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1485,7 +1548,7 @@ mod tests {
                         key: 1,
                         data: [1; 5],
                     }),
-                    1,
+                    SequenceNumber::new(1),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1499,7 +1562,7 @@ mod tests {
                         key: 1,
                         data: [2; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1513,7 +1576,7 @@ mod tests {
                         key: 1,
                         data: [3; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,
@@ -1527,7 +1590,7 @@ mod tests {
                         key: 1,
                         data: [4; 5],
                     }),
-                    2,
+                    SequenceNumber::new(2),
                 ),
                 None,
                 GUIDPREFIX_UNKNOWN,

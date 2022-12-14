@@ -149,7 +149,7 @@ mod tests {
                 types::ProtocolId,
             },
             types::{
-                EntityId, GuidPrefix, ProtocolVersion, VendorId,
+                EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
                 USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             },
         },
@@ -211,7 +211,9 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
@@ -319,7 +321,9 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
@@ -398,7 +402,9 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
