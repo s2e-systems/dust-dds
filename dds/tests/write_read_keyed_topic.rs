@@ -3,7 +3,8 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
-            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::{StatusKind, NO_STATUS},
         time::Duration,
@@ -272,4 +273,80 @@ fn write_read_sample_view_state() {
     assert_eq!(samples.len(), 2);
     assert_eq!(samples[0].sample_info.view_state, ViewStateKind::NotNew);
     assert_eq!(samples[1].sample_info.view_state, ViewStateKind::New);
+}
+
+#[test]
+fn samples_late_join_reader_volatile() {
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("OtherTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::Volatile,
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 2, value: 1 };
+
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data3 = KeyedData { id: 3, value: 1 };
+
+    writer.write(&data3, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(1, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data, Some(data3));
 }
