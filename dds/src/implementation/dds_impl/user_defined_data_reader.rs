@@ -766,7 +766,7 @@ impl DdsShared<UserDefinedDataReader> {
                 ownership: reader_qos.ownership.clone(),
                 destination_order: reader_qos.destination_order.clone(),
                 user_data: reader_qos.user_data.clone(),
-                time_based_filter: reader_qos.time_based_filter.clone(),
+                time_based_filter: reader_qos.time_based_filter,
                 presentation: subscriber_qos.presentation.clone(),
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,

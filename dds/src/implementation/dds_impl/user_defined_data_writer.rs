@@ -654,7 +654,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 lifespan: writer_qos.lifespan.clone(),
                 user_data: writer_qos.user_data.clone(),
                 ownership: writer_qos.ownership.clone(),
-                destination_order: writer_qos.destination_order.clone(),
+                destination_order: writer_qos.destination_order,
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,
