@@ -16,7 +16,7 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
+            types::{EntityId, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
@@ -634,7 +634,9 @@ impl DdsShared<UserDefinedDataWriter> {
                 key: BuiltInTopicKey {
                     value: rtps_writer_lock.guid().into(),
                 },
-                participant_key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),
                 durability: writer_qos.durability.clone(),

@@ -11,7 +11,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
-            types::GuidPrefix,
+            types::{GuidPrefix, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -752,7 +752,7 @@ impl DdsShared<UserDefinedDataReader> {
 
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey { value: GUID_UNKNOWN.into() },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),
                 durability: reader_qos.durability.clone(),

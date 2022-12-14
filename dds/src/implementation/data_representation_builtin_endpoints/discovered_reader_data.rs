@@ -122,7 +122,7 @@ impl DdsSerialize for DiscoveredReaderData {
             PID_ENDPOINT_GUID,
             &self.subscription_builtin_topic_data.key,
         )?;
-        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltInTopicKey, _>(
             PID_PARTICIPANT_GUID,
             &self.subscription_builtin_topic_data.participant_key,
         )?;
@@ -206,7 +206,8 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 
         // subscription_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        let participant_key = param_list.get::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+        let participant_key =
+            param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
