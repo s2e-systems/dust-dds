@@ -12,7 +12,7 @@ jobs:
       - run:
           name: Run clippy
           command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings""
+            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
             cargo clippy -- -D warnings
       - run:
