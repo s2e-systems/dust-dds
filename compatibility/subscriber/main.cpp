@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 		const dds::sub::qos::SubscriberQos subscriberQos{dp.default_subscriber_qos()};
 		const dds::sub::Subscriber subscriber{dp, subscriberQos};
 		dds::sub::qos::DataReaderQos dataReaderQos{topic.qos()};
-		dataReaderQos << dds::core::policy::Reliability::BestEffort();
+		dataReaderQos << dds::core::policy::Reliability::Reliable();
 
 		dds::sub::DataReader<HelloWorldType> dataReader{subscriber, topic, dataReaderQos};
 
