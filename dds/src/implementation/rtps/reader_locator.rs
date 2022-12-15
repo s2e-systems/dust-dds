@@ -111,7 +111,7 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            1,
+            SequenceNumber::new(1),
             TIME_INVALID,
             vec![],
             vec![],
@@ -120,13 +120,13 @@ mod tests {
             ChangeKind::Alive,
             GUID_UNKNOWN,
             HANDLE_NIL,
-            2,
+            SequenceNumber::new(2),
             TIME_INVALID,
             vec![],
             vec![],
         ));
         let mut reader_locator_attributes = RtpsReaderLocator::new(LOCATOR_INVALID, false);
-        reader_locator_attributes.unsent_changes = vec![1, 2];
+        reader_locator_attributes.unsent_changes = vec![SequenceNumber::new(1), SequenceNumber::new(2)];
 
         assert_eq!(
             reader_locator_attributes
@@ -134,7 +134,7 @@ mod tests {
                 .cache_change
                 .unwrap()
                 .sequence_number(),
-            1
+                SequenceNumber::new(1)
         );
         assert_eq!(
             reader_locator_attributes
@@ -142,7 +142,7 @@ mod tests {
                 .cache_change
                 .unwrap()
                 .sequence_number(),
-            2
+                SequenceNumber::new(2)
         );
     }
 }

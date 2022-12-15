@@ -399,18 +399,18 @@ mod tests {
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
 
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 1);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 2);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 4);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 6);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(6));
 
-        reader_proxy.requested_changes_set(&[2, 4]);
-
-        let result = reader_proxy.next_requested_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, 2);
+        reader_proxy.requested_changes_set(&[SequenceNumber::new(2), SequenceNumber::new(4)]);
 
         let result = reader_proxy.next_requested_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, 4);
+        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(2));
+
+        let result = reader_proxy.next_requested_change(&writer_cache);
+        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(4));
     }
 
     #[test]
@@ -418,11 +418,11 @@ mod tests {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 1);
-        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 3);
-        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 4);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(3));
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
 
-        assert_eq!(reader_proxy.unsent_changes(), vec![1, 3, 4]);
+        assert_eq!(reader_proxy.unsent_changes(), vec![SequenceNumber::new(1), SequenceNumber::new(3), SequenceNumber::new(4)]);
     }
 
     #[test]
@@ -430,14 +430,14 @@ mod tests {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 1);
-        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, 2);
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
+        add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
 
         let result = reader_proxy.next_unsent_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, 1);
+        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(1));
 
         let result = reader_proxy.next_unsent_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, 2);
+        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(2));
 
         // let result = std::panic::catch_unwind(|| reader_proxy.next_unsent_change());
         // assert!(result.is_err());
@@ -448,13 +448,13 @@ mod tests {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 1);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 2);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 4);
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, 6);
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
+        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(6));
 
-        reader_proxy.acked_changes_set(2);
+        reader_proxy.acked_changes_set(SequenceNumber::new(2));
 
-        assert_eq!(reader_proxy.unacked_changes(), vec![4, 6]);
+        assert_eq!(reader_proxy.unacked_changes(), vec![SequenceNumber::new(4), SequenceNumber::new(6)]);
     }
 }

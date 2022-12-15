@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count};
+use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count, SequenceNumber};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -37,13 +37,13 @@ pub struct ProtocolVersionSubmessageElement {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSubmessageElement {
-    pub value: i64,
+    pub value: SequenceNumber,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSetSubmessageElement {
-    pub base: i64,
-    pub set: Vec<i64>,
+    pub base: SequenceNumber,
+    pub set: Vec<SequenceNumber>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

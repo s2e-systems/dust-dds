@@ -136,7 +136,7 @@ mod tests {
     use crate::implementation::{
         rtps::{messages::submessage_elements::{
             EntityIdSubmessageElement, Parameter, SequenceNumberSubmessageElement,
-        }, types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP}},
+        }, types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP, SequenceNumber}},
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
 
@@ -155,7 +155,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let submessage = DataSubmessage {
@@ -195,7 +195,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
@@ -253,7 +253,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3, 4][..],
@@ -296,7 +296,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3][..],
@@ -339,7 +339,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let expected = DataSubmessage {
@@ -379,7 +379,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1, 2, 3, 4][..],
@@ -422,7 +422,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let writer_sn = SequenceNumberSubmessageElement { value: 5 };
+        let writer_sn = SequenceNumberSubmessageElement { value: SequenceNumber::new(5) };
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,

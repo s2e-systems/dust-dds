@@ -1,4 +1,4 @@
-use std::ops::AddAssign;
+use std::ops::{Add, AddAssign, Sub};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -17,7 +17,6 @@ pub struct Guid {
     entity_id: EntityId,
 }
 
-#[allow(dead_code)]
 pub const GUID_UNKNOWN: Guid = Guid {
     prefix: GUIDPREFIX_UNKNOWN,
     entity_id: ENTITYID_UNKNOWN,
@@ -125,6 +124,12 @@ impl From<EntityId> for [u8; 4] {
     }
 }
 
+impl Default for EntityId {
+    fn default() -> Self {
+        ENTITYID_UNKNOWN
+    }
+}
+
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
     entity_key: [0; 3],
     entity_kind: USER_DEFINED_UNKNOWN,
@@ -179,10 +184,52 @@ pub type EntityKey = [u8; 3];
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
-pub type SequenceNumber = i64;
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, derive_more::Into, derive_more::Constructor,
+)]
+pub struct SequenceNumber(i64);
 #[allow(dead_code)]
-pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = i64::MIN;
+pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
 
+impl AddAssign for SequenceNumber {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl AddAssign<i64> for SequenceNumber {
+    fn add_assign(&mut self, rhs: i64) {
+        self.0 += rhs;
+    }
+}
+
+impl Add for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        SequenceNumber(self.0 + rhs.0)
+    }
+}
+impl Add<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 + rhs)
+    }
+}
+impl Sub<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 - rhs)
+    }
+}
+impl Sub for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        SequenceNumber(self.0 - rhs.0)
+    }
+}
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY
@@ -246,15 +293,24 @@ impl ProtocolVersion {
 /// VendorId_t
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::Constructor)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
 pub struct VendorId([u8; 2]);
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
-
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
 pub struct Count(i32);
 
 impl Count {
@@ -284,27 +340,59 @@ impl AsRef<i32> for Count {
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
 /// Should be able to hold a discriminator identifying the kind of transport, an address, and a port number. It must be possible to represent the discriminator and port number using 4 octets each, the address using 16 octets.
-/// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDPv4 LOCATOR_KIND_UDPv6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
+/// The following values are reserved by the protocol: LOCATOR_INVALID LOCATOR_KIND_INVALID LOCATOR_KIND_RESERVED LOCATOR_KIND_UDP_V4 LOCATOR_KIND_UDP_V6 LOCATOR_ADDRESS_INVALID LOCATOR_PORT_INVALID
 #[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Locator {
     kind: LocatorKind,
     port: LocatorPort,
     address: LocatorAddress,
 }
-type LocatorKind = i32;
-type LocatorPort = u32;
-type LocatorAddress = [u8; 16];
+
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
+pub struct LocatorKind(i32);
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
+pub struct LocatorPort(u32);
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::Constructor,
+)]
+pub struct LocatorAddress([u8; 16]);
 
 #[allow(dead_code)]
-pub const LOCATOR_KIND_INVALID: LocatorKind = -1;
+pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
 #[allow(dead_code)]
-pub const LOCATOR_KIND_RESERVED: LocatorKind = 0;
-#[allow(non_upper_case_globals)]
-pub const LOCATOR_KIND_UDPv4: LocatorKind = 1;
-#[allow(non_upper_case_globals)]
-pub const LOCATOR_KIND_UDPv6: LocatorKind = 2;
-pub const LOCATOR_PORT_INVALID: LocatorPort = 0;
-pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = [0; 16];
+pub const LOCATOR_KIND_RESERVED: LocatorKind = LocatorKind(0);
+pub const LOCATOR_KIND_UDP_V4: LocatorKind = LocatorKind(1);
+pub const LOCATOR_KIND_UDP_V6: LocatorKind = LocatorKind(2);
+pub const LOCATOR_PORT_INVALID: LocatorPort = LocatorPort(0);
+pub const LOCATOR_ADDRESS_INVALID: LocatorAddress = LocatorAddress([0; 16]);
 
 #[allow(dead_code)]
 pub const LOCATOR_INVALID: Locator = Locator {

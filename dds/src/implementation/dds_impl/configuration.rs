@@ -11,16 +11,23 @@ fn default_domain_tag() -> String {
     "".to_string()
 }
 
+fn default_interface_name() -> Option<String> {
+    None
+}
+
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 pub struct DustDdsConfiguration {
     #[serde(default = "default_domain_tag")]
     pub domain_tag: String,
+    #[serde(default = "default_interface_name")]
+    pub interface_name: Option<String>,
 }
 
 impl Default for DustDdsConfiguration {
     fn default() -> Self {
         Self {
             domain_tag: default_domain_tag(),
+            interface_name: default_interface_name(),
         }
     }
 }
@@ -66,13 +73,15 @@ mod tests {
 
     #[test]
     fn from_configuration_json() {
-        let configuration =
-            DustDdsConfiguration::try_from_str(r#"{"domain_tag" : "from_configuration_json" }"#)
-                .unwrap();
+        let configuration = DustDdsConfiguration::try_from_str(
+            r#"{"domain_tag" : "from_configuration_json", "interface_name": "Wi-Fi"}"#,
+        )
+        .unwrap();
         assert_eq!(
             configuration,
             DustDdsConfiguration {
-                domain_tag: "from_configuration_json".to_string()
+                domain_tag: "from_configuration_json".to_string(),
+                interface_name: Some("Wi-Fi".to_string()),
             }
         );
     }

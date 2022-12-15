@@ -76,7 +76,9 @@ mod tests {
                 EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
                 SequenceNumberSubmessageElement,
             },
-            types::{EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP},
+            types::{
+                EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+            },
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -92,9 +94,11 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElement { value: 5 };
+        let gap_start = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
         let gap_list = SequenceNumberSetSubmessageElement {
-            base: 10,
+            base: SequenceNumber::new(10),
             set: vec![],
         };
         let submessage = GapSubmessage {
@@ -127,9 +131,11 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElement { value: 5 };
+        let gap_start = SequenceNumberSubmessageElement {
+            value: SequenceNumber::new(5),
+        };
         let gap_list = SequenceNumberSetSubmessageElement {
-            base: 10,
+            base: SequenceNumber::new(10),
             set: vec![],
         };
         let expected = GapSubmessage {

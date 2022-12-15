@@ -16,7 +16,7 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
+            types::{EntityId, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
         },
         utils::condvar::DdsCondvar,
     },
@@ -201,12 +201,15 @@ impl DdsShared<UserDefinedDataWriter> {
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        if rtps_writer_lock.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            rtps_writer_lock.on_acknack_submessage_received(
-                acknack_submessage,
-                message_receiver.source_guid_prefix(),
-            );
+        if self.rtps_writer.read_lock().get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::Reliable
+        {
+            self.rtps_writer
+                .write_lock()
+                .on_acknack_submessage_received(
+                    acknack_submessage,
+                    message_receiver.source_guid_prefix(),
+                );
         }
     }
 
@@ -214,12 +217,11 @@ impl DdsShared<UserDefinedDataWriter> {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
         let writer_topic_name = self.topic.get_name();
         let writer_type_name = self.topic.get_type_name();
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
 
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
             let parent_publisher_qos = self.get_publisher().get_qos();
-            let qos = rtps_writer_lock.get_qos();
+            let qos = self.rtps_writer.read_lock().get_qos().clone();
             let mut incompatible_qos_policy_list = Vec::new();
             if qos.durability < reader_info.durability {
                 incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
@@ -265,7 +267,9 @@ impl DdsShared<UserDefinedDataWriter> {
                     true,
                 );
 
-                rtps_writer_lock.matched_reader_add(reader_proxy);
+                self.rtps_writer
+                    .write_lock()
+                    .matched_reader_add(reader_proxy);
 
                 self.matched_subscription_list.write_lock().insert(
                     discovered_reader_data.get_serialized_key().into(),
@@ -616,25 +620,30 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn as_discovered_writer_data(&self) -> DiscoveredWriterData {
-        let rtps_writer_lock = self.rtps_writer.read_lock();
-        let writer_qos = rtps_writer_lock.get_qos();
+        let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
         let topic_qos = self.topic.get_qos();
         let publisher_qos = self.get_publisher().get_qos();
 
         DiscoveredWriterData {
             writer_proxy: WriterProxy {
-                remote_writer_guid: rtps_writer_lock.guid(),
-                unicast_locator_list: rtps_writer_lock.unicast_locator_list().to_vec(),
-                multicast_locator_list: rtps_writer_lock.multicast_locator_list().to_vec(),
+                remote_writer_guid: self.rtps_writer.read_lock().guid(),
+                unicast_locator_list: self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
+                multicast_locator_list: self
+                    .rtps_writer
+                    .read_lock()
+                    .multicast_locator_list()
+                    .to_vec(),
                 data_max_size_serialized: None,
                 remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
-                    value: rtps_writer_lock.guid().into(),
+                    value: self.rtps_writer.read_lock().guid().into(),
                 },
-                participant_key: BuiltInTopicKey { value: [1; 16] },
+                participant_key: BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
                 topic_name: self.topic.get_name(),
                 type_name: self.topic.get_type_name().to_string(),
                 durability: writer_qos.durability.clone(),
@@ -645,7 +654,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 lifespan: writer_qos.lifespan.clone(),
                 user_data: writer_qos.user_data.clone(),
                 ownership: writer_qos.ownership.clone(),
-                destination_order: writer_qos.destination_order.clone(),
+                destination_order: writer_qos.destination_order,
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,
@@ -657,12 +666,9 @@ impl DdsShared<UserDefinedDataWriter> {
 
 impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.guid().prefix();
+        let guid_prefix = self.rtps_writer.read_lock().guid().prefix();
 
-        let destined_submessages = rtps_writer_lock.produce_submessages();
-
-        for (reader_proxy, submessages) in destined_submessages {
+        for (reader_proxy, submessages) in self.rtps_writer.write_lock().produce_submessages() {
             let header = RtpsMessageHeader {
                 protocol: ProtocolId::PROTOCOL_RTPS,
                 version: ProtocolVersionSubmessageElement {
@@ -693,8 +699,8 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             types::{
-                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_WRITER_WITH_KEY,
+                Guid, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
+                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -813,7 +819,11 @@ mod test {
                 ..Default::default()
             },
         ));
-        let locator = Locator::new(1, 7400, [1; 16]);
+        let locator = Locator::new(
+            LocatorKind::new(1),
+            LocatorPort::new(7400),
+            LocatorAddress::new([1; 16]),
+        );
         let expects_inline_qos = false;
         let is_active = true;
         let reader_proxy = RtpsReaderProxy::new(

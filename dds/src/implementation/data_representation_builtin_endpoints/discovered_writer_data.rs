@@ -112,7 +112,8 @@ impl DdsSerialize for DiscoveredWriterData {
                 data_max_size_serialized,
             )?;
         }
-        parameter_list_serializer.serialize_parameter::<&EntityId, _>(
+
+        parameter_list_serializer.serialize_parameter_if_not_default::<&EntityId, _>(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
         )?;
@@ -120,10 +121,10 @@ impl DdsSerialize for DiscoveredWriterData {
             PID_ENDPOINT_GUID,
             &self.publication_builtin_topic_data.key,
         )?;
-        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltInTopicKey, _>(
             PID_PARTICIPANT_GUID,
             &self.publication_builtin_topic_data.participant_key,
-        )?;
+        )?; // Default value is a deviation from the standard and is used for interoperability reasons
         parameter_list_serializer.serialize_parameter::<String, _>(
             PID_TOPIC_NAME,
             &self.publication_builtin_topic_data.topic_name,
@@ -200,11 +201,14 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
-        let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id =
+            param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        let participant_key = param_list.get::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons
+        let participant_key =
+            param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
         let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;

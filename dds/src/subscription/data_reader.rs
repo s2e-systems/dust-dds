@@ -311,17 +311,17 @@ where
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.0.upgrade()?.get_sample_lost_status()
+        Ok(self.0.upgrade()?.get_sample_lost_status())
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        self.0.upgrade()?.get_sample_rejected_status()
+        Ok(self.0.upgrade()?.get_sample_rejected_status())
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        self.0.upgrade()?.get_subscription_matched_status()
+        Ok(self.0.upgrade()?.get_subscription_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
@@ -378,7 +378,7 @@ where
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.upgrade()?.get_matched_publications()
+        Ok(self.0.upgrade()?.get_matched_publications())
     }
 }
 
