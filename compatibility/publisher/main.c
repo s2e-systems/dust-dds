@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 	}
 	dds_qos_t *qos = dds_create_qos();
-	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
 
 	const dds_entity_t data_writer = dds_create_writer(participant, topic, qos, NULL /*listener*/);
 	if (data_writer < 0)
