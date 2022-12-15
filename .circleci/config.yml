@@ -70,7 +70,7 @@ jobs:
             cd ../dust_dds
             cargo build --example
       - run:
-          name: Hello world example
+          name: Hello world inteoperability test
           no_output_timeout: 30s
           command: |
             cargo run --example hello_world_publisher &
