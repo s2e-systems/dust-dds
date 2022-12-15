@@ -56,12 +56,12 @@ fn main() {
         .attach_condition(Condition::StatusCondition(reader_cond.clone()))
         .unwrap();
 
-    wait_set.wait(Duration::new(3660, 0)).unwrap();
+    wait_set.wait(Duration::new(60, 0)).unwrap();
 
     reader_cond
         .set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
-    wait_set.wait(Duration::new(3630, 0)).unwrap();
+    wait_set.wait(Duration::new(30, 0)).unwrap();
 
     let samples = reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
