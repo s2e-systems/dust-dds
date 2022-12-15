@@ -49,3 +49,31 @@ jobs:
 
       - store_artifacts:
           path: /tmp/coverage
+  interoperability_tests:
+    docker:
+      - image: s2esystems/dust_dds_interoperability
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Build CycloneDDS Compatibility tests
+          command: |
+            mkdir build
+            cd build
+            cmake ../dust_dds/dds/tests/interoperability
+            cmake --build .
+      - run:
+          name: Build examples
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cd ../dust_dds
+            cargo build --example
+      - run:
+          name: Hello world example
+          no_output_timeout: 30s
+          command: |
+            cargo run --example hello_world_publisher &
+            pid=$!
+            ../build/CompatibilityPublisher
+            wait $pid

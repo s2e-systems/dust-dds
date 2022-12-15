@@ -5,3 +5,4 @@ WORKDIR cyclonedds-build
 RUN cmake ../cyclonedds \
     && cmake --build . \
     && sudo cmake --build . --target install
+WORKDIR /home/circleci/project/
