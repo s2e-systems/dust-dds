@@ -106,10 +106,17 @@ pub struct RtpsUdpPsm {
 }
 
 impl RtpsUdpPsm {
-    pub fn new(domain_id: DomainId) -> Result<Self, String> {
+    pub fn new(domain_id: DomainId, interface_name: Option<&String>) -> Result<Self, String> {
         let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
             .into_iter()
+            .filter(|x| {
+                if let Some(if_name) = interface_name {
+                    &x.name == if_name
+                } else {
+                    true
+                }
+            })
             .flat_map(|i| {
                 i.addresses.into_iter().filter_map(|a| match a.address? {
                     SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(*v4.ip()),
@@ -407,8 +414,8 @@ mod tests {
 
     #[test]
     fn new_transport_makes_different_guid() {
-        let comm1 = RtpsUdpPsm::new(0).unwrap();
-        let comm2 = RtpsUdpPsm::new(0).unwrap();
+        let comm1 = RtpsUdpPsm::new(0, None).unwrap();
+        let comm2 = RtpsUdpPsm::new(0, None).unwrap();
 
         assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
     }

@@ -37,7 +37,7 @@ pub struct BuiltinStatelessWriter {
 }
 
 impl BuiltinStatelessWriter {
-    pub fn new(guid: Guid, discovery_locator_list: &[Locator]) -> DdsShared<Self> {
+    pub fn new(guid: Guid, spdp_discovery_locator_list: &[Locator]) -> DdsShared<Self> {
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
 
@@ -62,7 +62,7 @@ impl BuiltinStatelessWriter {
             },
         ));
 
-        let spdp_reader_locators: Vec<RtpsReaderLocator> = discovery_locator_list
+        let spdp_reader_locators: Vec<RtpsReaderLocator> = spdp_discovery_locator_list
             .iter()
             .map(|&locator| RtpsReaderLocator::new(locator, false))
             .collect();
@@ -121,9 +121,7 @@ impl DdsShared<BuiltinStatelessWriter> {
                 vendor_id: VendorIdSubmessageElement {
                     value: VENDOR_ID_S2E,
                 },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix,
-                },
+                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
             };
 
             let rtps_message = RtpsMessage {

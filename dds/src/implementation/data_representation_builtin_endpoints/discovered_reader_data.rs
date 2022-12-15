@@ -198,7 +198,8 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // reader_proxy
-        let remote_group_entity_id = param_list.get::<EntityId, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id =
+            param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
         let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
         let expects_inline_qos =

@@ -123,6 +123,7 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
+        spdp_discovery_locator_list: &[Locator],
         announce_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -182,7 +183,7 @@ impl DomainParticipantImpl {
             sedp_topic_topics,
             sedp_topic_publications,
             sedp_topic_subscriptions,
-            metatraffic_multicast_locator_list.as_ref(),
+            spdp_discovery_locator_list,
         );
 
         DdsShared::new(DomainParticipantImpl {
