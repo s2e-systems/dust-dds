@@ -12,14 +12,14 @@ jobs:
           command: |
             mkdir build
             cd build
-            cmake ../dust_dds/dds/tests/interoperability
+            cmake ../dds/tests/interoperability
             cmake --build .
       - run:
           name: Build examples
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cd ../dust_dds
+            cd ..
             cargo build --example
       - run:
           name: Hello world inteoperability test
