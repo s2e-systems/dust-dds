@@ -9,8 +9,6 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-///
-/// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Guid {
     prefix: GuidPrefix,
@@ -360,11 +358,6 @@ impl Count {
 impl PartialOrd<Count> for Count {
     fn partial_cmp(&self, other: &Count) -> Option<std::cmp::Ordering> {
         self.0.partial_cmp(&other.0)
-    }
-}
-impl AsRef<i32> for Count {
-    fn as_ref(&self) -> &i32 {
-        &self.0
     }
 }
 
