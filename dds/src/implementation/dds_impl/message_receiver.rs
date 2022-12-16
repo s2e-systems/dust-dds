@@ -80,12 +80,12 @@ impl MessageReceiver {
         self.source_vendor_id = message.header.vendor_id.value;
         self.source_guid_prefix = message.header.guid_prefix.value;
         self.unicast_reply_locator_list.push(Locator::new(
-            *source_locator.kind(),
+            source_locator.kind(),
             LOCATOR_PORT_INVALID,
-            *source_locator.address(),
+            source_locator.address(),
         ));
         self.multicast_reply_locator_list.push(Locator::new(
-            *source_locator.kind(),
+            source_locator.kind(),
             LOCATOR_PORT_INVALID,
             LOCATOR_ADDRESS_INVALID,
         ));
