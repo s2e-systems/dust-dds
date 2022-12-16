@@ -78,3 +78,9 @@ jobs:
             pid=$!
             ../build/InteroperabilityPublisher
             wait $pid
+workflows:
+  version: 2
+  all:
+    jobs:
+      - build
+      - interoperability_tests
