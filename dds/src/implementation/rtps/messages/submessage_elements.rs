@@ -38,7 +38,7 @@ pub struct ProtocolVersionSubmessageElement {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SequenceNumberSetSubmessageElement {
+pub struct SequenceNumberSet {
     pub base: SequenceNumber,
     pub set: Vec<SequenceNumber>,
 }

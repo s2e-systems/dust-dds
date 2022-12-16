@@ -73,7 +73,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+                EntityIdSubmessageElement, SequenceNumberSet,
             },
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
@@ -95,7 +95,7 @@ mod tests {
             value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSetSubmessageElement {
+        let gap_list = SequenceNumberSet {
             base: SequenceNumber::new(10),
             set: vec![],
         };
@@ -130,7 +130,7 @@ mod tests {
             value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumber::new(5);
-        let gap_list = SequenceNumberSetSubmessageElement {
+        let gap_list = SequenceNumberSet {
             base: SequenceNumber::new(10),
             set: vec![],
         };

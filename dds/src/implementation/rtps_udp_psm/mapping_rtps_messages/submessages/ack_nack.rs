@@ -78,7 +78,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
+                EntityIdSubmessageElement, SequenceNumberSet,
             },
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
@@ -105,7 +105,7 @@ mod tests {
             final_flag,
             reader_id,
             writer_id,
-            reader_sn_state: SequenceNumberSetSubmessageElement {
+            reader_sn_state: SequenceNumberSet {
                 base: SequenceNumber::new(10),
                 set: vec![],
             },
@@ -147,7 +147,7 @@ mod tests {
                 writer_id: EntityIdSubmessageElement {
                     value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
                 },
-                reader_sn_state: SequenceNumberSetSubmessageElement {
+                reader_sn_state: SequenceNumberSet {
                     base: SequenceNumber::new(10),
                     set: vec![],
                 },

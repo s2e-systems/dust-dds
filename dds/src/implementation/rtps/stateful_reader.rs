@@ -13,7 +13,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{
             EntityIdSubmessageElement, GuidPrefixSubmessageElement,
-            ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement,
+            ProtocolVersionSubmessageElement, SequenceNumberSet,
             VendorIdSubmessageElement,
         },
         submessages::{
@@ -226,7 +226,7 @@ impl RtpsStatefulReader {
                     writer_id: EntityIdSubmessageElement {
                         value: writer_proxy.remote_writer_guid().entity_id(),
                     },
-                    reader_sn_state: SequenceNumberSetSubmessageElement {
+                    reader_sn_state: SequenceNumberSet {
                         base: writer_proxy.available_changes_max() + 1,
                         set: writer_proxy.missing_changes(),
                     },

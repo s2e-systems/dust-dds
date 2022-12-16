@@ -4,7 +4,7 @@ use super::{
     submessage_elements::{
         EntityIdSubmessageElement,GuidPrefixSubmessageElement, LocatorListSubmessageElement,
         ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-        SequenceNumberSetSubmessageElement,
+        SequenceNumberSet,
         SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
         TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
         VendorIdSubmessageElement, FragmentNumberSet,
@@ -18,7 +18,7 @@ pub struct AckNackSubmessage {
     pub final_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub reader_sn_state: SequenceNumberSetSubmessageElement,
+    pub reader_sn_state: SequenceNumberSet,
     pub count: Count,
 }
 
@@ -59,7 +59,7 @@ pub struct GapSubmessage {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub gap_start: SequenceNumber,
-    pub gap_list: SequenceNumberSetSubmessageElement,
+    pub gap_list: SequenceNumberSet,
 }
 
 #[derive(Debug, PartialEq, Eq)]
