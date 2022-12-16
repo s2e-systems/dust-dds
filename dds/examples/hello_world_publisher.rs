@@ -2,7 +2,10 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
+            ReliabilityQosPolicyKind,
+        },
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -39,6 +42,9 @@ fn main() {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
+        },
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
         },
         ..Default::default()
     };

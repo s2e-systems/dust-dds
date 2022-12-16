@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 	}
 	dds_qos_t *qos = dds_create_qos();
 	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
+	dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
 
 	const dds_entity_t data_writer = dds_create_writer(participant, topic, qos, NULL /*listener*/);
 	if (data_writer < 0)
