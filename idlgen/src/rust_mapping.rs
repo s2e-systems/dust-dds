@@ -25,7 +25,7 @@ pub fn struct_member(member: idl_syntax::StructMember) -> String {
 
 pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
         format!("pub struct {} {{", def.name),
     ]
         .into_iter()
@@ -39,7 +39,7 @@ pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
 
 pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
         format!("pub enum {} {{", def.name),
     ]
         .into_iter()
@@ -100,7 +100,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "pub struct Toto {",
                 "    pub a: i64,",
                 "    pub b: char,",
@@ -124,7 +124,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "pub enum Suit {",
                 "    Spades,",
                 "    Hearts,",
@@ -160,13 +160,13 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "mod M {",
-                "    #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "    struct A {",
+                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "    pub struct A {",
                 "        pub a: i16,",
                 "    }",
                 "    mod N {",
-                "        #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "        enum B {",
+                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "        pub enum B {",
                 "            C,",
                 "            D,",
                 "        }",

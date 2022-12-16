@@ -22,7 +22,7 @@ fn main() {
 
     for def in spec.value {
         for line in rust_mapping::definition(def) {
-            file.write(line.as_bytes())
+            file.write_all(line.as_bytes())
                 .expect("Failed to write to file");
         }
     }

@@ -1,6 +1,6 @@
 mod Game {
     mod Chess {
-        #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
+        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
         pub enum ChessPiece {
             Pawn,
             Rook,
@@ -9,14 +9,14 @@ mod Game {
             Queen,
             King,
         }
-        #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
+        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
         pub struct ChessSquare {
             column: char,
             line: u16,
         }
     }
     mod Cards {
-        #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
+        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
         pub enum Suit {
             Spades,
             Hearts,
@@ -25,7 +25,7 @@ mod Game {
         }
     }
 }
-#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
 pub struct Point {
     pub x: f64,
     pub y: f64,
