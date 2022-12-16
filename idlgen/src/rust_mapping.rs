@@ -24,7 +24,10 @@ pub fn struct_member(member: idl_syntax::StructMember) -> String {
 }
 
 pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
-    [format!("struct {} {{", def.name)]
+    [
+        "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        format!("struct {} {{", def.name),
+    ]
         .into_iter()
         .chain(
             def.members
@@ -35,7 +38,10 @@ pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
 }
 
 pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
-    [format!("enum {} {{", def.name)]
+    [
+        "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        format!("enum {} {{", def.name),
+    ]
         .into_iter()
         .chain(
             def.variants
@@ -94,6 +100,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
+                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "struct Toto {",
                 "    a: i64,",
                 "    b: char,",
@@ -117,6 +124,7 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
+                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "enum Suit {",
                 "    Spades,",
                 "    Hearts,",
@@ -152,10 +160,12 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "mod M {",
+                "    #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "    struct A {",
                 "        a: i16,",
                 "    }",
                 "    mod N {",
+                "        #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
                 "        enum B {",
                 "            C,",
                 "            D,",
