@@ -68,15 +68,14 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cd ..
-            cargo build --example
+            cargo build --examples
       - run:
           name: Hello world inteoperability test
           no_output_timeout: 30s
           command: |
             cargo run --example hello_world_publisher &
             pid=$!
-            ../build/InteroperabilityPublisher
+            build/InteroperabilityPublisher
             wait $pid
 workflows:
   version: 2
