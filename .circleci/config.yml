@@ -19,7 +19,6 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cd ..
             cargo build --example
       - run:
           name: Hello world inteoperability test
