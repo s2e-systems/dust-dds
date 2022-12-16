@@ -3,36 +3,6 @@ version: 2.1
 jobs:
   build:
     docker:
-<<<<<<< HEAD
-=======
-      - image: s2esystems/dust_dds_interoperability
-    resource_class: large
-    steps:
-      - checkout
-      - run:
-          name: Build CycloneDDS Compatibility tests
-          command: |
-            mkdir build
-            cd build
-            cmake ../dds/tests/interoperability
-            cmake --build .
-      - run:
-          name: Build examples
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo build --examples
-      - run:
-          name: Hello world inteoperability test
-          no_output_timeout: 30s
-          command: |
-            cargo run --example hello_world_publisher &
-            pid=$!
-            build/CompatibilityPublisher
-            wait $pid
-  main_tests:
-    docker:
->>>>>>> efa4780a308ddec0973a688ed87e3417ab72e889
       - image: cimg/rust:1.61.0
     resource_class: large
     steps:
