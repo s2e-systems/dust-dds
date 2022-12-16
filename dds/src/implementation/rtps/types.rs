@@ -429,13 +429,13 @@ impl Locator {
             address,
         }
     }
-    pub const fn kind(&self) -> &LocatorKind {
-        &self.kind
+    pub const fn kind(&self) -> LocatorKind {
+        self.kind
     }
-    pub const fn port(&self) -> &LocatorPort {
-        &self.port
+    pub const fn port(&self) -> LocatorPort {
+        self.port
     }
-    pub const fn address(&self) -> &LocatorAddress {
-        &self.address
+    pub const fn address(&self) -> LocatorAddress {
+        self.address
     }
 }
