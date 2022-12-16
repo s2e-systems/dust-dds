@@ -3,11 +3,11 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::messages::submessage_elements::FragmentNumberSetSubmessageElement,
+    rtps::messages::submessage_elements::FragmentNumberSet,
     rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
 };
 
-impl MappingWriteByteOrdered for FragmentNumberSetSubmessageElement {
+impl MappingWriteByteOrdered for FragmentNumberSet {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -33,7 +33,7 @@ impl MappingWriteByteOrdered for FragmentNumberSetSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSetSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for FragmentNumberSet {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let base: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let num_bits: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn serialize_fragment_number_max_gap() {
-        let fragment_number_set = FragmentNumberSetSubmessageElement {
+        let fragment_number_set = FragmentNumberSet {
             base: 2,
             set: vec![2, 257],
         };
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number_set_max_gap() {
-        let expected = FragmentNumberSetSubmessageElement {
+        let expected = FragmentNumberSet {
             base: 2,
             set: vec![2, 257],
         };

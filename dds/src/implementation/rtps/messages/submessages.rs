@@ -2,15 +2,14 @@ use crate::implementation::rtps::types::Count;
 
 use super::{
     submessage_elements::{
-        EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
-        FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
+        EntityIdSubmessageElement,GuidPrefixSubmessageElement, LocatorListSubmessageElement,
         ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
         SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
         SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
         TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
-        VendorIdSubmessageElement,
+        VendorIdSubmessageElement, FragmentNumberSet,
     },
-    types::SubmessageFlag,
+    types::{SubmessageFlag, FragmentNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,7 +45,7 @@ pub struct DataFragSubmessage<'a> {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_starting_num: FragmentNumberSubmessageElement,
+    pub fragment_starting_num: FragmentNumber,
     pub fragments_in_submessage: UShortSubmessageElement,
     pub data_size: ULongSubmessageElement,
     pub fragment_size: UShortSubmessageElement,
@@ -81,7 +80,7 @@ pub struct HeartbeatFragSubmessage {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
-    pub last_fragment_num: FragmentNumberSubmessageElement,
+    pub last_fragment_num: FragmentNumber,
     pub count: Count,
 }
 
@@ -120,7 +119,7 @@ pub struct NackFragSubmessage {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_number_state: FragmentNumberSetSubmessageElement,
+    pub fragment_number_state: FragmentNumberSet,
     pub count: Count,
 }
 

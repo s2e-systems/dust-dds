@@ -47,12 +47,7 @@ pub struct SequenceNumberSetSubmessageElement {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FragmentNumberSubmessageElement {
-    pub value: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FragmentNumberSetSubmessageElement {
+pub struct FragmentNumberSet {
     pub base: u32,
     pub set: Vec<u32>,
 }

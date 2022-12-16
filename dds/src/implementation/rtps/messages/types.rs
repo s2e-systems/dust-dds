@@ -44,3 +44,12 @@ pub enum SubmessageKind {
 /// Used extensively by the Discovery Module mainly to define QoS Parameters. A range of values is reserved for protocol-defined parameters, while another range can be used for vendor-defined parameters, see 8.3.5.9.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParameterId(pub u16);
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
+pub struct FragmentNumber(u32);
+
+impl FragmentNumber {
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+}
