@@ -10,3 +10,4 @@ rtps/target/
 tarpaulin-report.html
 *.profraw
 dds/tests/interoperability/build/
+interoperability_tests/hello_world.rs

@@ -2,7 +2,5 @@
 struct HelloWorldType
 {
 	octet id;
-	string msg;
+	char msg;
 };
-#pragma keylist HelloWorldType id
-

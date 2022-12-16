@@ -26,7 +26,7 @@ pub fn struct_member(member: idl_syntax::StructMember) -> String {
 pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
     [
         "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("struct {} {{", def.name),
+        format!("pub struct {} {{", def.name),
     ]
         .into_iter()
         .chain(
@@ -40,7 +40,7 @@ pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
 pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
     [
         "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("enum {} {{", def.name),
+        format!("pub enum {} {{", def.name),
     ]
         .into_iter()
         .chain(
@@ -101,7 +101,7 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "struct Toto {",
+                "pub struct Toto {",
                 "    a: i64,",
                 "    b: char,",
                 "    c: f64,",
@@ -125,7 +125,7 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "enum Suit {",
+                "pub enum Suit {",
                 "    Spades,",
                 "    Hearts,",
                 "    Diamonds,",

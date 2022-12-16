@@ -23,7 +23,12 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
+        .create_topic::<hello_world::HelloWorldType>(
+            "HelloWorld",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
         .unwrap();
 
     let publisher = participant
@@ -54,7 +59,7 @@ fn main() {
 
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    let hello_world = HelloWorldType {
+    let hello_world = hello_world::HelloWorldType {
         id: 8,
         msg: "Hello world!".to_string(),
     };

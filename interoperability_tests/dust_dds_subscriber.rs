@@ -24,7 +24,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
+        .create_topic::<hello_world::HelloWorldType>("HelloWorld", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
