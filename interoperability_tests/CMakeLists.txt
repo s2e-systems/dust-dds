@@ -4,18 +4,18 @@ project(Interoperability LANGUAGES C)
 find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET GeneratedIdl FILES HelloWorld.idl)
 
-add_executable(InteroperabilitySubscriber
+add_executable(CycloneDdsSubscriber
   cyclone_dds_subscriber.c
 )
-target_link_libraries(InteroperabilitySubscriber PRIVATE
+target_link_libraries(CycloneDdsSubscriber PRIVATE
   CycloneDDS::ddsc
   GeneratedIdl
 )
 
-add_executable(InteroperabilityPublisher
+add_executable(CycloneDdsPublisher
   cyclone_dds_publisher.c
 )
-target_link_libraries(InteroperabilityPublisher PRIVATE
+target_link_libraries(CycloneDdsPublisher PRIVATE
   CycloneDDS::ddsc
   GeneratedIdl
 )

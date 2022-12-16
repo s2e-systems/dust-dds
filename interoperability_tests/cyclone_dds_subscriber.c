@@ -84,6 +84,6 @@ int main(int argc, char *argv[])
 	if ((rc > 0) && (infos[0].valid_data))
 	{
 		msg = (HelloWorldType *)samples[0];
-		printf("Received: HelloWorldType { id: %d, msg: \"%s\" }\n", msg->id, msg->msg);
+		printf("Received: HelloWorldType { id: %d, msg: \"%c\" }\n", msg->id, msg->msg);
 	}
 }
