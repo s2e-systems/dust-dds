@@ -75,11 +75,6 @@ pub struct ParameterListSubmessageElement<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CountSubmessageElement {
-    pub value: Count,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocatorListSubmessageElement {
     pub value: Vec<Locator>,
 }

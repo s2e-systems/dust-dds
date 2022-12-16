@@ -74,11 +74,11 @@ impl RtpsReaderProxy {
     }
 
     pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
-        if acknack_submessage.count.value > self.last_received_acknack_count {
+        if acknack_submessage.count > self.last_received_acknack_count {
             self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
             self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
 
-            self.last_received_acknack_count = acknack_submessage.count.value;
+            self.last_received_acknack_count = acknack_submessage.count;
         }
     }
 }

@@ -12,7 +12,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, GuidPrefixSubmessageElement,
+            EntityIdSubmessageElement, GuidPrefixSubmessageElement,
             ProtocolVersionSubmessageElement, SequenceNumberSetSubmessageElement,
             VendorIdSubmessageElement,
         },
@@ -185,9 +185,8 @@ impl RtpsStatefulReader {
                 .iter_mut()
                 .find(|x| x.remote_writer_guid() == writer_guid)
             {
-                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count.value {
-                    writer_proxy
-                        .set_last_received_heartbeat_count(heartbeat_submessage.count.value);
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_submessage.count {
+                    writer_proxy.set_last_received_heartbeat_count(heartbeat_submessage.count);
 
                     writer_proxy.set_must_send_acknacks(
                         !heartbeat_submessage.final_flag
@@ -231,9 +230,7 @@ impl RtpsStatefulReader {
                         base: writer_proxy.available_changes_max() + 1,
                         set: writer_proxy.missing_changes(),
                     },
-                    count: CountSubmessageElement {
-                        value: writer_proxy.acknack_count(),
-                    },
+                    count: writer_proxy.acknack_count(),
                 };
 
                 let header = RtpsMessageHeader {

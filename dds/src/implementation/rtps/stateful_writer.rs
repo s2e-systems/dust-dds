@@ -15,7 +15,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, GuidPrefixSubmessageElement,
+            EntityIdSubmessageElement, GuidPrefixSubmessageElement,
             ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
             VendorIdSubmessageElement,
         },
@@ -356,9 +356,7 @@ where
                             .get_seq_num_max()
                             .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
-                    count: CountSubmessageElement {
-                        value: self.heartbeat_count,
-                    },
+                    count: self.heartbeat_count,
                 };
 
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
@@ -389,9 +387,7 @@ where
                             .get_seq_num_max()
                             .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
-                    count: CountSubmessageElement {
-                        value: self.heartbeat_count,
-                    },
+                    count: self.heartbeat_count,
                 };
 
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
@@ -446,9 +442,7 @@ where
                             .get_seq_num_max()
                             .unwrap_or_else(|| SequenceNumber::new(0)),
                     },
-                    count: CountSubmessageElement {
-                        value: self.heartbeat_count,
-                    },
+                    count: self.heartbeat_count,
                 };
 
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));

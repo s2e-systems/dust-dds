@@ -78,10 +78,12 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement,
-                SequenceNumberSetSubmessageElement,
+                EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
             },
-            types::{Count, EntityId, USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_GROUP, SequenceNumber},
+            types::{
+                Count, EntityId, SequenceNumber, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_READER_NO_KEY,
+            },
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -107,9 +109,7 @@ mod tests {
                 base: SequenceNumber::new(10),
                 set: vec![],
             },
-            count: CountSubmessageElement {
-                value: Count::new(0),
-            },
+            count: Count::new(0),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -151,9 +151,7 @@ mod tests {
                     base: SequenceNumber::new(10),
                     set: vec![],
                 },
-                count: CountSubmessageElement {
-                    value: Count::new(0)
-                },
+                count: Count::new(0),
             },
             from_bytes(&buf).unwrap()
         );

@@ -1,6 +1,8 @@
+use crate::implementation::rtps::types::Count;
+
 use super::{
     submessage_elements::{
-        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
+        EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
         FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
         ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
         SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
@@ -18,7 +20,7 @@ pub struct AckNackSubmessage {
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
     pub reader_sn_state: SequenceNumberSetSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -70,7 +72,7 @@ pub struct HeartbeatSubmessage {
     pub writer_id: EntityIdSubmessageElement,
     pub first_sn: SequenceNumberSubmessageElement,
     pub last_sn: SequenceNumberSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -80,7 +82,7 @@ pub struct HeartbeatFragSubmessage {
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
     pub last_fragment_num: FragmentNumberSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -119,7 +121,7 @@ pub struct NackFragSubmessage {
     pub writer_id: EntityIdSubmessageElement,
     pub writer_sn: SequenceNumberSubmessageElement,
     pub fragment_number_state: FragmentNumberSetSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
