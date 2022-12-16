@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 	dds_attach_t wsresults[1];
 	const size_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(60));
-	if (rc == DDS_RETCODE_TIMEOUT) {
+	if (rc == 0) {
 		DDS_FATAL("dds_waitset_wait: timeout");
 	}
 	if (rc != wsresultsize)
