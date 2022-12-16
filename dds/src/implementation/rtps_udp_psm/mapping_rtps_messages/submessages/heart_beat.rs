@@ -76,7 +76,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+                EntityIdSubmessageElement,
             },
             types::{
                 Count, EntityId, SequenceNumber, USER_DEFINED_READER_GROUP,
@@ -99,12 +99,8 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(7),
-        };
+        let first_sn =  SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
         let count = Count::new(2);
         let submessage = HeartbeatSubmessage {
             endianness_flag,
@@ -141,12 +137,8 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(7),
-        };
+        let first_sn = SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
         let count = Count::new(2);
         let expected = HeartbeatSubmessage {
             endianness_flag,

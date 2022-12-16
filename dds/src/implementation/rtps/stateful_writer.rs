@@ -16,8 +16,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{
             EntityIdSubmessageElement, GuidPrefixSubmessageElement,
-            ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
-            VendorIdSubmessageElement,
+            ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
         },
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
@@ -342,20 +341,16 @@ where
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
                     },
-                    first_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
-                    },
-                    last_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
-                    },
+                    first_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_min()
+                        .unwrap_or(SequenceNumber::new(1)),
+                    last_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_max()
+                        .unwrap_or_else(|| SequenceNumber::new(0)),
                     count: self.heartbeat_count,
                 };
 
@@ -373,20 +368,16 @@ where
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
                     },
-                    first_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
-                    },
-                    last_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
-                    },
+                    first_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_min()
+                        .unwrap_or(SequenceNumber::new(1)),
+                    last_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_max()
+                        .unwrap_or(SequenceNumber::new(0)),
                     count: self.heartbeat_count,
                 };
 
@@ -428,20 +419,16 @@ where
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
                     },
-                    first_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
-                    },
-                    last_sn: SequenceNumberSubmessageElement {
-                        value: self
-                            .writer
-                            .writer_cache()
-                            .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
-                    },
+                    first_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_min()
+                        .unwrap_or(SequenceNumber::new(1)),
+                    last_sn: self
+                        .writer
+                        .writer_cache()
+                        .get_seq_num_max()
+                        .unwrap_or(SequenceNumber::new(0)),
                     count: self.heartbeat_count,
                 };
 

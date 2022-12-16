@@ -74,7 +74,6 @@ mod tests {
         rtps::{
             messages::submessage_elements::{
                 EntityIdSubmessageElement, SequenceNumberSetSubmessageElement,
-                SequenceNumberSubmessageElement,
             },
             types::{
                 EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
@@ -94,9 +93,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
+        let gap_start = SequenceNumber::new(5);
         let gap_list = SequenceNumberSetSubmessageElement {
             base: SequenceNumber::new(10),
             set: vec![],
@@ -131,9 +128,7 @@ mod tests {
         let writer_id = EntityIdSubmessageElement {
             value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
         };
-        let gap_start = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
+        let gap_start = SequenceNumber::new(5);
         let gap_list = SequenceNumberSetSubmessageElement {
             base: SequenceNumber::new(10),
             set: vec![],

@@ -608,7 +608,7 @@ mod tests {
         implementation::rtps::{
             messages::submessage_elements::{
                 EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                SerializedDataSubmessageElement,
             },
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
@@ -648,9 +648,7 @@ mod tests {
             writer_id: EntityIdSubmessageElement {
                 value: ENTITYID_UNKNOWN.into(),
             },
-            writer_sn: SequenceNumberSubmessageElement {
-                value: sequence_number,
-            },
+            writer_sn: sequence_number,
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
             serialized_payload: SerializedDataSubmessageElement { value: data },
         }
@@ -672,9 +670,7 @@ mod tests {
             writer_id: EntityIdSubmessageElement {
                 value: ENTITYID_UNKNOWN.into(),
             },
-            writer_sn: SequenceNumberSubmessageElement {
-                value: sequence_number,
-            },
+            writer_sn:sequence_number,
             inline_qos: ParameterListSubmessageElement {
                 parameter: vec![Parameter {
                     parameter_id: 0x71,

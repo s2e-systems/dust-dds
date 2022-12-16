@@ -4,7 +4,7 @@ use super::{
     messages::{
         submessage_elements::{
             EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+             SerializedDataSubmessageElement,
         },
         submessages::DataSubmessage,
         types::ParameterId,

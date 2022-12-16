@@ -1,10 +1,10 @@
-use crate::implementation::rtps::types::Count;
+use crate::implementation::rtps::types::{Count, SequenceNumber};
 
 use super::{
     submessage_elements::{
         EntityIdSubmessageElement,GuidPrefixSubmessageElement, LocatorListSubmessageElement,
         ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
+        SequenceNumberSetSubmessageElement,
         SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
         TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
         VendorIdSubmessageElement, FragmentNumberSet,
@@ -31,7 +31,7 @@ pub struct DataSubmessage<'a> {
     pub non_standard_payload_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
+    pub writer_sn: SequenceNumber,
     pub inline_qos: ParameterListSubmessageElement<'a>,
     pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
@@ -44,7 +44,7 @@ pub struct DataFragSubmessage<'a> {
     pub key_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
+    pub writer_sn: SequenceNumber,
     pub fragment_starting_num: FragmentNumber,
     pub fragments_in_submessage: UShortSubmessageElement,
     pub data_size: ULongSubmessageElement,
@@ -58,7 +58,7 @@ pub struct GapSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub gap_start: SequenceNumberSubmessageElement,
+    pub gap_start: SequenceNumber,
     pub gap_list: SequenceNumberSetSubmessageElement,
 }
 
@@ -69,8 +69,8 @@ pub struct HeartbeatSubmessage {
     pub liveliness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub first_sn: SequenceNumberSubmessageElement,
-    pub last_sn: SequenceNumberSubmessageElement,
+    pub first_sn: SequenceNumber,
+    pub last_sn: SequenceNumber,
     pub count: Count,
 }
 
@@ -79,7 +79,7 @@ pub struct HeartbeatFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
+    pub writer_sn: SequenceNumber,
     pub last_fragment_num: FragmentNumber,
     pub count: Count,
 }
@@ -118,7 +118,7 @@ pub struct NackFragSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub reader_id: EntityIdSubmessageElement,
     pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
+    pub writer_sn: SequenceNumber,
     pub fragment_number_state: FragmentNumberSet,
     pub count: Count,
 }
