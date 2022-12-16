@@ -79,7 +79,7 @@ mod tests {
                 CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
             },
             types::{
-                Count, EntityId, SequenceNumber, USER_DEFINED_READER_GROUP,
+                Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
             },
         },
@@ -94,10 +94,10 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let first_sn = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),
@@ -138,10 +138,10 @@ mod tests {
         let final_flag = false;
         let liveliness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let first_sn = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),

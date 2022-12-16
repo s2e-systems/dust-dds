@@ -347,14 +347,14 @@ where
                             .writer
                             .writer_cache()
                             .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
+                            .unwrap_or(SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
                         value: self
                             .writer
                             .writer_cache()
                             .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
+                            .unwrap_or(SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
@@ -380,14 +380,14 @@ where
                             .writer
                             .writer_cache()
                             .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
+                            .unwrap_or(SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
                         value: self
                             .writer
                             .writer_cache()
                             .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
+                            .unwrap_or(SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
@@ -437,14 +437,14 @@ where
                             .writer
                             .writer_cache()
                             .get_seq_num_min()
-                            .unwrap_or_else(|| SequenceNumber::new(1)),
+                            .unwrap_or(SequenceNumber::new(1)),
                     },
                     last_sn: SequenceNumberSubmessageElement {
                         value: self
                             .writer
                             .writer_cache()
                             .get_seq_num_max()
-                            .unwrap_or_else(|| SequenceNumber::new(0)),
+                            .unwrap_or(SequenceNumber::new(0)),
                     },
                     count: CountSubmessageElement {
                         value: self.heartbeat_count,
