@@ -61,7 +61,7 @@ jobs:
           command: |
             mkdir build
             cd build
-            cmake ../dds/tests/interoperability
+            cmake ../interoperability_tests
             cmake --build .
       - run:
           name: Build examples
@@ -71,17 +71,17 @@ jobs:
           name: Hello world subscriber interoperability test
           no_output_timeout: 30s
           command: |
-            cargo run --example hello_world_subscriber &
+            cargo run --bin dust_dds_subscriber &
             pid=$!
-            build/InteroperabilityPublisher
+            build/CycloneDdsPublisher
             wait $pid
       - run:
           name: Hello world publisher interoperability test
           no_output_timeout: 30s
           command: |
-            build/InteroperabilitySubscriber &
+            build/CycloneDdsSubscriber &
             pid=$!
-            cargo run --example hello_world_publisher
+            cargo run --bin dust_dds_publisher
             wait $pid
 workflows:
   version: 2

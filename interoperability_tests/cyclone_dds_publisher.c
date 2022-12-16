@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	HelloWorldType msg = {8, "Hello world!"};
+	HelloWorldType msg = {8, 'a'};
 	dds_write(data_writer, &msg);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));

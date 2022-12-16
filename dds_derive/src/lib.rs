@@ -92,7 +92,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
         .into()
     } else {
         quote! {
-            impl #impl_generics DdsType for #ident #type_generics #where_clause {
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
                 fn type_name() -> &'static str {
                     #type_name
                 }
@@ -190,7 +190,7 @@ pub fn derive_dds_serde(input: TokenStream) -> TokenStream {
     let ident = input.ident;
 
     let output = quote! {
-        impl #impl_generics DdsSerde for #ident #type_generics #where_clause  {}
+        impl #impl_generics dust_dds::topic_definition::type_support::DdsSerde for #ident #type_generics #where_clause  {}
     };
 
     output.into()

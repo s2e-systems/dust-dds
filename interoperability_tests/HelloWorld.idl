@@ -1,0 +1,6 @@
+
+struct HelloWorldType
+{
+	octet id;
+	char msg;
+};

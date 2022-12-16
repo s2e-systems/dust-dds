@@ -19,14 +19,14 @@ pub fn base_type(t: idl_syntax::BaseType) -> String {
 
 pub fn struct_member(member: idl_syntax::StructMember) -> String {
     match member.datatype {
-        idl_syntax::Type::BaseType(t) => format!("{}: {}", member.name, base_type(t)),
+        idl_syntax::Type::BaseType(t) => format!("pub {}: {}", member.name, base_type(t)),
     }
 }
 
 pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("struct {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        format!("pub struct {} {{", def.name),
     ]
         .into_iter()
         .chain(
@@ -39,8 +39,8 @@ pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
 
 pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
     [
-        "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("enum {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
+        format!("pub enum {} {{", def.name),
     ]
         .into_iter()
         .chain(
@@ -100,11 +100,11 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "struct Toto {",
-                "    a: i64,",
-                "    b: char,",
-                "    c: f64,",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "pub struct Toto {",
+                "    pub a: i64,",
+                "    pub b: char,",
+                "    pub c: f64,",
                 "}",
             ]
         )
@@ -124,8 +124,8 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "enum Suit {",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "pub enum Suit {",
                 "    Spades,",
                 "    Hearts,",
                 "    Diamonds,",
@@ -160,13 +160,13 @@ mod tests {
             .collect::<Vec<String>>(),
             vec![
                 "mod M {",
-                "    #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "    struct A {",
-                "        a: i16,",
+                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "    pub struct A {",
+                "        pub a: i16,",
                 "    }",
                 "    mod N {",
-                "        #[derive(serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "        enum B {",
+                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
+                "        pub enum B {",
                 "            C,",
                 "            D,",
                 "        }",
