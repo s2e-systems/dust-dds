@@ -5,7 +5,7 @@ find_package(CycloneDDS REQUIRED)
 idlc_generate(TARGET GeneratedIdl FILES HelloWorld.idl)
 
 add_executable(InteroperabilitySubscriber
-  subscriber/main.c
+  cyclone_dds_subscriber.c
 )
 target_link_libraries(InteroperabilitySubscriber PRIVATE
   CycloneDDS::ddsc
@@ -13,7 +13,7 @@ target_link_libraries(InteroperabilitySubscriber PRIVATE
 )
 
 add_executable(InteroperabilityPublisher
-  publisher/main.c
+  cyclone_dds_publisher.c
 )
 target_link_libraries(InteroperabilityPublisher PRIVATE
   CycloneDDS::ddsc
