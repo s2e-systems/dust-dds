@@ -266,7 +266,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 mod tests {
     use super::*;
     use crate::implementation::rtps::types::{
-        EntityId, LocatorAddress, LocatorKind, LocatorPort, BUILT_IN_PARTICIPANT,
+        EntityId, EntityKey, LocatorAddress, LocatorKind, LocatorPort, BUILT_IN_PARTICIPANT,
     };
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::topic_definition::type_support::LittleEndian;
@@ -294,7 +294,10 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
-        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT));
+        let guid = Guid::new(
+            guid_prefix,
+            EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
+        );
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -420,7 +423,10 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
-        let guid = Guid::new(guid_prefix, EntityId::new([0, 0, 1], BUILT_IN_PARTICIPANT));
+        let guid = Guid::new(
+            guid_prefix,
+            EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
+        );
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true;
         let metatraffic_unicast_locator_list = vec![locator1, locator2];

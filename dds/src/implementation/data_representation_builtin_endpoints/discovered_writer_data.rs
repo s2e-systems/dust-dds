@@ -264,8 +264,8 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
 #[cfg(test)]
 mod tests {
     use crate::implementation::rtps::types::{
-        GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP, BUILT_IN_WRITER_WITH_KEY,
-        USER_DEFINED_UNKNOWN,
+        EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
+        BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
     };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -288,12 +288,15 @@ mod tests {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([5; 12]),
-                    EntityId::new([11, 12, 13], BUILT_IN_WRITER_WITH_KEY),
+                    EntityId::new(EntityKey::new([11, 12, 13]), BUILT_IN_WRITER_WITH_KEY),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_READER_GROUP),
+                remote_group_entity_id: EntityId::new(
+                    EntityKey::new([21, 22, 23]),
+                    BUILT_IN_READER_GROUP,
+                ),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -352,12 +355,15 @@ mod tests {
                 // must correspond to publication_builtin_topic_data.key
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
+                    EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_PARTICIPANT),
+                remote_group_entity_id: EntityId::new(
+                    EntityKey::new([21, 22, 23]),
+                    BUILT_IN_PARTICIPANT,
+                ),
             },
             publication_builtin_topic_data: PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {

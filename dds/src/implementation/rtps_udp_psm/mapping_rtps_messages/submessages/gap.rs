@@ -77,7 +77,8 @@ mod tests {
                 SequenceNumberSubmessageElement,
             },
             types::{
-                EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
+                EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_READER_NO_KEY,
             },
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
@@ -89,10 +90,10 @@ mod tests {
     fn serialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),
@@ -126,10 +127,10 @@ mod tests {
     fn deserialize_gap() {
         let endianness_flag = true;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let gap_start = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),

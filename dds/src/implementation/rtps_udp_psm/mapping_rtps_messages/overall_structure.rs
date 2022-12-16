@@ -149,7 +149,7 @@ mod tests {
                 types::ProtocolId,
             },
             types::{
-                EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
+                EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
                 USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             },
         },
@@ -206,10 +206,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),
@@ -316,10 +316,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),
@@ -397,10 +397,10 @@ mod tests {
         let key_flag = false;
         let non_standard_payload_flag = false;
         let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new([1, 2, 3], USER_DEFINED_READER_NO_KEY),
+            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
         };
         let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new([6, 7, 8], USER_DEFINED_READER_GROUP),
+            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
         };
         let writer_sn = SequenceNumberSubmessageElement {
             value: SequenceNumber::new(5),

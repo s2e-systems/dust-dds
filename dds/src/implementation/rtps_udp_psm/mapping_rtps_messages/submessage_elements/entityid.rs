@@ -5,7 +5,7 @@ use byteorder::ByteOrder;
 use crate::implementation::{
     rtps::{
         messages::submessage_elements::EntityIdSubmessageElement,
-        types::{EntityId, EntityKind},
+        types::{EntityId, EntityKey, EntityKind},
     },
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
@@ -27,7 +27,7 @@ impl<'de> MappingReadByteOrdered<'de> for EntityIdSubmessageElement {
         let entity_key: [u8; 3] = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let entity_kind: u8 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         Ok(Self {
-            value: EntityId::new(entity_key, EntityKind::new(entity_kind)),
+            value: EntityId::new(EntityKey::new(entity_key), EntityKind::new(entity_kind)),
         })
     }
 }

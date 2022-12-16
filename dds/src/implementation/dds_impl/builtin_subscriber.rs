@@ -10,7 +10,7 @@ use crate::{
             group::RtpsGroupImpl,
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             transport::TransportWrite,
-            types::{EntityId, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
+            types::{EntityId, EntityKey, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
         },
         utils::shared_object::{DdsRwLock, DdsShared},
     },
@@ -54,7 +54,7 @@ impl BuiltInSubscriber {
     ) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
-        let entity_id = EntityId::new([0, 0, 0], BUILT_IN_READER_GROUP);
+        let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
 
