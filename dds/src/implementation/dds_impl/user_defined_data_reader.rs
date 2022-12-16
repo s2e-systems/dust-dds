@@ -11,7 +11,7 @@ use crate::{
             messages::submessages::{DataSubmessage, HeartbeatSubmessage},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
-            types::{GuidPrefix, GUID_UNKNOWN},
+            types::{GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -277,7 +277,12 @@ impl DdsShared<UserDefinedDataReader> {
         self.user_defined_data_send_condvar.notify_all();
     }
 
-    pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+    pub fn add_matched_writer(
+        &self,
+        discovered_writer_data: &DiscoveredWriterData,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+    ) {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_topic_name = self.topic.get_name();
         let reader_type_name = self.topic.get_type_name();
@@ -318,16 +323,36 @@ impl DdsShared<UserDefinedDataReader> {
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                let writer_proxy = RtpsWriterProxy::new(
-                    discovered_writer_data.writer_proxy.remote_writer_guid,
+                let unicast_locator_list = if discovered_writer_data
+                    .writer_proxy
+                    .unicast_locator_list
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
                     discovered_writer_data
                         .writer_proxy
                         .unicast_locator_list
-                        .as_ref(),
+                        .as_ref()
+                };
+
+                let multicast_locator_list = if discovered_writer_data
+                    .writer_proxy
+                    .multicast_locator_list
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
                     discovered_writer_data
                         .writer_proxy
                         .multicast_locator_list
-                        .as_ref(),
+                        .as_ref()
+                };
+
+                let writer_proxy = RtpsWriterProxy::new(
+                    discovered_writer_data.writer_proxy.remote_writer_guid,
+                    unicast_locator_list,
+                    multicast_locator_list,
                     discovered_writer_data.writer_proxy.data_max_size_serialized,
                     discovered_writer_data.writer_proxy.remote_group_entity_id,
                 );
@@ -1044,7 +1069,7 @@ mod tests {
             },
             publication_builtin_topic_data: publication_builtin_topic_data.clone(),
         };
-        data_reader.add_matched_writer(&discovered_writer_data);
+        data_reader.add_matched_writer(&discovered_writer_data, &[], &[]);
 
         let subscription_matched_status = data_reader.get_subscription_matched_status();
         assert_eq!(subscription_matched_status.current_count, 1);
@@ -1133,7 +1158,7 @@ mod tests {
             },
             publication_builtin_topic_data: publication_builtin_topic_data.clone(),
         };
-        data_reader.add_matched_writer(&discovered_writer_data);
+        data_reader.add_matched_writer(&discovered_writer_data, &[], &[]);
 
         let matched_publications = data_reader.get_matched_publications();
         assert_eq!(matched_publications.len(), 0);

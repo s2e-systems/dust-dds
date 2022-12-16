@@ -9,7 +9,7 @@ use crate::{
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
             types::{
-                EntityId, Guid, GuidPrefix, TopicKind, USER_DEFINED_READER_NO_KEY,
+                EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
@@ -326,9 +326,18 @@ impl DdsShared<UserDefinedSubscriber> {
 }
 
 impl DdsShared<UserDefinedSubscriber> {
-    pub fn add_matched_writer(&self, discovered_writer_data: &DiscoveredWriterData) {
+    pub fn add_matched_writer(
+        &self,
+        discovered_writer_data: &DiscoveredWriterData,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+    ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.add_matched_writer(discovered_writer_data)
+            data_reader.add_matched_writer(
+                discovered_writer_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            )
         }
     }
 

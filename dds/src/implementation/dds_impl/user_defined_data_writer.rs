@@ -16,7 +16,10 @@ use crate::{
             },
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN, VENDOR_ID_S2E},
+            types::{
+                EntityId, Locator, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN,
+                VENDOR_ID_S2E,
+            },
         },
         utils::condvar::DdsCondvar,
     },
@@ -213,7 +216,12 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
+    pub fn add_matched_reader(
+        &self,
+        discovered_reader_data: &DiscoveredReaderData,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+    ) {
         let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
         let writer_topic_name = self.topic.get_name();
         let writer_type_name = self.topic.get_type_name();
@@ -252,17 +260,37 @@ impl DdsShared<UserDefinedDataWriter> {
             }
 
             if incompatible_qos_policy_list.is_empty() {
-                let reader_proxy = RtpsReaderProxy::new(
-                    discovered_reader_data.reader_proxy.remote_reader_guid,
-                    discovered_reader_data.reader_proxy.remote_group_entity_id,
+                let unicast_locator_list = if discovered_reader_data
+                    .reader_proxy
+                    .unicast_locator_list
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
                     discovered_reader_data
                         .reader_proxy
                         .unicast_locator_list
-                        .as_ref(),
+                        .as_ref()
+                };
+
+                let multicast_locator_list = if discovered_reader_data
+                    .reader_proxy
+                    .multicast_locator_list
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
                     discovered_reader_data
                         .reader_proxy
                         .multicast_locator_list
-                        .as_ref(),
+                        .as_ref()
+                };
+
+                let reader_proxy = RtpsReaderProxy::new(
+                    discovered_reader_data.reader_proxy.remote_reader_guid,
+                    discovered_reader_data.reader_proxy.remote_group_entity_id,
+                    unicast_locator_list,
+                    multicast_locator_list,
                     discovered_reader_data.reader_proxy.expects_inline_qos,
                     true,
                 );
@@ -978,7 +1006,7 @@ mod test {
             },
             subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
         };
-        data_writer.add_matched_reader(&discovered_reader_data);
+        data_writer.add_matched_reader(&discovered_reader_data, &[], &[]);
 
         let publication_matched_status = data_writer.get_publication_matched_status().unwrap();
         assert_eq!(publication_matched_status.current_count, 1);
@@ -1071,7 +1099,7 @@ mod test {
             },
             subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
         };
-        data_writer.add_matched_reader(&discovered_reader_data);
+        data_writer.add_matched_reader(&discovered_reader_data, &[], &[]);
 
         let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
         assert_eq!(matched_subscriptions.len(), 0);

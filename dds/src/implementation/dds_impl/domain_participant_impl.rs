@@ -29,8 +29,8 @@ use crate::{
             transport::TransportWrite,
             types::{
                 Count, EntityId, Guid, Locator, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
@@ -107,7 +107,7 @@ pub struct DomainParticipantImpl {
     lease_duration: Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
-    discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
+    discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, SpdpDiscoveredParticipantData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
     announce_condvar: DdsCondvar,
@@ -573,11 +573,13 @@ impl DdsShared<DomainParticipantImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.discovered_participant_list
+        Ok(self
+            .discovered_participant_list
             .read_lock()
             .get(&participant_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
+            .ok_or(DdsError::BadParameter)?
+            .dds_participant_data
+            .clone())
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
@@ -747,10 +749,10 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn add_discovered_participant(
         &self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            discovered_participant_data,
+            &discovered_participant_data,
             self.domain_id as i32,
             &self.domain_tag,
         ) {
@@ -780,7 +782,7 @@ impl DdsShared<DomainParticipantImpl> {
 
             self.discovered_participant_list.write_lock().insert(
                 discovered_participant_data.get_serialized_key().into(),
-                discovered_participant_data.dds_participant_data.clone(),
+                discovered_participant_data,
             );
         }
     }
@@ -846,10 +848,10 @@ impl DdsShared<DomainParticipantImpl> {
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
         ) {
-            for discovered_participant_data_sample in samples.iter() {
-                self.add_discovered_participant(
-                    discovered_participant_data_sample.data.as_ref().unwrap(),
-                )
+            for discovered_participant_data_sample in samples.into_iter() {
+                if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
+                    self.add_discovered_participant(discovered_participant_data)
+                }
             }
         }
 
@@ -860,15 +862,39 @@ impl DdsShared<DomainParticipantImpl> {
         if let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            for discovered_writer_data_sample in samples.iter() {
+            .take::<DiscoveredWriterData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            for discovered_writer_data_sample in samples.into_iter() {
                 match discovered_writer_data_sample.sample_info.instance_state {
                     InstanceStateKind::Alive => {
-                        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                            subscriber.add_matched_writer(
-                                discovered_writer_data_sample.data.as_ref().unwrap(),
-                            );
+                        if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+                            let remote_writer_guid_prefix = discovered_writer_data
+                                .writer_proxy
+                                .remote_writer_guid
+                                .prefix();
+                            let writer_parent_participant_guid =
+                                Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                            if let Some(discovered_participant_data) = self
+                                .discovered_participant_list
+                                .read_lock()
+                                .get(&writer_parent_participant_guid.into())
+                            {
+                                for subscriber in
+                                    self.user_defined_subscriber_list.read_lock().iter()
+                                {
+                                    subscriber.add_matched_writer(
+                                        &discovered_writer_data,
+                                        discovered_participant_data.default_unicast_locator_list(),
+                                        discovered_participant_data
+                                            .default_multicast_locator_list(),
+                                    );
+                                }
+                            }
                         }
                     }
                     InstanceStateKind::NotAliveDisposed => {
@@ -890,19 +916,49 @@ impl DdsShared<DomainParticipantImpl> {
         if let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            for discovered_reader_data_sample in samples.iter() {
-                for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    match discovered_reader_data_sample.sample_info.instance_state {
-                        InstanceStateKind::Alive => publisher.add_matched_reader(
-                            discovered_reader_data_sample.data.as_ref().unwrap(),
-                        ),
-                        InstanceStateKind::NotAliveDisposed => publisher.remove_matched_reader(
-                            discovered_reader_data_sample.sample_info.instance_handle,
-                        ),
-                        InstanceStateKind::NotAliveNoWriters => todo!(),
+            .take::<DiscoveredReaderData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            for discovered_reader_data_sample in samples.into_iter() {
+                match discovered_reader_data_sample.sample_info.instance_state {
+                    InstanceStateKind::Alive => {
+                        if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
+                            let remote_reader_guid_prefix = discovered_reader_data
+                                .reader_proxy
+                                .remote_reader_guid
+                                .prefix();
+                            let reader_parent_participant_guid =
+                                Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
+
+                            if let Some(discovered_participant_data) = self
+                                .discovered_participant_list
+                                .read_lock()
+                                .get(&reader_parent_participant_guid.into())
+                            {
+                                for publisher in self.user_defined_publisher_list.read_lock().iter()
+                                {
+                                    publisher.add_matched_reader(
+                                        &discovered_reader_data,
+                                        discovered_participant_data.default_unicast_locator_list(),
+                                        discovered_participant_data
+                                            .default_multicast_locator_list(),
+                                    );
+                                }
+                            }
+                        }
                     }
+                    InstanceStateKind::NotAliveDisposed => {
+                        for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                            publisher.remove_matched_reader(
+                                discovered_reader_data_sample.sample_info.instance_handle,
+                            )
+                        }
+                    }
+
+                    InstanceStateKind::NotAliveNoWriters => todo!(),
                 }
             }
         }
