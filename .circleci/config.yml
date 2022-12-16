@@ -12,7 +12,7 @@ jobs:
           command: |
             mkdir build
             cd build
-            cmake -DCMAKE_PREFIX_PATH="../../cyclonedds-build" ../dds/tests/interoperability
+            cmake ../dds/tests/interoperability
             cmake --build .
       - run:
           name: Build examples
