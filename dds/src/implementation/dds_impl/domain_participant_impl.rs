@@ -107,7 +107,7 @@ pub struct DomainParticipantImpl {
     lease_duration: Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
     metatraffic_multicast_locator_list: Vec<Locator>,
-    discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, ParticipantBuiltinTopicData>>,
+    discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, SpdpDiscoveredParticipantData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
     announce_condvar: DdsCondvar,
@@ -573,11 +573,13 @@ impl DdsShared<DomainParticipantImpl> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.discovered_participant_list
+        Ok(self
+            .discovered_participant_list
             .read_lock()
             .get(&participant_handle)
-            .cloned()
-            .ok_or(DdsError::BadParameter)
+            .ok_or(DdsError::BadParameter)?
+            .dds_participant_data
+            .clone())
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
@@ -747,10 +749,10 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn add_discovered_participant(
         &self,
-        discovered_participant_data: &SpdpDiscoveredParticipantData,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
     ) {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            discovered_participant_data,
+            &discovered_participant_data,
             self.domain_id as i32,
             &self.domain_tag,
         ) {
@@ -780,7 +782,7 @@ impl DdsShared<DomainParticipantImpl> {
 
             self.discovered_participant_list.write_lock().insert(
                 discovered_participant_data.get_serialized_key().into(),
-                discovered_participant_data.dds_participant_data.clone(),
+                discovered_participant_data,
             );
         }
     }
@@ -846,10 +848,10 @@ impl DdsShared<DomainParticipantImpl> {
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
         ) {
-            for discovered_participant_data_sample in samples.iter() {
-                self.add_discovered_participant(
-                    discovered_participant_data_sample.data.as_ref().unwrap(),
-                )
+            for discovered_participant_data_sample in samples.into_iter() {
+                if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
+                    self.add_discovered_participant(discovered_participant_data)
+                }
             }
         }
 
