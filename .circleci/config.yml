@@ -26,7 +26,7 @@ jobs:
           command: |
             cargo run --example hello_world_publisher &
             pid=$!
-            ../build/CompatibilityPublisher
+            build/CompatibilityPublisher
             wait $pid
   main_tests:
     docker:
