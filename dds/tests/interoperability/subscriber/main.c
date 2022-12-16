@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
 	}
 	dds_qos_t *qos = dds_create_qos();
 	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
+	dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
 
 	const dds_entity_t data_reader = dds_create_reader(participant, topic, qos, NULL /*listener*/);
 	if (data_reader < 0)
@@ -45,7 +46,7 @@ int main(int argc, char *argv[])
 	dds_attach_t wsresults[1];
 	const size_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(3660));
-	if (rc == DDS_RETCODE_TIMEOUT)
+	if (rc == 0)
 	{
 		DDS_FATAL("dds_waitset_wait: timeout: Subscription not matched");
 	}
@@ -59,8 +60,8 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_set_status_mask: %s\n", dds_strretcode(-rc));
 	}
-	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(3660));
-	if (rc == DDS_RETCODE_TIMEOUT)
+	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));
+	if (rc == 0)
 	{
 		DDS_FATAL("dds_waitset_wait: timeout: No data received");
 	}
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 		DDS_FATAL("dds_waitset_wait: %s\n", dds_strretcode(-rc));
 	}
 
-  	HelloWorldType *msg;
+	HelloWorldType *msg;
 	void *samples[MAX_SAMPLES];
 	dds_sample_info_t infos[MAX_SAMPLES];
 	samples[0] = HelloWorldType__alloc();

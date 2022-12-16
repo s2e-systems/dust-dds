@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 	}
 	dds_qos_t *qos = dds_create_qos();
 	dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(1));
+	dds_qset_durability(qos, DDS_DURABILITY_TRANSIENT_LOCAL);
 
 	const dds_entity_t data_writer = dds_create_writer(participant, topic, qos, NULL /*listener*/);
 	if (data_writer < 0)
@@ -43,7 +44,7 @@ int main(int argc, char *argv[])
 	dds_attach_t wsresults[1];
 	const size_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(60));
-	if (rc == DDS_RETCODE_TIMEOUT) {
+	if (rc == 0) {
 		DDS_FATAL("dds_waitset_wait: timeout");
 	}
 	if (rc != wsresultsize)

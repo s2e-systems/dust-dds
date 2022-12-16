@@ -4,22 +4,10 @@ use crate::{
     builtin_topics::BuiltInTopicKey,
     implementation::{
         rtps::{
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                    VendorIdSubmessageElement,
-                },
-                submessages::AckNackSubmessage,
-                types::ProtocolId,
-                RtpsMessage,
-            },
+            messages::submessages::AckNackSubmessage,
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{
-                EntityId, Locator, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN,
-                VENDOR_ID_S2E,
-            },
+            types::{EntityId, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
         },
         utils::condvar::DdsCondvar,
     },
@@ -694,28 +682,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
 impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let guid_prefix = self.rtps_writer.read_lock().guid().prefix();
-
-        for (reader_proxy, submessages) in self.rtps_writer.write_lock().produce_submessages() {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION,
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
-            };
-
-            let rtps_message = RtpsMessage {
-                header,
-                submessages,
-            };
-            for locator in reader_proxy.unicast_locator_list() {
-                transport.write(&rtps_message, *locator);
-            }
-        }
+        self.rtps_writer.write_lock().send_message(transport);
     }
 }
 
@@ -726,9 +693,10 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
+            messages::RtpsMessage,
             types::{
-                Guid, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
-                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
+                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -828,66 +796,6 @@ mod test {
         );
         *data_writer.enabled.write_lock() = true;
         data_writer
-    }
-
-    #[test]
-    fn write_w_timestamp_stateful_message() {
-        let mut stateful_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let locator = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(7400),
-            LocatorAddress::new([1; 16]),
-        );
-        let expects_inline_qos = false;
-        let is_active = true;
-        let reader_proxy = RtpsReaderProxy::new(
-            GUID_UNKNOWN,
-            ENTITYID_UNKNOWN,
-            &[locator],
-            &[],
-            expects_inline_qos,
-            is_active,
-        );
-        stateful_rtps_writer.matched_reader_add(reader_proxy);
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let data_writer = UserDefinedDataWriter::new(
-            stateful_rtps_writer,
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-
-        data_writer
-            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-
-        let mut mock_transport = MockTransport::new();
-        mock_transport
-            .expect_write()
-            .withf(move |message, destination_locator| {
-                message.submessages.len() == 2 && destination_locator == &locator
-            })
-            .once()
-            .return_const(());
-        data_writer.send_message(&mut mock_transport);
     }
 
     #[test]

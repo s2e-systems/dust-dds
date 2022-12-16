@@ -13,14 +13,21 @@ use crate::{
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
+        overall_structure::RtpsMessageHeader,
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, GuidPrefixSubmessageElement,
+            ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
+            VendorIdSubmessageElement,
         },
-        submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
-        RtpsSubmessageKind,
+        submessages::{
+            AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+        },
+        types::ProtocolId,
+        RtpsMessage, RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    transport::TransportWrite,
+    types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer::RtpsWriter,
 };
 
@@ -94,9 +101,7 @@ impl<T> RtpsStatefulWriter<T> {
 
         true
     }
-}
 
-impl<T> RtpsStatefulWriter<T> {
     pub fn register_instance_w_timestamp<Foo>(
         &mut self,
         instance: &Foo,
@@ -210,20 +215,27 @@ impl<T> RtpsStatefulWriter<T> {
     }
 }
 
-impl<T: Timer> RtpsStatefulWriter<T> {
-    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
+impl<T> RtpsStatefulWriter<T>
+where
+    T: Timer,
+{
+    pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
         match self.writer.get_qos().reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => self.produce_submessages_best_effort(),
-            ReliabilityQosPolicyKind::Reliable => self.produce_submessages_reliable(),
+            ReliabilityQosPolicyKind::BestEffort => self.send_message_best_effort(transport),
+            ReliabilityQosPolicyKind::Reliable => self.send_submessage_reliable(transport),
         }
     }
 
-    fn produce_submessages_best_effort(
-        &mut self,
-    ) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
-        let mut destined_submessages = Vec::new();
+    fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            let mut submessages = Vec::new();
+            let info_dst = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: reader_proxy.remote_reader_guid().prefix(),
+                },
+            };
+            let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
+
             if !reader_proxy.unsent_changes().is_empty() {
                 // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
                 // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
@@ -249,15 +261,34 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     }
                 }
             }
-            if !submessages.is_empty() {
-                destined_submessages.push((&*reader_proxy, submessages));
+            // Send messages only if more than INFO_DST is added
+            if submessages.len() > 1 {
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: ProtocolVersionSubmessageElement {
+                        value: PROTOCOLVERSION,
+                    },
+                    vendor_id: VendorIdSubmessageElement {
+                        value: VENDOR_ID_S2E,
+                    },
+                    guid_prefix: GuidPrefixSubmessageElement {
+                        value: self.writer.guid().prefix(),
+                    },
+                };
+
+                let rtps_message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+
+                for locator in reader_proxy.unicast_locator_list() {
+                    transport.write(&rtps_message, *locator)
+                }
             }
         }
-        destined_submessages
     }
 
-    fn produce_submessages_reliable(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
-        let mut destined_submessages = Vec::new();
+    fn send_submessage_reliable(&mut self, transport: &mut impl TransportWrite) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
                 + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
@@ -266,7 +297,13 @@ impl<T: Timer> RtpsStatefulWriter<T> {
             self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
         }
         for reader_proxy in self.matched_readers.iter_mut() {
-            let mut submessages = Vec::new();
+            let info_dst = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: reader_proxy.remote_reader_guid().prefix(),
+                },
+            };
+            let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
             // Top part of the state machine - Figure 8.19 RTPS standard
             if !reader_proxy.unsent_changes().is_empty() {
                 // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
@@ -300,7 +337,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -333,7 +370,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -390,7 +427,7 @@ impl<T: Timer> RtpsStatefulWriter<T> {
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -416,20 +453,40 @@ impl<T: Timer> RtpsStatefulWriter<T> {
 
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             }
-            if !submessages.is_empty() {
-                destined_submessages.push((&*reader_proxy, submessages));
+            // Send messages only if more than INFO_DST is added
+            if submessages.len() > 1 {
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: ProtocolVersionSubmessageElement {
+                        value: PROTOCOLVERSION,
+                    },
+                    vendor_id: VendorIdSubmessageElement {
+                        value: VENDOR_ID_S2E,
+                    },
+                    guid_prefix: GuidPrefixSubmessageElement {
+                        value: self.writer.guid().prefix(),
+                    },
+                };
+
+                let rtps_message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+
+                for locator in reader_proxy.unicast_locator_list() {
+                    transport.write(&rtps_message, *locator)
+                }
             }
         }
-        destined_submessages
     }
 
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
-        dst_guid_prefix: GuidPrefix,
+        src_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(dst_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(src_guid_prefix, acknack_submessage.reader_id.value);
 
             if let Some(reader_proxy) = self
                 .matched_readers

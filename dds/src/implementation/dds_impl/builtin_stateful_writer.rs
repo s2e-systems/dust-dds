@@ -1,40 +1,32 @@
-use crate::implementation::rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer};
 use crate::{
-    implementation::rtps::{
-        endpoint::RtpsEndpoint,
-        messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                VendorIdSubmessageElement,
+    implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::DiscoveredWriterData,
+        },
+        rtps::{
+            endpoint::RtpsEndpoint,
+            messages::submessages::AckNackSubmessage,
+            stateful_writer::{
+                RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
+                DEFAULT_NACK_SUPPRESSION_DURATION,
             },
-            submessages::AckNackSubmessage,
-            types::ProtocolId,
-            RtpsMessage,
+            transport::TransportWrite,
+            types::{Guid, TopicKind},
+            utils::clock::StdTimer,
+            writer::RtpsWriter,
         },
-        stateful_writer::{
-            DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
-            DEFAULT_NACK_SUPPRESSION_DURATION,
-        },
-        transport::TransportWrite,
-        types::{Guid, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
-        writer::RtpsWriter,
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::DataWriterQos,
+        qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
-    infrastructure::{instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind},
     topic_definition::type_support::{DdsSerialize, DdsType},
-};
-
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_topic_data::DiscoveredTopicData,
-        discovered_writer_data::DiscoveredWriterData,
-    },
-    utils::shared_object::{DdsRwLock, DdsShared},
 };
 
 use super::{
@@ -157,32 +149,6 @@ impl DdsShared<BuiltinStatefulWriter> {
 
 impl DdsShared<BuiltinStatefulWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let guid_prefix = rtps_writer_lock.guid().prefix();
-
-        let destined_submessages = rtps_writer_lock.produce_submessages();
-
-        for (reader_proxy, submessages) in destined_submessages {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION,
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: guid_prefix,
-                },
-            };
-
-            let rtps_message = RtpsMessage {
-                header,
-                submessages,
-            };
-            for locator in reader_proxy.unicast_locator_list() {
-                transport.write(&rtps_message, *locator);
-            }
-        }
+        self.rtps_writer.write_lock().send_message(transport);
     }
 }
