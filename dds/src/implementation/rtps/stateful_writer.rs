@@ -94,9 +94,7 @@ impl<T> RtpsStatefulWriter<T> {
 
         true
     }
-}
 
-impl<T> RtpsStatefulWriter<T> {
     pub fn register_instance_w_timestamp<Foo>(
         &mut self,
         instance: &Foo,
@@ -210,7 +208,10 @@ impl<T> RtpsStatefulWriter<T> {
     }
 }
 
-impl<T: Timer> RtpsStatefulWriter<T> {
+impl<T> RtpsStatefulWriter<T>
+where
+    T: Timer,
+{
     pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => self.produce_submessages_best_effort(),
@@ -426,10 +427,10 @@ impl<T: Timer> RtpsStatefulWriter<T> {
     pub fn on_acknack_submessage_received(
         &mut self,
         acknack_submessage: &AckNackSubmessage,
-        dst_guid_prefix: GuidPrefix,
+        src_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(dst_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(src_guid_prefix, acknack_submessage.reader_id.value);
 
             if let Some(reader_proxy) = self
                 .matched_readers
