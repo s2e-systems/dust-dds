@@ -817,25 +817,26 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     fn on_data_available(&self) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
-
         if let Some(listener) = self.listener.write_lock().as_mut() {
             listener.trigger_on_data_available(self);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
     }
 
     fn on_sample_lost(&self) {
         self.sample_lost_status.write_lock().increment();
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleLost);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_sample_lost_status();
             listener.trigger_on_sample_lost(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleLost);
     }
 
     fn on_sample_rejected(
@@ -846,25 +847,26 @@ impl DdsShared<UserDefinedDataReader> {
         self.sample_rejected_status
             .write_lock()
             .increment(instance_handle, rejected_reason);
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleRejected);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_sample_rejected_status();
             listener.trigger_on_sample_rejected(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleRejected);
     }
 
     fn on_requested_deadline_missed(&self) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedDeadlineMissed);
-
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_requested_deadline_missed_status().unwrap();
             listener.trigger_on_requested_deadline_missed(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 }
 
