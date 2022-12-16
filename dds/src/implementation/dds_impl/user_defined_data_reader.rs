@@ -817,25 +817,26 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     fn on_data_available(&self) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
-
         if let Some(listener) = self.listener.write_lock().as_mut() {
             listener.trigger_on_data_available(self);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
     }
 
     fn on_sample_lost(&self) {
         self.sample_lost_status.write_lock().increment();
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleLost);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_sample_lost_status();
             listener.trigger_on_sample_lost(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleLost);
     }
 
     fn on_sample_rejected(
@@ -846,25 +847,26 @@ impl DdsShared<UserDefinedDataReader> {
         self.sample_rejected_status
             .write_lock()
             .increment(instance_handle, rejected_reason);
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::SampleRejected);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_sample_rejected_status();
             listener.trigger_on_sample_rejected(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::SampleRejected);
     }
 
     fn on_requested_deadline_missed(&self) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedDeadlineMissed);
-
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_requested_deadline_missed_status().unwrap();
             listener.trigger_on_requested_deadline_missed(self, status);
         }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 }
 
@@ -876,8 +878,8 @@ mod tests {
             endpoint::RtpsEndpoint,
             reader::RtpsReader,
             types::{
-                EntityId, Guid, TopicKind, BUILT_IN_PARTICIPANT, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_WRITER_WITH_KEY,
+                EntityId, EntityKey, Guid, TopicKind, BUILT_IN_PARTICIPANT, ENTITYID_UNKNOWN,
+                GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
             },
         },
         infrastructure::time::DURATION_ZERO,
@@ -973,7 +975,7 @@ mod tests {
     fn get_instance_handle() {
         let guid = Guid::new(
             GuidPrefix::new([4; 12]),
-            EntityId::new([3; 3], BUILT_IN_PARTICIPANT),
+            EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
         let qos = DataReaderQos::default();
@@ -1057,7 +1059,7 @@ mod tests {
         };
         let remote_writer_guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
+            EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
         );
         let discovered_writer_data = DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -1149,7 +1151,7 @@ mod tests {
             writer_proxy: WriterProxy {
                 remote_writer_guid: Guid::new(
                     GuidPrefix::new([2; 12]),
-                    EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
+                    EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],

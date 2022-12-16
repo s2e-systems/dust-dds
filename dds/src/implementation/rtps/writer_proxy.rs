@@ -101,13 +101,13 @@ impl RtpsWriterProxy {
             .iter()
             .max()
             .cloned()
-            .unwrap_or_else(|| SequenceNumber::new(0));
+            .unwrap_or(SequenceNumber::new(0));
         let highest_irrelevant_seq_num = self
             .irrelevant_changes
             .iter()
             .max()
             .cloned()
-            .unwrap_or_else(|| SequenceNumber::new(0));
+            .unwrap_or(SequenceNumber::new(0));
         // The highest sequence number of all present
         let highest_number = max(
             self.last_available_seq_num, max(

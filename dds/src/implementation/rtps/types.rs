@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -9,12 +9,24 @@ use std::ops::{Add, AddAssign, Sub};
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-///
-/// Note: Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
+}
+
+impl Guid {
+    pub const fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
+        Self { prefix, entity_id }
+    }
+
+    pub const fn prefix(&self) -> GuidPrefix {
+        self.prefix
+    }
+
+    pub const fn entity_id(&self) -> EntityId {
+        self.entity_id
+    }
 }
 
 pub const GUID_UNKNOWN: Guid = Guid {
@@ -22,27 +34,16 @@ pub const GUID_UNKNOWN: Guid = Guid {
     entity_id: ENTITYID_UNKNOWN,
 };
 
-impl Guid {
-    pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> Self {
-        Self { prefix, entity_id }
-    }
-
-    pub fn prefix(&self) -> GuidPrefix {
-        self.prefix
-    }
-
-    pub fn entity_id(&self) -> EntityId {
-        self.entity_id
-    }
-}
-
 impl From<[u8; 16]> for Guid {
     fn from(value: [u8; 16]) -> Self {
         let prefix = GuidPrefix::new([
             value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
             value[8], value[9], value[10], value[11],
         ]);
-        let entity_id = EntityId::new([value[12], value[13], value[14]], EntityKind(value[15]));
+        let entity_id = EntityId::new(
+            EntityKey::new([value[12], value[13], value[14]]),
+            EntityKind(value[15]),
+        );
         Self { prefix, entity_id }
     }
 }
@@ -62,9 +63,9 @@ impl From<Guid> for [u8; 16] {
             guid.prefix.0[9],
             guid.prefix.0[10],
             guid.prefix.0[11],
-            guid.entity_id.entity_key[0],
-            guid.entity_id.entity_key[1],
-            guid.entity_id.entity_key[2],
+            guid.entity_id.entity_key.0[0],
+            guid.entity_id.entity_key.0[1],
+            guid.entity_id.entity_key.0[2],
             guid.entity_id.entity_kind.0,
         ]
     }
@@ -79,7 +80,7 @@ pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 
 impl GuidPrefix {
-    pub fn new(value: [u8; 12]) -> Self {
+    pub const fn new(value: [u8; 12]) -> Self {
         Self(value)
     }
 }
@@ -102,13 +103,11 @@ impl EntityId {
         }
     }
 
-    /// Get a reference to the entity id's entity key.
-    pub fn entity_key(&self) -> EntityKey {
+    pub const fn entity_key(&self) -> EntityKey {
         self.entity_key
     }
 
-    /// Get a reference to the entity id's entity kind.
-    pub fn entity_kind(&self) -> EntityKind {
+    pub const fn entity_kind(&self) -> EntityKind {
         self.entity_kind
     }
 }
@@ -116,9 +115,9 @@ impl EntityId {
 impl From<EntityId> for [u8; 4] {
     fn from(value: EntityId) -> Self {
         [
-            value.entity_key[0],
-            value.entity_key[1],
-            value.entity_key[2],
+            value.entity_key.0[0],
+            value.entity_key.0[1],
+            value.entity_key.0[2],
             value.entity_kind.0,
         ]
     }
@@ -131,12 +130,12 @@ impl Default for EntityId {
 }
 
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: [0; 3],
+    entity_key: EntityKey::new([0; 3]),
     entity_kind: USER_DEFINED_UNKNOWN,
 };
 
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: [0, 0, 0x01],
+    entity_key: EntityKey::new([0, 0, 0x01]),
     entity_kind: BUILT_IN_PARTICIPANT,
 };
 
@@ -144,7 +143,7 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
 pub struct EntityKind(u8);
 
 impl EntityKind {
-    pub fn new(value: u8) -> Self {
+    pub const fn new(value: u8) -> Self {
         Self(value)
     }
 }
@@ -178,35 +177,58 @@ pub const BUILT_IN_READER_GROUP: EntityKind = EntityKind(0xc9);
 pub const BUILT_IN_TOPIC: EntityKind = EntityKind(0xca);
 pub const USER_DEFINED_TOPIC: EntityKind = EntityKind(0x0a);
 
-pub type EntityKey = [u8; 3];
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Debug,
+    derive_more::Into,
+    serde::Serialize,
+    serde::Deserialize,
+)]
+pub struct EntityKey([u8; 3]);
+
+impl EntityKey {
+    pub const fn new(value: [u8; 3]) -> Self {
+        Self(value)
+    }
+}
 
 /// SequenceNumber_t
 /// Type used to hold sequence numbers.
 /// Must be possible to represent using 64 bits.
 /// The following values are reserved by the protocol: SEQUENCENUMBER_UNKNOWN
 #[derive(
-    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, derive_more::Into, derive_more::Constructor,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    derive_more::Into,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    derive_more::SubAssign,
 )]
 pub struct SequenceNumber(i64);
+
+impl SequenceNumber {
+    pub const fn new(value: i64) -> Self {
+        Self(value)
+    }
+}
 #[allow(dead_code)]
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
 
-impl AddAssign for SequenceNumber {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
 impl AddAssign<i64> for SequenceNumber {
     fn add_assign(&mut self, rhs: i64) {
         self.0 += rhs;
-    }
-}
-
-impl Add for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        SequenceNumber(self.0 + rhs.0)
     }
 }
 impl Add<i64> for SequenceNumber {
@@ -216,6 +238,11 @@ impl Add<i64> for SequenceNumber {
         SequenceNumber(self.0 + rhs)
     }
 }
+impl SubAssign<i64> for SequenceNumber {
+    fn sub_assign(&mut self, rhs: i64) {
+        self.0 -= rhs
+    }
+}
 impl Sub<i64> for SequenceNumber {
     type Output = SequenceNumber;
 
@@ -223,13 +250,7 @@ impl Sub<i64> for SequenceNumber {
         SequenceNumber(self.0 - rhs)
     }
 }
-impl Sub for SequenceNumber {
-    type Output = SequenceNumber;
 
-    fn sub(self, rhs: Self) -> Self::Output {
-        SequenceNumber(self.0 - rhs.0)
-    }
-}
 /// TopicKind_t
 /// Enumeration used to distinguish whether a Topic has defined some fields within to be used as the ‘key’ that identifies data-instances within the Topic. See the DDS specification for more details on keys.
 /// The following values are reserved by the protocol: NO_KEY
@@ -279,13 +300,13 @@ pub const PROTOCOLVERSION_2_3: ProtocolVersion = ProtocolVersion { major: 2, min
 pub const PROTOCOLVERSION_2_4: ProtocolVersion = ProtocolVersion { major: 2, minor: 4 };
 
 impl ProtocolVersion {
-    pub fn new(major: u8, minor: u8) -> Self {
+    pub const fn new(major: u8, minor: u8) -> Self {
         Self { major, minor }
     }
-    pub fn major(&self) -> u8 {
+    pub const fn major(&self) -> u8 {
         self.major
     }
-    pub fn minor(&self) -> u8 {
+    pub const fn minor(&self) -> u8 {
         self.minor
     }
 }
@@ -294,23 +315,36 @@ impl ProtocolVersion {
 /// Type used to represent the vendor of the service implementing the RTPS protocol. The possible values for the vendorId are assigned by the OMG.
 /// The following values are reserved by the protocol: VENDORID_UNKNOWN
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::Constructor,
+    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
 pub struct VendorId([u8; 2]);
+
+impl VendorId {
+    pub const fn new(value: [u8; 2]) -> Self {
+        Self(value)
+    }
+}
+
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
 pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
 
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, Default)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
+    derive_more::Into,
+    derive_more::Add,
+    derive_more::AddAssign,
+    derive_more::Sub,
+    derive_more::SubAssign,
+)]
 pub struct Count(i32);
 
 impl Count {
@@ -326,16 +360,6 @@ impl PartialOrd<Count> for Count {
         self.0.partial_cmp(&other.0)
     }
 }
-impl AddAssign for Count {
-    fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
-    }
-}
-impl AsRef<i32> for Count {
-    fn as_ref(&self) -> &i32 {
-        &self.0
-    }
-}
 
 /// Locator_t
 /// Type used to represent the addressing information needed to send a message to an RTPS Endpoint using one of the supported transports.
@@ -349,41 +373,37 @@ pub struct Locator {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::Constructor,
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
 pub struct LocatorKind(i32);
+
+impl LocatorKind {
+    pub const fn new(value: i32) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::Constructor,
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
 pub struct LocatorPort(u32);
+
+impl LocatorPort {
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::Constructor,
+    Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize, derive_more::Into,
 )]
 pub struct LocatorAddress([u8; 16]);
+
+impl LocatorAddress {
+    pub const fn new(value: [u8; 16]) -> Self {
+        Self(value)
+    }
+}
 
 #[allow(dead_code)]
 pub const LOCATOR_KIND_INVALID: LocatorKind = LocatorKind(-1);
@@ -402,20 +422,20 @@ pub const LOCATOR_INVALID: Locator = Locator {
 };
 
 impl Locator {
-    pub fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
+    pub const fn new(kind: LocatorKind, port: LocatorPort, address: LocatorAddress) -> Self {
         Self {
             kind,
             port,
             address,
         }
     }
-    pub fn kind(&self) -> &LocatorKind {
-        &self.kind
+    pub const fn kind(&self) -> LocatorKind {
+        self.kind
     }
-    pub fn port(&self) -> &LocatorPort {
-        &self.port
+    pub const fn port(&self) -> LocatorPort {
+        self.port
     }
-    pub fn address(&self) -> &LocatorAddress {
-        &self.address
+    pub const fn address(&self) -> LocatorAddress {
+        self.address
     }
 }

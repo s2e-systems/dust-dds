@@ -70,9 +70,7 @@ impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
         let writer_id = EntityIdSubmessageElement {
             value: val.writer_guid().entity_id(),
         };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: val.sequence_number(),
-        };
+        let writer_sn = val.sequence_number();
         let inline_qos = ParameterListSubmessageElement {
             parameter: val
                 .inline_qos()

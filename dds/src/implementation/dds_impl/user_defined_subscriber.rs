@@ -9,8 +9,8 @@ use crate::{
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
             types::{
-                EntityId, Guid, GuidPrefix, Locator, TopicKind, USER_DEFINED_READER_NO_KEY,
-                USER_DEFINED_READER_WITH_KEY,
+                EntityId, EntityKey, Guid, GuidPrefix, Locator, TopicKind,
+                USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
             },
         },
         utils::{
@@ -103,11 +103,11 @@ impl DdsShared<UserDefinedSubscriber> {
             };
 
             EntityId::new(
-                [
-                    self.rtps_group.guid().entity_id().entity_key()[0],
+                EntityKey::new([
+                    <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
                     self.user_defined_data_reader_counter,
                     0,
-                ],
+                ]),
                 entity_kind,
             )
         };

@@ -1,4 +1,6 @@
-use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count, SequenceNumber};
+use crate::implementation::rtps::types::{
+    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3

@@ -14,8 +14,7 @@ impl MappingWriteByteOrdered for Count {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        self.as_ref()
-            .mapping_write_byte_ordered::<_, B>(&mut writer)
+        <i32>::from(*self).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 

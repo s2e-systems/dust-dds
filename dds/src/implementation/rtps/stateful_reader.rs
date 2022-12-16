@@ -104,7 +104,7 @@ impl RtpsStatefulReader {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) -> StatefulReaderDataReceivedResult {
-        let sequence_number = data_submessage.writer_sn.value;
+        let sequence_number = data_submessage.writer_sn;
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
             data_submessage.writer_id.value,
@@ -157,7 +157,7 @@ impl RtpsStatefulReader {
 
                         match add_change_result {
                             Ok(instance_handle) => {
-                                writer_proxy.received_change_set(data_submessage.writer_sn.value);
+                                writer_proxy.received_change_set(data_submessage.writer_sn);
                                 StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle)
                             }
                             Err(err) => err.into(),
@@ -197,8 +197,8 @@ impl RtpsStatefulReader {
                     if !heartbeat_submessage.final_flag {
                         writer_proxy.set_must_send_acknacks(true);
                     }
-                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn.value);
-                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn.value);
+                    writer_proxy.missing_changes_update(heartbeat_submessage.last_sn);
+                    writer_proxy.lost_changes_update(heartbeat_submessage.first_sn);
                 }
             }
         }

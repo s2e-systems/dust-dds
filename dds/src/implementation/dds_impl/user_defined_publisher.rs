@@ -10,7 +10,7 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
-                EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
                 USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
@@ -105,11 +105,11 @@ impl DdsShared<UserDefinedPublisher> {
             Guid::new(
                 self.rtps_group.guid().prefix(),
                 EntityId::new(
-                    [
-                        self.rtps_group.guid().entity_id().entity_key()[0],
+                    EntityKey::new([
+                        <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
                         user_defined_data_writer_counter,
                         0,
-                    ],
+                    ]),
                     entity_kind,
                 ),
             )

@@ -303,8 +303,8 @@ impl ToSocketAddrs for UdpLocator {
     type Iter = std::option::IntoIter<SocketAddr>;
 
     fn to_socket_addrs(&self) -> std::io::Result<Self::Iter> {
-        let locator_address = <[u8; 16]>::from(*self.0.address());
-        match *self.0.kind() {
+        let locator_address = <[u8; 16]>::from(self.0.address());
+        match self.0.kind() {
             LOCATOR_KIND_UDP_V4 => {
                 let address = SocketAddrV4::new(
                     Ipv4Addr::new(
@@ -313,7 +313,7 @@ impl ToSocketAddrs for UdpLocator {
                         locator_address[14],
                         locator_address[15],
                     ),
-                    <u32>::from(*self.0.port()) as u16,
+                    <u32>::from(self.0.port()) as u16,
                 );
                 Ok(Some(SocketAddr::V4(address)).into_iter())
             }
@@ -346,8 +346,8 @@ impl From<SocketAddr> for UdpLocator {
 
 impl UdpLocator {
     fn is_multicast(&self) -> bool {
-        let locator_address = <[u8; 16]>::from(*self.0.address());
-        match *self.0.kind() {
+        let locator_address = <[u8; 16]>::from(self.0.address());
+        match self.0.kind() {
             LOCATOR_KIND_UDP_V4 => Ipv4Addr::new(
                 locator_address[12],
                 locator_address[13],
@@ -404,11 +404,11 @@ mod tests {
     fn socket_addr_to_locator_conversion() {
         let socket_addr = SocketAddr::from_str("127.0.0.1:7400").unwrap();
         let locator = UdpLocator::from(socket_addr).0;
-        assert_eq!(locator.kind(), &LOCATOR_KIND_UDP_V4);
-        assert_eq!(locator.port(), &LocatorPort::new(7400));
+        assert_eq!(locator.kind(), LOCATOR_KIND_UDP_V4);
+        assert_eq!(locator.port(), LocatorPort::new(7400));
         assert_eq!(
             locator.address(),
-            &LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
+            LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
         );
     }
 

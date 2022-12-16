@@ -172,7 +172,9 @@ impl DdsShared<TopicImpl> {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps::types::{EntityId, GuidPrefix, BUILT_IN_PARTICIPANT};
+    use crate::implementation::rtps::types::{
+        EntityId, EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT,
+    };
 
     use super::*;
 
@@ -180,7 +182,7 @@ mod tests {
     fn get_instance_handle() {
         let guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([3; 3], BUILT_IN_PARTICIPANT),
+            EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
         *topic.enabled.write_lock() = true;

@@ -270,7 +270,8 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 mod tests {
     use super::*;
     use crate::implementation::rtps::types::{
-        GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY, USER_DEFINED_UNKNOWN,
+        EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
+        USER_DEFINED_UNKNOWN,
     };
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
@@ -291,9 +292,12 @@ mod tests {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([5; 12]),
-                    EntityId::new([11, 12, 13], USER_DEFINED_READER_WITH_KEY),
+                    EntityId::new(EntityKey::new([11, 12, 13]), USER_DEFINED_READER_WITH_KEY),
                 ),
-                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                remote_group_entity_id: EntityId::new(
+                    EntityKey::new([21, 22, 23]),
+                    BUILT_IN_WRITER_WITH_KEY,
+                ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
@@ -355,9 +359,12 @@ mod tests {
                 // must correspond to subscription_builtin_topic_data.key
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]),
-                    EntityId::new([4, 0, 0], USER_DEFINED_UNKNOWN),
+                    EntityId::new(EntityKey::new([4, 0, 0]), USER_DEFINED_UNKNOWN),
                 ),
-                remote_group_entity_id: EntityId::new([21, 22, 23], BUILT_IN_WRITER_WITH_KEY),
+                remote_group_entity_id: EntityId::new(
+                    EntityKey::new([21, 22, 23]),
+                    BUILT_IN_WRITER_WITH_KEY,
+                ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQosDeserialize::default().0,
