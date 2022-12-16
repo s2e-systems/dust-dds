@@ -61,7 +61,7 @@ jobs:
           command: |
             mkdir build
             cd build
-            cmake -DCMAKE_PREFIX_PATH="/usr/local/lib/cmake/CycloneDDS/idlc" ../dds/tests/interoperability
+            cmake ../dds/tests/interoperability
             cmake --build .
       - run:
           name: Build examples
@@ -73,7 +73,9 @@ jobs:
           name: Hello world inteoperability test
           no_output_timeout: 30s
           command: |
-            cargo run --example hello_world_publisher &
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cargo run --example hello_world_subscriber &
             pid=$!
             build/InteroperabilityPublisher
             wait $pid
