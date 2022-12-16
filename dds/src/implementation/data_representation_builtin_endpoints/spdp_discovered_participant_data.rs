@@ -91,6 +91,14 @@ impl SpdpDiscoveredParticipantData {
         self.participant_proxy.guid_prefix
     }
 
+    pub fn default_unicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.default_unicast_locator_list
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &[Locator] {
+        &self.participant_proxy.default_multicast_locator_list
+    }
+
     pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
         &self.participant_proxy.metatraffic_unicast_locator_list
     }

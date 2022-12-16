@@ -29,8 +29,8 @@ use crate::{
             transport::TransportWrite,
             types::{
                 Count, EntityId, Guid, Locator, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
-                BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
@@ -862,15 +862,39 @@ impl DdsShared<DomainParticipantImpl> {
         if let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            for discovered_writer_data_sample in samples.iter() {
+            .take::<DiscoveredWriterData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            for discovered_writer_data_sample in samples.into_iter() {
                 match discovered_writer_data_sample.sample_info.instance_state {
                     InstanceStateKind::Alive => {
-                        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                            subscriber.add_matched_writer(
-                                discovered_writer_data_sample.data.as_ref().unwrap(),
-                            );
+                        if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+                            let remote_writer_guid_prefix = discovered_writer_data
+                                .writer_proxy
+                                .remote_writer_guid
+                                .prefix();
+                            let writer_parent_participant_guid =
+                                Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                            if let Some(discovered_participant_data) = self
+                                .discovered_participant_list
+                                .read_lock()
+                                .get(&writer_parent_participant_guid.into())
+                            {
+                                for subscriber in
+                                    self.user_defined_subscriber_list.read_lock().iter()
+                                {
+                                    subscriber.add_matched_writer(
+                                        &discovered_writer_data,
+                                        discovered_participant_data.default_unicast_locator_list(),
+                                        discovered_participant_data
+                                            .default_multicast_locator_list(),
+                                    );
+                                }
+                            }
                         }
                     }
                     InstanceStateKind::NotAliveDisposed => {
