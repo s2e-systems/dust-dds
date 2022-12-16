@@ -916,19 +916,49 @@ impl DdsShared<DomainParticipantImpl> {
         if let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
-            .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
-            for discovered_reader_data_sample in samples.iter() {
-                for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    match discovered_reader_data_sample.sample_info.instance_state {
-                        InstanceStateKind::Alive => publisher.add_matched_reader(
-                            discovered_reader_data_sample.data.as_ref().unwrap(),
-                        ),
-                        InstanceStateKind::NotAliveDisposed => publisher.remove_matched_reader(
-                            discovered_reader_data_sample.sample_info.instance_handle,
-                        ),
-                        InstanceStateKind::NotAliveNoWriters => todo!(),
+            .take::<DiscoveredReaderData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            for discovered_reader_data_sample in samples.into_iter() {
+                match discovered_reader_data_sample.sample_info.instance_state {
+                    InstanceStateKind::Alive => {
+                        if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
+                            let remote_reader_guid_prefix = discovered_reader_data
+                                .reader_proxy
+                                .remote_reader_guid
+                                .prefix();
+                            let reader_parent_participant_guid =
+                                Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
+
+                            if let Some(discovered_participant_data) = self
+                                .discovered_participant_list
+                                .read_lock()
+                                .get(&reader_parent_participant_guid.into())
+                            {
+                                for publisher in self.user_defined_publisher_list.read_lock().iter()
+                                {
+                                    publisher.add_matched_reader(
+                                        &discovered_reader_data,
+                                        discovered_participant_data.default_unicast_locator_list(),
+                                        discovered_participant_data
+                                            .default_multicast_locator_list(),
+                                    );
+                                }
+                            }
+                        }
                     }
+                    InstanceStateKind::NotAliveDisposed => {
+                        for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                            publisher.remove_matched_reader(
+                                discovered_reader_data_sample.sample_info.instance_handle,
+                            )
+                        }
+                    }
+
+                    InstanceStateKind::NotAliveNoWriters => todo!(),
                 }
             }
         }

@@ -10,7 +10,8 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
-                EntityId, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY, USER_DEFINED_WRITER_WITH_KEY,
+                EntityId, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -351,9 +352,18 @@ impl DdsShared<UserDefinedPublisher> {
         self.rtps_group.guid().into()
     }
 
-    pub fn add_matched_reader(&self, discovered_reader_data: &DiscoveredReaderData) {
+    pub fn add_matched_reader(
+        &self,
+        discovered_reader_data: &DiscoveredReaderData,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+    ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.add_matched_reader(discovered_reader_data)
+            data_writer.add_matched_reader(
+                discovered_reader_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            )
         }
     }
 
