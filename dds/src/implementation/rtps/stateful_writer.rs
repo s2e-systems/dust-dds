@@ -13,14 +13,22 @@ use crate::{
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
+        overall_structure::RtpsMessageHeader,
         submessage_elements::{
-            CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
+            CountSubmessageElement, EntityIdSubmessageElement, GuidPrefixSubmessageElement,
+            ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
+            VendorIdSubmessageElement,
         },
         submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
-        RtpsSubmessageKind,
+        types::ProtocolId,
+        RtpsMessage, RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
-    types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    transport::TransportWrite,
+    types::{
+        Count, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN, PROTOCOLVERSION,
+        VENDOR_ID_S2E,
+    },
     writer::RtpsWriter,
 };
 
@@ -212,17 +220,14 @@ impl<T> RtpsStatefulWriter<T>
 where
     T: Timer,
 {
-    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
+    pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
         match self.writer.get_qos().reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => self.produce_submessages_best_effort(),
-            ReliabilityQosPolicyKind::Reliable => self.produce_submessages_reliable(),
+            ReliabilityQosPolicyKind::BestEffort => self.send_message_best_effort(transport),
+            ReliabilityQosPolicyKind::Reliable => self.send_submessage_reliable(transport),
         }
     }
 
-    fn produce_submessages_best_effort(
-        &mut self,
-    ) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
-        let mut destined_submessages = Vec::new();
+    fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
             let mut submessages = Vec::new();
             if !reader_proxy.unsent_changes().is_empty() {
@@ -251,14 +256,32 @@ where
                 }
             }
             if !submessages.is_empty() {
-                destined_submessages.push((&*reader_proxy, submessages));
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: ProtocolVersionSubmessageElement {
+                        value: PROTOCOLVERSION,
+                    },
+                    vendor_id: VendorIdSubmessageElement {
+                        value: VENDOR_ID_S2E,
+                    },
+                    guid_prefix: GuidPrefixSubmessageElement {
+                        value: self.writer.guid().prefix(),
+                    },
+                };
+
+                let rtps_message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+
+                for locator in reader_proxy.unicast_locator_list() {
+                    transport.write(&rtps_message, *locator)
+                }
             }
         }
-        destined_submessages
     }
 
-    fn produce_submessages_reliable(&mut self) -> Vec<(&RtpsReaderProxy, Vec<RtpsSubmessageKind>)> {
-        let mut destined_submessages = Vec::new();
+    fn send_submessage_reliable(&mut self, transport: &mut impl TransportWrite) {
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
             >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
                 + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
@@ -418,10 +441,29 @@ where
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             }
             if !submessages.is_empty() {
-                destined_submessages.push((&*reader_proxy, submessages));
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: ProtocolVersionSubmessageElement {
+                        value: PROTOCOLVERSION,
+                    },
+                    vendor_id: VendorIdSubmessageElement {
+                        value: VENDOR_ID_S2E,
+                    },
+                    guid_prefix: GuidPrefixSubmessageElement {
+                        value: self.writer.guid().prefix(),
+                    },
+                };
+
+                let rtps_message = RtpsMessage {
+                    header,
+                    submessages,
+                };
+
+                for locator in reader_proxy.unicast_locator_list() {
+                    transport.write(&rtps_message, *locator)
+                }
             }
         }
-        destined_submessages
     }
 
     pub fn on_acknack_submessage_received(

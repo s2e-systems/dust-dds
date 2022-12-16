@@ -4,22 +4,10 @@ use crate::{
     builtin_topics::BuiltInTopicKey,
     implementation::{
         rtps::{
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                    VendorIdSubmessageElement,
-                },
-                submessages::AckNackSubmessage,
-                types::ProtocolId,
-                RtpsMessage,
-            },
+            messages::submessages::AckNackSubmessage,
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{
-                EntityId, Locator, GUID_UNKNOWN, PROTOCOLVERSION, USER_DEFINED_UNKNOWN,
-                VENDOR_ID_S2E,
-            },
+            types::{EntityId, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
         },
         utils::condvar::DdsCondvar,
     },
@@ -694,28 +682,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
 impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        let guid_prefix = self.rtps_writer.read_lock().guid().prefix();
-
-        for (reader_proxy, submessages) in self.rtps_writer.write_lock().produce_submessages() {
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION,
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
-                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
-            };
-
-            let rtps_message = RtpsMessage {
-                header,
-                submessages,
-            };
-            for locator in reader_proxy.unicast_locator_list() {
-                transport.write(&rtps_message, *locator);
-            }
-        }
+        self.rtps_writer.write_lock().send_message(transport);
     }
 }
 
@@ -726,6 +693,7 @@ mod test {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
+            messages::RtpsMessage,
             types::{
                 Guid, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
                 ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
