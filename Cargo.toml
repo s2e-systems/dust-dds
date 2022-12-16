@@ -3,4 +3,5 @@
 members = [
     "dds",
     "dds_derive",
+    "idlgen",
 ]
