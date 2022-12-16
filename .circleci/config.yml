@@ -3,34 +3,6 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: s2esystems/dust_dds_interoperability
-    resource_class: large
-    steps:
-      - checkout
-      - run:
-          name: Build CycloneDDS Compatibility tests
-          command: |
-            mkdir build
-            cd build
-            cmake -DCMAKE_PREFIX_PATH="../../cyclonedds-build" ../dds/tests/interoperability
-            cmake --build .
-      - run:
-          name: Build examples
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cd ..
-            cargo build --example
-      - run:
-          name: Hello world inteoperability test
-          no_output_timeout: 30s
-          command: |
-            cargo run --example hello_world_publisher &
-            pid=$!
-            ../build/CompatibilityPublisher
-            wait $pid
-  main_tests:
-    docker:
       - image: cimg/rust:1.61.0
     resource_class: large
     steps:
@@ -77,3 +49,32 @@ jobs:
 
       - store_artifacts:
           path: /tmp/coverage
+
+  interoperability_tests:
+    docker:
+      - image: s2esystems/dust_dds_interoperability
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Build CycloneDDS Interoperability tests
+          command: |
+            mkdir build
+            cd build
+            cmake -DCMAKE_PREFIX_PATH="/usr/local/lib/cmake/CycloneDDS/idlc" ../dds/tests/interoperability
+            cmake --build .
+      - run:
+          name: Build examples
+          command: |
+            export RUSTFLAGS="-Cinstrument-coverage"
+            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
+            cd ..
+            cargo build --example
+      - run:
+          name: Hello world inteoperability test
+          no_output_timeout: 30s
+          command: |
+            cargo run --example hello_world_publisher &
+            pid=$!
+            ../build/InteroperabilityPublisher
+            wait $pid
