@@ -2,6 +2,8 @@ use crate::implementation::rtps::types::{
     EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
 };
 
+use super::types::FragmentNumber;
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -45,8 +47,8 @@ pub struct SequenceNumberSet {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FragmentNumberSet {
-    pub base: u32,
-    pub set: Vec<u32>,
+    pub base: FragmentNumber,
+    pub set: Vec<FragmentNumber>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
