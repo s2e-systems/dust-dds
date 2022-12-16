@@ -1,9 +1,9 @@
 FROM cimg/rust:1.61.0
-WORKDIR /home/circleci
-RUN git clone https://github.com/eclipse-cyclonedds/cyclonedds.git \
+RUN git clone --depth=1 https://github.com/eclipse-cyclonedds/cyclonedds.git \
     && mkdir cyclonedds-build
-WORKDIR cyclonedds-build
-RUN cmake ../cyclonedds \
-    && cmake --build . \
+RUN cd cyclonedds-build \
+    && cmake ../cyclonedds \
+    && cmake --build . --parallel 5 \
     && sudo cmake --build . --target install
-WORKDIR /home/circleci/project
+RUN rm -rf cyclonedds \
+    && rm -rf cyclonedds-build
