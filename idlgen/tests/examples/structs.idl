@@ -1,0 +1,9 @@
+struct Point {
+    double x;
+    double y;
+};
+
+struct ChessSquare {
+    char column;
+    unsigned short line;
+};

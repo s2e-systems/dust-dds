@@ -1,0 +1,12 @@
+enum Suits {
+    Spades,
+    Hearts,
+    Diamonds,
+    Clubs,
+}
+enum Direction {
+    North,
+    East,
+    South,
+    West,
+}

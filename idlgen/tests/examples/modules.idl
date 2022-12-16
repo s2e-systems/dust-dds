@@ -1,0 +1,27 @@
+module Game
+{
+    module Chess
+    {
+        enum ChessPiece
+        {
+            Pawn, Rook, Knight, Bishop, Queen, King
+        };
+
+        struct ChessSquare
+        {
+            char column;
+            unsigned short line;
+        };
+    }
+
+    module Cards
+    {
+        enum Suit { Spades, Hearts, Diamonds, Clubs }
+    }
+}
+
+struct Point
+{
+    double x;
+    double y;
+};
