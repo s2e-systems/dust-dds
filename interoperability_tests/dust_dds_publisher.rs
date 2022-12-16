@@ -61,7 +61,7 @@ fn main() {
 
     let hello_world = hello_world::HelloWorldType {
         id: 8,
-        msg: "Hello world!".to_string(),
+        msg: 'a',
     };
     writer.write(&hello_world, None).unwrap();
 
