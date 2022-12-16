@@ -19,16 +19,15 @@ use super::{
             ProtocolVersionSubmessageElement, SequenceNumberSubmessageElement,
             VendorIdSubmessageElement,
         },
-        submessages::{AckNackSubmessage, GapSubmessage, HeartbeatSubmessage},
+        submessages::{
+            AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+        },
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
-    types::{
-        Count, Guid, GuidPrefix, Locator, SequenceNumber, ENTITYID_UNKNOWN, PROTOCOLVERSION,
-        VENDOR_ID_S2E,
-    },
+    types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer::RtpsWriter,
 };
 
@@ -229,7 +228,14 @@ where
 
     fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            let mut submessages = Vec::new();
+            let info_dst = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: reader_proxy.remote_reader_guid().prefix(),
+                },
+            };
+            let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
+
             if !reader_proxy.unsent_changes().is_empty() {
                 // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
                 // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
@@ -255,7 +261,8 @@ where
                     }
                 }
             }
-            if !submessages.is_empty() {
+            // Send messages only if more than INFO_DST is added
+            if submessages.len() > 1 {
                 let header = RtpsMessageHeader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
                     version: ProtocolVersionSubmessageElement {
@@ -290,7 +297,13 @@ where
             self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
         }
         for reader_proxy in self.matched_readers.iter_mut() {
-            let mut submessages = Vec::new();
+            let info_dst = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: GuidPrefixSubmessageElement {
+                    value: reader_proxy.remote_reader_guid().prefix(),
+                },
+            };
+            let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
             // Top part of the state machine - Figure 8.19 RTPS standard
             if !reader_proxy.unsent_changes().is_empty() {
                 // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
@@ -324,7 +337,7 @@ where
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -357,7 +370,7 @@ where
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -414,7 +427,7 @@ where
                     final_flag: false,
                     liveliness_flag: false,
                     reader_id: EntityIdSubmessageElement {
-                        value: ENTITYID_UNKNOWN,
+                        value: reader_proxy.remote_reader_guid().entity_id(),
                     },
                     writer_id: EntityIdSubmessageElement {
                         value: self.writer.guid().entity_id(),
@@ -440,7 +453,8 @@ where
 
                 submessages.push(RtpsSubmessageKind::Heartbeat(heartbeat));
             }
-            if !submessages.is_empty() {
+            // Send messages only if more than INFO_DST is added
+            if submessages.len() > 1 {
                 let header = RtpsMessageHeader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
                     version: ProtocolVersionSubmessageElement {

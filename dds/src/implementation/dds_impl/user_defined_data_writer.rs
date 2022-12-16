@@ -695,8 +695,8 @@ mod test {
             endpoint::RtpsEndpoint,
             messages::RtpsMessage,
             types::{
-                Guid, GuidPrefix, Locator, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
-                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_WRITER_WITH_KEY,
+                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
+                USER_DEFINED_WRITER_WITH_KEY,
             },
             writer::RtpsWriter,
         },
@@ -796,66 +796,6 @@ mod test {
         );
         *data_writer.enabled.write_lock() = true;
         data_writer
-    }
-
-    #[test]
-    fn write_w_timestamp_stateful_message() {
-        let mut stateful_rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let locator = Locator::new(
-            LocatorKind::new(1),
-            LocatorPort::new(7400),
-            LocatorAddress::new([1; 16]),
-        );
-        let expects_inline_qos = false;
-        let is_active = true;
-        let reader_proxy = RtpsReaderProxy::new(
-            GUID_UNKNOWN,
-            ENTITYID_UNKNOWN,
-            &[locator],
-            &[],
-            expects_inline_qos,
-            is_active,
-        );
-        stateful_rtps_writer.matched_reader_add(reader_proxy);
-
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
-
-        let data_writer = UserDefinedDataWriter::new(
-            stateful_rtps_writer,
-            None,
-            dummy_topic,
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-
-        data_writer
-            .write_w_timestamp(&MockFoo {}, None, Time { sec: 0, nanosec: 0 })
-            .unwrap();
-
-        let mut mock_transport = MockTransport::new();
-        mock_transport
-            .expect_write()
-            .withf(move |message, destination_locator| {
-                message.submessages.len() == 2 && destination_locator == &locator
-            })
-            .once()
-            .return_const(());
-        data_writer.send_message(&mut mock_transport);
     }
 
     #[test]
