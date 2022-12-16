@@ -14,9 +14,9 @@ impl MappingWriteByteOrdered for Locator {
         &self,
         mut writer: W,
     ) -> Result<(), Error> {
-        <i32>::from(*self.kind()).mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        <u32>::from(*self.port()).mapping_write_byte_ordered::<_, B>(&mut writer)?;
-        <[u8; 16]>::from(*self.address()).mapping_write_byte_ordered::<_, B>(&mut writer)
+        <i32>::from(self.kind()).mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        <u32>::from(self.port()).mapping_write_byte_ordered::<_, B>(&mut writer)?;
+        <[u8; 16]>::from(self.address()).mapping_write_byte_ordered::<_, B>(&mut writer)
     }
 }
 

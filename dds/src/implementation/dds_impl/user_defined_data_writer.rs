@@ -7,7 +7,7 @@ use crate::{
             messages::submessages::AckNackSubmessage,
             reader_proxy::RtpsReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
+            types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
         },
         utils::condvar::DdsCondvar,
     },
@@ -650,7 +650,7 @@ impl DdsShared<UserDefinedDataWriter> {
                     .multicast_locator_list()
                     .to_vec(),
                 data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new([0; 3], USER_DEFINED_UNKNOWN),
+                remote_group_entity_id: EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
             },
 
             publication_builtin_topic_data: PublicationBuiltinTopicData {
@@ -902,7 +902,7 @@ mod test {
         };
         let remote_reader_guid = Guid::new(
             GuidPrefix::new([2; 12]),
-            EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
+            EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
         );
         let discovered_reader_data = DiscoveredReaderData {
             reader_proxy: ReaderProxy {
@@ -998,7 +998,7 @@ mod test {
             reader_proxy: ReaderProxy {
                 remote_reader_guid: Guid::new(
                     GuidPrefix::new([2; 12]),
-                    EntityId::new([2; 3], USER_DEFINED_WRITER_WITH_KEY),
+                    EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
                 ),
                 remote_group_entity_id: ENTITYID_UNKNOWN,
                 unicast_locator_list: vec![],
