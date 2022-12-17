@@ -12,9 +12,7 @@ use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::{
-            EntityIdSubmessageElement, GuidPrefixSubmessageElement,
-            ProtocolVersionSubmessageElement, SequenceNumberSet,
-            VendorIdSubmessageElement,
+            EntityIdSubmessageElement, GuidPrefixSubmessageElement, SequenceNumberSet,
         },
         submessages::{
             AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
@@ -235,12 +233,8 @@ impl RtpsStatefulReader {
 
                 let header = RtpsMessageHeader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: ProtocolVersionSubmessageElement {
-                        value: PROTOCOLVERSION,
-                    },
-                    vendor_id: VendorIdSubmessageElement {
-                        value: VENDOR_ID_S2E,
-                    },
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
                     guid_prefix: GuidPrefixSubmessageElement {
                         value: self.reader.guid().prefix(),
                     },

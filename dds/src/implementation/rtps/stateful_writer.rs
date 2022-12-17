@@ -14,10 +14,7 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::{
-            EntityIdSubmessageElement, GuidPrefixSubmessageElement,
-            ProtocolVersionSubmessageElement, VendorIdSubmessageElement,
-        },
+        submessage_elements::{EntityIdSubmessageElement, GuidPrefixSubmessageElement},
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
         },
@@ -264,12 +261,8 @@ where
             if submessages.len() > 1 {
                 let header = RtpsMessageHeader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: ProtocolVersionSubmessageElement {
-                        value: PROTOCOLVERSION,
-                    },
-                    vendor_id: VendorIdSubmessageElement {
-                        value: VENDOR_ID_S2E,
-                    },
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
                     guid_prefix: GuidPrefixSubmessageElement {
                         value: self.writer.guid().prefix(),
                     },
@@ -438,12 +431,8 @@ where
             if submessages.len() > 1 {
                 let header = RtpsMessageHeader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: ProtocolVersionSubmessageElement {
-                        value: PROTOCOLVERSION,
-                    },
-                    vendor_id: VendorIdSubmessageElement {
-                        value: VENDOR_ID_S2E,
-                    },
+                    version: PROTOCOLVERSION,
+                    vendor_id: VENDOR_ID_S2E,
                     guid_prefix: GuidPrefixSubmessageElement {
                         value: self.writer.guid().prefix(),
                     },

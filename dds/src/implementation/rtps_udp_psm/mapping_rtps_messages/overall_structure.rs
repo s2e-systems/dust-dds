@@ -141,8 +141,8 @@ mod tests {
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{
                     EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
-                    ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-                    SerializedDataSubmessageElement, VendorIdSubmessageElement,
+                    ParameterListSubmessageElement,
+                    SerializedDataSubmessageElement,
                 },
                 submessages::DataSubmessage,
                 types::ProtocolId,
@@ -161,12 +161,8 @@ mod tests {
     fn serialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version:  ProtocolVersion::new(2, 3),
+            vendor_id:VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -189,12 +185,8 @@ mod tests {
     fn serialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version:ProtocolVersion::new(2, 3),
+            vendor_id:VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -267,12 +259,8 @@ mod tests {
     fn deserialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -297,12 +285,8 @@ mod tests {
     fn deserialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version:  ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -376,12 +360,8 @@ mod tests {
     fn deserialize_rtps_message_unknown_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version:  ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },

@@ -49,8 +49,7 @@ mod tests {
     use crate::implementation::{
         rtps::{
             messages::submessage_elements::{
-                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                VendorIdSubmessageElement,
+                GuidPrefixSubmessageElement,
             },
             types::{GuidPrefix, ProtocolVersion, VendorId},
         },
@@ -63,12 +62,8 @@ mod tests {
     fn serialize_rtps_header() {
         let value = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id:VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -87,12 +82,8 @@ mod tests {
     fn deserialize_rtps_header() {
         let expected = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
+            version:  ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },

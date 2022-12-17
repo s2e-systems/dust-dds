@@ -1,15 +1,13 @@
-use crate::implementation::rtps::types::{Count, SequenceNumber};
+use crate::implementation::rtps::types::{Count, ProtocolVersion, SequenceNumber, VendorId};
 
 use super::{
     submessage_elements::{
-        EntityIdSubmessageElement,GuidPrefixSubmessageElement, LocatorListSubmessageElement,
-        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-        SequenceNumberSet,
+        EntityIdSubmessageElement, FragmentNumberSet, GuidPrefixSubmessageElement,
+        LocatorListSubmessageElement, ParameterListSubmessageElement, SequenceNumberSet,
         SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
         TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
-        VendorIdSubmessageElement, FragmentNumberSet,
     },
-    types::{SubmessageFlag, FragmentNumber},
+    types::{FragmentNumber, SubmessageFlag},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -101,8 +99,8 @@ pub struct InfoReplySubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub protocol_version: ProtocolVersionSubmessageElement,
-    pub vendor_id: VendorIdSubmessageElement,
+    pub protocol_version: ProtocolVersion,
+    pub vendor_id: VendorId,
     pub guid_prefix: GuidPrefixSubmessageElement,
 }
 

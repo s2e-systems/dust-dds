@@ -3,13 +3,8 @@ use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
         messages::{
-            overall_structure::RtpsMessageHeader,
-            submessage_elements::{
-                GuidPrefixSubmessageElement, ProtocolVersionSubmessageElement,
-                VendorIdSubmessageElement,
-            },
-            types::ProtocolId,
-            RtpsMessage,
+            overall_structure::RtpsMessageHeader, submessage_elements::GuidPrefixSubmessageElement,
+            types::ProtocolId, RtpsMessage,
         },
         reader_locator::RtpsReaderLocator,
         transport::TransportWrite,
@@ -115,12 +110,8 @@ impl DdsShared<BuiltinStatelessWriter> {
         for (reader_locator, submessages) in destined_submessages {
             let header = RtpsMessageHeader {
                 protocol: ProtocolId::PROTOCOL_RTPS,
-                version: ProtocolVersionSubmessageElement {
-                    value: PROTOCOLVERSION,
-                },
-                vendor_id: VendorIdSubmessageElement {
-                    value: VENDOR_ID_S2E,
-                },
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
                 guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
             };
 

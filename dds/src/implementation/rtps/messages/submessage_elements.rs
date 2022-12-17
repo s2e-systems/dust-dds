@@ -1,6 +1,4 @@
-use crate::implementation::rtps::types::{
-    EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId,
-};
+use crate::implementation::rtps::types::{EntityId, GuidPrefix, Locator, SequenceNumber};
 
 use super::types::FragmentNumber;
 
@@ -27,16 +25,6 @@ pub struct GuidPrefixSubmessageElement {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EntityIdSubmessageElement {
     pub value: EntityId,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VendorIdSubmessageElement {
-    pub value: VendorId,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProtocolVersionSubmessageElement {
-    pub value: ProtocolVersion,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
