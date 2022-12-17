@@ -1,6 +1,9 @@
 use crate::{
     implementation::{
-        dds_impl::user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
+        dds_impl::{
+            any_data_reader_listener::AnyDataReaderListener,
+            user_defined_data_reader::UserDefinedDataReader,
+        },
         utils::shared_object::DdsWeak,
     },
     infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration},

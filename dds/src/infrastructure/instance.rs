@@ -4,6 +4,12 @@ use crate::{implementation::rtps::types::Guid, topic_definition::type_support::D
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct InstanceHandle([u8; 16]);
 
+impl Default for InstanceHandle {
+    fn default() -> Self {
+        HANDLE_NIL
+    }
+}
+
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 

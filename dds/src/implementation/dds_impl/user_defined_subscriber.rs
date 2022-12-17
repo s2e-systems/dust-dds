@@ -31,10 +31,11 @@ use crate::{
 };
 
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     topic_impl::TopicImpl,
-    user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
+    user_defined_data_reader::UserDefinedDataReader,
 };
 
 pub struct UserDefinedSubscriber {
