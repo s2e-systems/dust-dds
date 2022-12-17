@@ -294,19 +294,19 @@ where
 
     /// This operation allows access to the [`LivelinessChangedStatus`].
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        self.0.upgrade()?.get_liveliness_changed_status()
+        Ok(self.0.upgrade()?.get_liveliness_changed_status())
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        self.0.upgrade()?.get_requested_deadline_missed_status()
+        Ok(self.0.upgrade()?.get_requested_deadline_missed_status())
     }
 
     /// This operation allows access to the [`RequestedIncompatibleQosStatus`].
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        self.0.upgrade()?.get_requested_incompatible_qos_status()
+        Ok(self.0.upgrade()?.get_requested_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`SampleLostStatus`].

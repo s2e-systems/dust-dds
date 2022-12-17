@@ -24,9 +24,9 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{DataReaderQos, QosKind},
         qos_policy::{
-            DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID,
-            LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID,
-            RELIABILITY_QOS_POLICY_ID,
+            QosPolicyId, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
@@ -50,36 +50,12 @@ use super::{
 
 pub trait AnyDataReaderListener {
     fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader>);
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SampleRejectedStatus,
-    );
-    fn trigger_on_liveliness_changed(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: LivelinessChangedStatus,
-    );
-    fn trigger_on_requested_deadline_missed(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: RequestedDeadlineMissedStatus,
-    );
-    fn trigger_on_requested_incompatible_qos(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: RequestedIncompatibleQosStatus,
-    );
-    fn trigger_on_subscription_matched(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SubscriptionMatchedStatus,
-    );
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SampleLostStatus,
-    );
+    fn trigger_on_sample_rejected(&mut self, reader: &DdsShared<UserDefinedDataReader>);
+    fn trigger_on_liveliness_changed(&mut self, reader: &DdsShared<UserDefinedDataReader>);
+    fn trigger_on_requested_deadline_missed(&mut self, reader: &DdsShared<UserDefinedDataReader>);
+    fn trigger_on_requested_incompatible_qos(&mut self, reader: &DdsShared<UserDefinedDataReader>);
+    fn trigger_on_subscription_matched(&mut self, reader: &DdsShared<UserDefinedDataReader>);
+    fn trigger_on_sample_lost(&mut self, reader: &DdsShared<UserDefinedDataReader>);
 }
 
 impl<Foo> AnyDataReaderListener for Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>
@@ -90,52 +66,46 @@ where
         self.on_data_available(&DataReader::new(reader.downgrade()))
     }
 
-    fn trigger_on_sample_rejected(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SampleRejectedStatus,
-    ) {
-        self.on_sample_rejected(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_sample_rejected(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_sample_rejected(
+            &DataReader::new(reader.downgrade()),
+            reader.get_sample_rejected_status(),
+        )
     }
 
-    fn trigger_on_liveliness_changed(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: LivelinessChangedStatus,
-    ) {
-        self.on_liveliness_changed(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_liveliness_changed(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_liveliness_changed(
+            &DataReader::new(reader.downgrade()),
+            reader.get_liveliness_changed_status(),
+        )
     }
 
-    fn trigger_on_requested_deadline_missed(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: RequestedDeadlineMissedStatus,
-    ) {
-        self.on_requested_deadline_missed(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_requested_deadline_missed(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_requested_deadline_missed(
+            &DataReader::new(reader.downgrade()),
+            reader.get_requested_deadline_missed_status(),
+        )
     }
 
-    fn trigger_on_requested_incompatible_qos(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: RequestedIncompatibleQosStatus,
-    ) {
-        self.on_requested_incompatible_qos(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_requested_incompatible_qos(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_requested_incompatible_qos(
+            &DataReader::new(reader.downgrade()),
+            reader.get_requested_incompatible_qos_status(),
+        )
     }
 
-    fn trigger_on_subscription_matched(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SubscriptionMatchedStatus,
-    ) {
-        self.on_subscription_matched(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_subscription_matched(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_subscription_matched(
+            &DataReader::new(reader.downgrade()),
+            reader.get_subscription_matched_status(),
+        )
     }
 
-    fn trigger_on_sample_lost(
-        &mut self,
-        reader: &DdsShared<UserDefinedDataReader>,
-        status: SampleLostStatus,
-    ) {
-        self.on_sample_lost(&DataReader::new(reader.downgrade()), status)
+    fn trigger_on_sample_lost(&mut self, reader: &DdsShared<UserDefinedDataReader>) {
+        self.on_sample_lost(
+            &DataReader::new(reader.downgrade()),
+            reader.get_sample_lost_status(),
+        )
     }
 }
 
@@ -146,9 +116,9 @@ impl SampleLostStatus {
     }
 
     fn read_and_reset(&mut self) -> Self {
-        let sample_lost_status = self.clone();
+        let status = self.clone();
         self.total_count_change = 0;
-        sample_lost_status
+        status
     }
 }
 
@@ -163,6 +133,14 @@ impl SampleRejectedStatus {
         self.last_instance_handle = instance_handle;
         self.last_reason = rejected_reason;
     }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
+    }
 }
 
 impl RequestedDeadlineMissedStatus {
@@ -170,6 +148,71 @@ impl RequestedDeadlineMissedStatus {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
+    }
+}
+
+impl LivelinessChangedStatus {
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.alive_count_change = 0;
+        self.not_alive_count_change = 0;
+
+        status
+    }
+}
+
+impl RequestedIncompatibleQosStatus {
+    fn increment(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_policy_id = incompatible_qos_policy_list[0];
+        for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+            if let Some(policy_count) = self
+                .policies
+                .iter_mut()
+                .find(|x| x.policy_id == incompatible_qos_policy)
+            {
+                policy_count.count += 1;
+            } else {
+                self.policies.push(QosPolicyCount {
+                    policy_id: incompatible_qos_policy,
+                    count: 1,
+                })
+            }
+        }
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+        self.total_count_change = 0;
+        status
+    }
+}
+
+impl SubscriptionMatchedStatus {
+    fn increment(&mut self) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.current_count += 1;
+        self.current_count_change += 1;
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.current_count_change = 0;
+        self.total_count_change = 0;
+
+        status
     }
 }
 
@@ -268,7 +311,10 @@ impl DdsShared<UserDefinedDataReader> {
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 self.on_data_available();
             }
-            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(_) => {
+            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
+                self.instance_reception_time
+                    .write_lock()
+                    .insert(instance_handle, message_receiver.reception_timestamp());
                 self.on_sample_lost();
                 self.on_data_available();
             }
@@ -379,59 +425,22 @@ impl DdsShared<UserDefinedDataReader> {
                     writer_info.clone(),
                 );
 
-                // Drop the subscription_matched_status_lock such that the listener can be triggered
-                // if needed
-                {
-                    let mut subscription_matched_status_lock =
-                        self.subscription_matched_status.write_lock();
-                    subscription_matched_status_lock.total_count += 1;
-                    subscription_matched_status_lock.total_count_change += 1;
-                    subscription_matched_status_lock.current_count += 1;
-                    subscription_matched_status_lock.current_count_change += 1;
-                }
+                self.subscription_matched_status.write_lock().increment();
 
+                if let Some(l) = self.listener.write_lock().as_mut() {
+                    l.trigger_on_subscription_matched(self)
+                };
                 self.status_condition
                     .write_lock()
                     .add_communication_state(StatusKind::SubscriptionMatched);
-
-                if let Some(l) = self.listener.write_lock().as_mut() {
-                    self.status_condition
-                        .write_lock()
-                        .remove_communication_state(StatusKind::SubscriptionMatched);
-                    let subscription_matched_status = self.get_subscription_matched_status();
-                    l.trigger_on_subscription_matched(self, subscription_matched_status)
-                };
             } else {
-                {
-                    let mut requested_incompatible_qos_status_lock =
-                        self.requested_incompatible_qos_status.write_lock();
-                    requested_incompatible_qos_status_lock.total_count += 1;
-                    requested_incompatible_qos_status_lock.total_count_change += 1;
-                    requested_incompatible_qos_status_lock.last_policy_id =
-                        incompatible_qos_policy_list[0];
-                    for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-                        if let Some(policy_count) = requested_incompatible_qos_status_lock
-                            .policies
-                            .iter_mut()
-                            .find(|x| x.policy_id == incompatible_qos_policy)
-                        {
-                            policy_count.count += 1;
-                        } else {
-                            requested_incompatible_qos_status_lock
-                                .policies
-                                .push(QosPolicyCount {
-                                    policy_id: incompatible_qos_policy,
-                                    count: 1,
-                                })
-                        }
-                    }
-                }
+                self.requested_incompatible_qos_status
+                    .write_lock()
+                    .increment(incompatible_qos_policy_list);
 
                 let mut listener_lock = self.listener.write_lock();
                 if let Some(l) = listener_lock.as_mut() {
-                    let requested_incompatible_qos_status =
-                        self.get_requested_incompatible_qos_status().unwrap();
-                    l.trigger_on_requested_incompatible_qos(self, requested_incompatible_qos_status)
+                    l.trigger_on_requested_incompatible_qos(self)
                 }
             }
         }
@@ -452,11 +461,7 @@ impl DdsShared<UserDefinedDataReader> {
                 .add_communication_state(StatusKind::SubscriptionMatched);
 
             if let Some(l) = self.listener.write_lock().as_mut() {
-                self.status_condition
-                    .write_lock()
-                    .remove_communication_state(StatusKind::SubscriptionMatched);
-                let subscription_matched_status = self.get_subscription_matched_status();
-                l.trigger_on_subscription_matched(self, subscription_matched_status)
+                l.trigger_on_subscription_matched(self)
             };
         }
     }
@@ -597,48 +602,20 @@ impl DdsShared<UserDefinedDataReader> {
         todo!()
     }
 
-    pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut liveliness_changed_status_lock = self.liveliness_changed_status.write_lock();
-        let liveliness_changed_status = liveliness_changed_status_lock.clone();
-
-        liveliness_changed_status_lock.alive_count_change = 0;
-        liveliness_changed_status_lock.not_alive_count_change = 0;
-
-        Ok(liveliness_changed_status)
+    pub fn get_liveliness_changed_status(&self) -> LivelinessChangedStatus {
+        self.liveliness_changed_status.write_lock().read_and_reset()
     }
 
-    pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let status = self.requested_deadline_missed_status.read_lock().clone();
-
+    pub fn get_requested_deadline_missed_status(&self) -> RequestedDeadlineMissedStatus {
         self.requested_deadline_missed_status
             .write_lock()
-            .total_count_change = 0;
-
-        Ok(status)
+            .read_and_reset()
     }
 
-    pub fn get_requested_incompatible_qos_status(
-        &self,
-    ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let mut requested_incompatible_qos_status_lock =
-            self.requested_incompatible_qos_status.write_lock();
-        let requested_incompatible_qos_status = requested_incompatible_qos_status_lock.clone();
-
-        requested_incompatible_qos_status_lock.total_count_change = 0;
-
-        Ok(requested_incompatible_qos_status)
+    pub fn get_requested_incompatible_qos_status(&self) -> RequestedIncompatibleQosStatus {
+        self.requested_incompatible_qos_status
+            .write_lock()
+            .read_and_reset()
     }
 
     pub fn get_sample_lost_status(&self) -> SampleLostStatus {
@@ -646,22 +623,13 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
-        let mut sample_rejected_status_lock = self.sample_rejected_status.write_lock();
-        let sample_rejected_status = sample_rejected_status_lock.clone();
-
-        sample_rejected_status_lock.total_count_change = 0;
-
-        sample_rejected_status
+        self.sample_rejected_status.write_lock().read_and_reset()
     }
 
     pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
-        let mut subscription_matched_status_lock = self.subscription_matched_status.write_lock();
-        let subscription_matched_status = subscription_matched_status_lock.clone();
-
-        subscription_matched_status_lock.current_count_change = 0;
-        subscription_matched_status_lock.total_count_change = 0;
-
-        subscription_matched_status
+        self.subscription_matched_status
+            .write_lock()
+            .read_and_reset()
     }
 
     pub fn get_topicdescription(&self) -> DdsShared<TopicImpl> {
@@ -854,8 +822,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.sample_lost_status.write_lock().increment();
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
-            let status = self.get_sample_lost_status();
-            listener.trigger_on_sample_lost(self, status);
+            listener.trigger_on_sample_lost(self);
         }
 
         self.status_condition
@@ -873,8 +840,7 @@ impl DdsShared<UserDefinedDataReader> {
             .increment(instance_handle, rejected_reason);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
-            let status = self.get_sample_rejected_status();
-            listener.trigger_on_sample_rejected(self, status);
+            listener.trigger_on_sample_rejected(self);
         }
 
         self.status_condition
@@ -888,8 +854,7 @@ impl DdsShared<UserDefinedDataReader> {
             .increment(instance_handle);
 
         if let Some(listener) = self.listener.write_lock().as_mut() {
-            let status = self.get_requested_deadline_missed_status().unwrap();
-            listener.trigger_on_requested_deadline_missed(self, status);
+            listener.trigger_on_requested_deadline_missed(self);
         }
 
         self.status_condition
@@ -969,32 +934,27 @@ mod tests {
             fn trigger_on_sample_rejected(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: SampleRejectedStatus,
             );
             fn trigger_on_liveliness_changed(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: LivelinessChangedStatus,
+
             );
             fn trigger_on_requested_deadline_missed(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: RequestedDeadlineMissedStatus,
             );
             fn trigger_on_requested_incompatible_qos(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: RequestedIncompatibleQosStatus,
             );
             fn trigger_on_subscription_matched(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: SubscriptionMatchedStatus,
             );
             fn trigger_on_sample_lost(
                 &mut self,
                 reader: &DdsShared<UserDefinedDataReader>,
-                status: SampleLostStatus,
             );
         }
     }
@@ -1193,8 +1153,7 @@ mod tests {
         let matched_publications = data_reader.get_matched_publications();
         assert_eq!(matched_publications.len(), 0);
 
-        let requested_incompatible_qos_status =
-            data_reader.get_requested_incompatible_qos_status().unwrap();
+        let requested_incompatible_qos_status = data_reader.get_requested_incompatible_qos_status();
         assert_eq!(requested_incompatible_qos_status.total_count, 1);
         assert_eq!(requested_incompatible_qos_status.total_count_change, 1);
         assert_eq!(
