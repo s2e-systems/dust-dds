@@ -47,12 +47,7 @@ impl<'de> MappingReadByteOrdered<'de> for RtpsMessageHeader {
 #[cfg(test)]
 mod tests {
     use crate::implementation::{
-        rtps::{
-            messages::submessage_elements::{
-                GuidPrefixSubmessageElement,
-            },
-            types::{GuidPrefix, ProtocolVersion, VendorId},
-        },
+        rtps::types::{GuidPrefix, ProtocolVersion, VendorId},
         rtps_udp_psm::mapping_traits::{from_bytes_le, to_bytes_le},
     };
 
@@ -63,10 +58,8 @@ mod tests {
         let value = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
-            vendor_id:VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&value).unwrap(), vec![
@@ -82,11 +75,9 @@ mod tests {
     fn deserialize_rtps_header() {
         let expected = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version:  ProtocolVersion::new(2, 3),
+            version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         #[rustfmt::skip]
         let result = from_bytes_le(&[

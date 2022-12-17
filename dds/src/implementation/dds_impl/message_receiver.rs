@@ -78,7 +78,7 @@ impl MessageReceiver {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header.version;
         self.source_vendor_id = message.header.vendor_id;
-        self.source_guid_prefix = message.header.guid_prefix.value;
+        self.source_guid_prefix = message.header.guid_prefix;
         self.unicast_reply_locator_list.push(Locator::new(
             source_locator.kind(),
             LOCATOR_PORT_INVALID,
@@ -143,7 +143,7 @@ impl MessageReceiver {
         &mut self,
         info_destination: &InfoDestinationSubmessage,
     ) {
-        self.dest_guid_prefix = info_destination.guid_prefix.value;
+        self.dest_guid_prefix = info_destination.guid_prefix;
     }
 
     #[allow(dead_code)]

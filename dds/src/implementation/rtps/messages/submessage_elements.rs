@@ -1,4 +1,4 @@
-use crate::implementation::rtps::types::{GuidPrefix, Locator, SequenceNumber};
+use crate::implementation::rtps::types::{Locator, SequenceNumber};
 
 use super::types::FragmentNumber;
 
@@ -15,11 +15,6 @@ pub struct UShortSubmessageElement {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ULongSubmessageElement {
     pub value: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GuidPrefixSubmessageElement {
-    pub value: GuidPrefix,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

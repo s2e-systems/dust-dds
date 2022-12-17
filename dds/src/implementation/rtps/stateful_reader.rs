@@ -11,7 +11,7 @@ use crate::{
 use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::{GuidPrefixSubmessageElement, SequenceNumberSet},
+        submessage_elements::SequenceNumberSet,
         submessages::{
             AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
         },
@@ -208,9 +208,7 @@ impl RtpsStatefulReader {
 
                 let info_dst_submessage = InfoDestinationSubmessage {
                     endianness_flag: true,
-                    guid_prefix: GuidPrefixSubmessageElement {
-                        value: writer_proxy.remote_writer_guid().prefix(),
-                    },
+                    guid_prefix: writer_proxy.remote_writer_guid().prefix(),
                 };
 
                 let acknack_submessage = AckNackSubmessage {
@@ -229,9 +227,7 @@ impl RtpsStatefulReader {
                     protocol: ProtocolId::PROTOCOL_RTPS,
                     version: PROTOCOLVERSION,
                     vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: GuidPrefixSubmessageElement {
-                        value: self.reader.guid().prefix(),
-                    },
+                    guid_prefix: self.reader.guid().prefix(),
                 };
 
                 let message = RtpsMessage {

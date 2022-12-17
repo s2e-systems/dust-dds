@@ -1,11 +1,11 @@
 use crate::implementation::rtps::types::{
-    Count, EntityId, ProtocolVersion, SequenceNumber, VendorId,
+    Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
 };
 
 use super::{
     submessage_elements::{
-        FragmentNumberSet, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
-        ParameterListSubmessageElement, SequenceNumberSet, SerializedDataFragmentSubmessageElement,
+        FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
+        SequenceNumberSet, SerializedDataFragmentSubmessageElement,
         SerializedDataSubmessageElement, TimestampSubmessageElement, ULongSubmessageElement,
         UShortSubmessageElement,
     },
@@ -87,7 +87,7 @@ pub struct HeartbeatFragSubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub guid_prefix: GuidPrefixSubmessageElement,
+    pub guid_prefix: GuidPrefix,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -103,7 +103,7 @@ pub struct InfoSourceSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub protocol_version: ProtocolVersion,
     pub vendor_id: VendorId,
-    pub guid_prefix: GuidPrefixSubmessageElement,
+    pub guid_prefix: GuidPrefix,
 }
 
 #[derive(Debug, PartialEq, Eq)]

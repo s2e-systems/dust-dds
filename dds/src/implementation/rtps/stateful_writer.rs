@@ -14,7 +14,6 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::GuidPrefixSubmessageElement,
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
         },
@@ -226,9 +225,7 @@ where
         for reader_proxy in self.matched_readers.iter_mut() {
             let info_dst = InfoDestinationSubmessage {
                 endianness_flag: true,
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: reader_proxy.remote_reader_guid().prefix(),
-                },
+                guid_prefix: reader_proxy.remote_reader_guid().prefix(),
             };
             let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
 
@@ -261,9 +258,7 @@ where
                     protocol: ProtocolId::PROTOCOL_RTPS,
                     version: PROTOCOLVERSION,
                     vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: GuidPrefixSubmessageElement {
-                        value: self.writer.guid().prefix(),
-                    },
+                    guid_prefix: self.writer.guid().prefix(),
                 };
 
                 let rtps_message = RtpsMessage {
@@ -289,9 +284,7 @@ where
         for reader_proxy in self.matched_readers.iter_mut() {
             let info_dst = InfoDestinationSubmessage {
                 endianness_flag: true,
-                guid_prefix: GuidPrefixSubmessageElement {
-                    value: reader_proxy.remote_reader_guid().prefix(),
-                },
+                guid_prefix: reader_proxy.remote_reader_guid().prefix(),
             };
             let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
             // Top part of the state machine - Figure 8.19 RTPS standard
@@ -417,9 +410,7 @@ where
                     protocol: ProtocolId::PROTOCOL_RTPS,
                     version: PROTOCOLVERSION,
                     vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: GuidPrefixSubmessageElement {
-                        value: self.writer.guid().prefix(),
-                    },
+                    guid_prefix: self.writer.guid().prefix(),
                 };
 
                 let rtps_message = RtpsMessage {

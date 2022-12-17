@@ -140,8 +140,7 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{
-                    GuidPrefixSubmessageElement, Parameter, ParameterListSubmessageElement,
-                    SerializedDataSubmessageElement,
+                    Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
                 },
                 submessages::DataSubmessage,
                 types::ProtocolId,
@@ -162,9 +161,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let value = RtpsMessage {
             header,
@@ -186,9 +183,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -256,9 +251,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
 
         let expected = RtpsMessage {
@@ -282,9 +275,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
@@ -353,9 +344,7 @@ mod tests {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;

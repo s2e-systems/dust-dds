@@ -2,10 +2,7 @@ use crate::implementation::rtps::stateless_writer::RtpsStatelessWriter;
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
-        messages::{
-            overall_structure::RtpsMessageHeader, submessage_elements::GuidPrefixSubmessageElement,
-            types::ProtocolId, RtpsMessage,
-        },
+        messages::{overall_structure::RtpsMessageHeader, types::ProtocolId, RtpsMessage},
         reader_locator::RtpsReaderLocator,
         transport::TransportWrite,
         types::{Guid, Locator, TopicKind, PROTOCOLVERSION, VENDOR_ID_S2E},
@@ -112,7 +109,7 @@ impl DdsShared<BuiltinStatelessWriter> {
                 protocol: ProtocolId::PROTOCOL_RTPS,
                 version: PROTOCOLVERSION,
                 vendor_id: VENDOR_ID_S2E,
-                guid_prefix: GuidPrefixSubmessageElement { value: guid_prefix },
+                guid_prefix,
             };
 
             let rtps_message = RtpsMessage {
