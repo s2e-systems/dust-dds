@@ -256,45 +256,12 @@ impl DdsShared<UserDefinedDataReader> {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
-        let writer_info = &discovered_writer_data.publication_builtin_topic_data;
-        let reader_topic_name = self.topic.get_name();
-        let reader_type_name = self.topic.get_type_name();
-
-        if writer_info.topic_name == reader_topic_name && writer_info.type_name == reader_type_name
+        let publication_builtin_topic_data = &discovered_writer_data.publication_builtin_topic_data;
+        if publication_builtin_topic_data.topic_name == self.topic.get_name()
+            && publication_builtin_topic_data.type_name == self.topic.get_type_name()
         {
-            let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
-            let parent_subscriber_qos = self.get_subscriber().get_qos();
-
-            let mut incompatible_qos_policy_list = Vec::new();
-
-            if reader_qos.durability < writer_info.durability {
-                incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-            }
-            if parent_subscriber_qos.presentation.access_scope
-                > writer_info.presentation.access_scope
-                || parent_subscriber_qos.presentation.coherent_access
-                    != writer_info.presentation.coherent_access
-                || parent_subscriber_qos.presentation.ordered_access
-                    != writer_info.presentation.ordered_access
-            {
-                incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-            }
-            if reader_qos.deadline > writer_info.deadline {
-                incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-            }
-            if reader_qos.latency_budget > writer_info.latency_budget {
-                incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-            }
-            if reader_qos.liveliness > writer_info.liveliness {
-                incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-            }
-            if reader_qos.reliability.kind > writer_info.reliability.kind {
-                incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-            }
-            if reader_qos.destination_order > writer_info.destination_order {
-                incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-            }
-
+            let incompatible_qos_policy_list =
+                self.get_discovered_writer_incompatible_qos_policy_list(discovered_writer_data);
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
                     .writer_proxy
@@ -336,7 +303,7 @@ impl DdsShared<UserDefinedDataReader> {
 
                 self.matched_publication_list.write_lock().insert(
                     discovered_writer_data.get_serialized_key().into(),
-                    writer_info.clone(),
+                    publication_builtin_topic_data.clone(),
                 );
 
                 self.on_subscription_matched();
@@ -351,6 +318,46 @@ impl DdsShared<UserDefinedDataReader> {
                 }
             }
         }
+    }
+
+    fn get_discovered_writer_incompatible_qos_policy_list(
+        &self,
+        discovered_writer_data: &DiscoveredWriterData,
+    ) -> Vec<QosPolicyId> {
+        let writer_info = &discovered_writer_data.publication_builtin_topic_data;
+        let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
+        let parent_subscriber_qos = self.get_subscriber().get_qos();
+
+        let mut incompatible_qos_policy_list = Vec::new();
+
+        if parent_subscriber_qos.presentation.access_scope > writer_info.presentation.access_scope
+            || parent_subscriber_qos.presentation.coherent_access
+                != writer_info.presentation.coherent_access
+            || parent_subscriber_qos.presentation.ordered_access
+                != writer_info.presentation.ordered_access
+        {
+            incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+        }
+        if reader_qos.durability > writer_info.durability {
+            incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+        }
+        if reader_qos.deadline > writer_info.deadline {
+            incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+        }
+        if reader_qos.latency_budget > writer_info.latency_budget {
+            incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+        }
+        if reader_qos.liveliness > writer_info.liveliness {
+            incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+        }
+        if reader_qos.reliability.kind > writer_info.reliability.kind {
+            incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+        }
+        if reader_qos.destination_order > writer_info.destination_order {
+            incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+        }
+
+        incompatible_qos_policy_list
     }
 
     pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
