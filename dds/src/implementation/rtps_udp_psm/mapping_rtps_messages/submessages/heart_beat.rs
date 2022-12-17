@@ -74,14 +74,9 @@ impl<'de> MappingReadSubmessage<'de> for HeartbeatSubmessage {
 mod tests {
 
     use crate::implementation::{
-        rtps::{
-            messages::submessage_elements::{
-                CountSubmessageElement, EntityIdSubmessageElement, SequenceNumberSubmessageElement,
-            },
-            types::{
-                Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
-                USER_DEFINED_READER_NO_KEY,
-            },
+        rtps::types::{
+            Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
+            USER_DEFINED_READER_NO_KEY,
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
     };
@@ -93,21 +88,11 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(7),
-        };
-        let count = CountSubmessageElement {
-            value: Count::new(2),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let first_sn = SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
+        let count = Count::new(2);
         let submessage = HeartbeatSubmessage {
             endianness_flag,
             final_flag,
@@ -137,21 +122,11 @@ mod tests {
         let endianness_flag = true;
         let final_flag = false;
         let liveliness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
-        let first_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
-        let last_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(7),
-        };
-        let count = CountSubmessageElement {
-            value: Count::new(2),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let first_sn = SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
+        let count = Count::new(2);
         let expected = HeartbeatSubmessage {
             endianness_flag,
             final_flag,

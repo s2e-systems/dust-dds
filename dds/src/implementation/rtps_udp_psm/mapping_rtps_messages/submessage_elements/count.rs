@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::{messages::submessage_elements::CountSubmessageElement, types::Count},
+    rtps::{types::Count},
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
     },
@@ -26,24 +26,8 @@ impl<'de> MappingReadByteOrdered<'de> for Count {
     }
 }
 
-impl MappingWriteByteOrdered for CountSubmessageElement {
-    fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
-        &self,
-        mut writer: W,
-    ) -> Result<(), Error> {
-        self.value.mapping_write_byte_ordered::<_, B>(&mut writer)
-    }
-}
 
-impl<'de> MappingReadByteOrdered<'de> for CountSubmessageElement {
-    fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
-        Ok(Self {
-            value: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
-        })
-    }
-}
-
-impl NumberOfBytes for CountSubmessageElement {
+impl NumberOfBytes for Count {
     fn number_of_bytes(&self) -> usize {
         4
     }
@@ -57,9 +41,7 @@ mod tests {
 
     #[test]
     fn serialize_guid_prefix() {
-        let data = CountSubmessageElement {
-            value: Count::new(7),
-        };
+        let data = Count::new(7);
         assert_eq!(
             to_bytes_le(&data).unwrap(),
             vec![
@@ -70,9 +52,7 @@ mod tests {
 
     #[test]
     fn deserialize_guid_prefix() {
-        let expected = CountSubmessageElement {
-            value: Count::new(7),
-        };
+        let expected = Count::new(7);
         assert_eq!(
             expected,
             from_bytes_le(&[

@@ -140,10 +140,7 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{
-                    EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
-                    ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-                    SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
-                    VendorIdSubmessageElement,
+                    Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
                 },
                 submessages::DataSubmessage,
                 types::ProtocolId,
@@ -162,15 +159,9 @@ mod tests {
     fn serialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let value = RtpsMessage {
             header,
@@ -190,30 +181,18 @@ mod tests {
     fn serialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
@@ -270,15 +249,9 @@ mod tests {
     fn deserialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
 
         let expected = RtpsMessage {
@@ -300,30 +273,18 @@ mod tests {
     fn deserialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,
@@ -381,30 +342,18 @@ mod tests {
     fn deserialize_rtps_message_unknown_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version: ProtocolVersionSubmessageElement {
-                value: ProtocolVersion::new(2, 3),
-            },
-            vendor_id: VendorIdSubmessageElement {
-                value: VendorId::new([9, 8]),
-            },
-            guid_prefix: GuidPrefixSubmessageElement {
-                value: GuidPrefix::new([3; 12]),
-            },
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
+            guid_prefix: GuidPrefix::new([3; 12]),
         };
         let endianness_flag = true;
         let inline_qos_flag = true;
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: SequenceNumber::new(5),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
             length: 4,

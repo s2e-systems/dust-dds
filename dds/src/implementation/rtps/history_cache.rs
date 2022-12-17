@@ -3,8 +3,7 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 use super::{
     messages::{
         submessage_elements::{
-            EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-            SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+            Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
         },
         submessages::DataSubmessage,
         types::ParameterId,
@@ -64,15 +63,9 @@ impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
             _ => todo!(),
         };
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: ENTITYID_UNKNOWN,
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: val.writer_guid().entity_id(),
-        };
-        let writer_sn = SequenceNumberSubmessageElement {
-            value: val.sequence_number(),
-        };
+        let reader_id = ENTITYID_UNKNOWN;
+        let writer_id = val.writer_guid().entity_id();
+        let writer_sn = val.sequence_number();
         let inline_qos = ParameterListSubmessageElement {
             parameter: val
                 .inline_qos()
