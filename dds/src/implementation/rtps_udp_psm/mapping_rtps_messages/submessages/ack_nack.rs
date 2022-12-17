@@ -77,9 +77,7 @@ impl<'de> MappingReadSubmessage<'de> for AckNackSubmessage {
 mod tests {
     use crate::implementation::{
         rtps::{
-            messages::submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSet,
-            },
+            messages::submessage_elements::SequenceNumberSet,
             types::{
                 Count, EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
@@ -94,12 +92,8 @@ mod tests {
     fn serialize_acknack() {
         let endianness_flag = true;
         let final_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let submessage = AckNackSubmessage {
             endianness_flag,
             final_flag,
@@ -141,12 +135,8 @@ mod tests {
             AckNackSubmessage {
                 endianness_flag: true,
                 final_flag: false,
-                reader_id: EntityIdSubmessageElement {
-                    value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-                },
-                writer_id: EntityIdSubmessageElement {
-                    value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-                },
+                reader_id: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
+                writer_id: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
                 reader_sn_state: SequenceNumberSet {
                     base: SequenceNumber::new(10),
                     set: vec![],

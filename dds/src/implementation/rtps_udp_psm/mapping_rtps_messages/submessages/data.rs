@@ -135,9 +135,10 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            messages::submessage_elements::{EntityIdSubmessageElement, Parameter},
+            messages::submessage_elements::Parameter,
             types::{
-                EntityId, SequenceNumber, USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY, EntityKey,
+                EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_READER_NO_KEY,
             },
         },
         rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
@@ -152,12 +153,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
@@ -192,12 +189,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
@@ -250,12 +243,8 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
@@ -293,12 +282,8 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
@@ -336,12 +321,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
@@ -376,12 +357,8 @@ mod tests {
         let data_flag = true;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
@@ -419,12 +396,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,

@@ -140,8 +140,7 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{
-                    EntityIdSubmessageElement, GuidPrefixSubmessageElement, Parameter,
-                    ParameterListSubmessageElement,
+                    GuidPrefixSubmessageElement, Parameter, ParameterListSubmessageElement,
                     SerializedDataSubmessageElement,
                 },
                 submessages::DataSubmessage,
@@ -161,8 +160,8 @@ mod tests {
     fn serialize_rtps_message_no_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version:  ProtocolVersion::new(2, 3),
-            vendor_id:VendorId::new([9, 8]),
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -185,8 +184,8 @@ mod tests {
     fn serialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version:ProtocolVersion::new(2, 3),
-            vendor_id:VendorId::new([9, 8]),
+            version: ProtocolVersion::new(2, 3),
+            vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
             },
@@ -196,12 +195,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
@@ -285,7 +280,7 @@ mod tests {
     fn deserialize_rtps_message() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version:  ProtocolVersion::new(2, 3),
+            version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
@@ -296,12 +291,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,
@@ -360,7 +351,7 @@ mod tests {
     fn deserialize_rtps_message_unknown_submessage() {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
-            version:  ProtocolVersion::new(2, 3),
+            version: ProtocolVersion::new(2, 3),
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefixSubmessageElement {
                 value: GuidPrefix::new([3; 12]),
@@ -371,12 +362,8 @@ mod tests {
         let data_flag = false;
         let key_flag = false;
         let non_standard_payload_flag = false;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
         let parameter_1 = Parameter {
             parameter_id: 6,

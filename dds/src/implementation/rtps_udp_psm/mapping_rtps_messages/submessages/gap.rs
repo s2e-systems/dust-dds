@@ -72,9 +72,7 @@ mod tests {
 
     use crate::implementation::{
         rtps::{
-            messages::submessage_elements::{
-                EntityIdSubmessageElement, SequenceNumberSet,
-            },
+            messages::submessage_elements::SequenceNumberSet,
             types::{
                 EntityId, EntityKey, SequenceNumber, USER_DEFINED_READER_GROUP,
                 USER_DEFINED_READER_NO_KEY,
@@ -88,12 +86,8 @@ mod tests {
     #[test]
     fn serialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let gap_start = SequenceNumber::new(5);
         let gap_list = SequenceNumberSet {
             base: SequenceNumber::new(10),
@@ -123,12 +117,8 @@ mod tests {
     #[test]
     fn deserialize_gap() {
         let endianness_flag = true;
-        let reader_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY),
-        };
-        let writer_id = EntityIdSubmessageElement {
-            value: EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP),
-        };
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let gap_start = SequenceNumber::new(5);
         let gap_list = SequenceNumberSet {
             base: SequenceNumber::new(10),

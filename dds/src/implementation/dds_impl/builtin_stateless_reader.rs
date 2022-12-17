@@ -74,7 +74,7 @@ impl DdsShared<BuiltinStatelessReader> {
     ) {
         let mut rtps_reader = self.rtps_reader.write_lock();
 
-        let data_reader_id: EntityId = data_submessage.reader_id.value;
+        let data_reader_id: EntityId = data_submessage.reader_id;
         if data_reader_id == ENTITYID_UNKNOWN
             || data_reader_id == rtps_reader.reader().guid().entity_id()
         {

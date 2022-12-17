@@ -11,9 +11,7 @@ use crate::{
 use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::{
-            EntityIdSubmessageElement, GuidPrefixSubmessageElement, SequenceNumberSet,
-        },
+        submessage_elements::{GuidPrefixSubmessageElement, SequenceNumberSet},
         submessages::{
             AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
         },
@@ -105,7 +103,7 @@ impl RtpsStatefulReader {
         let sequence_number = data_submessage.writer_sn;
         let writer_guid = Guid::new(
             message_receiver.source_guid_prefix(),
-            data_submessage.writer_id.value,
+            data_submessage.writer_id,
         );
 
         if let Some(writer_proxy) = self
@@ -176,7 +174,7 @@ impl RtpsStatefulReader {
         source_guid_prefix: GuidPrefix,
     ) {
         if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id.value);
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_submessage.writer_id);
 
             if let Some(writer_proxy) = self
                 .matched_writers
@@ -218,12 +216,8 @@ impl RtpsStatefulReader {
                 let acknack_submessage = AckNackSubmessage {
                     endianness_flag: true,
                     final_flag: true,
-                    reader_id: EntityIdSubmessageElement {
-                        value: self.reader.guid().entity_id(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: writer_proxy.remote_writer_guid().entity_id(),
-                    },
+                    reader_id: self.reader.guid().entity_id(),
+                    writer_id: writer_proxy.remote_writer_guid().entity_id(),
                     reader_sn_state: SequenceNumberSet {
                         base: writer_proxy.available_changes_max() + 1,
                         set: writer_proxy.missing_changes(),

@@ -1,11 +1,13 @@
-use crate::implementation::rtps::types::{Count, ProtocolVersion, SequenceNumber, VendorId};
+use crate::implementation::rtps::types::{
+    Count, EntityId, ProtocolVersion, SequenceNumber, VendorId,
+};
 
 use super::{
     submessage_elements::{
-        EntityIdSubmessageElement, FragmentNumberSet, GuidPrefixSubmessageElement,
-        LocatorListSubmessageElement, ParameterListSubmessageElement, SequenceNumberSet,
-        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
-        TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
+        FragmentNumberSet, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
+        ParameterListSubmessageElement, SequenceNumberSet, SerializedDataFragmentSubmessageElement,
+        SerializedDataSubmessageElement, TimestampSubmessageElement, ULongSubmessageElement,
+        UShortSubmessageElement,
     },
     types::{FragmentNumber, SubmessageFlag},
 };
@@ -14,8 +16,8 @@ use super::{
 pub struct AckNackSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub reader_sn_state: SequenceNumberSet,
     pub count: Count,
 }
@@ -27,8 +29,8 @@ pub struct DataSubmessage<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub inline_qos: ParameterListSubmessageElement<'a>,
     pub serialized_payload: SerializedDataSubmessageElement<'a>,
@@ -40,8 +42,8 @@ pub struct DataFragSubmessage<'a> {
     pub inline_qos_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub fragment_starting_num: FragmentNumber,
     pub fragments_in_submessage: UShortSubmessageElement,
@@ -54,8 +56,8 @@ pub struct DataFragSubmessage<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct GapSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub gap_start: SequenceNumber,
     pub gap_list: SequenceNumberSet,
 }
@@ -65,8 +67,8 @@ pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub first_sn: SequenceNumber,
     pub last_sn: SequenceNumber,
     pub count: Count,
@@ -75,8 +77,8 @@ pub struct HeartbeatSubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatFragSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub last_fragment_num: FragmentNumber,
     pub count: Count,
@@ -114,8 +116,8 @@ pub struct InfoTimestampSubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub fragment_number_state: FragmentNumberSet,
     pub count: Count,

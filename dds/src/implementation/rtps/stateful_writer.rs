@@ -14,7 +14,7 @@ use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::{EntityIdSubmessageElement, GuidPrefixSubmessageElement},
+        submessage_elements::GuidPrefixSubmessageElement,
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
         },
@@ -245,14 +245,12 @@ where
                     // should be full-filled by next_unsent_change()
                     if change.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change.into();
-                        data_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id();
+                        data_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
-                        gap_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id();
+                        gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
@@ -310,14 +308,12 @@ where
                     // should be full-filled by next_unsent_change()
                     if change.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change.into();
-                        data_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id();
+                        data_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
-                        gap_submessage.reader_id.value =
-                            reader_proxy.remote_reader_guid().entity_id();
+                        gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
                         submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
@@ -328,12 +324,8 @@ where
                     endianness_flag: true,
                     final_flag: false,
                     liveliness_flag: false,
-                    reader_id: EntityIdSubmessageElement {
-                        value: reader_proxy.remote_reader_guid().entity_id(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id(),
-                    },
+                    reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                    writer_id: self.writer.guid().entity_id(),
                     first_sn: self
                         .writer
                         .writer_cache()
@@ -355,12 +347,8 @@ where
                     endianness_flag: true,
                     final_flag: false,
                     liveliness_flag: false,
-                    reader_id: EntityIdSubmessageElement {
-                        value: reader_proxy.remote_reader_guid().entity_id(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id(),
-                    },
+                    reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                    writer_id: self.writer.guid().entity_id(),
                     first_sn: self
                         .writer
                         .writer_cache()
@@ -391,12 +379,12 @@ where
                     // should be full-filled by next_requested_change()
                     if change_for_reader.is_relevant() {
                         let (info_ts_submessage, mut data_submessage) = change_for_reader.into();
-                        data_submessage.reader_id.value = reader_id;
+                        data_submessage.reader_id = reader_id;
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
                         submessages.push(RtpsSubmessageKind::Data(data_submessage));
                     } else {
                         let mut gap_submessage: GapSubmessage = change_for_reader.into();
-                        gap_submessage.reader_id.value = reader_id;
+                        gap_submessage.reader_id = reader_id;
                         submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
@@ -406,12 +394,8 @@ where
                     endianness_flag: true,
                     final_flag: false,
                     liveliness_flag: false,
-                    reader_id: EntityIdSubmessageElement {
-                        value: reader_proxy.remote_reader_guid().entity_id(),
-                    },
-                    writer_id: EntityIdSubmessageElement {
-                        value: self.writer.guid().entity_id(),
-                    },
+                    reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                    writer_id: self.writer.guid().entity_id(),
                     first_sn: self
                         .writer
                         .writer_cache()
@@ -456,7 +440,7 @@ where
         src_guid_prefix: GuidPrefix,
     ) {
         if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
-            let reader_guid = Guid::new(src_guid_prefix, acknack_submessage.reader_id.value);
+            let reader_guid = Guid::new(src_guid_prefix, acknack_submessage.reader_id);
 
             if let Some(reader_proxy) = self
                 .matched_readers
