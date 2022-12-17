@@ -151,7 +151,6 @@ pub struct RtpsReader {
     status_condition: StatusConditionImpl,
     instance_handle_builder: InstanceHandleBuilder,
     instances: HashMap<InstanceHandle, Instance>,
-    instance_reception_time: HashMap<InstanceHandle, Time>,
 }
 
 impl RtpsReader {
@@ -176,7 +175,6 @@ impl RtpsReader {
             status_condition: StatusConditionImpl::default(),
             instance_handle_builder,
             instances: HashMap::new(),
-            instance_reception_time: HashMap::new(),
         }
     }
 
@@ -368,9 +366,6 @@ impl RtpsReader {
             change.no_writers_generation_count =
                 instance_entry.most_recent_no_writers_generation_count;
             self.changes.push(change);
-
-            self.instance_reception_time
-                .insert(change_instance_handle, reception_timestamp);
 
             match self.qos.destination_order.kind {
                 DestinationOrderQosPolicyKind::BySourceTimestamp => {
@@ -588,17 +583,6 @@ impl RtpsReader {
         }
 
         Ok(samples)
-    }
-
-    pub fn get_deadline_missed_instances(&mut self, now: Time) -> Vec<InstanceHandle> {
-        let (missed_deadline_instances, instance_reception_time) = self
-            .instance_reception_time
-            .iter()
-            .partition(|&(_, received_time)| now - *received_time > self.qos.deadline.period);
-
-        self.instance_reception_time = instance_reception_time;
-
-        missed_deadline_instances.iter().map(|(i, _)| *i).collect()
     }
 }
 

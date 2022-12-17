@@ -139,23 +139,6 @@ where
     }
 }
 
-pub struct UserDefinedDataReader {
-    rtps_reader: DdsRwLock<RtpsStatefulReader>,
-    topic: DdsShared<TopicImpl>,
-    listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
-    parent_subscriber: DdsWeak<UserDefinedSubscriber>,
-    liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
-    requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
-    requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
-    sample_lost_status: DdsRwLock<SampleLostStatus>,
-    sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
-    subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
-    matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
-    enabled: DdsRwLock<bool>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    user_defined_data_send_condvar: DdsCondvar,
-}
-
 impl SampleLostStatus {
     fn increment(&mut self) {
         self.total_count += 1;
@@ -180,6 +163,32 @@ impl SampleRejectedStatus {
         self.last_instance_handle = instance_handle;
         self.last_reason = rejected_reason;
     }
+}
+
+impl RequestedDeadlineMissedStatus {
+    fn increment(&mut self, instance_handle: InstanceHandle) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_instance_handle = instance_handle;
+    }
+}
+
+pub struct UserDefinedDataReader {
+    rtps_reader: DdsRwLock<RtpsStatefulReader>,
+    topic: DdsShared<TopicImpl>,
+    listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
+    parent_subscriber: DdsWeak<UserDefinedSubscriber>,
+    liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
+    requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
+    requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
+    sample_lost_status: DdsRwLock<SampleLostStatus>,
+    sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
+    subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
+    matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
+    enabled: DdsRwLock<bool>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    user_defined_data_send_condvar: DdsCondvar,
+    instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
 }
 
 impl UserDefinedDataReader {
@@ -234,6 +243,7 @@ impl UserDefinedDataReader {
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             user_defined_data_send_condvar,
+            instance_reception_time: DdsRwLock::new(HashMap::new()),
         })
     }
 }
@@ -252,7 +262,10 @@ impl DdsShared<UserDefinedDataReader> {
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => (),
             StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => (),
-            StatefulReaderDataReceivedResult::NewSampleAdded(_) => {
+            StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
+                self.instance_reception_time
+                    .write_lock()
+                    .insert(instance_handle, message_receiver.reception_timestamp());
                 self.on_data_available();
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(_) => {
@@ -805,14 +818,25 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn update_communication_status(&self, now: Time) {
-        if !self
-            .rtps_reader
+        let (missed_deadline_instances, instance_reception_time) = self
+            .instance_reception_time
             .write_lock()
-            .reader_mut()
-            .get_deadline_missed_instances(now)
-            .is_empty()
-        {
-            self.on_requested_deadline_missed()
+            .iter()
+            .partition(|&(_, received_time)| {
+                now - *received_time
+                    > self
+                        .rtps_reader
+                        .read_lock()
+                        .reader()
+                        .get_qos()
+                        .deadline
+                        .period
+            });
+
+        *self.instance_reception_time.write_lock() = instance_reception_time;
+
+        for (missed_deadline_instance, _) in missed_deadline_instances {
+            self.on_requested_deadline_missed(missed_deadline_instance);
         }
     }
 
@@ -858,7 +882,11 @@ impl DdsShared<UserDefinedDataReader> {
             .add_communication_state(StatusKind::SampleRejected);
     }
 
-    fn on_requested_deadline_missed(&self) {
+    fn on_requested_deadline_missed(&self, instance_handle: InstanceHandle) {
+        self.requested_deadline_missed_status
+            .write_lock()
+            .increment(instance_handle);
+
         if let Some(listener) = self.listener.write_lock().as_mut() {
             let status = self.get_requested_deadline_missed_status().unwrap();
             listener.trigger_on_requested_deadline_missed(self, status);
