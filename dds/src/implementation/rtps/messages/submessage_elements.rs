@@ -20,11 +20,6 @@ pub struct FragmentNumberSet {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TimestampSubmessageElement {
-    pub value: u64,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Parameter<'a> {
     pub parameter_id: u16,
     pub length: i16,
@@ -50,5 +45,3 @@ pub struct SerializedDataSubmessageElement<'a> {
 pub struct SerializedDataFragmentSubmessageElement<'a> {
     pub value: &'a [u8],
 }
-
-

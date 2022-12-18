@@ -780,7 +780,7 @@ mod tests {
                     &to_bytes_le(&data1_instance1),
                     SequenceNumber::new(1),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -791,7 +791,7 @@ mod tests {
                     &to_bytes_le(&data2_instance1),
                     SequenceNumber::new(2),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -803,7 +803,7 @@ mod tests {
                     &to_bytes_le(&data1_instance2),
                     SequenceNumber::new(3),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -814,7 +814,7 @@ mod tests {
                     &to_bytes_le(&data2_instance2),
                     SequenceNumber::new(4),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )

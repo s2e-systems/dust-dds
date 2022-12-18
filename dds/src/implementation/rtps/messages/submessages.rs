@@ -6,9 +6,9 @@ use super::{
     submessage_elements::{
         FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
         SequenceNumberSet, SerializedDataFragmentSubmessageElement,
-        SerializedDataSubmessageElement, TimestampSubmessageElement
+        SerializedDataSubmessageElement,
     },
-    types::{FragmentNumber, SubmessageFlag, UShort, ULong},
+    types::{FragmentNumber, SubmessageFlag, Time, ULong, UShort},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -109,7 +109,7 @@ pub struct InfoSourceSubmessage {
 pub struct InfoTimestampSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
-    pub timestamp: TimestampSubmessageElement,
+    pub timestamp: Time,
 }
 
 #[derive(Debug, PartialEq, Eq)]
