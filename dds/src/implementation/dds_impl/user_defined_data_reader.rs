@@ -238,7 +238,6 @@ impl DdsShared<UserDefinedDataReader> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                self.on_data_available();
                 DataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -247,7 +246,6 @@ impl DdsShared<UserDefinedDataReader> {
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_sample_lost();
-                self.on_data_available();
                 DataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
@@ -743,21 +741,23 @@ impl DdsShared<UserDefinedDataReader> {
         }
     }
 
-    fn on_data_available(&self) {
-        if self
-            .listener_status_mask
-            .read_lock()
-            .contains(&StatusKind::DataAvailable)
-        {
-            if let Some(listener) = self.listener.write_lock().as_mut() {
-                *self.data_available_status_changed_flag.write_lock() = false;
-                listener.trigger_on_data_available(self);
+    pub fn on_data_available(&self) {
+        if *self.data_available_status_changed_flag.read_lock() == true {
+            if self
+                .listener_status_mask
+                .read_lock()
+                .contains(&StatusKind::DataAvailable)
+            {
+                if let Some(listener) = self.listener.write_lock().as_mut() {
+                    *self.data_available_status_changed_flag.write_lock() = false;
+                    listener.trigger_on_data_available(self);
+                }
             }
-        }
 
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::DataAvailable);
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::DataAvailable);
+        }
     }
 
     fn on_sample_lost(&self) {
@@ -838,10 +838,6 @@ impl DdsShared<UserDefinedDataReader> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::RequestedDeadlineMissed);
-    }
-
-    pub fn is_data_available(&self) -> bool {
-        *self.data_available_status_changed_flag.read_lock()
     }
 }
 

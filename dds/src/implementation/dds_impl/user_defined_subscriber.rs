@@ -361,21 +361,30 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     fn on_data_on_readers(&self) {
-        if self
-            .listener_status_mask
-            .read_lock()
-            .contains(&StatusKind::DataOnReaders)
-        {
-            if let Some(listener) = self.listener.write_lock().as_mut() {
+        match self.listener.write_lock().as_mut() {
+            // Trigger on data available only if there is a listener and the mask has the option enabled
+            // otherwise trigger the individual listeners
+            Some(listener)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::DataOnReaders) =>
+            {
                 *self.data_on_readers_status_changed_flag.write_lock() = false;
                 listener.on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
                     self.downgrade(),
                 )))
             }
+            _ => {
+                for data_reader in self.data_reader_list.read_lock().iter() {
+                    data_reader.on_data_available();
+                }
+            }
         }
+
         self.status_condition
             .write_lock()
-            .add_communication_state(StatusKind::DataOnReaders)
+            .add_communication_state(StatusKind::DataOnReaders);
     }
 }
 
