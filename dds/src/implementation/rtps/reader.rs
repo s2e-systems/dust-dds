@@ -591,7 +591,7 @@ mod tests {
     use crate::{
         implementation::rtps::{
             messages::submessage_elements::{
-                Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
+                Parameter, ParameterList, SerializedDataSubmessageElement,
             },
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
@@ -628,7 +628,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
+            inline_qos: ParameterList { parameter: vec![] },
             serialized_payload: SerializedDataSubmessageElement { value: data },
         }
     }
@@ -646,7 +646,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
-            inline_qos: ParameterListSubmessageElement {
+            inline_qos: ParameterList {
                 parameter: vec![Parameter {
                     parameter_id: 0x71,
                     length: 4,

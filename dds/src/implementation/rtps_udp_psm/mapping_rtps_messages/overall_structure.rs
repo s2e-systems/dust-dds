@@ -139,9 +139,7 @@ mod tests {
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
-                },
+                submessage_elements::{Parameter, ParameterList, SerializedDataSubmessageElement},
                 submessages::DataSubmessage,
                 types::ProtocolId,
             },
@@ -203,7 +201,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
@@ -295,7 +293,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
@@ -364,7 +362,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };

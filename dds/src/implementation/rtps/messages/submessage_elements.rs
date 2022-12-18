@@ -27,7 +27,7 @@ pub struct Parameter<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterListSubmessageElement<'a> {
+pub struct ParameterList<'a> {
     pub parameter: Vec<Parameter<'a>>,
 }
 

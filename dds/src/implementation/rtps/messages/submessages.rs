@@ -4,9 +4,8 @@ use crate::implementation::rtps::types::{
 
 use super::{
     submessage_elements::{
-        FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
-        SequenceNumberSet, SerializedDataFragmentSubmessageElement,
-        SerializedDataSubmessageElement,
+        FragmentNumberSet, LocatorListSubmessageElement, ParameterList, SequenceNumberSet,
+        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
     },
     types::{FragmentNumber, SubmessageFlag, Time, ULong, UShort},
 };
@@ -31,7 +30,7 @@ pub struct DataSubmessage<'a> {
     pub reader_id: EntityId,
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
-    pub inline_qos: ParameterListSubmessageElement<'a>,
+    pub inline_qos: ParameterList<'a>,
     pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
 
@@ -48,7 +47,7 @@ pub struct DataFragSubmessage<'a> {
     pub fragments_in_submessage: UShort,
     pub data_size: ULong,
     pub fragment_size: UShort,
-    pub inline_qos: ParameterListSubmessageElement<'a>,
+    pub inline_qos: ParameterList<'a>,
     pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
 

@@ -2,9 +2,7 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     messages::{
-        submessage_elements::{
-            Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
-        },
+        submessage_elements::{Parameter, ParameterList, SerializedDataSubmessageElement},
         submessages::DataSubmessage,
         types::ParameterId,
     },
@@ -66,7 +64,7 @@ impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
         let reader_id = ENTITYID_UNKNOWN;
         let writer_id = val.writer_guid().entity_id();
         let writer_sn = val.sequence_number();
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: val
                 .inline_qos()
                 .iter()

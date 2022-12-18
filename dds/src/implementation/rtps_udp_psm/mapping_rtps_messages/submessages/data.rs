@@ -5,7 +5,7 @@ use byteorder::ByteOrder;
 use crate::implementation::{
     rtps::messages::{
         overall_structure::RtpsSubmessageHeader,
-        submessage_elements::{ParameterListSubmessageElement, SerializedDataSubmessageElement},
+        submessage_elements::{ParameterList, SerializedDataSubmessageElement},
         submessages::DataSubmessage,
         types::SubmessageKind,
     },
@@ -92,7 +92,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<'a> {
         let inline_qos = if inline_qos_flag {
             MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         } else {
-            ParameterListSubmessageElement { parameter: vec![] }
+            ParameterList { parameter: vec![] }
         };
         let inline_qos_len = if inline_qos_flag {
             inline_qos.number_of_bytes()
@@ -156,7 +156,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let submessage = DataSubmessage {
             endianness_flag,
@@ -202,7 +202,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
@@ -246,7 +246,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3, 4][..],
         };
@@ -285,7 +285,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1_u8, 2, 3][..],
         };
@@ -324,7 +324,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
         let expected = DataSubmessage {
             endianness_flag,
@@ -360,7 +360,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
         let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
         let writer_sn = SequenceNumber::new(5);
-        let inline_qos = ParameterListSubmessageElement { parameter: vec![] };
+        let inline_qos = ParameterList { parameter: vec![] };
         let serialized_payload = SerializedDataSubmessageElement {
             value: &[1, 2, 3, 4][..],
         };
@@ -409,7 +409,7 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
