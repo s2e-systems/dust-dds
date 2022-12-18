@@ -19,7 +19,6 @@ use crate::{
         },
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
@@ -34,8 +33,9 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    user_defined_data_reader::{DataSubmessageReceivedResult, UserDefinedDataReader},
 };
 
 pub struct UserDefinedSubscriber {
@@ -47,6 +47,8 @@ pub struct UserDefinedSubscriber {
     enabled: DdsRwLock<bool>,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    data_on_readers_status_changed_flag: DdsRwLock<bool>,
 }
 
 impl UserDefinedSubscriber {
@@ -65,6 +67,8 @@ impl UserDefinedSubscriber {
             enabled: DdsRwLock::new(false),
             parent_participant,
             user_defined_data_send_condvar,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            data_on_readers_status_changed_flag: DdsRwLock::new(false),
         })
     }
 
@@ -291,8 +295,8 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
@@ -357,7 +361,19 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_data_submessage_received(data_submessage, message_receiver);
+            let data_submessage_received_result =
+                data_reader.on_data_submessage_received(data_submessage, message_receiver);
+            match data_submessage_received_result {
+                DataSubmessageReceivedResult::NoChange => (),
+                DataSubmessageReceivedResult::NewDataAvailable => {
+                    *self.data_on_readers_status_changed_flag.write_lock() = true
+                }
+            }
+        }
+        if *self.data_on_readers_status_changed_flag.read_lock() == true {
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::DataOnReaders)
         }
     }
 

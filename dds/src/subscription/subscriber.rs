@@ -281,7 +281,9 @@ impl Subscriber {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             SubscriberKind::BuiltIn(s) => s.upgrade()?.get_statuscondition(),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.get_statuscondition(),
+            SubscriberKind::UserDefined(s) => {
+                Ok(StatusCondition::new(s.upgrade()?.get_statuscondition()))
+            }
         }
     }
 
