@@ -92,11 +92,11 @@ impl DdsShared<TopicImpl> {
 
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn AnyTopicListener>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
-        todo!()
+        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.listener.write_lock() = a_listener;
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {

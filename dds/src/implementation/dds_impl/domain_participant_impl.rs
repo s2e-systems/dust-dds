@@ -674,14 +674,16 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        todo!()
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.listener.write_lock() = a_listener;
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn DomainParticipantListener>>> {
-        todo!()
+    pub fn get_listener(&self) -> Option<Box<dyn DomainParticipantListener + Send + Sync>> {
+        self.listener_status_mask.write_lock().clear();
+        self.listener.write_lock().take()
     }
 
     pub fn get_statuscondition(

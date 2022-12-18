@@ -94,9 +94,10 @@ where
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
         self.0.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyTopicListener>, _>(|l| Box::new(l)),
+            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
-        )
+        );
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.

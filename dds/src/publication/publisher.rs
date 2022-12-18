@@ -251,15 +251,16 @@ impl Publisher {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener>>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.upgrade()?.set_listener(a_listener, mask)
+        self.0.upgrade()?.set_listener(a_listener, mask);
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener>>> {
-        self.0.upgrade()?.get_listener()
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener + Send + Sync>>> {
+        Ok(self.0.upgrade()?.get_listener())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

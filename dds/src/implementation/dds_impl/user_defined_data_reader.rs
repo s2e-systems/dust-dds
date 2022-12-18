@@ -638,10 +638,10 @@ impl DdsShared<UserDefinedDataReader> {
     pub fn set_listener(
         &self,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
+        mask: &[StatusKind],
+    ) {
         *self.listener.write_lock() = a_listener;
-        Ok(())
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {

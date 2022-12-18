@@ -258,20 +258,23 @@ impl Subscriber {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListener>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         match &self.0 {
             SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.set_listener(a_listener, mask),
+            SubscriberKind::UserDefined(s) => {
+                s.upgrade()?.set_listener(a_listener, mask);
+                Ok(())
+            }
         }
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
+    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener + Send + Sync>>> {
         match &self.0 {
-            SubscriberKind::BuiltIn(s) => s.upgrade()?.get_listener(),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.get_listener(),
+            SubscriberKind::BuiltIn(_) => Ok(None),
+            SubscriberKind::UserDefined(s) => Ok(s.upgrade()?.get_listener()),
         }
     }
 

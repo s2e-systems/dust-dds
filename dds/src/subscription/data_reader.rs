@@ -426,7 +426,8 @@ where
         self.0.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
-        )
+        );
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
