@@ -2,7 +2,9 @@ use crate::{
     domain::{
         domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
     },
-    implementation::dds_impl::builtin_subscriber::BuiltInSubscriber,
+    implementation::dds_impl::{
+        any_data_reader_listener::AnyDataReaderListener, builtin_subscriber::BuiltInSubscriber,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -13,11 +15,7 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::{
-            user_defined_data_reader::AnyDataReaderListener,
-            user_defined_subscriber::UserDefinedSubscriber,
-        },
-        utils::shared_object::DdsWeak,
+        dds_impl::user_defined_subscriber::UserDefinedSubscriber, utils::shared_object::DdsWeak,
     },
     infrastructure::instance::InstanceHandle,
 };
@@ -283,7 +281,9 @@ impl Subscriber {
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             SubscriberKind::BuiltIn(s) => s.upgrade()?.get_statuscondition(),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.get_statuscondition(),
+            SubscriberKind::UserDefined(s) => {
+                Ok(StatusCondition::new(s.upgrade()?.get_statuscondition()))
+            }
         }
     }
 

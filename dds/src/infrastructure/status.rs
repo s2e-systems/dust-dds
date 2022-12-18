@@ -45,7 +45,7 @@ pub enum StatusKind {
 pub const NO_STATUS: &[StatusKind] = &[];
 
 /// Structure holding the values related to the Inconsistent Topic communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct InconsistentTopicStatus {
     /// Total cumulative count of the Topics discovered whose name matches
     /// the Topic to which this status is attached and whose type is inconsistent with the Topic.
@@ -56,7 +56,7 @@ pub struct InconsistentTopicStatus {
 }
 
 /// Structure holding the values related to the Sample Lost communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct SampleLostStatus {
     /// Total cumulative count of all samples lost across of instances of data published under the Topic.
     pub total_count: i32,
@@ -72,8 +72,14 @@ pub enum SampleRejectedStatusKind {
     RejectedBySamplesPerInstanceLimit,
 }
 
+impl Default for SampleRejectedStatusKind {
+    fn default() -> Self {
+        Self::NotRejected
+    }
+}
+
 /// Structure holding the values related to the Sample Rejected communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct SampleRejectedStatus {
     /// Total cumulative count of samples rejected by the DataReader.
     pub total_count: i32,
@@ -86,7 +92,7 @@ pub struct SampleRejectedStatus {
 }
 
 /// Structure holding the values related to the Liveliness Lost communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct LivelinessLostStatus {
     /// Total cumulative number of times that a previously-alive DataWriter
     /// became not alive due to a failure to actively signal its liveliness within
@@ -100,7 +106,7 @@ pub struct LivelinessLostStatus {
 }
 
 /// Structure holding the values related to the Liveliness Changed communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct LivelinessChangedStatus {
     /// The total number of currently active DataWriters that write the Topic
     /// read by the DataReader. This count increases when a newly matched
@@ -129,7 +135,7 @@ pub struct LivelinessChangedStatus {
 }
 
 /// Structure holding the values related to the Offered Deadline Missed communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct OfferedDeadlineMissedStatus {
     /// Total cumulative number of offered deadline periods elapsed during
     /// which a DataWriter failed to provide data. Missed deadlines
@@ -145,7 +151,7 @@ pub struct OfferedDeadlineMissedStatus {
 }
 
 /// Structure holding the values related to the Requested Deadline Missed communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct RequestedDeadlineMissedStatus {
     /// Total cumulative number of missed deadlines detected for any instance
     /// read by the DataReader. Missed deadlines accumulate; that is, each
@@ -167,7 +173,7 @@ pub struct QosPolicyCount {
 }
 
 /// Structure holding the values related to the Offered Incompatible Qos communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct OfferedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataWriter
     /// discovered a DataReader for the same Topic with a requested QoS that
@@ -187,7 +193,7 @@ pub struct OfferedIncompatibleQosStatus {
 }
 
 /// Structure holding the values related to the Requested Incompatible Qos communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct RequestedIncompatibleQosStatus {
     /// Total cumulative number of times the concerned DataReader
     /// discovered a DataWriter for the same Topic with an offered QoS that
@@ -207,7 +213,7 @@ pub struct RequestedIncompatibleQosStatus {
 }
 
 /// Structure holding the values related to the Publication Matched communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct PublicationMatchedStatus {
     /// Total cumulative count the concerned DataWriter discovered a
     /// “match” with a DataReader. That is, it found a DataReader for the
@@ -229,7 +235,7 @@ pub struct PublicationMatchedStatus {
 }
 
 /// Structure holding the values related to the Subscription Matched communication status.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 pub struct SubscriptionMatchedStatus {
     /// Total cumulative count the concerned DataReader discovered a
     /// “match” with a DataWriter. That is, it found a DataWriter for the same

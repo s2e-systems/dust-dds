@@ -19,22 +19,26 @@ use crate::{
         },
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
         time::{Time, DURATION_ZERO},
     },
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{
+        subscriber::{Subscriber, SubscriberKind},
+        subscriber_listener::SubscriberListener,
+    },
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
+    any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
-    user_defined_data_reader::{AnyDataReaderListener, UserDefinedDataReader},
+    user_defined_data_reader::{DataSubmessageReceivedResult, UserDefinedDataReader},
 };
 
 pub struct UserDefinedSubscriber {
@@ -46,12 +50,18 @@ pub struct UserDefinedSubscriber {
     enabled: DdsRwLock<bool>,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    data_on_readers_status_changed_flag: DdsRwLock<bool>,
+    listener: DdsRwLock<Option<Box<dyn SubscriberListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
 }
 
 impl UserDefinedSubscriber {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroupImpl,
+        listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -64,15 +74,26 @@ impl UserDefinedSubscriber {
             enabled: DdsRwLock::new(false),
             parent_participant,
             user_defined_data_send_condvar,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            data_on_readers_status_changed_flag: DdsRwLock::new(false),
+            listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
         })
     }
 
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
+    pub fn copy_from_topic_qos(
+        _a_datareader_qos: &mut DataReaderQos,
+        _a_topic_qos: &TopicQos,
+    ) -> DdsResult<()> {
+        todo!()
     }
 }
 
 impl DdsShared<UserDefinedSubscriber> {
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.data_reader_list.read_lock().is_empty()
     }
@@ -82,15 +103,13 @@ impl DdsShared<UserDefinedSubscriber> {
             .upgrade()
             .expect("Parent participant of subscriber must exist")
     }
-}
 
-impl DdsShared<UserDefinedSubscriber> {
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -144,6 +163,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 rtps_reader,
                 a_topic.clone(),
                 a_listener,
+                mask,
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),
             );
@@ -246,18 +266,7 @@ impl DdsShared<UserDefinedSubscriber> {
             data_reader.update_communication_status(now);
         }
     }
-}
 
-impl UserDefinedSubscriber {
-    pub fn copy_from_topic_qos(
-        _a_datareader_qos: &mut DataReaderQos,
-        _a_topic_qos: &TopicQos,
-    ) -> DdsResult<()> {
-        todo!()
-    }
-}
-
-impl DdsShared<UserDefinedSubscriber> {
     pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -289,8 +298,8 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
@@ -323,9 +332,7 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
-}
 
-impl DdsShared<UserDefinedSubscriber> {
     pub fn add_matched_writer(
         &self,
         discovered_writer_data: &DiscoveredWriterData,
@@ -346,6 +353,39 @@ impl DdsShared<UserDefinedSubscriber> {
             data_reader.remove_matched_writer(discovered_writer_handle)
         }
     }
+
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.send_message(transport);
+        }
+    }
+
+    fn on_data_on_readers(&self) {
+        match self.listener.write_lock().as_mut() {
+            // Trigger on data available only if there is a listener and the mask has the option enabled
+            // otherwise trigger the individual listeners
+            Some(listener)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::DataOnReaders) =>
+            {
+                *self.data_on_readers_status_changed_flag.write_lock() = false;
+                listener.on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
+                    self.downgrade(),
+                )))
+            }
+            _ => {
+                for data_reader in self.data_reader_list.read_lock().iter() {
+                    data_reader.on_data_available();
+                }
+            }
+        }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataOnReaders);
+    }
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
@@ -355,7 +395,17 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_data_submessage_received(data_submessage, message_receiver)
+            let data_submessage_received_result =
+                data_reader.on_data_submessage_received(data_submessage, message_receiver);
+            match data_submessage_received_result {
+                DataSubmessageReceivedResult::NoChange => (),
+                DataSubmessageReceivedResult::NewDataAvailable => {
+                    *self.data_on_readers_status_changed_flag.write_lock() = true
+                }
+            }
+        }
+        if *self.data_on_readers_status_changed_flag.read_lock() {
+            self.on_data_on_readers();
         }
     }
 
@@ -366,14 +416,6 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
-        }
-    }
-}
-
-impl DdsShared<UserDefinedSubscriber> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.send_message(transport);
         }
     }
 }

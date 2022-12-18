@@ -6,7 +6,10 @@ use dust_dds::{
             DeadlineQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, Length,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
         },
-        status::{RequestedDeadlineMissedStatus, SampleRejectedStatus, StatusKind, NO_STATUS},
+        status::{
+            RequestedDeadlineMissedStatus, SampleRejectedStatus, SampleRejectedStatusKind,
+            StatusKind, NO_STATUS,
+        },
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
@@ -81,6 +84,7 @@ fn deadline_missed_listener() {
     reader_listener
         .expect_on_requested_deadline_missed()
         .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1) 
         .return_const(());
 
     let reader = subscriber
@@ -191,7 +195,14 @@ fn sample_rejected_listener() {
         ..Default::default()
     };
     let mut reader_listener = MockSampleRejectedListener::new();
-    reader_listener.expect_on_sample_rejected().return_const(());
+    reader_listener
+        .expect_on_sample_rejected()
+        .withf(|_, status| {
+            status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
+                && status.total_count_change == 1
+                && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
+        })
+        .return_const(());
 
     let reader = subscriber
         .create_datareader(
