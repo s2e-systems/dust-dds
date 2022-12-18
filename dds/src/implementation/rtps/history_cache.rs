@@ -2,9 +2,9 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     messages::{
-        submessage_elements::{Parameter, ParameterList, SerializedData},
+        submessage_elements::{Parameter, ParameterList},
         submessages::DataSubmessage,
-        types::ParameterId,
+        types::{ParameterId, SerializedPayload},
     },
     types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
@@ -75,9 +75,7 @@ impl<'a> From<&'a RtpsWriterCacheChange> for DataSubmessage<'a> {
                 })
                 .collect(),
         };
-        let serialized_payload = SerializedData {
-            value: val.data_value(),
-        };
+        let serialized_payload = SerializedPayload::new(val.data_value());
         DataSubmessage {
             endianness_flag,
             inline_qos_flag,

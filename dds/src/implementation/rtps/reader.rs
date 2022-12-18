@@ -191,7 +191,7 @@ impl RtpsReader {
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id);
 
-        let data = data_submessage.serialized_payload.value.to_vec();
+        let data = <&[u8]>::from(&data_submessage.serialized_payload).to_vec();
 
         let inline_qos: Vec<RtpsParameter> = data_submessage
             .inline_qos
@@ -590,7 +590,10 @@ impl RtpsReader {
 mod tests {
     use crate::{
         implementation::rtps::{
-            messages::submessage_elements::{Parameter, ParameterList, SerializedData},
+            messages::{
+                submessage_elements::{Parameter, ParameterList},
+                types::SerializedPayload,
+            },
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
             },
@@ -627,7 +630,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
             inline_qos: ParameterList { parameter: vec![] },
-            serialized_payload: SerializedData { value: data },
+            serialized_payload: SerializedPayload::new(data),
         }
     }
 
@@ -651,7 +654,7 @@ mod tests {
                     value: &[0, 0, 0, 1],
                 }],
             },
-            serialized_payload: SerializedData { value: data },
+            serialized_payload: SerializedPayload::new(data),
         }
     }
 

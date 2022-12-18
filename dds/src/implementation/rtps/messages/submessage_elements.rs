@@ -37,12 +37,3 @@ pub struct LocatorList {
     pub value: Vec<Locator>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SerializedData<'a> {
-    pub value: &'a [u8],
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SerializedDataFragment<'a> {
-    pub value: &'a [u8],
-}

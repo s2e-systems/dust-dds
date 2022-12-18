@@ -107,3 +107,18 @@ pub const TIME_INVALID: Time = Time {
     seconds: 0xffff,
     fraction: 0xffff,
 };
+
+#[derive(Debug, PartialEq, Eq, derive_more::Into, derive_more::From)]
+pub struct SerializedPayload<'a>(&'a [u8]);
+
+impl<'a> SerializedPayload<'a> {
+    pub fn new(value: &'a[u8]) -> Self {
+        Self(value)
+    }
+}
+
+impl<'a> From<&'_ SerializedPayload<'a>> for &'a [u8] {
+    fn from(value: &'_ SerializedPayload<'a>) -> Self {
+        value.0
+    }
+}
