@@ -189,7 +189,7 @@ impl RtpsReader {
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id.value);
+        let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id);
 
         let data = data_submessage.serialized_payload.value.to_vec();
 
@@ -591,8 +591,7 @@ mod tests {
     use crate::{
         implementation::rtps::{
             messages::submessage_elements::{
-                EntityIdSubmessageElement, Parameter, ParameterListSubmessageElement,
-                SequenceNumberSubmessageElement, SerializedDataSubmessageElement,
+                Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
             },
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
@@ -626,15 +625,9 @@ mod tests {
             data_flag: true,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_sn: SequenceNumberSubmessageElement {
-                value: sequence_number,
-            },
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            writer_sn: sequence_number,
             inline_qos: ParameterListSubmessageElement { parameter: vec![] },
             serialized_payload: SerializedDataSubmessageElement { value: data },
         }
@@ -650,15 +643,9 @@ mod tests {
             data_flag: false,
             key_flag: true,
             non_standard_payload_flag: false,
-            reader_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_id: EntityIdSubmessageElement {
-                value: ENTITYID_UNKNOWN.into(),
-            },
-            writer_sn: SequenceNumberSubmessageElement {
-                value: sequence_number,
-            },
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            writer_sn: sequence_number,
             inline_qos: ParameterListSubmessageElement {
                 parameter: vec![Parameter {
                     parameter_id: 0x71,

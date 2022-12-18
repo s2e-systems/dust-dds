@@ -1,4 +1,6 @@
-use crate::implementation::rtps::types::{Locator, EntityId, GuidPrefix, VendorId, ProtocolVersion, Count, SequenceNumber};
+use crate::implementation::rtps::types::{Locator, SequenceNumber};
+
+use super::types::FragmentNumber;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -16,45 +18,15 @@ pub struct ULongSubmessageElement {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GuidPrefixSubmessageElement {
-    pub value: GuidPrefix,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EntityIdSubmessageElement {
-    pub value: EntityId,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct VendorIdSubmessageElement {
-    pub value: VendorId,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProtocolVersionSubmessageElement {
-    pub value: ProtocolVersion,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SequenceNumberSubmessageElement {
-    pub value: SequenceNumber,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SequenceNumberSetSubmessageElement {
+pub struct SequenceNumberSet {
     pub base: SequenceNumber,
     pub set: Vec<SequenceNumber>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FragmentNumberSubmessageElement {
-    pub value: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FragmentNumberSetSubmessageElement {
-    pub base: u32,
-    pub set: Vec<u32>,
+pub struct FragmentNumberSet {
+    pub base: FragmentNumber,
+    pub set: Vec<FragmentNumber>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,11 +44,6 @@ pub struct Parameter<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParameterListSubmessageElement<'a> {
     pub parameter: Vec<Parameter<'a>>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CountSubmessageElement {
-    pub value: Count,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

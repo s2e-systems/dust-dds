@@ -1,24 +1,25 @@
+use crate::implementation::rtps::types::{
+    Count, EntityId, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
+};
+
 use super::{
     submessage_elements::{
-        CountSubmessageElement, EntityIdSubmessageElement, FragmentNumberSetSubmessageElement,
-        FragmentNumberSubmessageElement, GuidPrefixSubmessageElement, LocatorListSubmessageElement,
-        ParameterListSubmessageElement, ProtocolVersionSubmessageElement,
-        SequenceNumberSetSubmessageElement, SequenceNumberSubmessageElement,
-        SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
-        TimestampSubmessageElement, ULongSubmessageElement, UShortSubmessageElement,
-        VendorIdSubmessageElement,
+        FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
+        SequenceNumberSet, SerializedDataFragmentSubmessageElement,
+        SerializedDataSubmessageElement, TimestampSubmessageElement, ULongSubmessageElement,
+        UShortSubmessageElement,
     },
-    types::SubmessageFlag,
+    types::{FragmentNumber, SubmessageFlag},
 };
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AckNackSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub reader_sn_state: SequenceNumberSetSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub reader_sn_state: SequenceNumberSet,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,9 +29,9 @@ pub struct DataSubmessage<'a> {
     pub data_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub writer_sn: SequenceNumber,
     pub inline_qos: ParameterListSubmessageElement<'a>,
     pub serialized_payload: SerializedDataSubmessageElement<'a>,
 }
@@ -41,10 +42,10 @@ pub struct DataFragSubmessage<'a> {
     pub inline_qos_flag: SubmessageFlag,
     pub non_standard_payload_flag: SubmessageFlag,
     pub key_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_starting_num: FragmentNumberSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub writer_sn: SequenceNumber,
+    pub fragment_starting_num: FragmentNumber,
     pub fragments_in_submessage: UShortSubmessageElement,
     pub data_size: ULongSubmessageElement,
     pub fragment_size: UShortSubmessageElement,
@@ -55,10 +56,10 @@ pub struct DataFragSubmessage<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct GapSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub gap_start: SequenceNumberSubmessageElement,
-    pub gap_list: SequenceNumberSetSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub gap_start: SequenceNumber,
+    pub gap_list: SequenceNumberSet,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -66,27 +67,27 @@ pub struct HeartbeatSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub final_flag: SubmessageFlag,
     pub liveliness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub first_sn: SequenceNumberSubmessageElement,
-    pub last_sn: SequenceNumberSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub first_sn: SequenceNumber,
+    pub last_sn: SequenceNumber,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct HeartbeatFragSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
-    pub last_fragment_num: FragmentNumberSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub writer_sn: SequenceNumber,
+    pub last_fragment_num: FragmentNumber,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoDestinationSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub guid_prefix: GuidPrefixSubmessageElement,
+    pub guid_prefix: GuidPrefix,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -100,9 +101,9 @@ pub struct InfoReplySubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct InfoSourceSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub protocol_version: ProtocolVersionSubmessageElement,
-    pub vendor_id: VendorIdSubmessageElement,
-    pub guid_prefix: GuidPrefixSubmessageElement,
+    pub protocol_version: ProtocolVersion,
+    pub vendor_id: VendorId,
+    pub guid_prefix: GuidPrefix,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -115,11 +116,11 @@ pub struct InfoTimestampSubmessage {
 #[derive(Debug, PartialEq, Eq)]
 pub struct NackFragSubmessage {
     pub endianness_flag: SubmessageFlag,
-    pub reader_id: EntityIdSubmessageElement,
-    pub writer_id: EntityIdSubmessageElement,
-    pub writer_sn: SequenceNumberSubmessageElement,
-    pub fragment_number_state: FragmentNumberSetSubmessageElement,
-    pub count: CountSubmessageElement,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub writer_sn: SequenceNumber,
+    pub fragment_number_state: FragmentNumberSet,
+    pub count: Count,
 }
 
 #[derive(Debug, PartialEq, Eq)]

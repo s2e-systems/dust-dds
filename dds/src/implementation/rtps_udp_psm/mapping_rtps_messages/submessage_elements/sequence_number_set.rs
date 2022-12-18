@@ -6,13 +6,13 @@ use std::{
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::{messages::submessage_elements::SequenceNumberSetSubmessageElement, types::SequenceNumber},
+    rtps::{messages::submessage_elements::SequenceNumberSet, types::SequenceNumber},
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
     },
 };
 
-impl NumberOfBytes for SequenceNumberSetSubmessageElement {
+impl NumberOfBytes for SequenceNumberSet {
     fn number_of_bytes(&self) -> usize {
         let num_bits = if let Some(max) = self.set.iter().max() {
             <i64>::from(*max) - <i64>::from(self.base) + 1
@@ -24,7 +24,7 @@ impl NumberOfBytes for SequenceNumberSetSubmessageElement {
     }
 }
 
-impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement {
+impl MappingWriteByteOrdered for SequenceNumberSet {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -53,7 +53,7 @@ impl MappingWriteByteOrdered for SequenceNumberSetSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSetSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for SequenceNumberSet {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let high: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let low: i32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn serialize_sequence_number_max_gap() {
-        let sequence_number_set = SequenceNumberSetSubmessageElement {
+        let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
         };
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn deserialize_sequence_number_set_max_gap() {
-        let expected = SequenceNumberSetSubmessageElement {
+        let expected = SequenceNumberSet {
             base: SequenceNumber::new(2),
             set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
         };
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_max_numbers() {
-        let sequence_number_set = SequenceNumberSetSubmessageElement {
+        let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             set: vec![SequenceNumber::new(2), SequenceNumber::new(257)],
         };
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_empty() {
-        let sequence_number_set = SequenceNumberSetSubmessageElement {
+        let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             set: vec![],
         };
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn number_of_bytes_one() {
-        let sequence_number_set = SequenceNumberSetSubmessageElement {
+        let sequence_number_set = SequenceNumberSet {
             base: SequenceNumber::new(2),
             set: vec![SequenceNumber::new(257)],
         };
