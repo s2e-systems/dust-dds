@@ -91,7 +91,7 @@ impl DdsShared<UserDefinedSubscriber> {
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -145,6 +145,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 rtps_reader,
                 a_topic.clone(),
                 a_listener,
+                mask,
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),
             );

@@ -159,6 +159,7 @@ pub struct UserDefinedDataReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
+    status_mask: DdsRwLock<Vec<StatusKind>>,
     parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
@@ -178,6 +179,7 @@ impl UserDefinedDataReader {
         rtps_reader: RtpsStatefulReader,
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+        mask: &[StatusKind],
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -185,6 +187,7 @@ impl UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             topic,
             listener: DdsRwLock::new(listener),
+            status_mask: DdsRwLock::new(mask.to_vec()),
             parent_subscriber,
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus::default()),
             requested_deadline_missed_status: DdsRwLock::new(
@@ -723,8 +726,14 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     fn on_data_available(&self) {
-        if let Some(listener) = self.listener.write_lock().as_mut() {
-            listener.trigger_on_data_available(self);
+        if self
+            .status_mask
+            .read_lock()
+            .contains(&StatusKind::DataAvailable)
+        {
+            if let Some(listener) = self.listener.write_lock().as_mut() {
+                listener.trigger_on_data_available(self);
+            }
         }
 
         self.status_condition
@@ -735,8 +744,14 @@ impl DdsShared<UserDefinedDataReader> {
     fn on_sample_lost(&self) {
         self.sample_lost_status.write_lock().increment();
 
-        if let Some(listener) = self.listener.write_lock().as_mut() {
-            listener.trigger_on_sample_lost(self);
+        if self
+            .status_mask
+            .read_lock()
+            .contains(&StatusKind::SampleLost)
+        {
+            if let Some(listener) = self.listener.write_lock().as_mut() {
+                listener.trigger_on_sample_lost(self);
+            }
         }
 
         self.status_condition
@@ -747,9 +762,16 @@ impl DdsShared<UserDefinedDataReader> {
     fn on_subscription_matched(&self) {
         self.subscription_matched_status.write_lock().increment();
 
-        if let Some(l) = self.listener.write_lock().as_mut() {
-            l.trigger_on_subscription_matched(self)
-        };
+        if self
+            .status_mask
+            .read_lock()
+            .contains(&StatusKind::SubscriptionMatched)
+        {
+            if let Some(l) = self.listener.write_lock().as_mut() {
+                l.trigger_on_subscription_matched(self)
+            };
+        }
+
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::SubscriptionMatched);
@@ -764,8 +786,14 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .increment(instance_handle, rejected_reason);
 
-        if let Some(listener) = self.listener.write_lock().as_mut() {
-            listener.trigger_on_sample_rejected(self);
+        if self
+            .status_mask
+            .read_lock()
+            .contains(&StatusKind::SampleRejected)
+        {
+            if let Some(listener) = self.listener.write_lock().as_mut() {
+                listener.trigger_on_sample_rejected(self);
+            }
         }
 
         self.status_condition
@@ -778,8 +806,14 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .increment(instance_handle);
 
-        if let Some(listener) = self.listener.write_lock().as_mut() {
-            listener.trigger_on_requested_deadline_missed(self);
+        if self
+            .status_mask
+            .read_lock()
+            .contains(&StatusKind::RequestedDeadlineMissed)
+        {
+            if let Some(listener) = self.listener.write_lock().as_mut() {
+                listener.trigger_on_requested_deadline_missed(self);
+            }
         }
 
         self.status_condition
@@ -904,6 +938,7 @@ mod tests {
             stateful_reader,
             dummy_topic,
             None,
+            &[],
             DdsWeak::new(),
             DdsCondvar::new(),
         );
@@ -944,6 +979,7 @@ mod tests {
             rtps_reader,
             test_topic,
             None,
+            &[],
             parent_subscriber.downgrade(),
             DdsCondvar::new(),
         );
@@ -1034,6 +1070,7 @@ mod tests {
             rtps_reader,
             test_topic,
             None,
+            &[],
             parent_subscriber.downgrade(),
             DdsCondvar::new(),
         );
