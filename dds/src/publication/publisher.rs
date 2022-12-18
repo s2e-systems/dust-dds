@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
         dds_impl::{
-            user_defined_data_writer::AnyDataWriterListener,
+            any_data_writer_listener::AnyDataWriterListener,
             user_defined_publisher::UserDefinedPublisher,
         },
         utils::shared_object::DdsWeak,

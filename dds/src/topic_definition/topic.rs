@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        dds_impl::topic_impl::{AnyTopicListener, TopicImpl},
+        dds_impl::{any_topic_listener::AnyTopicListener, topic_impl::TopicImpl},
         utils::shared_object::DdsWeak,
     },
     infrastructure::{

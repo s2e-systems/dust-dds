@@ -56,13 +56,10 @@ use crate::{
 };
 
 use super::{
-    builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber,
-    message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery,
-    topic_impl::{AnyTopicListener, TopicImpl},
-    user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::UserDefinedSubscriber,
+    any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
+    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =

@@ -2,6 +2,13 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    implementation::{
+        dds_impl::{
+            any_data_writer_listener::AnyDataWriterListener,
+            user_defined_data_writer::UserDefinedDataWriter,
+        },
+        utils::shared_object::DdsWeak,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -13,18 +20,11 @@ use crate::{
         },
         time::{Duration, Time},
     },
-};
-use crate::{
-    implementation::{
-        dds_impl::user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
-        utils::shared_object::DdsWeak,
-    },
-    topic_definition::type_support::{DdsSerialize, DdsType},
-};
-
-use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::topic::Topic,
+    topic_definition::{
+        topic::Topic,
+        type_support::{DdsSerialize, DdsType},
+    },
 };
 
 /// The [`DataWriter`] allows the application to set the value of the

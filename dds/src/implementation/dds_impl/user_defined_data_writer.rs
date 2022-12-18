@@ -3,13 +3,22 @@ use std::{collections::HashMap, time::Instant};
 use crate::{
     builtin_topics::BuiltInTopicKey,
     implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        },
         rtps::{
             messages::submessages::AckNackSubmessage,
             reader_proxy::RtpsReaderProxy,
+            stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
+            utils::clock::StdTimer,
         },
-        utils::condvar::DdsCondvar,
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        },
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -20,7 +29,6 @@ use crate::{
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
-    publication::data_writer::DataWriter,
     topic_definition::type_support::{DdsSerialize, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -36,85 +44,12 @@ use crate::{
         },
     },
 };
-use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-        rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer},
-    },
-    publication::data_writer_listener::DataWriterListener,
-};
-
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_writer_data::DiscoveredWriterData,
-    },
-    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
-};
 
 use super::{
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    any_data_writer_listener::AnyDataWriterListener, message_receiver::MessageReceiver,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher,
 };
-
-pub trait AnyDataWriterListener {
-    fn trigger_on_liveliness_lost(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: LivelinessLostStatus,
-    );
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: OfferedDeadlineMissedStatus,
-    );
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: OfferedIncompatibleQosStatus,
-    );
-    fn trigger_on_publication_matched(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: PublicationMatchedStatus,
-    );
-}
-
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
-where
-    Foo: DdsType + DdsSerialize + 'static,
-{
-    fn trigger_on_liveliness_lost(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: LivelinessLostStatus,
-    ) {
-        self.on_liveliness_lost(&DataWriter::new(the_writer.downgrade()), status);
-    }
-
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: OfferedDeadlineMissedStatus,
-    ) {
-        self.on_offered_deadline_missed(&DataWriter::new(the_writer.downgrade()), status);
-    }
-
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: OfferedIncompatibleQosStatus,
-    ) {
-        self.on_offered_incompatible_qos(&DataWriter::new(the_writer.downgrade()), status);
-    }
-
-    fn trigger_on_publication_matched(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: PublicationMatchedStatus,
-    ) {
-        self.on_publication_matched(&DataWriter::new(the_writer.downgrade()), status)
-    }
-}
 
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,

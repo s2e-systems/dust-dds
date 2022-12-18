@@ -33,10 +33,11 @@ use crate::{
 };
 
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     topic_impl::TopicImpl,
-    user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
+    user_defined_data_writer::UserDefinedDataWriter,
 };
 
 pub struct UserDefinedPublisher {

@@ -1,7 +1,9 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        dds_impl::{domain_participant_impl::DomainParticipantImpl, topic_impl::AnyTopicListener},
+        dds_impl::{
+            any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+        },
         utils::shared_object::DdsWeak,
     },
     infrastructure::{

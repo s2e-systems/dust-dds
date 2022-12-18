@@ -1,42 +1,20 @@
-use crate::builtin_topics::BuiltInTopicKey;
-use crate::implementation::rtps::types::Guid;
-use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::QosKind;
-use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
-use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
-    builtin_topics::TopicBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+        rtps::types::Guid,
+        utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
-        qos::TopicQos,
+        instance::InstanceHandle,
+        qos::{QosKind, TopicQos},
+        status::{InconsistentTopicStatus, StatusKind},
     },
 };
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
-};
-
-use super::domain_participant_impl::DomainParticipantImpl;
-
-pub trait AnyTopicListener {
-    fn trigger_on_inconsistent_topic(
-        &mut self,
-        _the_topic: &DdsShared<TopicImpl>,
-        _status: InconsistentTopicStatus,
-    );
-}
-
-impl<Foo> AnyTopicListener for Box<dyn TopicListener<Foo = Foo> + Send + Sync> {
-    fn trigger_on_inconsistent_topic(
-        &mut self,
-        _the_topic: &DdsShared<TopicImpl>,
-        _status: InconsistentTopicStatus,
-    ) {
-        todo!()
-    }
-}
+use super::{any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl};
 
 pub struct TopicImpl {
     guid: Guid,
