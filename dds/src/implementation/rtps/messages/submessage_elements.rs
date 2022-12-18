@@ -8,16 +8,6 @@ use super::types::FragmentNumber;
 ///
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct UShortSubmessageElement {
-    pub value: u16,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ULongSubmessageElement {
-    pub value: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SequenceNumberSet {
     pub base: SequenceNumber,
     pub set: Vec<SequenceNumber>,
@@ -61,7 +51,4 @@ pub struct SerializedDataFragmentSubmessageElement<'a> {
     pub value: &'a [u8],
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct GroupDigestSubmessageElement {
-    pub value: [u8; 4],
-}
+

@@ -45,10 +45,39 @@ pub enum SubmessageKind {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ParameterId(pub u16);
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into, derive_more::Sub, derive_more::Add)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Debug, derive_more::Into, derive_more::Sub, derive_more::Add,
+)]
 pub struct FragmentNumber(u32);
 
 impl FragmentNumber {
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug, derive_more::Into)]
+pub struct GroupDigest([u8; 4]);
+
+impl GroupDigest {
+    pub const fn new(value: [u8; 4]) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, derive_more::Into)]
+pub struct UShort(u16);
+
+impl UShort {
+    pub const fn new(value: u16) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, derive_more::Into)]
+pub struct ULong(u32);
+
+impl ULong {
     pub const fn new(value: u32) -> Self {
         Self(value)
     }

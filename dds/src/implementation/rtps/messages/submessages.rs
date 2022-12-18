@@ -6,10 +6,9 @@ use super::{
     submessage_elements::{
         FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
         SequenceNumberSet, SerializedDataFragmentSubmessageElement,
-        SerializedDataSubmessageElement, TimestampSubmessageElement, ULongSubmessageElement,
-        UShortSubmessageElement,
+        SerializedDataSubmessageElement, TimestampSubmessageElement
     },
-    types::{FragmentNumber, SubmessageFlag},
+    types::{FragmentNumber, SubmessageFlag, UShort, ULong},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,9 +45,9 @@ pub struct DataFragSubmessage<'a> {
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub fragment_starting_num: FragmentNumber,
-    pub fragments_in_submessage: UShortSubmessageElement,
-    pub data_size: ULongSubmessageElement,
-    pub fragment_size: UShortSubmessageElement,
+    pub fragments_in_submessage: UShort,
+    pub data_size: ULong,
+    pub fragment_size: UShort,
     pub inline_qos: ParameterListSubmessageElement<'a>,
     pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
 }
