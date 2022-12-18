@@ -32,7 +32,7 @@ pub struct ParameterList<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LocatorListSubmessageElement {
+pub struct LocatorList {
     pub value: Vec<Locator>,
 }
 

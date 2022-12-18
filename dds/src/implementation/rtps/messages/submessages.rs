@@ -4,7 +4,7 @@ use crate::implementation::rtps::types::{
 
 use super::{
     submessage_elements::{
-        FragmentNumberSet, LocatorListSubmessageElement, ParameterList, SequenceNumberSet,
+        FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet,
         SerializedDataFragmentSubmessageElement, SerializedDataSubmessageElement,
     },
     types::{FragmentNumber, SubmessageFlag, Time, ULong, UShort},
@@ -92,8 +92,8 @@ pub struct InfoDestinationSubmessage {
 pub struct InfoReplySubmessage {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
-    pub unicast_locator_list: LocatorListSubmessageElement,
-    pub multicast_locator_list: LocatorListSubmessageElement,
+    pub unicast_locator_list: LocatorList,
+    pub multicast_locator_list: LocatorList,
 }
 
 #[derive(Debug, PartialEq, Eq)]
