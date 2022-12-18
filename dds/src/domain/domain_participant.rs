@@ -113,7 +113,7 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener>>,
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
         self.0

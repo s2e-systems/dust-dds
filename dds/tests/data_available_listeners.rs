@@ -158,7 +158,11 @@ fn data_on_readers_listener() {
         .once()
         .return_const(());
     let subscriber = participant
-        .create_subscriber(QosKind::Default, None, &[StatusKind::DataOnReaders])
+        .create_subscriber(
+            QosKind::Default,
+            Some(Box::new(subscriber_listener)),
+            &[StatusKind::DataOnReaders],
+        )
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {

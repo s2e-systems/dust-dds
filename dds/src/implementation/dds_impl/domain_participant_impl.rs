@@ -301,8 +301,8 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.clone(),
@@ -320,6 +320,8 @@ impl DdsShared<DomainParticipantImpl> {
         let subscriber_shared = UserDefinedSubscriber::new(
             subscriber_qos,
             rtps_group,
+            a_listener,
+            mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );

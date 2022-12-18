@@ -164,7 +164,7 @@ pub struct UserDefinedDataReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     listener: DdsRwLock<Option<Box<dyn AnyDataReaderListener + Send + Sync>>>,
-    status_mask: DdsRwLock<Vec<StatusKind>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
@@ -193,7 +193,7 @@ impl UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             topic,
             listener: DdsRwLock::new(listener),
-            status_mask: DdsRwLock::new(mask.to_vec()),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
             parent_subscriber,
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus::default()),
             requested_deadline_missed_status: DdsRwLock::new(
@@ -745,7 +745,7 @@ impl DdsShared<UserDefinedDataReader> {
 
     fn on_data_available(&self) {
         if self
-            .status_mask
+            .listener_status_mask
             .read_lock()
             .contains(&StatusKind::DataAvailable)
         {
@@ -764,7 +764,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.sample_lost_status.write_lock().increment();
 
         if self
-            .status_mask
+            .listener_status_mask
             .read_lock()
             .contains(&StatusKind::SampleLost)
         {
@@ -782,7 +782,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.subscription_matched_status.write_lock().increment();
 
         if self
-            .status_mask
+            .listener_status_mask
             .read_lock()
             .contains(&StatusKind::SubscriptionMatched)
         {
@@ -806,7 +806,7 @@ impl DdsShared<UserDefinedDataReader> {
             .increment(instance_handle, rejected_reason);
 
         if self
-            .status_mask
+            .listener_status_mask
             .read_lock()
             .contains(&StatusKind::SampleRejected)
         {
@@ -826,7 +826,7 @@ impl DdsShared<UserDefinedDataReader> {
             .increment(instance_handle);
 
         if self
-            .status_mask
+            .listener_status_mask
             .read_lock()
             .contains(&StatusKind::RequestedDeadlineMissed)
         {
@@ -979,6 +979,8 @@ mod tests {
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            None,
+            &[],
             DdsWeak::new(),
             DdsCondvar::new(),
         );
@@ -1067,6 +1069,8 @@ mod tests {
         let parent_subscriber = UserDefinedSubscriber::new(
             SubscriberQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            None,
+            &[],
             DdsWeak::new(),
             DdsCondvar::new(),
         );
