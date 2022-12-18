@@ -404,7 +404,7 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
                 }
             }
         }
-        if *self.data_on_readers_status_changed_flag.read_lock() == true {
+        if *self.data_on_readers_status_changed_flag.read_lock() {
             self.on_data_on_readers();
         }
     }

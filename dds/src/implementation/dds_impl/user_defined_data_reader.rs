@@ -742,7 +742,7 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn on_data_available(&self) {
-        if *self.data_available_status_changed_flag.read_lock() == true {
+        if *self.data_available_status_changed_flag.read_lock() {
             if self
                 .listener_status_mask
                 .read_lock()
