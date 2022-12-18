@@ -103,23 +103,6 @@ impl Time {
     }
 }
 
-const SEC_IN_NANOSEC: u64 = 1000000000;
-
-impl From<u64> for Time {
-    fn from(value: u64) -> Self {
-        Self {
-            seconds: (value / SEC_IN_NANOSEC) as i32,
-            fraction: (value >> 32) as u32,
-        }
-    }
-}
-
-impl From<Time> for u64 {
-    fn from(value: Time) -> Self {
-        (value.seconds as u64 * SEC_IN_NANOSEC) + value.fraction as u64 as u64
-    }
-}
-
 pub const TIME_INVALID: Time = Time {
     seconds: 0xffff,
     fraction: 0xffff,
