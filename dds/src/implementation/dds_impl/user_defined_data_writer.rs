@@ -128,6 +128,7 @@ pub struct UserDefinedDataWriter {
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
 }
 
@@ -135,6 +136,7 @@ impl UserDefinedDataWriter {
     pub fn new(
         rtps_writer: RtpsStatefulWriter<StdTimer>,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
@@ -177,6 +179,7 @@ impl UserDefinedDataWriter {
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
             user_defined_data_send_condvar,
         })
     }
@@ -775,7 +778,15 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(
+            GUID_UNKNOWN,
+            TopicQos::default(),
+            "",
+            "",
+            None,
+            &[],
+            DdsWeak::new(),
+        );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
@@ -790,6 +801,7 @@ mod test {
         let data_writer = UserDefinedDataWriter::new(
             rtps_writer,
             None,
+            &[],
             dummy_topic,
             DdsWeak::new(),
             DdsCondvar::new(),
@@ -843,6 +855,8 @@ mod test {
         let parent_publisher = UserDefinedPublisher::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            None,
+            &[],
             DdsWeak::new(),
             DdsCondvar::new(),
         );
@@ -851,6 +865,8 @@ mod test {
             TopicQos::default(),
             type_name,
             &topic_name,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -873,6 +889,7 @@ mod test {
         let data_writer = UserDefinedDataWriter::new(
             rtps_writer,
             None,
+            &[],
             test_topic,
             parent_publisher.downgrade(),
             DdsCondvar::new(),
@@ -938,6 +955,8 @@ mod test {
         let parent_publisher = UserDefinedPublisher::new(
             PublisherQos::default(),
             RtpsGroupImpl::new(GUID_UNKNOWN),
+            None,
+            &[],
             DdsWeak::new(),
             DdsCondvar::new(),
         );
@@ -946,6 +965,8 @@ mod test {
             TopicQos::default(),
             type_name,
             &topic_name,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -967,6 +988,7 @@ mod test {
         let data_writer = UserDefinedDataWriter::new(
             rtps_writer,
             None,
+            &[],
             test_topic,
             parent_publisher.downgrade(),
             DdsCondvar::new(),

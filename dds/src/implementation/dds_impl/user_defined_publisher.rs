@@ -48,12 +48,16 @@ pub struct UserDefinedPublisher {
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
+    listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
 }
 
 impl UserDefinedPublisher {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
+        listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -66,6 +70,8 @@ impl UserDefinedPublisher {
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
+            listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
         })
     }
 }
@@ -84,7 +90,7 @@ impl DdsShared<UserDefinedPublisher> {
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
@@ -146,6 +152,7 @@ impl DdsShared<UserDefinedPublisher> {
             let data_writer_shared = UserDefinedDataWriter::new(
                 rtps_writer_impl,
                 a_listener,
+                mask,
                 topic_shared.clone(),
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),

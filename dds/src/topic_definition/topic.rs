@@ -89,7 +89,7 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]

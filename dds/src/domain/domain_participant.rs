@@ -1,7 +1,8 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
+        dds_impl::{domain_participant_impl::DomainParticipantImpl, topic_impl::AnyTopicListener},
+        utils::shared_object::DdsWeak,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -80,7 +81,7 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         self.0
@@ -147,7 +148,7 @@ impl DomainParticipant {
         &self,
         topic_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
     where
@@ -156,7 +157,12 @@ impl DomainParticipant {
         #[allow(clippy::redundant_closure)]
         self.0
             .upgrade()?
-            .create_topic::<Foo>(topic_name, qos, a_listener, mask)
+            .create_topic::<Foo>(
+                topic_name,
+                qos,
+                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                mask,
+            )
             .map(|x| Topic::new(x.downgrade()))
     }
 

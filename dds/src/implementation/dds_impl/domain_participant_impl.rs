@@ -44,7 +44,6 @@ use crate::{
         sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::topic_listener::TopicListener,
     topic_definition::type_support::DdsType,
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -57,9 +56,12 @@ use crate::{
 };
 
 use super::{
-    builtin_publisher::BuiltinPublisher, builtin_subscriber::BuiltInSubscriber,
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    builtin_publisher::BuiltinPublisher,
+    builtin_subscriber::BuiltInSubscriber,
+    message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery,
+    topic_impl::{AnyTopicListener, TopicImpl},
+    user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -110,6 +112,8 @@ pub struct DomainParticipantImpl {
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, SpdpDiscoveredParticipantData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
+    listener: DdsRwLock<Option<Box<dyn DomainParticipantListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     announce_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
 }
@@ -121,6 +125,8 @@ impl DomainParticipantImpl {
         domain_id: DomainId,
         domain_tag: String,
         domain_participant_qos: DomainParticipantQos,
+        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
         metatraffic_unicast_locator_list: Vec<Locator>,
         metatraffic_multicast_locator_list: Vec<Locator>,
         spdp_discovery_locator_list: &[Locator],
@@ -137,6 +143,8 @@ impl DomainParticipantImpl {
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
             DCPS_PARTICIPANT,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -147,6 +155,8 @@ impl DomainParticipantImpl {
             TopicQos::default(),
             DiscoveredTopicData::type_name(),
             DCPS_TOPIC,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -157,6 +167,8 @@ impl DomainParticipantImpl {
             TopicQos::default(),
             DiscoveredWriterData::type_name(),
             DCPS_PUBLICATION,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -167,6 +179,8 @@ impl DomainParticipantImpl {
             TopicQos::default(),
             DiscoveredReaderData::type_name(),
             DCPS_SUBSCRIPTION,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -211,6 +225,8 @@ impl DomainParticipantImpl {
             enabled: DdsRwLock::new(false),
             announce_condvar,
             user_defined_data_send_condvar,
+            listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
         })
     }
 }
@@ -234,8 +250,8 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        _a_listener: Option<Box<dyn PublisherListener>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.clone(),
@@ -253,6 +269,8 @@ impl DdsShared<DomainParticipantImpl> {
         let publisher_impl_shared = UserDefinedPublisher::new(
             publisher_qos,
             rtps_group,
+            a_listener,
+            mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
@@ -371,8 +389,8 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         topic_name: &str,
         qos: QosKind<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<TopicImpl>>
     where
         Foo: DdsType,
@@ -395,6 +413,8 @@ impl DdsShared<DomainParticipantImpl> {
             qos,
             Foo::type_name(),
             topic_name,
+            a_listener,
+            mask,
             self.downgrade(),
         );
         if *self.enabled.read_lock()

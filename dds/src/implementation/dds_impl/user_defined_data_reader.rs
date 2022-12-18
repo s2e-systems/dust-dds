@@ -943,7 +943,15 @@ mod tests {
             GuidPrefix::new([4; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(
+            GUID_UNKNOWN,
+            TopicQos::default(),
+            "",
+            "",
+            None,
+            &[],
+            DdsWeak::new(),
+        );
         let qos = DataReaderQos::default();
         let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
             RtpsEndpoint::new(guid, TopicKind::NoKey, &[], &[]),
@@ -985,6 +993,8 @@ mod tests {
             TopicQos::default(),
             type_name,
             &topic_name,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
@@ -1075,6 +1085,8 @@ mod tests {
             TopicQos::default(),
             type_name,
             &topic_name,
+            None,
+            &[],
             DdsWeak::new(),
         );
 
