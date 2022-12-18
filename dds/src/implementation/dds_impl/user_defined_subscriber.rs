@@ -357,7 +357,7 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_data_submessage_received(data_submessage, message_receiver)
+            data_reader.on_data_submessage_received(data_submessage, message_receiver);
         }
     }
 

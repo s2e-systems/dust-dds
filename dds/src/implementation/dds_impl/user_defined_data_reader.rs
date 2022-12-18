@@ -48,6 +48,11 @@ use super::{
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
+pub enum DataSubmessageReceivedResult {
+    NoChange,
+    NewDataAvailable,
+}
+
 impl SampleLostStatus {
     fn increment(&mut self) {
         self.total_count += 1;
@@ -172,6 +177,7 @@ pub struct UserDefinedDataReader {
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
+    data_available_status_changed_flag: DdsRwLock<bool>,
 }
 
 impl UserDefinedDataReader {
@@ -204,6 +210,7 @@ impl UserDefinedDataReader {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
+            data_available_status_changed_flag: DdsRwLock::new(false),
         })
     }
 }
@@ -213,32 +220,43 @@ impl DdsShared<UserDefinedDataReader> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) {
+    ) -> DataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
 
         match data_submessage_received_result {
-            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => (),
-            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => (),
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
+                DataSubmessageReceivedResult::NoChange
+            }
+            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
+                DataSubmessageReceivedResult::NoChange
+            }
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.instance_reception_time
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
+                *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_data_available();
+                DataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
+                *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_sample_lost();
                 self.on_data_available();
+                DataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(instance_handle, rejected_reason);
+                DataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::InvalidData(_) => (),
+            StatefulReaderDataReceivedResult::InvalidData(_) => {
+                DataSubmessageReceivedResult::NoChange
+            }
         }
     }
 
@@ -732,6 +750,7 @@ impl DdsShared<UserDefinedDataReader> {
             .contains(&StatusKind::DataAvailable)
         {
             if let Some(listener) = self.listener.write_lock().as_mut() {
+                *self.data_available_status_changed_flag.write_lock() = false;
                 listener.trigger_on_data_available(self);
             }
         }
@@ -819,6 +838,10 @@ impl DdsShared<UserDefinedDataReader> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::RequestedDeadlineMissed);
+    }
+
+    pub fn is_data_available(&self) -> bool {
+        *self.data_available_status_changed_flag.read_lock()
     }
 }
 
