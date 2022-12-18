@@ -272,10 +272,7 @@ impl Subscriber {
 
     /// This operation allows access to the existing Listener attached to the Entity.
     pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener + Send + Sync>>> {
-        match &self.0 {
-            SubscriberKind::BuiltIn(_) => Ok(None),
-            SubscriberKind::UserDefined(s) => Ok(s.upgrade()?.get_listener()),
-        }
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

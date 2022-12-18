@@ -260,7 +260,7 @@ impl Publisher {
 
     /// This operation allows access to the existing Listener attached to the Entity.
     pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener + Send + Sync>>> {
-        Ok(self.0.upgrade()?.get_listener())
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

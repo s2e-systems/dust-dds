@@ -295,11 +295,6 @@ impl DdsShared<UserDefinedSubscriber> {
         *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_listener(&self) -> Option<Box<dyn SubscriberListener + Send + Sync>> {
-        self.listener_status_mask.write_lock().clear();
-        self.listener.write_lock().take()
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }

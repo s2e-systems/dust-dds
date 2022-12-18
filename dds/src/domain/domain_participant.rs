@@ -465,7 +465,7 @@ impl DomainParticipant {
     pub fn get_listener(
         &self,
     ) -> DdsResult<Option<Box<dyn DomainParticipantListener + Send + Sync>>> {
-        Ok(self.0.upgrade()?.get_listener())
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

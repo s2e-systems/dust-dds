@@ -101,7 +101,9 @@ where
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo>>>> {
+    pub fn get_listener(
+        &self,
+    ) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>> {
         todo!()
     }
 

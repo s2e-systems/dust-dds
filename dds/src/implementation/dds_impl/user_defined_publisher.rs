@@ -322,11 +322,6 @@ impl DdsShared<UserDefinedPublisher> {
         *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_listener(&self) -> Option<Box<dyn PublisherListener + Send + Sync>> {
-        self.listener_status_mask.write_lock().clear();
-        self.listener.write_lock().take()
-    }
-
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         todo!()
     }
