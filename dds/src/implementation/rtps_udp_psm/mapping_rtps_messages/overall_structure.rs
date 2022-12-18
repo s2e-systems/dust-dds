@@ -139,7 +139,7 @@ mod tests {
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessage_elements::{Parameter, ParameterList, SerializedDataSubmessageElement},
+                submessage_elements::{Parameter, ParameterList, SerializedData},
                 submessages::DataSubmessage,
                 types::ProtocolId,
             },
@@ -204,7 +204,7 @@ mod tests {
         let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedData { value: &[][..] };
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,
@@ -296,7 +296,7 @@ mod tests {
         let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedData { value: &[][..] };
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,
@@ -365,7 +365,7 @@ mod tests {
         let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedData { value: &[][..] };
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,

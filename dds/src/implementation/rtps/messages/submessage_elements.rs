@@ -1,6 +1,7 @@
-use crate::implementation::rtps::types::{Locator, SequenceNumber};
-
-use super::types::FragmentNumber;
+use crate::implementation::rtps::{
+    messages::types::FragmentNumber,
+    types::{Locator, SequenceNumber},
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -37,11 +38,11 @@ pub struct LocatorList {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SerializedDataSubmessageElement<'a> {
+pub struct SerializedData<'a> {
     pub value: &'a [u8],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SerializedDataFragmentSubmessageElement<'a> {
+pub struct SerializedDataFragment<'a> {
     pub value: &'a [u8],
 }

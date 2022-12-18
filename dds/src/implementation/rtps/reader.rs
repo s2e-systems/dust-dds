@@ -590,9 +590,7 @@ impl RtpsReader {
 mod tests {
     use crate::{
         implementation::rtps::{
-            messages::submessage_elements::{
-                Parameter, ParameterList, SerializedDataSubmessageElement,
-            },
+            messages::submessage_elements::{Parameter, ParameterList, SerializedData},
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
             },
@@ -629,7 +627,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
             inline_qos: ParameterList { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: data },
+            serialized_payload: SerializedData { value: data },
         }
     }
 
@@ -653,7 +651,7 @@ mod tests {
                     value: &[0, 0, 0, 1],
                 }],
             },
-            serialized_payload: SerializedDataSubmessageElement { value: data },
+            serialized_payload: SerializedData { value: data },
         }
     }
 

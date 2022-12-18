@@ -3,11 +3,11 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::messages::submessage_elements::SerializedDataSubmessageElement,
+    rtps::messages::submessage_elements::SerializedData,
     rtps_udp_psm::mapping_traits::{MappingWriteByteOrdered, NumberOfBytes},
 };
 
-impl MappingWriteByteOrdered for SerializedDataSubmessageElement<'_> {
+impl MappingWriteByteOrdered for SerializedData<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -17,7 +17,7 @@ impl MappingWriteByteOrdered for SerializedDataSubmessageElement<'_> {
     }
 }
 
-impl NumberOfBytes for SerializedDataSubmessageElement<'_> {
+impl NumberOfBytes for SerializedData<'_> {
     fn number_of_bytes(&self) -> usize {
         self.value.len()
     }
@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn serialize_serialized_data() {
-        let data = SerializedDataSubmessageElement { value: &[1, 2][..] };
+        let data = SerializedData { value: &[1, 2][..] };
         assert_eq!(to_bytes_le(&data).unwrap(), vec![1, 2,]);
     }
 }
