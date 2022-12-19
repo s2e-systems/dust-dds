@@ -327,14 +327,7 @@ impl DdsShared<UserDefinedDataReader> {
 
                 self.on_subscription_matched();
             } else {
-                self.requested_incompatible_qos_status
-                    .write_lock()
-                    .increment(incompatible_qos_policy_list);
-
-                let mut listener_lock = self.listener.write_lock();
-                if let Some(l) = listener_lock.as_mut() {
-                    l.trigger_on_requested_incompatible_qos(self)
-                }
+                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
             }
         }
     }
@@ -844,6 +837,28 @@ impl DdsShared<UserDefinedDataReader> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::RequestedDeadlineMissed);
+    }
+
+    fn on_requested_incompatible_qos(&self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+        self.requested_incompatible_qos_status
+            .write_lock()
+            .increment(incompatible_qos_policy_list);
+
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::RequestedIncompatibleQos) =>
+            {
+                l.trigger_on_requested_incompatible_qos(self)
+            }
+            _ => self.get_subscriber().on_requested_incompatible_qos(self),
+        }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::RequestedIncompatibleQos);
     }
 }
 

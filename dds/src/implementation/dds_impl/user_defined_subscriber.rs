@@ -428,6 +428,21 @@ impl DdsShared<UserDefinedSubscriber> {
             _ => self.get_participant().on_requested_deadline_missed(reader),
         }
     }
+
+    pub fn on_requested_incompatible_qos(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::RequestedIncompatibleQos) =>
+            {
+                let status = reader.get_requested_incompatible_qos_status();
+                l.on_requested_incompatible_qos(reader, status);
+            }
+            _ => self.get_participant().on_requested_incompatible_qos(reader),
+        }
+    }
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
