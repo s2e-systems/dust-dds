@@ -7,8 +7,8 @@ use dust_dds::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
         },
         status::{
-            RequestedDeadlineMissedStatus, SampleRejectedStatus, SampleRejectedStatusKind,
-            StatusKind, NO_STATUS,
+            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
+            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus, NO_STATUS,
         },
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -233,4 +233,180 @@ fn sample_rejected_listener() {
         .unwrap();
 
     wait_set.wait(Duration::new(2, 0)).unwrap();
+}
+
+#[test]
+fn subscription_matched_listener() {
+    mock! {
+        SubscriptionMatchedListener{}
+
+        impl SubscriberListener for SubscriptionMatchedListener {
+            fn on_subscription_matched(
+                &mut self,
+                _the_reader: &dyn AnyDataReader,
+                _status: SubscriptionMatchedStatus,
+            );
+        }
+    }
+
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>(
+            "SampleRejectedListenerTopic",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let _writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let mut subscriber_listener = MockSubscriptionMatchedListener::new();
+    subscriber_listener
+        .expect_on_subscription_matched()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
+    let subscriber = participant
+        .create_subscriber(
+            QosKind::Default,
+            Some(Box::new(subscriber_listener)),
+            &[StatusKind::SubscriptionMatched],
+        )
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn requested_incompatible_qos_listener() {
+    mock! {
+        RequestedIncompatibleQosListener{}
+
+        impl SubscriberListener for RequestedIncompatibleQosListener {
+            fn on_requested_incompatible_qos(
+                &mut self,
+                _the_reader: &dyn AnyDataReader,
+                _status: RequestedIncompatibleQosStatus,
+            );
+        }
+    }
+
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>(
+            "SampleRejectedListenerTopic",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let _writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let mut subscriber_listener = MockRequestedIncompatibleQosListener::new();
+    subscriber_listener
+        .expect_on_requested_incompatible_qos()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
+    let subscriber = participant
+        .create_subscriber(
+            QosKind::Default,
+            Some(Box::new(subscriber_listener)),
+            &[StatusKind::RequestedIncompatibleQos],
+        )
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
