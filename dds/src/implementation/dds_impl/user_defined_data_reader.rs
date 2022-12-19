@@ -143,17 +143,20 @@ impl RequestedIncompatibleQosStatus {
 }
 
 impl SubscriptionMatchedStatus {
-    fn increment(&mut self) {
+    fn increment(&mut self, instance_handle: InstanceHandle) {
         self.total_count += 1;
         self.total_count_change += 1;
+        self.last_publication_handle = instance_handle;
         self.current_count += 1;
         self.current_count_change += 1;
     }
 
-    fn read_and_reset(&mut self) -> Self {
+    fn read_and_reset(&mut self, current_count: i32) -> Self {
+        let last_current_count = self.current_count;
+        self.current_count = current_count;
+        self.current_count_change = current_count - last_current_count;
         let status = self.clone();
 
-        self.current_count_change = 0;
         self.total_count_change = 0;
 
         status
@@ -319,13 +322,12 @@ impl DdsShared<UserDefinedDataReader> {
                 self.rtps_reader
                     .write_lock()
                     .matched_writer_add(writer_proxy);
+                let instance_handle = discovered_writer_data.get_serialized_key().into();
+                self.matched_publication_list
+                    .write_lock()
+                    .insert(instance_handle, publication_builtin_topic_data.clone());
 
-                self.matched_publication_list.write_lock().insert(
-                    discovered_writer_data.get_serialized_key().into(),
-                    publication_builtin_topic_data.clone(),
-                );
-
-                self.on_subscription_matched();
+                self.on_subscription_matched(instance_handle);
             } else {
                 self.on_requested_incompatible_qos(incompatible_qos_policy_list);
             }
@@ -382,13 +384,7 @@ impl DdsShared<UserDefinedDataReader> {
                 .write_lock()
                 .matched_writer_remove(w.key.value.into());
 
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::SubscriptionMatched);
-
-            if let Some(l) = self.listener.write_lock().as_mut() {
-                l.trigger_on_subscription_matched(self)
-            };
+            self.on_subscription_matched(discovered_writer_handle)
         }
     }
 
@@ -555,7 +551,7 @@ impl DdsShared<UserDefinedDataReader> {
     pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
         self.subscription_matched_status
             .write_lock()
-            .read_and_reset()
+            .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
     }
 
     pub fn get_topicdescription(&self) -> DdsShared<TopicImpl> {
@@ -771,8 +767,10 @@ impl DdsShared<UserDefinedDataReader> {
             .add_communication_state(StatusKind::SampleLost);
     }
 
-    fn on_subscription_matched(&self) {
-        self.subscription_matched_status.write_lock().increment();
+    fn on_subscription_matched(&self, instance_handle: InstanceHandle) {
+        self.subscription_matched_status
+            .write_lock()
+            .increment(instance_handle);
 
         match self.listener.write_lock().as_mut() {
             Some(l)

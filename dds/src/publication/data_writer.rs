@@ -278,22 +278,22 @@ where
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        self.0.upgrade()?.get_liveliness_lost_status()
+        Ok(self.0.upgrade()?.get_liveliness_lost_status())
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        self.0.upgrade()?.get_offered_deadline_missed_status()
+        Ok(self.0.upgrade()?.get_offered_deadline_missed_status())
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        self.0.upgrade()?.get_offered_incompatible_qos_status()
+        Ok(self.0.upgrade()?.get_offered_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.0.upgrade()?.get_publication_matched_status()
+        Ok(self.0.upgrade()?.get_publication_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
