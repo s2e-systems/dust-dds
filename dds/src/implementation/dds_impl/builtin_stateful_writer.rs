@@ -17,7 +17,10 @@ use crate::{
             utils::clock::StdTimer,
             writer::RtpsWriter,
         },
-        utils::shared_object::{DdsRwLock, DdsShared},
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -38,10 +41,15 @@ pub struct BuiltinStatefulWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
     topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
+    sedp_condvar: DdsCondvar,
 }
 
 impl BuiltinStatefulWriter {
-    pub fn new(guid: Guid, topic: DdsShared<TopicImpl>) -> DdsShared<Self> {
+    pub fn new(
+        guid: Guid,
+        topic: DdsShared<TopicImpl>,
+        sedp_condvar: DdsCondvar,
+    ) -> DdsShared<Self> {
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
         let topic_kind = TopicKind::WithKey;
@@ -69,6 +77,7 @@ impl BuiltinStatefulWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             topic,
             enabled: DdsRwLock::new(false),
+            sedp_condvar,
         })
     }
 
@@ -121,7 +130,10 @@ impl DdsShared<BuiltinStatefulWriter> {
 
         self.rtps_writer
             .write_lock()
-            .write_w_timestamp(data, handle, timestamp)
+            .write_w_timestamp(data, handle, timestamp)?;
+
+        self.sedp_condvar.notify_all();
+        Ok(())
     }
 
     pub fn dispose_w_timestamp<Foo>(
@@ -135,7 +147,9 @@ impl DdsShared<BuiltinStatefulWriter> {
     {
         self.rtps_writer
             .write_lock()
-            .dispose_w_timestamp(data, handle, timestamp)
+            .dispose_w_timestamp(data, handle, timestamp)?;
+        self.sedp_condvar.notify_all();
+        Ok(())
     }
 }
 

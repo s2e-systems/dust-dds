@@ -41,6 +41,7 @@ impl DcpsService {
         mut transport: RtpsUdpPsm,
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
+        let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let participant = DomainParticipantImpl::new(
             rtps_participant,
@@ -53,6 +54,7 @@ impl DcpsService {
             vec![],
             transport.metatraffic_multicast_locator_list().as_slice(),
             announcer_condvar.clone(),
+            sedp_condvar.clone(),
             user_defined_data_send_condvar.clone(),
         );
 
@@ -152,8 +154,7 @@ impl DcpsService {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
-
-                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
 
                 domain_participant.send_built_in_data(&mut metatraffic_unicast_transport_send);
             }));
