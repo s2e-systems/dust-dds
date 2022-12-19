@@ -383,6 +383,36 @@ impl DdsShared<UserDefinedPublisher> {
             data_writer.send_message(transport);
         }
     }
+
+    pub fn on_publication_matched(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::PublicationMatched) =>
+            {
+                let status = writer.get_publication_matched_status();
+                l.on_publication_matched(writer, status);
+            }
+            _ => self.get_participant().on_publication_matched(writer),
+        }
+    }
+
+    pub fn on_offered_incompatible_qos(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::OfferedIncompatibleQos) =>
+            {
+                let status = writer.get_offered_incompatible_qos_status();
+                l.on_offered_incompatible_qos(writer, status)
+            }
+            _ => self.get_participant().on_offered_incompatible_qos(writer),
+        }
+    }
 }
 
 impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {

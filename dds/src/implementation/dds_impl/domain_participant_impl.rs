@@ -59,7 +59,8 @@ use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader, user_defined_publisher::UserDefinedPublisher,
+    user_defined_data_reader::UserDefinedDataReader,
+    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -1124,6 +1125,36 @@ impl DdsShared<DomainParticipantImpl> {
             {
                 let status = reader.get_requested_incompatible_qos_status();
                 l.on_requested_incompatible_qos(reader, status);
+            }
+            _ => (),
+        }
+    }
+
+    pub fn on_publication_matched(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::PublicationMatched) =>
+            {
+                let status = writer.get_publication_matched_status();
+                l.on_publication_matched(writer, status);
+            }
+            _ => (),
+        }
+    }
+
+    pub fn on_offered_incompatible_qos(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::OfferedIncompatibleQos) =>
+            {
+                let status = writer.get_offered_incompatible_qos_status();
+                l.on_offered_incompatible_qos(writer, status)
             }
             _ => (),
         }
