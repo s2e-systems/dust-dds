@@ -6,6 +6,7 @@ use crate::implementation::rtps::types::{
 
 use crate::implementation::rtps::group::RtpsGroupImpl;
 
+use crate::implementation::utils::condvar::DdsCondvar;
 use crate::infrastructure::error::DdsResult;
 use crate::infrastructure::qos::PublisherQos;
 
@@ -37,6 +38,7 @@ impl BuiltinPublisher {
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
         spdp_discovery_locator_list: &[Locator],
+        sedp_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let qos = PublisherQos::default();
 
@@ -53,14 +55,18 @@ impl BuiltinPublisher {
 
         let sedp_builtin_topics_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-        let sedp_builtin_topics_writer =
-            BuiltinStatefulWriter::new(sedp_builtin_topics_writer_guid, sedp_topic_topics);
+        let sedp_builtin_topics_writer = BuiltinStatefulWriter::new(
+            sedp_builtin_topics_writer_guid,
+            sedp_topic_topics,
+            sedp_condvar.clone(),
+        );
 
         let sedp_builtin_publications_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let sedp_builtin_publications_writer = BuiltinStatefulWriter::new(
             sedp_builtin_publications_writer_guid,
             sedp_topic_publications,
+            sedp_condvar.clone(),
         );
 
         let sedp_builtin_subscriptions_writer_guid =
@@ -68,6 +74,7 @@ impl BuiltinPublisher {
         let sedp_builtin_subscriptions_writer = BuiltinStatefulWriter::new(
             sedp_builtin_subscriptions_writer_guid,
             sedp_topic_subscriptions,
+            sedp_condvar,
         );
 
         DdsShared::new(BuiltinPublisher {
