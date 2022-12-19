@@ -240,34 +240,13 @@ fn data_reader_order_by_source_timestamp() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     writer
-        .write_w_timestamp(
-            &UserData(1),
-            None,
-            Time {
-                sec: 30,
-                nanosec: 0,
-            },
-        )
+        .write_w_timestamp(&UserData(1), None, Time::new(30, 0))
         .unwrap();
     writer
-        .write_w_timestamp(
-            &UserData(2),
-            None,
-            Time {
-                sec: 20,
-                nanosec: 0,
-            },
-        )
+        .write_w_timestamp(&UserData(2), None, Time::new(20, 0))
         .unwrap();
     writer
-        .write_w_timestamp(
-            &UserData(3),
-            None,
-            Time {
-                sec: 10,
-                nanosec: 0,
-            },
-        )
+        .write_w_timestamp(&UserData(3), None, Time::new(10, 0))
         .unwrap();
 
     writer
