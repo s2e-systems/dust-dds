@@ -33,10 +33,11 @@ use crate::{
 };
 
 use super::{
+    any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     topic_impl::TopicImpl,
-    user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
+    user_defined_data_writer::UserDefinedDataWriter,
 };
 
 pub struct UserDefinedPublisher {
@@ -48,12 +49,16 @@ pub struct UserDefinedPublisher {
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
+    listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
 }
 
 impl UserDefinedPublisher {
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
+        listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -66,6 +71,8 @@ impl UserDefinedPublisher {
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
+            listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
         })
     }
 }
@@ -84,7 +91,7 @@ impl DdsShared<UserDefinedPublisher> {
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: &[StatusKind],
+        mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
@@ -146,6 +153,7 @@ impl DdsShared<UserDefinedPublisher> {
             let data_writer_shared = UserDefinedDataWriter::new(
                 rtps_writer_impl,
                 a_listener,
+                mask,
                 topic_shared.clone(),
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),
@@ -307,14 +315,11 @@ impl DdsShared<UserDefinedPublisher> {
 
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn PublisherListener>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn PublisherListener>>> {
-        todo!()
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.listener.write_lock() = a_listener;
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
@@ -376,6 +381,36 @@ impl DdsShared<UserDefinedPublisher> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(transport);
+        }
+    }
+
+    pub fn on_publication_matched(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::PublicationMatched) =>
+            {
+                let status = writer.get_publication_matched_status();
+                l.on_publication_matched(writer, status);
+            }
+            _ => self.get_participant().on_publication_matched(writer),
+        }
+    }
+
+    pub fn on_offered_incompatible_qos(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::OfferedIncompatibleQos) =>
+            {
+                let status = writer.get_offered_incompatible_qos_status();
+                l.on_offered_incompatible_qos(writer, status)
+            }
+            _ => self.get_participant().on_offered_incompatible_qos(writer),
         }
     }
 }

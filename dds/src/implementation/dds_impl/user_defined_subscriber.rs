@@ -288,14 +288,11 @@ impl DdsShared<UserDefinedSubscriber> {
 
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
-        todo!()
+        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.listener.write_lock() = a_listener;
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -385,6 +382,66 @@ impl DdsShared<UserDefinedSubscriber> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::DataOnReaders);
+    }
+
+    pub fn on_subscription_matched(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::SubscriptionMatched) =>
+            {
+                let status = reader.get_subscription_matched_status();
+                l.on_subscription_matched(reader, status)
+            }
+            _ => self.get_participant().on_subscription_matched(reader),
+        }
+    }
+
+    pub fn on_sample_rejected(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::SampleRejected) =>
+            {
+                let status = reader.get_sample_rejected_status();
+                l.on_sample_rejected(reader, status)
+            }
+            _ => self.get_participant().on_sample_rejected(reader),
+        }
+    }
+
+    pub fn on_requested_deadline_missed(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::RequestedDeadlineMissed) =>
+            {
+                let status = reader.get_requested_deadline_missed_status();
+                l.on_requested_deadline_missed(reader, status)
+            }
+            _ => self.get_participant().on_requested_deadline_missed(reader),
+        }
+    }
+
+    pub fn on_requested_incompatible_qos(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::RequestedIncompatibleQos) =>
+            {
+                let status = reader.get_requested_incompatible_qos_status();
+                l.on_requested_incompatible_qos(reader, status);
+            }
+            _ => self.get_participant().on_requested_incompatible_qos(reader),
+        }
     }
 }
 

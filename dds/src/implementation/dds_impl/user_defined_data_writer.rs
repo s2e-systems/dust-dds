@@ -3,24 +3,33 @@ use std::{collections::HashMap, time::Instant};
 use crate::{
     builtin_topics::BuiltInTopicKey,
     implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::DiscoveredReaderData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        },
         rtps::{
             messages::submessages::AckNackSubmessage,
             reader_proxy::RtpsReaderProxy,
+            stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
+            utils::clock::StdTimer,
         },
-        utils::condvar::DdsCondvar,
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        },
     },
     infrastructure::{
-        instance::{InstanceHandle, HANDLE_NIL},
+        instance::InstanceHandle,
         qos::QosKind,
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{QosPolicyId, ReliabilityQosPolicyKind},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
-    publication::data_writer::DataWriter,
+    publication::data_writer::AnyDataWriter,
     topic_definition::type_support::{DdsSerialize, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -36,83 +45,92 @@ use crate::{
         },
     },
 };
-use crate::{
-    implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::WriterProxy,
-        rtps::{stateful_writer::RtpsStatefulWriter, utils::clock::StdTimer},
-    },
-    publication::data_writer_listener::DataWriterListener,
-};
-
-use crate::implementation::{
-    data_representation_builtin_endpoints::{
-        discovered_reader_data::DiscoveredReaderData, discovered_writer_data::DiscoveredWriterData,
-    },
-    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
-};
 
 use super::{
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    any_data_writer_listener::AnyDataWriterListener, message_receiver::MessageReceiver,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
-pub trait AnyDataWriterListener {
-    fn trigger_on_liveliness_lost(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: LivelinessLostStatus,
-    );
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: OfferedDeadlineMissedStatus,
-    );
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: OfferedIncompatibleQosStatus,
-    );
-    fn trigger_on_publication_matched(
-        &mut self,
-        _the_writer: &DdsShared<UserDefinedDataWriter>,
-        _status: PublicationMatchedStatus,
-    );
+impl PublicationMatchedStatus {
+    fn increment(&mut self, subscription_handle: InstanceHandle) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_subscription_handle = subscription_handle;
+        self.current_count += 1;
+        self.current_count_change += 1;
+    }
+
+    fn read_and_reset(&mut self, current_count: i32) -> Self {
+        let last_current_count = self.current_count;
+        self.current_count = current_count;
+        self.current_count_change = current_count - last_current_count;
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
+    }
 }
 
-impl<Foo> AnyDataWriterListener for Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>
-where
-    Foo: DdsType + DdsSerialize + 'static,
-{
-    fn trigger_on_liveliness_lost(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: LivelinessLostStatus,
-    ) {
-        self.on_liveliness_lost(&DataWriter::new(the_writer.downgrade()), status);
+impl LivelinessLostStatus {
+    fn _increment(&mut self) {
+        self.total_count += 1;
+        self.total_count_change += 1;
     }
 
-    fn trigger_on_offered_deadline_missed(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: OfferedDeadlineMissedStatus,
-    ) {
-        self.on_offered_deadline_missed(&DataWriter::new(the_writer.downgrade()), status);
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
+    }
+}
+
+impl OfferedDeadlineMissedStatus {
+    fn _increment(&mut self, instance_handle: InstanceHandle) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_instance_handle = instance_handle;
     }
 
-    fn trigger_on_offered_incompatible_qos(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: OfferedIncompatibleQosStatus,
-    ) {
-        self.on_offered_incompatible_qos(&DataWriter::new(the_writer.downgrade()), status);
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
+    }
+}
+
+impl OfferedIncompatibleQosStatus {
+    fn increment(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+        self.last_policy_id = incompatible_qos_policy_list[0];
+        for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+            if let Some(policy_count) = self
+                .policies
+                .iter_mut()
+                .find(|x| x.policy_id == incompatible_qos_policy)
+            {
+                policy_count.count += 1;
+            } else {
+                self.policies.push(QosPolicyCount {
+                    policy_id: incompatible_qos_policy,
+                    count: 1,
+                })
+            }
+        }
     }
 
-    fn trigger_on_publication_matched(
-        &mut self,
-        the_writer: &DdsShared<UserDefinedDataWriter>,
-        status: PublicationMatchedStatus,
-    ) {
-        self.on_publication_matched(&DataWriter::new(the_writer.downgrade()), status)
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+
+        self.total_count_change = 0;
+
+        status
     }
 }
 
@@ -128,6 +146,7 @@ pub struct UserDefinedDataWriter {
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
 }
 
@@ -135,48 +154,24 @@ impl UserDefinedDataWriter {
     pub fn new(
         rtps_writer: RtpsStatefulWriter<StdTimer>,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
-        let liveliness_lost_status = LivelinessLostStatus {
-            total_count: 0,
-            total_count_change: 0,
-        };
-
-        let publication_matched_status = PublicationMatchedStatus {
-            total_count: 0,
-            total_count_change: 0,
-            last_subscription_handle: HANDLE_NIL,
-            current_count: 0,
-            current_count_change: 0,
-        };
-
-        let offered_deadline_missed_status = OfferedDeadlineMissedStatus {
-            total_count: 0,
-            total_count_change: 0,
-            last_instance_handle: HANDLE_NIL,
-        };
-
-        let offered_incompatible_qos_status = OfferedIncompatibleQosStatus {
-            total_count: 0,
-            total_count_change: 0,
-            last_policy_id: 0,
-            policies: vec![],
-        };
-
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             topic,
             publisher,
-            publication_matched_status: DdsRwLock::new(publication_matched_status),
-            offered_deadline_missed_status: DdsRwLock::new(offered_deadline_missed_status),
-            offered_incompatible_qos_status: DdsRwLock::new(offered_incompatible_qos_status),
-            liveliness_lost_status: DdsRwLock::new(liveliness_lost_status),
+            publication_matched_status: DdsRwLock::new(PublicationMatchedStatus::default()),
+            offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
+            offered_incompatible_qos_status: DdsRwLock::new(OfferedIncompatibleQosStatus::default()),
+            liveliness_lost_status: DdsRwLock::new(LivelinessLostStatus::default()),
             matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
             user_defined_data_send_condvar,
         })
     }
@@ -216,37 +211,8 @@ impl DdsShared<UserDefinedDataWriter> {
 
         if reader_info.topic_name == writer_topic_name && reader_info.type_name == writer_type_name
         {
-            let parent_publisher_qos = self.get_publisher().get_qos();
-            let qos = self.rtps_writer.read_lock().get_qos().clone();
-            let mut incompatible_qos_policy_list = Vec::new();
-            if qos.durability < reader_info.durability {
-                incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
-            }
-            if parent_publisher_qos.presentation.access_scope
-                < reader_info.presentation.access_scope
-                || parent_publisher_qos.presentation.coherent_access
-                    != reader_info.presentation.coherent_access
-                || parent_publisher_qos.presentation.ordered_access
-                    != reader_info.presentation.ordered_access
-            {
-                incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
-            }
-            if qos.deadline < reader_info.deadline {
-                incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
-            }
-            if qos.latency_budget < reader_info.latency_budget {
-                incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
-            }
-            if qos.liveliness < reader_info.liveliness {
-                incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
-            }
-            if qos.reliability.kind < reader_info.reliability.kind {
-                incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
-            }
-            if qos.destination_order < reader_info.destination_order {
-                incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
-            }
-
+            let incompatible_qos_policy_list =
+                self.get_discovered_reader_incompatible_qos_policy_list(discovered_reader_data);
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_reader_data
                     .reader_proxy
@@ -287,51 +253,53 @@ impl DdsShared<UserDefinedDataWriter> {
                     .write_lock()
                     .matched_reader_add(reader_proxy);
 
-                self.matched_subscription_list.write_lock().insert(
-                    discovered_reader_data.get_serialized_key().into(),
-                    reader_info.clone(),
-                );
-
-                // Drop the publication_matched_status_lock such that the listener can be triggered
-                // if needed
-                {
-                    let mut publication_matched_status_lock =
-                        self.publication_matched_status.write_lock();
-                    publication_matched_status_lock.total_count += 1;
-                    publication_matched_status_lock.total_count_change += 1;
-                    publication_matched_status_lock.current_count_change += 1;
-                }
-
-                self.status_condition
+                let instance_handle = discovered_reader_data.get_serialized_key().into();
+                self.matched_subscription_list
                     .write_lock()
-                    .add_communication_state(StatusKind::PublicationMatched);
+                    .insert(instance_handle, reader_info.clone());
+
+                self.on_publication_matched(instance_handle);
             } else {
-                {
-                    let mut offered_incompatible_qos_status_lock =
-                        self.offered_incompatible_qos_status.write_lock();
-                    offered_incompatible_qos_status_lock.total_count += 1;
-                    offered_incompatible_qos_status_lock.total_count_change += 1;
-                    offered_incompatible_qos_status_lock.last_policy_id =
-                        incompatible_qos_policy_list[0];
-                    for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-                        if let Some(policy_count) = offered_incompatible_qos_status_lock
-                            .policies
-                            .iter_mut()
-                            .find(|x| x.policy_id == incompatible_qos_policy)
-                        {
-                            policy_count.count += 1;
-                        } else {
-                            offered_incompatible_qos_status_lock
-                                .policies
-                                .push(QosPolicyCount {
-                                    policy_id: incompatible_qos_policy,
-                                    count: 1,
-                                })
-                        }
-                    }
-                }
+                self.on_offered_incompatible_qos(incompatible_qos_policy_list)
             }
         }
+    }
+
+    fn get_discovered_reader_incompatible_qos_policy_list(
+        &self,
+        discovered_reader_data: &DiscoveredReaderData,
+    ) -> Vec<QosPolicyId> {
+        let reader_info = &discovered_reader_data.subscription_builtin_topic_data;
+        let parent_publisher_qos = self.get_publisher().get_qos();
+        let qos = self.rtps_writer.read_lock().get_qos().clone();
+        let mut incompatible_qos_policy_list = Vec::new();
+        if qos.durability < reader_info.durability {
+            incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+        }
+        if parent_publisher_qos.presentation.access_scope < reader_info.presentation.access_scope
+            || parent_publisher_qos.presentation.coherent_access
+                != reader_info.presentation.coherent_access
+            || parent_publisher_qos.presentation.ordered_access
+                != reader_info.presentation.ordered_access
+        {
+            incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+        }
+        if qos.deadline < reader_info.deadline {
+            incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+        }
+        if qos.latency_budget < reader_info.latency_budget {
+            incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+        }
+        if qos.liveliness < reader_info.liveliness {
+            incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+        }
+        if qos.reliability.kind < reader_info.reliability.kind {
+            incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+        }
+        if qos.destination_order < reader_info.destination_order {
+            incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+        }
+        incompatible_qos_policy_list
     }
 
     pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
@@ -344,17 +312,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 .write_lock()
                 .matched_reader_remove(r.key.value.into());
 
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::PublicationMatched);
-
-            if let Some(l) = self.listener.write_lock().as_mut() {
-                self.status_condition
-                    .write_lock()
-                    .remove_communication_state(StatusKind::PublicationMatched);
-                let publication_matched_status = self.get_publication_matched_status().unwrap();
-                l.trigger_on_publication_matched(self, publication_matched_status)
-            };
+            self.on_publication_matched(discovered_reader_handle)
         }
     }
 
@@ -487,40 +445,26 @@ impl DdsShared<UserDefinedDataWriter> {
         Err(DdsError::Timeout)
     }
 
-    pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        let liveliness_lost_status = self.liveliness_lost_status.read_lock().clone();
-        self.liveliness_lost_status.write_lock().total_count_change = 0;
-        Ok(liveliness_lost_status)
+    pub fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
+        self.liveliness_lost_status.write_lock().read_and_reset()
     }
 
-    pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        let offered_deadline_missed_status =
-            self.offered_deadline_missed_status.read_lock().clone();
+    pub fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
         self.offered_deadline_missed_status
             .write_lock()
-            .total_count_change = 0;
-        Ok(offered_deadline_missed_status)
+            .read_and_reset()
     }
 
-    pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        let offered_incompatible_qos_status =
-            self.offered_incompatible_qos_status.read_lock().clone();
+    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
         self.offered_incompatible_qos_status
             .write_lock()
-            .total_count_change = 0;
-        Ok(offered_incompatible_qos_status)
+            .read_and_reset()
     }
 
-    pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        let mut publication_matched_status_lock = self.publication_matched_status.write_lock();
-
-        let mut publication_matched_status = publication_matched_status_lock.clone();
-        publication_matched_status.current_count =
-            self.matched_subscription_list.read_lock().len() as i32;
-
-        publication_matched_status_lock.current_count_change = 0;
-        publication_matched_status_lock.total_count_change = 0;
-        Ok(publication_matched_status)
+    pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
+        self.publication_matched_status
+            .write_lock()
+            .read_and_reset(self.matched_subscription_list.read_lock().len() as i32)
     }
 
     pub fn get_topic(&self) -> DdsShared<TopicImpl> {
@@ -568,9 +512,7 @@ impl DdsShared<UserDefinedDataWriter> {
             .map(|(&key, _)| key)
             .collect())
     }
-}
 
-impl DdsShared<UserDefinedDataWriter> {
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -602,10 +544,10 @@ impl DdsShared<UserDefinedDataWriter> {
     pub fn set_listener(
         &self,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
+        mask: &[StatusKind],
+    ) {
         *self.listener.write_lock() = a_listener;
-        Ok(())
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -678,13 +620,57 @@ impl DdsShared<UserDefinedDataWriter> {
             },
         }
     }
-}
 
-impl DdsShared<UserDefinedDataWriter> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         self.rtps_writer.write_lock().send_message(transport);
     }
+
+    fn on_publication_matched(&self, instance_handle: InstanceHandle) {
+        self.publication_matched_status
+            .write_lock()
+            .increment(instance_handle);
+
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::PublicationMatched) =>
+            {
+                l.trigger_on_publication_matched(self)
+            }
+            _ => self.get_publisher().on_publication_matched(self),
+        }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::PublicationMatched);
+    }
+
+    fn on_offered_incompatible_qos(&self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+        self.offered_incompatible_qos_status
+            .write_lock()
+            .increment(incompatible_qos_policy_list);
+
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::OfferedIncompatibleQos) =>
+            {
+                l.trigger_on_offered_incompatible_qos(self)
+            }
+            _ => self.get_publisher().on_offered_incompatible_qos(self),
+        }
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+    }
 }
+
+impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
 
 #[cfg(test)]
 mod test {
@@ -694,32 +680,15 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             messages::RtpsMessage,
-            types::{
-                Guid, GuidPrefix, Locator, TopicKind, ENTITYID_UNKNOWN, GUID_UNKNOWN,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
+            types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
         },
+        infrastructure::qos::TopicQos,
         infrastructure::time::DURATION_ZERO,
-        infrastructure::{
-            qos::{PublisherQos, TopicQos},
-            qos_policy::{
-                DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
-                GroupDataQosPolicy, LatencyBudgetQosPolicy, LivelinessQosPolicy,
-                OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy,
-                ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
-                TopicDataQosPolicy, UserDataQosPolicy,
-            },
-        },
         topic_definition::type_support::{DdsSerializedKey, Endianness},
     };
 
     use mockall::mock;
-
-    use crate::implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::ReaderProxy,
-        rtps::group::RtpsGroupImpl,
-    };
 
     use super::*;
 
@@ -775,7 +744,15 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
-        let dummy_topic = TopicImpl::new(GUID_UNKNOWN, TopicQos::default(), "", "", DdsWeak::new());
+        let dummy_topic = TopicImpl::new(
+            GUID_UNKNOWN,
+            TopicQos::default(),
+            "",
+            "",
+            None,
+            &[],
+            DdsWeak::new(),
+        );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
@@ -790,6 +767,7 @@ mod test {
         let data_writer = UserDefinedDataWriter::new(
             rtps_writer,
             None,
+            &[],
             dummy_topic,
             DdsWeak::new(),
             DdsCondvar::new(),
@@ -831,198 +809,5 @@ mod test {
             ),
             Err(DdsError::BadParameter)
         );
-    }
-
-    #[test]
-    fn add_compatible_matched_reader() {
-        let type_name = "test_type";
-        let topic_name = "test_topic".to_string();
-        let parent_publisher = UserDefinedPublisher::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        let test_topic = TopicImpl::new(
-            GUID_UNKNOWN,
-            TopicQos::default(),
-            type_name,
-            &topic_name,
-            DdsWeak::new(),
-        );
-
-        let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-
-        let data_writer = UserDefinedDataWriter::new(
-            rtps_writer,
-            None,
-            test_topic,
-            parent_publisher.downgrade(),
-            DdsCondvar::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-        let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey { value: [2; 16] },
-            participant_key: BuiltInTopicKey { value: [1; 16] },
-            topic_name: topic_name.clone(),
-            type_name: type_name.to_string(),
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: Duration::new(0, 0),
-            },
-            ownership: OwnershipQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            user_data: UserDataQosPolicy::default(),
-            time_based_filter: TimeBasedFilterQosPolicy::default(),
-            presentation: PresentationQosPolicy::default(),
-            partition: PartitionQosPolicy::default(),
-            topic_data: TopicDataQosPolicy::default(),
-            group_data: GroupDataQosPolicy::default(),
-        };
-        let remote_reader_guid = Guid::new(
-            GuidPrefix::new([2; 12]),
-            EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
-        );
-        let discovered_reader_data = DiscoveredReaderData {
-            reader_proxy: ReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false,
-            },
-            subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
-        };
-        data_writer.add_matched_reader(&discovered_reader_data, &[], &[]);
-
-        let publication_matched_status = data_writer.get_publication_matched_status().unwrap();
-        assert_eq!(publication_matched_status.current_count, 1);
-        assert_eq!(publication_matched_status.current_count_change, 1);
-        assert_eq!(publication_matched_status.total_count, 1);
-        assert_eq!(publication_matched_status.total_count_change, 1);
-
-        let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
-        assert_eq!(matched_subscriptions.len(), 1);
-        assert_eq!(matched_subscriptions[0], remote_reader_guid.into());
-        let matched_subscription_data = data_writer
-            .get_matched_subscription_data(matched_subscriptions[0])
-            .unwrap();
-        assert_eq!(matched_subscription_data, subscription_builtin_topic_data);
-    }
-
-    #[test]
-    fn add_incompatible_matched_reader() {
-        let type_name = "test_type";
-        let topic_name = "test_topic".to_string();
-        let parent_publisher = UserDefinedPublisher::new(
-            PublisherQos::default(),
-            RtpsGroupImpl::new(GUID_UNKNOWN),
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        let test_topic = TopicImpl::new(
-            GUID_UNKNOWN,
-            TopicQos::default(),
-            type_name,
-            &topic_name,
-            DdsWeak::new(),
-        );
-
-        let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            None,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
-        ));
-        let data_writer = UserDefinedDataWriter::new(
-            rtps_writer,
-            None,
-            test_topic,
-            parent_publisher.downgrade(),
-            DdsCondvar::new(),
-        );
-        *data_writer.enabled.write_lock() = true;
-        let subscription_builtin_topic_data = SubscriptionBuiltinTopicData {
-            key: BuiltInTopicKey { value: [2; 16] },
-            participant_key: BuiltInTopicKey { value: [1; 16] },
-            topic_name: topic_name.clone(),
-            type_name: type_name.to_string(),
-            durability: DurabilityQosPolicy::default(),
-            deadline: DeadlineQosPolicy::default(),
-            latency_budget: LatencyBudgetQosPolicy::default(),
-            liveliness: LivelinessQosPolicy::default(),
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: Duration::new(0, 0),
-            },
-            ownership: OwnershipQosPolicy::default(),
-            destination_order: DestinationOrderQosPolicy::default(),
-            user_data: UserDataQosPolicy::default(),
-            time_based_filter: TimeBasedFilterQosPolicy::default(),
-            presentation: PresentationQosPolicy::default(),
-            partition: PartitionQosPolicy::default(),
-            topic_data: TopicDataQosPolicy::default(),
-            group_data: GroupDataQosPolicy::default(),
-        };
-        let discovered_reader_data = DiscoveredReaderData {
-            reader_proxy: ReaderProxy {
-                remote_reader_guid: Guid::new(
-                    GuidPrefix::new([2; 12]),
-                    EntityId::new(EntityKey::new([2; 3]), USER_DEFINED_WRITER_WITH_KEY),
-                ),
-                remote_group_entity_id: ENTITYID_UNKNOWN,
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false,
-            },
-            subscription_builtin_topic_data: subscription_builtin_topic_data.clone(),
-        };
-        data_writer.add_matched_reader(&discovered_reader_data, &[], &[]);
-
-        let matched_subscriptions = data_writer.get_matched_subscriptions().unwrap();
-        assert_eq!(matched_subscriptions.len(), 0);
-
-        let offered_incompatible_qos_status =
-            data_writer.get_offered_incompatible_qos_status().unwrap();
-        assert_eq!(offered_incompatible_qos_status.total_count, 1);
-        assert_eq!(offered_incompatible_qos_status.total_count_change, 1);
-        assert_eq!(
-            offered_incompatible_qos_status.last_policy_id,
-            RELIABILITY_QOS_POLICY_ID
-        );
-        assert_eq!(
-            offered_incompatible_qos_status.policies,
-            vec![QosPolicyCount {
-                policy_id: RELIABILITY_QOS_POLICY_ID,
-                count: 1,
-            }]
-        )
     }
 }

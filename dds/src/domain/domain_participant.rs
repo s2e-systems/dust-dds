@@ -1,7 +1,10 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
-        dds_impl::domain_participant_impl::DomainParticipantImpl, utils::shared_object::DdsWeak,
+        dds_impl::{
+            any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+        },
+        utils::shared_object::DdsWeak,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -80,7 +83,7 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
+        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
         self.0
@@ -147,7 +150,7 @@ impl DomainParticipant {
         &self,
         topic_name: &str,
         qos: QosKind<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Topic<Foo>>
     where
@@ -156,7 +159,12 @@ impl DomainParticipant {
         #[allow(clippy::redundant_closure)]
         self.0
             .upgrade()?
-            .create_topic::<Foo>(topic_name, qos, a_listener, mask)
+            .create_topic::<Foo>(
+                topic_name,
+                qos,
+                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                mask,
+            )
             .map(|x| Topic::new(x.downgrade()))
     }
 
@@ -446,15 +454,18 @@ impl DomainParticipant {
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListener>>,
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.upgrade()?.set_listener(a_listener, mask)
+        self.0.upgrade()?.set_listener(a_listener, mask);
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn DomainParticipantListener>>> {
-        self.0.upgrade()?.get_listener()
+    pub fn get_listener(
+        &self,
+    ) -> DdsResult<Option<Box<dyn DomainParticipantListener + Send + Sync>>> {
+        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

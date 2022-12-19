@@ -2,6 +2,13 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    implementation::{
+        dds_impl::{
+            any_data_writer_listener::AnyDataWriterListener,
+            user_defined_data_writer::UserDefinedDataWriter,
+        },
+        utils::shared_object::DdsWeak,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -13,18 +20,11 @@ use crate::{
         },
         time::{Duration, Time},
     },
-};
-use crate::{
-    implementation::{
-        dds_impl::user_defined_data_writer::{AnyDataWriterListener, UserDefinedDataWriter},
-        utils::shared_object::DdsWeak,
-    },
-    topic_definition::type_support::{DdsSerialize, DdsType},
-};
-
-use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
-    topic_definition::topic::Topic,
+    topic_definition::{
+        topic::Topic,
+        type_support::{DdsSerialize, DdsType},
+    },
 };
 
 /// The [`DataWriter`] allows the application to set the value of the
@@ -278,22 +278,22 @@ where
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        self.0.upgrade()?.get_liveliness_lost_status()
+        Ok(self.0.upgrade()?.get_liveliness_lost_status())
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        self.0.upgrade()?.get_offered_deadline_missed_status()
+        Ok(self.0.upgrade()?.get_offered_deadline_missed_status())
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        self.0.upgrade()?.get_offered_incompatible_qos_status()
+        Ok(self.0.upgrade()?.get_offered_incompatible_qos_status())
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        self.0.upgrade()?.get_publication_matched_status()
+        Ok(self.0.upgrade()?.get_publication_matched_status())
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
@@ -387,7 +387,8 @@ where
         self.0.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
-        )
+        );
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.

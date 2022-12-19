@@ -1,5 +1,8 @@
 use dust_dds::{
-    domain::domain_participant_factory::DomainParticipantFactory,
+    domain::{
+        domain_participant_factory::DomainParticipantFactory,
+        domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{
@@ -7,16 +10,17 @@ use dust_dds::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind, ResourceLimitsQosPolicy,
         },
         status::{
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus, NO_STATUS,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, RequestedDeadlineMissedStatus,
+            RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
+            StatusKind, SubscriptionMatchedStatus, NO_STATUS,
         },
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    subscription::{data_reader::DataReader, data_reader_listener::DataReaderListener},
+    publication::data_writer::AnyDataWriter,
+    subscription::data_reader::AnyDataReader,
     topic_definition::type_support::{DdsSerde, DdsType},
 };
-
 use mockall::mock;
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
@@ -31,12 +35,10 @@ fn deadline_missed_listener() {
     mock! {
         DeadlineMissedListener{}
 
-        impl DataReaderListener for DeadlineMissedListener {
-            type Foo = MyData;
-
+        impl DomainParticipantListener for DeadlineMissedListener {
             fn on_requested_deadline_missed(
                 &mut self,
-                _the_reader: &DataReader<MyData>,
+                _the_reader: &dyn AnyDataReader,
                 _status: RequestedDeadlineMissedStatus,
             );
         }
@@ -44,8 +46,19 @@ fn deadline_missed_listener() {
     }
     let domain_id = 0;
 
+    let mut participant_listener = MockDeadlineMissedListener::new();
+    participant_listener
+        .expect_on_requested_deadline_missed()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::RequestedDeadlineMissed],
+        )
         .unwrap();
 
     let topic = participant
@@ -80,20 +93,8 @@ fn deadline_missed_listener() {
         ..Default::default()
     };
 
-    let mut reader_listener = MockDeadlineMissedListener::new();
-    reader_listener
-        .expect_on_requested_deadline_missed()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
-
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Specific(reader_qos),
-            Some(Box::new(reader_listener)),
-            &[StatusKind::RequestedDeadlineMissed],
-        )
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -130,12 +131,11 @@ fn sample_rejected_listener() {
     mock! {
         SampleRejectedListener{}
 
-        impl DataReaderListener for SampleRejectedListener {
-            type Foo = MyData;
+        impl DomainParticipantListener for SampleRejectedListener {
 
             fn on_sample_rejected(
                 &mut self,
-                _the_reader: &DataReader<MyData>,
+                _the_reader: &dyn AnyDataReader,
                 _status: SampleRejectedStatus,
             );
         }
@@ -145,8 +145,23 @@ fn sample_rejected_listener() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
+    let mut participant_listener = MockSampleRejectedListener::new();
+    participant_listener
+        .expect_on_sample_rejected()
+        .times(1..3)
+        .withf(|_, status| {
+            status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
+                && status.total_count_change == 1
+                && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
+        })
+        .return_const(());
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::SampleRejected],
+        )
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -194,24 +209,9 @@ fn sample_rejected_listener() {
         },
         ..Default::default()
     };
-    let mut reader_listener = MockSampleRejectedListener::new();
-    reader_listener
-        .expect_on_sample_rejected()
-        .times(1..3)
-        .withf(|_, status| {
-            status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
-                && status.total_count_change == 1
-                && status.last_reason == SampleRejectedStatusKind::RejectedBySamplesLimit
-        })
-        .return_const(());
 
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Specific(reader_qos),
-            Some(Box::new(reader_listener)),
-            &[StatusKind::SampleRejected],
-        )
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = writer.get_statuscondition().unwrap();
@@ -245,12 +245,10 @@ fn subscription_matched_listener() {
     mock! {
         SubscriptionMatchedListener{}
 
-        impl DataReaderListener for SubscriptionMatchedListener {
-            type Foo = MyData;
-
+        impl DomainParticipantListener for SubscriptionMatchedListener {
             fn on_subscription_matched(
                 &mut self,
-                _the_reader: &DataReader<MyData>,
+                _the_reader: &dyn AnyDataReader,
                 _status: SubscriptionMatchedStatus,
             );
         }
@@ -259,8 +257,19 @@ fn subscription_matched_listener() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
+    let mut participant_listener = MockSubscriptionMatchedListener::new();
+    participant_listener
+        .expect_on_subscription_matched()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::SubscriptionMatched],
+        )
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -304,20 +313,9 @@ fn subscription_matched_listener() {
 
         ..Default::default()
     };
-    let mut reader_listener = MockSubscriptionMatchedListener::new();
-    reader_listener
-        .expect_on_subscription_matched()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
 
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Specific(reader_qos),
-            Some(Box::new(reader_listener)),
-            &[StatusKind::SubscriptionMatched],
-        )
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
@@ -336,12 +334,10 @@ fn requested_incompatible_qos_listener() {
     mock! {
         RequestedIncompatibleQosListener{}
 
-        impl DataReaderListener for RequestedIncompatibleQosListener {
-            type Foo = MyData;
-
+        impl DomainParticipantListener for RequestedIncompatibleQosListener {
             fn on_requested_incompatible_qos(
                 &mut self,
-                _the_reader: &DataReader<MyData>,
+                _the_reader: &dyn AnyDataReader,
                 _status: RequestedIncompatibleQosStatus,
             );
         }
@@ -350,8 +346,19 @@ fn requested_incompatible_qos_listener() {
     let domain_id = 0;
     let participant_factory = DomainParticipantFactory::get_instance();
 
+    let mut participant_listener = MockRequestedIncompatibleQosListener::new();
+    participant_listener
+        .expect_on_requested_incompatible_qos()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
     let participant = participant_factory
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::RequestedIncompatibleQos],
+        )
         .unwrap();
     let topic = participant
         .create_topic::<MyData>(
@@ -395,24 +402,193 @@ fn requested_incompatible_qos_listener() {
 
         ..Default::default()
     };
-    let mut reader_listener = MockRequestedIncompatibleQosListener::new();
-    reader_listener
-        .expect_on_requested_incompatible_qos()
-        .once()
-        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
-        .return_const(());
 
     let reader = subscriber
-        .create_datareader(
-            &topic,
-            QosKind::Specific(reader_qos),
-            Some(Box::new(reader_listener)),
-            &[StatusKind::RequestedIncompatibleQos],
-        )
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
     let cond = reader.get_statuscondition().unwrap();
     cond.set_enabled_statuses(&[StatusKind::RequestedIncompatibleQos])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn publication_matched_listener() {
+    mock! {
+        PublicationMatchedListener{}
+
+        impl DomainParticipantListener for PublicationMatchedListener {
+            fn on_publication_matched(
+                &mut self,
+                _the_reader: &dyn AnyDataWriter,
+                _status: PublicationMatchedStatus,
+            );
+        }
+    }
+
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let mut participant_listener = MockPublicationMatchedListener::new();
+    participant_listener
+        .expect_on_publication_matched()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
+    let participant = participant_factory
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::PublicationMatched],
+        )
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>(
+            "SampleRejectedListenerTopic",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+}
+
+#[test]
+fn offered_incompatible_qos_listener() {
+    mock! {
+        OfferedIncompatibleQosListener{}
+
+        impl DomainParticipantListener for OfferedIncompatibleQosListener {
+            fn on_offered_incompatible_qos(
+                &mut self,
+                _the_reader: &dyn AnyDataWriter,
+                _status: OfferedIncompatibleQosStatus,
+            );
+        }
+    }
+
+    let domain_id = 0;
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let mut participant_listener = MockOfferedIncompatibleQosListener::new();
+    participant_listener
+        .expect_on_offered_incompatible_qos()
+        .once()
+        .withf(|_, status| status.total_count == 1 && status.total_count_change == 1)
+        .return_const(());
+    let participant = participant_factory
+        .create_participant(
+            domain_id,
+            QosKind::Default,
+            Some(Box::new(participant_listener)),
+            &[StatusKind::OfferedIncompatibleQos],
+        )
+        .unwrap();
+    let topic = participant
+        .create_topic::<MyData>(
+            "SampleRejectedListenerTopic",
+            QosKind::Default,
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+
+        ..Default::default()
+    };
+
+    let _reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(data_writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::OfferedIncompatibleQos])
         .unwrap();
 
     let mut wait_set = WaitSet::new();

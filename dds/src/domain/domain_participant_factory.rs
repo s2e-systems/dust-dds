@@ -65,8 +65,8 @@ impl DomainParticipantFactory {
         &self,
         domain_id: DomainId,
         qos: QosKind<DomainParticipantQos>,
-        _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: &[StatusKind],
+        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
     ) -> DdsResult<DomainParticipant> {
         let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
         {
@@ -95,6 +95,8 @@ impl DomainParticipantFactory {
             domain_id,
             configuration,
             qos,
+            a_listener,
+            mask,
             rtps_udp_psm,
         )?;
 

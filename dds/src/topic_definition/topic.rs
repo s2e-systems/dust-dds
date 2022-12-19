@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::{
-        dds_impl::topic_impl::{AnyTopicListener, TopicImpl},
+        dds_impl::{any_topic_listener::AnyTopicListener, topic_impl::TopicImpl},
         utils::shared_object::DdsWeak,
     },
     infrastructure::{
@@ -89,18 +89,21 @@ where
     /// will be removed.
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo>>>,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
         self.0.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyTopicListener>, _>(|l| Box::new(l)),
+            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
-        )
+        );
+        Ok(())
     }
 
     /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo>>>> {
+    pub fn get_listener(
+        &self,
+    ) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>> {
         todo!()
     }
 

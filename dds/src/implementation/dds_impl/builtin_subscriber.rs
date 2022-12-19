@@ -18,7 +18,6 @@ use crate::{
         condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
         status::StatusKind,
     },
-    subscription::subscriber_listener::SubscriberListener,
     topic_definition::type_support::DdsType,
 };
 
@@ -130,10 +129,6 @@ impl DdsShared<BuiltInSubscriber> {
 impl DdsShared<BuiltInSubscriber> {
     pub fn get_qos(&self) -> SubscriberQos {
         self.qos.read_lock().clone()
-    }
-
-    pub fn get_listener(&self) -> DdsResult<Option<Box<dyn SubscriberListener>>> {
-        todo!()
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {

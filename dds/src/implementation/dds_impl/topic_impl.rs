@@ -1,42 +1,20 @@
-use crate::builtin_topics::BuiltInTopicKey;
-use crate::implementation::rtps::types::Guid;
-use crate::infrastructure::instance::InstanceHandle;
-use crate::infrastructure::qos::QosKind;
-use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
-use crate::topic_definition::topic_listener::TopicListener;
 use crate::{
-    builtin_topics::TopicBuiltinTopicData,
+    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    implementation::{
+        data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
+        rtps::types::Guid,
+        utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
-        qos::TopicQos,
+        instance::InstanceHandle,
+        qos::{QosKind, TopicQos},
+        status::{InconsistentTopicStatus, StatusKind},
     },
 };
 
-use crate::implementation::{
-    data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
-    utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
-};
-
-use super::domain_participant_impl::DomainParticipantImpl;
-
-pub trait AnyTopicListener {
-    fn trigger_on_inconsistent_topic(
-        &mut self,
-        _the_topic: &DdsShared<TopicImpl>,
-        _status: InconsistentTopicStatus,
-    );
-}
-
-impl<Foo> AnyTopicListener for Box<dyn TopicListener<Foo = Foo>> {
-    fn trigger_on_inconsistent_topic(
-        &mut self,
-        _the_topic: &DdsShared<TopicImpl>,
-        _status: InconsistentTopicStatus,
-    ) {
-        todo!()
-    }
-}
+use super::{any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl};
 
 pub struct TopicImpl {
     guid: Guid,
@@ -45,6 +23,8 @@ pub struct TopicImpl {
     topic_name: String,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     enabled: DdsRwLock<bool>,
+    listener: DdsRwLock<Option<Box<dyn AnyTopicListener + Send + Sync>>>,
+    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
 }
 
 impl TopicImpl {
@@ -53,6 +33,8 @@ impl TopicImpl {
         qos: TopicQos,
         type_name: &'static str,
         topic_name: &str,
+        listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
@@ -62,6 +44,8 @@ impl TopicImpl {
             topic_name: topic_name.to_string(),
             parent_participant,
             enabled: DdsRwLock::new(false),
+            listener: DdsRwLock::new(listener),
+            listener_status_mask: DdsRwLock::new(mask.to_vec()),
         })
     }
 }
@@ -108,11 +92,11 @@ impl DdsShared<TopicImpl> {
 
     pub fn set_listener(
         &self,
-        _a_listener: Option<Box<dyn AnyTopicListener>>,
-        _mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        // rtps_shared_write_lock(&rtps_weak_upgrade(&self.topic_impl)?).set_listener(a_listener, mask)
-        todo!()
+        a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.listener.write_lock() = a_listener;
+        *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
@@ -184,7 +168,7 @@ mod tests {
             GuidPrefix::new([2; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let topic = TopicImpl::new(guid, TopicQos::default(), "", "", DdsWeak::new());
+        let topic = TopicImpl::new(guid, TopicQos::default(), "", "", None, &[], DdsWeak::new());
         *topic.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();

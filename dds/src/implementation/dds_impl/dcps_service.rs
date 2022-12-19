@@ -8,13 +8,18 @@ use std::{
 };
 
 use crate::{
-    domain::domain_participant_factory::DomainId,
+    domain::{
+        domain_participant_factory::DomainId,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         rtps::participant::RtpsParticipant,
         rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{error::DdsResult, qos::DomainParticipantQos, time::Duration},
+    infrastructure::{
+        error::DdsResult, qos::DomainParticipantQos, status::StatusKind, time::Duration,
+    },
 };
 
 use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
@@ -31,6 +36,8 @@ impl DcpsService {
         domain_id: DomainId,
         configuration: DustDdsConfiguration,
         domain_participant_qos: DomainParticipantQos,
+        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
         mut transport: RtpsUdpPsm,
     ) -> DdsResult<Self> {
         let announcer_condvar = DdsCondvar::new();
@@ -40,6 +47,8 @@ impl DcpsService {
             domain_id,
             configuration.domain_tag,
             domain_participant_qos,
+            listener,
+            mask,
             transport.metatraffic_unicast_locator_list(),
             vec![],
             transport.metatraffic_multicast_locator_list().as_slice(),
