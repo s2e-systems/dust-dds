@@ -132,7 +132,10 @@ impl MessageReceiver {
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
         if !info_timestamp.invalidate_flag {
             self.have_timestamp = true;
-            self.timestamp = info_timestamp.timestamp.value.into();
+            self.timestamp = Time::new(
+                info_timestamp.timestamp.seconds(),
+                info_timestamp.timestamp.fraction(),
+            );
         } else {
             self.have_timestamp = false;
             self.timestamp = TIME_INVALID;
@@ -192,9 +195,7 @@ impl MessageReceiver {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps::messages::{
-        submessage_elements::TimestampSubmessageElement, submessages::InfoTimestampSubmessage,
-    };
+    use crate::implementation::rtps::messages::submessages::InfoTimestampSubmessage;
 
     use super::*;
 
@@ -204,14 +205,12 @@ mod tests {
         let info_timestamp = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
-            timestamp: TimestampSubmessageElement {
-                value: Time::from(100).into(),
-            },
+            timestamp: crate::implementation::rtps::messages::types::Time::new(0, 100),
         };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 
         assert_eq!(message_receiver.have_timestamp, true);
-        assert_eq!(message_receiver.timestamp, Time::from(100));
+        assert_eq!(message_receiver.timestamp, Time::new(0, 100));
     }
 
     #[test]
@@ -220,9 +219,7 @@ mod tests {
         let info_timestamp = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: true,
-            timestamp: TimestampSubmessageElement {
-                value: Time::from(100).into(),
-            },
+            timestamp: crate::implementation::rtps::messages::types::Time::new(0, 100),
         };
         message_receiver.process_info_timestamp_submessage(&info_timestamp);
 

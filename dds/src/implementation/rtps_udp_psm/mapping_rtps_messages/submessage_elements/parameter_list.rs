@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use byteorder::{ByteOrder, ReadBytesExt, WriteBytesExt};
 
 use crate::implementation::{
-    rtps::messages::submessage_elements::{Parameter, ParameterListSubmessageElement},
+    rtps::messages::submessage_elements::{Parameter, ParameterList},
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
     },
@@ -16,7 +16,7 @@ const SENTINEL: Parameter = Parameter {
     value: &[],
 };
 
-impl MappingWriteByteOrdered for ParameterListSubmessageElement<'_> {
+impl MappingWriteByteOrdered for ParameterList<'_> {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -28,7 +28,7 @@ impl MappingWriteByteOrdered for ParameterListSubmessageElement<'_> {
     }
 }
 
-impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterListSubmessageElement<'a> {
+impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterList<'a> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         const MAX_PARAMETERS: usize = 2_usize.pow(16);
 
@@ -87,7 +87,7 @@ impl<'a> NumberOfBytes for Parameter<'a> {
     }
 }
 
-impl NumberOfBytes for ParameterListSubmessageElement<'_> {
+impl NumberOfBytes for ParameterList<'_> {
     fn number_of_bytes(&self) -> usize {
         self.parameter.number_of_bytes() + 4 /* Sentinel */
     }
@@ -190,7 +190,7 @@ mod tests {
             length: 4,
             value: &[52, 62, 0, 0],
         };
-        let parameter_list_submessage_element = ParameterListSubmessageElement {
+        let parameter_list_submessage_element = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
         #[rustfmt::skip]
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list_empty() {
-        let parameter = ParameterListSubmessageElement { parameter: vec![] };
+        let parameter = ParameterList { parameter: vec![] };
         #[rustfmt::skip]
         assert_eq!(to_bytes_le(&parameter).unwrap(), vec![
             0x01, 0x00, 0, 0, // Sentinel: PID_SENTINEL | PID_PAD
@@ -216,7 +216,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_list() {
-        let expected = ParameterListSubmessageElement {
+        let expected = ParameterList {
             parameter: vec![
                 Parameter {
                     parameter_id: 0x02,
@@ -253,7 +253,7 @@ mod tests {
             0x01, 0x01, 0x01, 0x01,
         ];
 
-        let expected = ParameterListSubmessageElement {
+        let expected = ParameterList {
             parameter: vec![Parameter {
                 parameter_id: 0x32,
                 length: 24,
@@ -295,7 +295,7 @@ mod tests {
             0x02, 0x02, 0x02, 0x02,
         ];
 
-        let expected = ParameterListSubmessageElement {
+        let expected = ParameterList {
             parameter: vec![
                 Parameter {
                     parameter_id: 0x32,

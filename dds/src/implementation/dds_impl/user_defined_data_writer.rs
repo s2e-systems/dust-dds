@@ -781,10 +781,7 @@ mod test {
         let data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
-            .register_instance_w_timestamp(
-                &MockKeyedFoo { key: vec![1, 2] },
-                Time { sec: 0, nanosec: 0 },
-            )
+            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1, 2] }, Time::new(0, 0))
             .unwrap()
             .unwrap();
 
@@ -801,7 +798,7 @@ mod test {
         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer
-            .register_instance_w_timestamp(&registered_foo, Time { sec: 0, nanosec: 0 })
+            .register_instance_w_timestamp(&registered_foo, Time::new(0, 0))
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };

@@ -2,8 +2,9 @@ use std::io::{Error, Write};
 
 use crate::implementation::{
     rtps::messages::{
-        overall_structure::RtpsSubmessageHeader, submessage_elements::TimestampSubmessageElement,
-        submessages::InfoTimestampSubmessage, types::SubmessageKind,
+        overall_structure::RtpsSubmessageHeader,
+        submessages::InfoTimestampSubmessage,
+        types::{SubmessageKind, TIME_INVALID},
     },
     rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
 };
@@ -51,7 +52,7 @@ impl<'de> MappingReadSubmessage<'de> for InfoTimestampSubmessage {
         let endianness_flag = header.flags[0];
         let invalidate_flag = header.flags[1];
         let timestamp = if invalidate_flag {
-            TimestampSubmessageElement { value: u64::MAX }
+            TIME_INVALID
         } else {
             MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?
         };
@@ -66,7 +67,10 @@ impl<'de> MappingReadSubmessage<'de> for InfoTimestampSubmessage {
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::rtps_udp_psm::mapping_traits::{from_bytes, to_bytes};
+    use crate::implementation::{
+        rtps::messages::types::Time,
+        rtps_udp_psm::mapping_traits::{from_bytes, to_bytes},
+    };
 
     use super::*;
 
@@ -75,7 +79,7 @@ mod tests {
         let submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
-            timestamp: TimestampSubmessageElement { value: 4000000000 },
+            timestamp: Time::new(4, 0),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -91,7 +95,7 @@ mod tests {
         let submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: true,
-            timestamp: TimestampSubmessageElement { value: u64::MAX },
+            timestamp: TIME_INVALID,
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -113,7 +117,7 @@ mod tests {
             InfoTimestampSubmessage {
                 endianness_flag: true,
                 invalidate_flag: false,
-                timestamp: TimestampSubmessageElement { value: 4000000000 },
+                timestamp: Time::new(4, 0),
             },
             from_bytes(&buf).unwrap()
         )
@@ -130,7 +134,7 @@ mod tests {
             InfoTimestampSubmessage {
                 endianness_flag: true,
                 invalidate_flag: true,
-                timestamp: TimestampSubmessageElement { value: u64::MAX },
+                timestamp: TIME_INVALID,
             },
             from_bytes(&buf).unwrap()
         )

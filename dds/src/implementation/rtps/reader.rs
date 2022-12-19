@@ -191,7 +191,7 @@ impl RtpsReader {
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
         let writer_guid = Guid::new(source_guid_prefix, data_submessage.writer_id);
 
-        let data = data_submessage.serialized_payload.value.to_vec();
+        let data = <&[u8]>::from(&data_submessage.serialized_payload).to_vec();
 
         let inline_qos: Vec<RtpsParameter> = data_submessage
             .inline_qos
@@ -590,8 +590,9 @@ impl RtpsReader {
 mod tests {
     use crate::{
         implementation::rtps::{
-            messages::submessage_elements::{
-                Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
+            messages::{
+                submessage_elements::{Parameter, ParameterList},
+                types::SerializedPayload,
             },
             types::{
                 SequenceNumber, TopicKind, ENTITYID_UNKNOWN, GUIDPREFIX_UNKNOWN, GUID_UNKNOWN,
@@ -628,8 +629,8 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
-            inline_qos: ParameterListSubmessageElement { parameter: vec![] },
-            serialized_payload: SerializedDataSubmessageElement { value: data },
+            inline_qos: ParameterList { parameter: vec![] },
+            serialized_payload: SerializedPayload::new(data),
         }
     }
 
@@ -646,14 +647,14 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
             writer_sn: sequence_number,
-            inline_qos: ParameterListSubmessageElement {
+            inline_qos: ParameterList {
                 parameter: vec![Parameter {
                     parameter_id: 0x71,
                     length: 4,
                     value: &[0, 0, 0, 1],
                 }],
             },
-            serialized_payload: SerializedDataSubmessageElement { value: data },
+            serialized_payload: SerializedPayload::new(data),
         }
     }
 
@@ -780,7 +781,7 @@ mod tests {
                     &to_bytes_le(&data1_instance1),
                     SequenceNumber::new(1),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -791,7 +792,7 @@ mod tests {
                     &to_bytes_le(&data2_instance1),
                     SequenceNumber::new(2),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -803,7 +804,7 @@ mod tests {
                     &to_bytes_le(&data1_instance2),
                     SequenceNumber::new(3),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )
@@ -814,7 +815,7 @@ mod tests {
                     &to_bytes_le(&data2_instance2),
                     SequenceNumber::new(4),
                 ),
-                Some(Time { sec: 1, nanosec: 0 }),
+                Some(Time::new(1, 0)),
                 GUIDPREFIX_UNKNOWN,
                 TIME_INVALID,
             )

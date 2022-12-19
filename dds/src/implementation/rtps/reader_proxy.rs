@@ -2,9 +2,8 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
-    messages::{
-        submessage_elements::TimestampSubmessageElement,
-        submessages::{AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
+    messages::submessages::{
+        AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
     },
     types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber},
 };
@@ -197,9 +196,10 @@ impl<'a> From<RtpsChangeForReaderCacheChange<'a>>
         let info_ts_submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
-            timestamp: TimestampSubmessageElement {
-                value: val.cache_change.timestamp().into(),
-            },
+            timestamp: super::messages::types::Time::new(
+                val.cache_change.timestamp().sec(),
+                val.cache_change.timestamp().nanosec(),
+            ),
         };
         let data_submessage = val.cache_change.into();
         (info_ts_submessage, data_submessage)
@@ -399,18 +399,40 @@ mod tests {
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
 
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(6));
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(1),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(2),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(4),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(6),
+        );
 
         reader_proxy.requested_changes_set(&[SequenceNumber::new(2), SequenceNumber::new(4)]);
 
         let result = reader_proxy.next_requested_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(2));
+        assert_eq!(
+            result.change_for_reader.sequence_number,
+            SequenceNumber::new(2)
+        );
 
         let result = reader_proxy.next_requested_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(4));
+        assert_eq!(
+            result.change_for_reader.sequence_number,
+            SequenceNumber::new(4)
+        );
     }
 
     #[test]
@@ -422,7 +444,14 @@ mod tests {
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(3));
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
 
-        assert_eq!(reader_proxy.unsent_changes(), vec![SequenceNumber::new(1), SequenceNumber::new(3), SequenceNumber::new(4)]);
+        assert_eq!(
+            reader_proxy.unsent_changes(),
+            vec![
+                SequenceNumber::new(1),
+                SequenceNumber::new(3),
+                SequenceNumber::new(4)
+            ]
+        );
     }
 
     #[test]
@@ -434,10 +463,16 @@ mod tests {
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
 
         let result = reader_proxy.next_unsent_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(1));
+        assert_eq!(
+            result.change_for_reader.sequence_number,
+            SequenceNumber::new(1)
+        );
 
         let result = reader_proxy.next_unsent_change(&writer_cache);
-        assert_eq!(result.change_for_reader.sequence_number, SequenceNumber::new(2));
+        assert_eq!(
+            result.change_for_reader.sequence_number,
+            SequenceNumber::new(2)
+        );
 
         // let result = std::panic::catch_unwind(|| reader_proxy.next_unsent_change());
         // assert!(result.is_err());
@@ -448,13 +483,32 @@ mod tests {
         let mut reader_proxy =
             RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
         let mut writer_cache = WriterHistoryCache::new();
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(4));
-        add_new_change_push_mode_false(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(6));
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(1),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(2),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(4),
+        );
+        add_new_change_push_mode_false(
+            &mut writer_cache,
+            &mut reader_proxy,
+            SequenceNumber::new(6),
+        );
 
         reader_proxy.acked_changes_set(SequenceNumber::new(2));
 
-        assert_eq!(reader_proxy.unacked_changes(), vec![SequenceNumber::new(4), SequenceNumber::new(6)]);
+        assert_eq!(
+            reader_proxy.unacked_changes(),
+            vec![SequenceNumber::new(4), SequenceNumber::new(6)]
+        );
     }
 }

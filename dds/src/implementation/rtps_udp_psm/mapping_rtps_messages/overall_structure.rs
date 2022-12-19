@@ -139,11 +139,9 @@ mod tests {
         rtps::{
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessage_elements::{
-                    Parameter, ParameterListSubmessageElement, SerializedDataSubmessageElement,
-                },
+                submessage_elements::{Parameter, ParameterList},
                 submessages::DataSubmessage,
-                types::ProtocolId,
+                types::{ProtocolId, SerializedPayload},
             },
             types::{
                 EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
@@ -203,10 +201,10 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,
@@ -295,10 +293,10 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,
@@ -364,10 +362,10 @@ mod tests {
             length: 4,
             value: &[20, 21, 22, 23],
         };
-        let inline_qos = ParameterListSubmessageElement {
+        let inline_qos = ParameterList {
             parameter: vec![parameter_1, parameter_2],
         };
-        let serialized_payload = SerializedDataSubmessageElement { value: &[][..] };
+        let serialized_payload = SerializedPayload::new(&[]);
 
         let submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,

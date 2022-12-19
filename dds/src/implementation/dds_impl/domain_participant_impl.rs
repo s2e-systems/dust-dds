@@ -652,10 +652,10 @@ impl DdsShared<DomainParticipantImpl> {
 
         let now_system_time = SystemTime::now();
         match now_system_time.duration_since(UNIX_EPOCH) {
-            Ok(unix_time) => Ok(Time {
-                sec: unix_time.as_secs() as i32,
-                nanosec: unix_time.subsec_nanos(),
-            }),
+            Ok(unix_time) => Ok(Time::new(
+                unix_time.as_secs() as i32,
+                unix_time.subsec_nanos(),
+            )),
             Err(_) => Err(DdsError::Error),
         }
     }
