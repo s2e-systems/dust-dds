@@ -59,7 +59,8 @@ use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_data_reader::UserDefinedDataReader, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -1066,5 +1067,50 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         Ok(())
+    }
+
+    pub fn on_subscription_matched(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::SubscriptionMatched) =>
+            {
+                let status = reader.get_subscription_matched_status();
+                l.on_subscription_matched(reader, status)
+            }
+            _ => (),
+        }
+    }
+
+    pub fn on_sample_rejected(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::SampleRejected) =>
+            {
+                let status = reader.get_sample_rejected_status();
+                l.on_sample_rejected(reader, status)
+            }
+            _ => (),
+        }
+    }
+
+    pub fn on_requested_deadline_missed(&self, reader: &DdsShared<UserDefinedDataReader>) {
+        match self.listener.write_lock().as_mut() {
+            Some(l)
+                if self
+                    .listener_status_mask
+                    .read_lock()
+                    .contains(&StatusKind::RequestedDeadlineMissed) =>
+            {
+                let status = reader.get_requested_deadline_missed_status();
+                l.on_requested_deadline_missed(reader, status)
+            }
+            _ => (),
+        }
     }
 }
