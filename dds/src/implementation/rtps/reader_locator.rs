@@ -1,8 +1,8 @@
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
-        submessage_elements::TimestampSubmessageElement,
         submessages::{DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
+        types::Time,
     },
     types::{Locator, SequenceNumber},
 };
@@ -83,9 +83,10 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for (InfoTimestampSubmessage, Da
         let info_ts_submessage = InfoTimestampSubmessage {
             endianness_flag: true,
             invalidate_flag: false,
-            timestamp: TimestampSubmessageElement {
-                value: cache_change.timestamp().into(),
-            },
+            timestamp: Time::new(
+                cache_change.timestamp().sec(),
+                cache_change.timestamp().nanosec(),
+            ),
         };
         let data_submessage = cache_change.into();
         (info_ts_submessage, data_submessage)
@@ -126,7 +127,8 @@ mod tests {
             vec![],
         ));
         let mut reader_locator_attributes = RtpsReaderLocator::new(LOCATOR_INVALID, false);
-        reader_locator_attributes.unsent_changes = vec![SequenceNumber::new(1), SequenceNumber::new(2)];
+        reader_locator_attributes.unsent_changes =
+            vec![SequenceNumber::new(1), SequenceNumber::new(2)];
 
         assert_eq!(
             reader_locator_attributes
@@ -134,7 +136,7 @@ mod tests {
                 .cache_change
                 .unwrap()
                 .sequence_number(),
-                SequenceNumber::new(1)
+            SequenceNumber::new(1)
         );
         assert_eq!(
             reader_locator_attributes
@@ -142,7 +144,7 @@ mod tests {
                 .cache_change
                 .unwrap()
                 .sequence_number(),
-                SequenceNumber::new(2)
+            SequenceNumber::new(2)
         );
     }
 }

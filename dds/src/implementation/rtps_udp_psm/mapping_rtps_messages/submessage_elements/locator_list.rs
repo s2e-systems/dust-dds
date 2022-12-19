@@ -3,11 +3,11 @@ use std::io::{Error, Write};
 use byteorder::ByteOrder;
 
 use crate::implementation::{
-    rtps::messages::submessage_elements::LocatorListSubmessageElement,
+    rtps::messages::submessage_elements::LocatorList,
     rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
 };
 
-impl MappingWriteByteOrdered for LocatorListSubmessageElement {
+impl MappingWriteByteOrdered for LocatorList {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
         &self,
         mut writer: W,
@@ -21,7 +21,7 @@ impl MappingWriteByteOrdered for LocatorListSubmessageElement {
     }
 }
 
-impl<'de> MappingReadByteOrdered<'de> for LocatorListSubmessageElement {
+impl<'de> MappingReadByteOrdered<'de> for LocatorList {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let num_locators: u32 = MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
         let mut locator_list = Vec::new();
@@ -56,7 +56,7 @@ mod tests {
             LocatorPort::new(2),
             LocatorAddress::new([3; 16]),
         );
-        let locator_list = LocatorListSubmessageElement {
+        let locator_list = LocatorList {
             value: vec![locator_1, locator_2],
         };
         assert_eq!(
@@ -91,7 +91,7 @@ mod tests {
             LocatorPort::new(2),
             LocatorAddress::new([3; 16]),
         );
-        let expected = LocatorListSubmessageElement {
+        let expected = LocatorList {
             value: vec![locator_1, locator_2],
         };
         #[rustfmt::skip]

@@ -4,12 +4,9 @@ use crate::implementation::rtps::types::{
 
 use super::{
     submessage_elements::{
-        FragmentNumberSet, LocatorListSubmessageElement, ParameterListSubmessageElement,
-        SequenceNumberSet, SerializedDataFragmentSubmessageElement,
-        SerializedDataSubmessageElement, TimestampSubmessageElement, ULongSubmessageElement,
-        UShortSubmessageElement,
+        FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet,
     },
-    types::{FragmentNumber, SubmessageFlag},
+    types::{FragmentNumber, SubmessageFlag, Time, ULong, UShort, SerializedPayload},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -32,8 +29,8 @@ pub struct DataSubmessage<'a> {
     pub reader_id: EntityId,
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
-    pub inline_qos: ParameterListSubmessageElement<'a>,
-    pub serialized_payload: SerializedDataSubmessageElement<'a>,
+    pub inline_qos: ParameterList<'a>,
+    pub serialized_payload: SerializedPayload<'a>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,11 +43,11 @@ pub struct DataFragSubmessage<'a> {
     pub writer_id: EntityId,
     pub writer_sn: SequenceNumber,
     pub fragment_starting_num: FragmentNumber,
-    pub fragments_in_submessage: UShortSubmessageElement,
-    pub data_size: ULongSubmessageElement,
-    pub fragment_size: UShortSubmessageElement,
-    pub inline_qos: ParameterListSubmessageElement<'a>,
-    pub serialized_payload: SerializedDataFragmentSubmessageElement<'a>,
+    pub fragments_in_submessage: UShort,
+    pub data_size: ULong,
+    pub fragment_size: UShort,
+    pub inline_qos: ParameterList<'a>,
+    pub serialized_payload: SerializedPayload<'a>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -94,8 +91,8 @@ pub struct InfoDestinationSubmessage {
 pub struct InfoReplySubmessage {
     pub endianness_flag: SubmessageFlag,
     pub multicast_flag: SubmessageFlag,
-    pub unicast_locator_list: LocatorListSubmessageElement,
-    pub multicast_locator_list: LocatorListSubmessageElement,
+    pub unicast_locator_list: LocatorList,
+    pub multicast_locator_list: LocatorList,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -110,7 +107,7 @@ pub struct InfoSourceSubmessage {
 pub struct InfoTimestampSubmessage {
     pub endianness_flag: SubmessageFlag,
     pub invalidate_flag: SubmessageFlag,
-    pub timestamp: TimestampSubmessageElement,
+    pub timestamp: Time,
 }
 
 #[derive(Debug, PartialEq, Eq)]
