@@ -276,7 +276,7 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.0.upgrade()?.get_domain_id()
+        Ok(self.0.upgrade()?.get_domain_id())
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,

@@ -1,36 +1,25 @@
-use std::sync::Mutex;
-
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         dds_impl::{
             configuration::DustDdsConfiguration, dcps_service::DcpsService,
             domain_participant_impl::DomainParticipantImpl,
         },
-        utils::shared_object::DdsShared,
-    },
-    infrastructure::{
-        error::{DdsError, DdsResult},
-        qos::QosKind,
-        status::StatusKind,
-    },
-};
-use crate::{
-    implementation::{
         rtps::{
             participant::RtpsParticipant,
             types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::RtpsUdpPsm,
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DomainParticipantFactoryQos, DomainParticipantQos},
+        qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
+        status::StatusKind,
     },
 };
-
 use lazy_static::lazy_static;
-
-use crate::domain::domain_participant_listener::DomainParticipantListener;
 
 use super::domain_participant::DomainParticipant;
 
@@ -40,7 +29,7 @@ lazy_static! {
     /// This value can be used as an alias for the singleton factory returned by the operation
     /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
-        participant_list: Mutex::new(vec![]),
+        participant_list: DdsRwLock::new(vec![]),
         qos: DomainParticipantFactoryQos::default(),
     };
 }
@@ -49,7 +38,7 @@ lazy_static! {
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
-    participant_list: Mutex<Vec<DcpsService>>,
+    participant_list: DdsRwLock<Vec<DcpsService>>,
     qos: DomainParticipantFactoryQos,
 }
 
@@ -108,8 +97,7 @@ impl DomainParticipantFactory {
 
         THE_PARTICIPANT_FACTORY
             .participant_list
-            .lock()
-            .unwrap()
+            .write_lock()
             .push(dcps_service);
 
         Ok(participant)
@@ -119,10 +107,7 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let mut participant_list = THE_PARTICIPANT_FACTORY
-            .participant_list
-            .lock()
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        let mut participant_list = THE_PARTICIPANT_FACTORY.participant_list.write_lock();
 
         let index = participant_list
             .iter()
@@ -146,8 +131,12 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
     /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, _domain_id: DomainId) -> Option<DomainParticipant> {
-        todo!()
+    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
+        self.participant_list
+            .read_lock()
+            .iter()
+            .find(|dp| dp.participant().get_domain_id() == domain_id)
+            .map(|dp| DomainParticipant::new(dp.participant().downgrade()))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
@@ -192,7 +181,7 @@ impl DomainParticipantFactory {
         &self,
         instance_handle: InstanceHandle,
     ) -> DdsShared<DomainParticipantImpl> {
-        let participant_list_lock = self.participant_list.lock().unwrap();
+        let participant_list_lock = self.participant_list.read_lock();
         participant_list_lock
             .iter()
             .find(|x| {

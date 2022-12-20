@@ -574,12 +574,8 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
