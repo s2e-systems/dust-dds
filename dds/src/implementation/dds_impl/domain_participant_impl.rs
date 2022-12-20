@@ -440,7 +440,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(topic_shared)
     }
 
-    pub fn delete_topic<Foo>(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .topic_list
             .read_lock()

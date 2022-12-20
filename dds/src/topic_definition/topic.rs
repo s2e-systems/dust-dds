@@ -28,6 +28,16 @@ impl<Foo> Topic<Foo> {
     }
 }
 
+impl<Foo> Drop for Topic<Foo> {
+    fn drop(&mut self) {
+        if self.0.weak_count() == 1 {
+            if let Ok(p) = self.get_participant() {
+                p.delete_topic(self).ok();
+            }
+        }
+    }
+}
+
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
