@@ -100,26 +100,6 @@ impl DcpsService {
             }));
         }
 
-        // ////////////// SPDP builtin endpoint configuration
-        {
-            let domain_participant = participant.clone();
-
-            let task_quit = quit.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                match domain_participant.discover_matched_participants() {
-                    Ok(()) => (),
-                    Err(e) => println!("spdp discovery failed: {:?}", e),
-                }
-            }));
-        }
-
         // //////////// Unicast metatraffic Communication receive
         {
             let domain_participant = participant.clone();
@@ -159,33 +139,6 @@ impl DcpsService {
             }));
         }
 
-        // ////////////// SEDP user-defined endpoint configuration
-        {
-            let domain_participant = participant.clone();
-
-            let task_quit = quit.clone();
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                match domain_participant.discover_matched_writers() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp writer discovery failed: {:?}", e),
-                }
-                match domain_participant.discover_matched_readers() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp reader discovery failed: {:?}", e),
-                }
-                match domain_participant.discover_matched_topics() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp topic discovery failed: {:?}", e),
-                }
-            }));
-        }
-
         // //////////// User-defined Communication receive
         {
             let domain_participant = participant.clone();
@@ -199,9 +152,15 @@ impl DcpsService {
                 if let Some((locator, message)) =
                     default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
                 {
-                    domain_participant
+                    if domain_participant
                         .receive_user_defined_data(locator, message)
-                        .ok();
+                        .is_ok()
+                    {
+                        domain_participant.discover_matched_participants().ok();
+                        domain_participant.discover_matched_readers().ok();
+                        domain_participant.discover_matched_writers().ok();
+                        domain_participant.discover_matched_topics().ok();
+                    }
                 }
             }));
         }
