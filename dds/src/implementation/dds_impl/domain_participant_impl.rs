@@ -866,7 +866,7 @@ impl DdsShared<DomainParticipantImpl> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
-        if let Ok(samples) = spdp_builtin_participant_data_reader.take(
+        while let Ok(samples) = spdp_builtin_participant_data_reader.take(
             1,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
@@ -883,7 +883,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn discover_matched_writers(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
             .take::<DiscoveredWriterData>(
@@ -937,7 +937,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn discover_matched_readers(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
             .take::<DiscoveredReaderData>(
@@ -991,11 +991,15 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn discover_matched_topics(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()
-            .take::<DiscoveredTopicData>(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
+            .take::<DiscoveredTopicData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
                     self.discovered_topic_list.write_lock().insert(
