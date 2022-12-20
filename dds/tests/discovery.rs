@@ -331,3 +331,45 @@ fn participant_announces_updated_qos() {
 
     std::thread::sleep(std::time::Duration::from_secs(5));
 }
+
+
+
+
+#[test]
+fn reader_discovers_disposed_writer_same_participant() {
+    let domain_id = 0;
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    publisher.delete_datawriter(&data_writer).unwrap();
+
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
+}

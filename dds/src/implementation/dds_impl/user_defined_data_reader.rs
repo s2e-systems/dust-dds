@@ -375,11 +375,11 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
-        if let Some(w) = self
+        let matched_publication = self
             .matched_publication_list
             .write_lock()
-            .remove(&discovered_writer_handle)
-        {
+            .remove(&discovered_writer_handle);
+        if let Some(w) = matched_publication {
             self.rtps_reader
                 .write_lock()
                 .matched_writer_remove(w.key.value.into());
