@@ -1,8 +1,14 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader},
-    process::Command,
 };
+
+use dust_idlgen::{
+    idl_parser,
+    idl_syntax::{self, Analyser},
+    rust_mapping,
+};
+use pest::Parser;
 
 #[test]
 fn verify_examples() {
@@ -24,18 +30,23 @@ fn verify_examples() {
             "(;_;) Couldn't find corresponding file {:?} to example {:?}",
             rs_path, idl_path
         ));
-
-        let cmd_result = Command::new("cargo")
-            .args(["run", idl_path.to_str().unwrap()])
-            .output()
-            .expect("(;_;) Couldn't run command");
-
         let expected_lines = BufReader::new(rs_file).lines();
-        let result_lines = std::str::from_utf8(&cmd_result.stdout)
-            .expect("(;_;) Program produced invalid UTF-8")
-            .lines();
 
-        for (result_line, expected_line) in result_lines.zip(expected_lines) {
+        let idl_src = std::fs::read_to_string(idl_path.clone())
+            .expect("(;_;) Couldn't read IDL source file!");
+        let parsed_idl = idl_parser::IdlParser::parse(idl_parser::Rule::specification, &idl_src)
+            .expect(&format!("(;_;) Parse error in {:?}", idl_path));
+        let idl_spec = idl_syntax::specification()
+            .analyse(parsed_idl.tokens())
+            .expect(&format!("(;_;) Syntax error in {:?}", idl_path));
+        let result_lines = idl_spec
+            .value
+            .into_iter()
+            .flat_map(rust_mapping::definition);
+
+        for (expected_line, result_line) in
+            expected_lines.zip(result_lines.chain(std::iter::repeat("".to_string())))
+        {
             assert_eq!(result_line, expected_line.unwrap())
         }
     }
