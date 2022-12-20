@@ -39,12 +39,12 @@ impl DataReaderListener for Listener {
             println!("Read sample: {:?}", sample);
         }
     }
-    fn on_liveliness_changed(
+    fn on_subscription_matched(
         &mut self,
         _the_reader: &DataReader<Self::Foo>,
-        status: dust_dds::infrastructure::status::LivelinessChangedStatus,
+        status: dust_dds::infrastructure::status::SubscriptionMatchedStatus,
     ) {
-        if status.alive_count == 0 {
+        if status.current_count == 0 {
             self.sender.send(()).unwrap();
         }
     }
@@ -79,9 +79,8 @@ fn main() {
             &topic,
             QosKind::Default,
             Some(listener),
-            &[StatusKind::DataAvailable, StatusKind::LivelinessChanged],
+            &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
         )
         .unwrap();
-
     receiver.recv_timeout(Duration::from_secs(20)).ok();
 }
