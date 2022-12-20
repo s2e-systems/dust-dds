@@ -440,7 +440,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(topic_shared)
     }
 
-    pub fn delete_topic<Foo>(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .topic_list
             .read_lock()
@@ -574,12 +574,8 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
