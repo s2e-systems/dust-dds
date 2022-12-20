@@ -102,26 +102,6 @@ impl DcpsService {
             }));
         }
 
-        // ////////////// SPDP builtin endpoint configuration
-        {
-            let domain_participant = participant.clone();
-
-            let task_quit = quit.clone();
-
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                match domain_participant.discover_matched_participants() {
-                    Ok(()) => (),
-                    Err(e) => println!("spdp discovery failed: {:?}", e),
-                }
-            }));
-        }
-
         // //////////// Unicast metatraffic Communication receive
         {
             let domain_participant = participant.clone();
@@ -157,33 +137,6 @@ impl DcpsService {
                 let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
 
                 domain_participant.send_built_in_data(&mut metatraffic_unicast_transport_send);
-            }));
-        }
-
-        // ////////////// SEDP user-defined endpoint configuration
-        {
-            let domain_participant = participant.clone();
-
-            let task_quit = quit.clone();
-            threads.push(std::thread::spawn(move || loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
-                }
-
-                std::thread::sleep(std::time::Duration::from_millis(500));
-
-                match domain_participant.discover_matched_writers() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp writer discovery failed: {:?}", e),
-                }
-                match domain_participant.discover_matched_readers() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp reader discovery failed: {:?}", e),
-                }
-                match domain_participant.discover_matched_topics() {
-                    Ok(()) => (),
-                    Err(e) => println!("sedp topic discovery failed: {:?}", e),
-                }
             }));
         }
 
