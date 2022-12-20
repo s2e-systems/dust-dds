@@ -11,8 +11,8 @@ mod Game {
         }
         #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
         pub struct ChessSquare {
-            column: char,
-            line: u16,
+            pub column: char,
+            pub line: u16,
         }
     }
     mod Cards {

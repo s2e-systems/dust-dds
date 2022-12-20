@@ -7,3 +7,12 @@ struct ChessSquare {
     char column;
     unsigned short line;
 };
+
+struct HelloWorld {
+    string message;
+    unsigned long id;
+};
+
+struct Sentence {
+    sequence<wstring> words;
+};

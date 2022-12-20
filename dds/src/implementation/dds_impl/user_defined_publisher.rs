@@ -175,7 +175,6 @@ impl DdsShared<UserDefinedPublisher> {
         {
             data_writer_shared.enable()?;
         }
-
         Ok(data_writer_shared)
     }
 

@@ -135,6 +135,7 @@ impl DomainParticipantImpl {
         metatraffic_multicast_locator_list: Vec<Locator>,
         spdp_discovery_locator_list: &[Locator],
         announce_condvar: DdsCondvar,
+        sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
@@ -202,6 +203,7 @@ impl DomainParticipantImpl {
             sedp_topic_publications,
             sedp_topic_subscriptions,
             spdp_discovery_locator_list,
+            sedp_condvar,
         );
 
         DdsShared::new(DomainParticipantImpl {
@@ -460,7 +462,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.topic_list
             .write_lock()
             .retain(|x| x.get_instance_handle() != a_topic_handle);
-
         Ok(())
     }
 
