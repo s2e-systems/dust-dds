@@ -140,6 +140,18 @@ pub trait Analyser<'i, T> {
                 .or_else(|_| other.analyse(tokens))
         })
     }
+
+    fn or_else<F, P>(self, other: F) -> AnalyserObject<'i, T>
+    where
+        Self: Sized + 'i,
+        F: Fn() -> P + 'i,
+        P: Analyser<'i, T> + 'i,
+    {
+        AnalyserObject::new(move |tokens: Tokens<'i>| {
+            self.analyse(tokens.clone())
+                .or_else(|_| other().analyse(tokens))
+        })
+    }
 }
 
 impl<'i, F, T> Analyser<'i, T> for F
@@ -267,8 +279,17 @@ pub enum BaseType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TemplateType {
+    Sequence(Box<Type>, Option<usize>),
+    String(Option<usize>),
+    WideString(Option<usize>),
+    // FixedPoint(Option<(usize, usize)>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     BaseType(BaseType),
+    TemplateType(TemplateType),
     // ScopedName(String),
 }
 
@@ -307,47 +328,71 @@ pub fn integer_type<'i>() -> impl Analyser<'i, BaseType> {
     within(
         Rule::signed_int,
         within(Rule::signed_short_int, pure(BaseType::Short))
-            .or(within(Rule::signed_long_int, pure(BaseType::Long)))
-            .or(within(Rule::signed_longlong_int, pure(BaseType::LongLong))),
+            .or_else(|| within(Rule::signed_long_int, pure(BaseType::Long)))
+            .or_else(|| within(Rule::signed_longlong_int, pure(BaseType::LongLong))),
     )
-    .or(within(
-        Rule::unsigned_int,
-        within(Rule::unsigned_short_int, pure(BaseType::UnsignedShort))
-            .or(within(
-                Rule::unsigned_long_int,
-                pure(BaseType::UnsignedLong),
-            ))
-            .or(within(
-                Rule::unsigned_longlong_int,
-                pure(BaseType::UnsignedLongLong),
-            )),
-    ))
+    .or_else(|| {
+        within(
+            Rule::unsigned_int,
+            within(Rule::unsigned_short_int, pure(BaseType::UnsignedShort))
+                .or_else(|| within(Rule::unsigned_long_int, pure(BaseType::UnsignedLong)))
+                .or_else(|| {
+                    within(
+                        Rule::unsigned_longlong_int,
+                        pure(BaseType::UnsignedLongLong),
+                    )
+                }),
+        )
+    })
 }
 
-pub fn base_type<'i>() -> impl Analyser<'i, BaseType> {
+pub fn simple_type<'i>() -> impl Analyser<'i, BaseType> {
     within(
-        Rule::base_type_spec,
-        within(Rule::integer_type, integer_type())
-            .or(within(
-                Rule::floating_pt_type,
-                within(Rule::float, pure(BaseType::Float))
-                    .or(within(Rule::double, pure(BaseType::Double)))
-                    .or(within(
-                        Rule::long_double,
-                        fail(ErrorKind::Unsupported(Rule::long_double)),
-                    )),
-            ))
-            .or(within(Rule::char_type, pure(BaseType::Char)))
-            .or(within(Rule::wide_char_type, pure(BaseType::WChar)))
-            .or(within(Rule::boolean_type, pure(BaseType::Boolean)))
-            .or(within(Rule::octet_type, pure(BaseType::Octet))),
+        Rule::simple_type_spec,
+        within(
+            Rule::base_type_spec,
+            within(Rule::integer_type, integer_type())
+                .or_else(|| {
+                    within(
+                        Rule::floating_pt_type,
+                        within(Rule::float, pure(BaseType::Float))
+                            .or_else(|| within(Rule::double, pure(BaseType::Double)))
+                            .or_else(|| {
+                                within(
+                                    Rule::long_double,
+                                    fail(ErrorKind::Unsupported(Rule::long_double)),
+                                )
+                            }),
+                    )
+                })
+                .or_else(|| within(Rule::char_type, pure(BaseType::Char)))
+                .or_else(|| within(Rule::wide_char_type, pure(BaseType::WChar)))
+                .or_else(|| within(Rule::boolean_type, pure(BaseType::Boolean)))
+                .or_else(|| within(Rule::octet_type, pure(BaseType::Octet))),
+        ),
+    )
+}
+
+fn template_type<'i>() -> impl Analyser<'i, TemplateType> {
+    within(
+        Rule::template_type_spec,
+        within(Rule::string_type, pure(TemplateType::String(None)))
+            .or_else(|| within(Rule::wide_string_type, pure(TemplateType::WideString(None))))
+            .or_else(|| {
+                within(
+                    Rule::sequence_type,
+                    type_spec().map(|t| TemplateType::Sequence(Box::new(t), None)),
+                )
+            }),
     )
 }
 
 fn type_spec<'i>() -> impl Analyser<'i, Type> {
     within(
         Rule::type_spec,
-        within(Rule::simple_type_spec, base_type().map(Type::BaseType)),
+        simple_type()
+            .map(Type::BaseType)
+            .or_else(|| template_type().map(Type::TemplateType)),
     )
 }
 
@@ -418,7 +463,7 @@ pub fn definition<'i>() -> impl Analyser<'i, Definition> {
         struct_dcl
             .map(Definition::Struct)
             .or(enum_dcl.map(Definition::Enum))
-            .or(module().map(Definition::Module)),
+            .or_else(|| module().map(Definition::Module)),
     )
 }
 
@@ -446,8 +491,8 @@ pub fn specification<'i>() -> impl Analyser<'i, Vec<Definition>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pest::Parser;
     use crate::idl_parser;
+    use pest::Parser;
 
     #[test]
     fn test_analyse_type_spec() {

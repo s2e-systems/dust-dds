@@ -17,10 +17,30 @@ pub fn base_type(t: idl_syntax::BaseType) -> String {
     }
 }
 
-pub fn struct_member(member: idl_syntax::StructMember) -> String {
-    match member.datatype {
-        idl_syntax::Type::BaseType(t) => format!("pub {}: {}", member.name, base_type(t)),
+pub fn template_type(t: idl_syntax::TemplateType) -> String {
+    match t {
+        idl_syntax::TemplateType::Sequence(t, Some(size)) => {
+            format!("[{}; {}]", type_spec(*t), size)
+        }
+        idl_syntax::TemplateType::Sequence(t, None) => format!("Vec<{}>", type_spec(*t)),
+
+        idl_syntax::TemplateType::String(Some(size)) => format!("[char; {}]", size),
+        idl_syntax::TemplateType::String(None) => format!("String"),
+
+        idl_syntax::TemplateType::WideString(Some(size)) => format!("[char; {}]", size),
+        idl_syntax::TemplateType::WideString(None) => format!("String"),
     }
+}
+
+pub fn type_spec(t: idl_syntax::Type) -> String {
+    match t {
+        idl_syntax::Type::BaseType(t) => base_type(t),
+        idl_syntax::Type::TemplateType(t) => template_type(t),
+    }
+}
+
+pub fn struct_member(member: idl_syntax::StructMember) -> String {
+    format!("pub {}: {}", member.name, type_spec(member.datatype))
 }
 
 pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
