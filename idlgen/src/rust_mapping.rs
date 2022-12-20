@@ -25,10 +25,10 @@ pub fn template_type(t: idl_syntax::TemplateType) -> String {
         idl_syntax::TemplateType::Sequence(t, None) => format!("Vec<{}>", type_spec(*t)),
 
         idl_syntax::TemplateType::String(Some(size)) => format!("[char; {}]", size),
-        idl_syntax::TemplateType::String(None) => format!("String"),
+        idl_syntax::TemplateType::String(None) => "String".to_string(),
 
         idl_syntax::TemplateType::WideString(Some(size)) => format!("[char; {}]", size),
-        idl_syntax::TemplateType::WideString(None) => format!("String"),
+        idl_syntax::TemplateType::WideString(None) => "String".to_string(),
     }
 }
 
