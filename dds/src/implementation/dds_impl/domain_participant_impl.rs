@@ -835,7 +835,14 @@ impl DdsShared<DomainParticipantImpl> {
             core::slice::from_ref(&self.builtin_subscriber),
             source_locator,
             &message,
-        )
+        )?;
+
+        self.discover_matched_participants()?;
+        self.discover_matched_readers()?;
+        self.discover_matched_writers()?;
+        self.discover_matched_topics()?;
+
+        Ok(())
     }
 
     pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
@@ -862,7 +869,7 @@ impl DdsShared<DomainParticipantImpl> {
         )
     }
 
-    pub fn discover_matched_participants(&self) -> DdsResult<()> {
+    fn discover_matched_participants(&self) -> DdsResult<()> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
@@ -882,7 +889,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_writers(&self) -> DdsResult<()> {
+    fn discover_matched_writers(&self) -> DdsResult<()> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
@@ -936,7 +943,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_readers(&self) -> DdsResult<()> {
+    fn discover_matched_readers(&self) -> DdsResult<()> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
@@ -990,7 +997,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_topics(&self) -> DdsResult<()> {
+    fn discover_matched_topics(&self) -> DdsResult<()> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()

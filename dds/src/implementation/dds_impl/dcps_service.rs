@@ -152,15 +152,9 @@ impl DcpsService {
                 if let Some((locator, message)) =
                     default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
                 {
-                    if domain_participant
+                    domain_participant
                         .receive_user_defined_data(locator, message)
-                        .is_ok()
-                    {
-                        domain_participant.discover_matched_participants().ok();
-                        domain_participant.discover_matched_readers().ok();
-                        domain_participant.discover_matched_writers().ok();
-                        domain_participant.discover_matched_topics().ok();
-                    }
+                        .ok();
                 }
             }));
         }
