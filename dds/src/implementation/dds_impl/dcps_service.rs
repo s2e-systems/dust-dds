@@ -58,8 +58,6 @@ impl DcpsService {
             user_defined_data_send_condvar.clone(),
         );
 
-        participant.enable()?;
-
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
 
