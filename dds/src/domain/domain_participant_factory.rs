@@ -30,7 +30,7 @@ lazy_static! {
     /// [`DomainParticipantFactory::get_instance()`].
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
         participant_list: DdsRwLock::new(vec![]),
-        qos: DomainParticipantFactoryQos::default(),
+        qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
     };
 }
 
@@ -39,7 +39,7 @@ lazy_static! {
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
     participant_list: DdsRwLock<Vec<DcpsService>>,
-    qos: DomainParticipantFactoryQos,
+    qos: DdsRwLock<DomainParticipantFactoryQos>,
 }
 
 impl DomainParticipantFactory {
@@ -91,7 +91,12 @@ impl DomainParticipantFactory {
 
         let participant = DomainParticipant::new(dcps_service.participant().downgrade());
 
-        if self.qos.entity_factory.autoenable_created_entities {
+        if self
+            .qos
+            .read_lock()
+            .entity_factory
+            .autoenable_created_entities
+        {
             participant.enable()?;
         }
 
@@ -164,13 +169,18 @@ impl DomainParticipantFactory {
     /// Note that despite having QoS, the [`DomainParticipantFactory`] is not an Entity.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_qos(&self, _qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => *self.qos.write_lock() = DomainParticipantFactoryQos::default(),
+            QosKind::Specific(q) => *self.qos.write_lock() = q,
+        }
+
+        Ok(())
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {
-        todo!()
+        self.qos.read_lock().clone()
     }
 }
 
