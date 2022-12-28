@@ -1,3 +1,4 @@
-pub mod idl_parser;
-pub mod idl_syntax;
-pub mod rust_mapping;
+pub mod idl;
+pub mod mappings;
+pub mod parser;
+pub mod syntax;
