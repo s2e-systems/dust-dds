@@ -37,7 +37,7 @@ fn verify_examples() {
         let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, &idl_src)
             .expect(&format!("(;_;) Parse error in {:?}", idl_path));
         let idl_spec = syntax::specification()
-            .analyse(parsed_idl)
+            .analyse(parsed_idl.into())
             .expect(&format!("(;_;) Syntax error in {:?}", idl_path));
         let result_lines = idl_spec
             .value

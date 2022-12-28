@@ -17,7 +17,7 @@ fn main() {
     let mut file = File::create("hello_world.rs").expect("Failed to create file");
 
     let spec = syntax::specification()
-        .analyse(result)
+        .analyse(result.into())
         .expect("Couldn't analyse IDL syntax");
 
     for def in spec.value {
