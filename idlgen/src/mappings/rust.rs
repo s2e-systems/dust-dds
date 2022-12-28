@@ -1,49 +1,49 @@
-use crate::idl_syntax;
+use crate::idl;
 
-pub fn base_type(t: idl_syntax::BaseType) -> String {
+pub fn base_type(t: idl::BaseType) -> String {
     match t {
-        idl_syntax::BaseType::Float => "f32".to_string(),
-        idl_syntax::BaseType::Double => "f64".to_string(),
-        idl_syntax::BaseType::Short => "i16".to_string(),
-        idl_syntax::BaseType::Long => "i32".to_string(),
-        idl_syntax::BaseType::LongLong => "i64".to_string(),
-        idl_syntax::BaseType::UnsignedShort => "u16".to_string(),
-        idl_syntax::BaseType::UnsignedLong => "u32".to_string(),
-        idl_syntax::BaseType::UnsignedLongLong => "u64".to_string(),
-        idl_syntax::BaseType::Char => "char".to_string(),
-        idl_syntax::BaseType::WChar => "char".to_string(),
-        idl_syntax::BaseType::Boolean => "bool".to_string(),
-        idl_syntax::BaseType::Octet => "u8".to_string(),
+        idl::BaseType::Float => "f32".to_string(),
+        idl::BaseType::Double => "f64".to_string(),
+        idl::BaseType::Short => "i16".to_string(),
+        idl::BaseType::Long => "i32".to_string(),
+        idl::BaseType::LongLong => "i64".to_string(),
+        idl::BaseType::UnsignedShort => "u16".to_string(),
+        idl::BaseType::UnsignedLong => "u32".to_string(),
+        idl::BaseType::UnsignedLongLong => "u64".to_string(),
+        idl::BaseType::Char => "char".to_string(),
+        idl::BaseType::WChar => "char".to_string(),
+        idl::BaseType::Boolean => "bool".to_string(),
+        idl::BaseType::Octet => "u8".to_string(),
     }
 }
 
-pub fn template_type(t: idl_syntax::TemplateType) -> String {
+pub fn template_type(t: idl::TemplateType) -> String {
     match t {
-        idl_syntax::TemplateType::Sequence(t, Some(size)) => {
+        idl::TemplateType::Sequence(t, Some(size)) => {
             format!("[{}; {}]", type_spec(*t), size)
         }
-        idl_syntax::TemplateType::Sequence(t, None) => format!("Vec<{}>", type_spec(*t)),
+        idl::TemplateType::Sequence(t, None) => format!("Vec<{}>", type_spec(*t)),
 
-        idl_syntax::TemplateType::String(Some(size)) => format!("[char; {}]", size),
-        idl_syntax::TemplateType::String(None) => "String".to_string(),
+        idl::TemplateType::String(Some(size)) => format!("[char; {}]", size),
+        idl::TemplateType::String(None) => "String".to_string(),
 
-        idl_syntax::TemplateType::WideString(Some(size)) => format!("[char; {}]", size),
-        idl_syntax::TemplateType::WideString(None) => "String".to_string(),
+        idl::TemplateType::WideString(Some(size)) => format!("[char; {}]", size),
+        idl::TemplateType::WideString(None) => "String".to_string(),
     }
 }
 
-pub fn type_spec(t: idl_syntax::Type) -> String {
+pub fn type_spec(t: idl::Type) -> String {
     match t {
-        idl_syntax::Type::BaseType(t) => base_type(t),
-        idl_syntax::Type::TemplateType(t) => template_type(t),
+        idl::Type::BaseType(t) => base_type(t),
+        idl::Type::TemplateType(t) => template_type(t),
     }
 }
 
-pub fn struct_member(member: idl_syntax::StructMember) -> String {
+pub fn struct_member(member: idl::StructMember) -> String {
     format!("pub {}: {}", member.name, type_spec(member.datatype))
 }
 
-pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
+pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
     [
         "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
         format!("pub struct {} {{", def.name),
@@ -57,7 +57,7 @@ pub fn struct_def(def: idl_syntax::Struct) -> impl Iterator<Item = String> {
         .chain(["}".to_string()].into_iter())
 }
 
-pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
+pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
     [
         "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
         format!("pub enum {} {{", def.name),
@@ -71,7 +71,7 @@ pub fn enum_def(def: idl_syntax::Enum) -> impl Iterator<Item = String> {
         .chain(["}".to_string()].into_iter())
 }
 
-pub fn module_def(def: idl_syntax::Module) -> impl Iterator<Item = String> {
+pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
     [format!("mod {} {{", def.name)]
         .into_iter()
         .chain(
@@ -84,17 +84,17 @@ pub fn module_def(def: idl_syntax::Module) -> impl Iterator<Item = String> {
         .chain(["}".to_string()].into_iter())
 }
 
-pub fn definition(def: idl_syntax::Definition) -> Box<dyn Iterator<Item = String>> {
+pub fn definition(def: idl::Definition) -> Box<dyn Iterator<Item = String>> {
     match def {
-        idl_syntax::Definition::Struct(s) => Box::new(struct_def(s)),
-        idl_syntax::Definition::Enum(e) => Box::new(enum_def(e)),
-        idl_syntax::Definition::Module(m) => Box::new(module_def(m)),
+        idl::Definition::Struct(s) => Box::new(struct_def(s)),
+        idl::Definition::Enum(e) => Box::new(enum_def(e)),
+        idl::Definition::Module(m) => Box::new(module_def(m)),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::idl_syntax::{BaseType, Definition, Enum, Module, Struct, StructMember, Type};
+    use crate::idl::{BaseType, Definition, Enum, Module, Struct, StructMember, Type};
 
     use super::*;
 
