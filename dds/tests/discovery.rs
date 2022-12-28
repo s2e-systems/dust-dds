@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
@@ -9,17 +7,11 @@ use dust_dds::{
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
+    topic_definition::type_support::{DdsSerde, DdsType},
 };
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct UserType(i32);
-
-impl dust_dds::topic_definition::type_support::DdsSerde for UserType {}
-impl dust_dds::topic_definition::type_support::DdsType for UserType {
-    fn type_name() -> &'static str {
-        "UserType"
-    }
-}
 
 #[test]
 fn writer_discovers_reader_in_same_participant() {
@@ -290,24 +282,18 @@ fn participant_records_discovered_topics() {
             .unwrap();
     }
 
-    // Wait for topics to be discovered
-    let waiting_time = Instant::now();
-    while participant2.get_discovered_topics().unwrap().len() < topic_names.len() {
-        std::thread::sleep(std::time::Duration::from_millis(50));
-
-        if waiting_time.elapsed() > std::time::Duration::from_secs(5) {
-            panic!("Topic discovery is taking too long")
-        }
+    for name in topic_names {
+        participant2
+            .find_topic::<UserType>(name, Duration::new(2, 0))
+            .unwrap();
     }
 
-    let mut discovered_topic_names: Vec<String> = participant2
+    let discovered_topic_names: Vec<String> = participant2
         .get_discovered_topics()
         .unwrap()
         .iter()
         .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
         .collect();
-    discovered_topic_names.sort();
-
     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 3".to_string()));
@@ -344,4 +330,46 @@ fn participant_announces_updated_qos() {
         .unwrap();
 
     std::thread::sleep(std::time::Duration::from_secs(5));
+}
+
+
+
+
+#[test]
+fn reader_discovers_disposed_writer_same_participant() {
+    let domain_id = 0;
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    publisher.delete_datawriter(&data_writer).unwrap();
+
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
 }

@@ -38,7 +38,11 @@ use crate::{
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
         },
     },
-    infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind},
+    infrastructure::{
+        instance::InstanceHandle,
+        qos::QosKind,
+        status::{StatusKind, NO_STATUS},
+    },
     publication::publisher_listener::PublisherListener,
     subscription::{
         sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -115,6 +119,7 @@ pub struct DomainParticipantImpl {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     announce_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
+    topic_find_condvar: DdsCondvar,
 }
 
 impl DomainParticipantImpl {
@@ -228,6 +233,7 @@ impl DomainParticipantImpl {
             user_defined_data_send_condvar,
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            topic_find_condvar: DdsCondvar::new(),
         })
     }
 }
@@ -429,11 +435,12 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         self.topic_list.write_lock().push(topic_shared.clone());
+        self.topic_find_condvar.notify_all();
 
         Ok(topic_shared)
     }
 
-    pub fn delete_topic<Foo>(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_topic(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .topic_list
             .read_lock()
@@ -461,22 +468,57 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn find_topic<Foo>(
         &self,
         topic_name: &str,
-        _timeout: Duration,
+        timeout: Duration,
     ) -> DdsResult<DdsShared<TopicImpl>>
     where
         Foo: DdsType,
     {
-        self.topic_list
-            .read_lock()
-            .iter()
-            .find_map(|topic| {
-                if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
-                    Some(topic.clone())
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
+        let start_time = self.get_current_time()?;
+
+        while self.get_current_time()? - start_time < timeout {
+            // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
+            // discovered and, if so, create a new local topic representing the discovered topic
+            if let Some(topic) = self.topic_list.read_lock().iter().find(|topic| {
+                topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name()
+            }) {
+                return Ok(topic.clone());
+            }
+
+            // NOTE: Do not make this an else with the previous if because the topic_list read_lock is
+            // kept and this enters a deadlock
+            if let Some((_, discovered_topic_info)) = self
+                .discovered_topic_list
+                .read_lock()
+                .iter()
+                .find(|&(_, t)| t.name == topic_name && t.type_name == Foo::type_name())
+            {
+                let qos = TopicQos {
+                    topic_data: discovered_topic_info.topic_data.clone(),
+                    durability: discovered_topic_info.durability.clone(),
+                    deadline: discovered_topic_info.deadline.clone(),
+                    latency_budget: discovered_topic_info.latency_budget.clone(),
+                    liveliness: discovered_topic_info.liveliness.clone(),
+                    reliability: discovered_topic_info.reliability.clone(),
+                    destination_order: discovered_topic_info.destination_order.clone(),
+                    history: discovered_topic_info.history.clone(),
+                    resource_limits: discovered_topic_info.resource_limits.clone(),
+                    transport_priority: discovered_topic_info.transport_priority.clone(),
+                    lifespan: discovered_topic_info.lifespan.clone(),
+                    ownership: discovered_topic_info.ownership.clone(),
+                };
+                return self.create_topic::<Foo>(
+                    &discovered_topic_info.name,
+                    QosKind::Specific(qos),
+                    None,
+                    NO_STATUS,
+                );
+            }
+            // Block until timeout unless new topic is found or created
+            self.topic_find_condvar
+                .wait_timeout(self.get_current_time()? - start_time)
+                .ok();
+        }
+        Err(DdsError::Timeout)
     }
 
     pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> Option<DdsShared<TopicImpl>>
@@ -532,12 +574,8 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -836,7 +874,14 @@ impl DdsShared<DomainParticipantImpl> {
             core::slice::from_ref(&self.builtin_subscriber),
             source_locator,
             &message,
-        )
+        )?;
+
+        self.discover_matched_participants()?;
+        self.discover_matched_readers()?;
+        self.discover_matched_writers()?;
+        self.discover_matched_topics()?;
+
+        Ok(())
     }
 
     pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
@@ -863,11 +908,11 @@ impl DdsShared<DomainParticipantImpl> {
         )
     }
 
-    pub fn discover_matched_participants(&self) -> DdsResult<()> {
+    fn discover_matched_participants(&self) -> DdsResult<()> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
-        if let Ok(samples) = spdp_builtin_participant_data_reader.take(
+        while let Ok(samples) = spdp_builtin_participant_data_reader.take(
             1,
             ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
@@ -883,8 +928,8 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_writers(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+    fn discover_matched_writers(&self) -> DdsResult<()> {
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
             .take::<DiscoveredWriterData>(
@@ -937,8 +982,8 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_readers(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+    fn discover_matched_readers(&self) -> DdsResult<()> {
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
             .take::<DiscoveredReaderData>(
@@ -991,18 +1036,23 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn discover_matched_topics(&self) -> DdsResult<()> {
-        if let Ok(samples) = self
+    fn discover_matched_topics(&self) -> DdsResult<()> {
+        while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()
-            .take::<DiscoveredTopicData>(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        {
+            .take::<DiscoveredTopicData>(
+            1,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
                     self.discovered_topic_list.write_lock().insert(
                         topic_data.get_serialized_key().into(),
                         topic_data.topic_builtin_topic_data.clone(),
                     );
+                    self.topic_find_condvar.notify_all();
                 }
             }
         }

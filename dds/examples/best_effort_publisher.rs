@@ -57,4 +57,7 @@ fn main() {
         println!("Wrote sample: {:?}", sample);
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
+
+    publisher.delete_datawriter(&writer).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 }

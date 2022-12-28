@@ -19,11 +19,7 @@ use crate::{
         subscriber::{Subscriber, SubscriberKind},
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::{
-        topic::Topic,
-        topic_listener::TopicListener,
-        type_support::{DdsDeserialize, DdsType},
-    },
+    topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::DdsType},
 };
 
 use super::{
@@ -174,13 +170,9 @@ impl DomainParticipant {
     /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()>
-    where
-        Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-    {
-        self.0
-            .upgrade()?
-            .delete_topic::<Foo>(a_topic.get_instance_handle()?)
+    pub fn delete_topic<'a, Foo: 'a>(&'a self, a_topic: &'a Topic<Foo>) -> DdsResult<()> {
+        let topic_handle = a_topic.0.upgrade()?.get_instance_handle();
+        self.0.upgrade()?.delete_topic(topic_handle)
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -284,7 +276,7 @@ impl DomainParticipant {
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        self.0.upgrade()?.get_domain_id()
+        Ok(self.0.upgrade()?.get_domain_id())
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,

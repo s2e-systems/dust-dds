@@ -95,6 +95,7 @@ impl BuiltinStatefulWriter {
         } else if type_name == DiscoveredTopicData::type_name() {
             participant_discovery.discovered_participant_add_topics_writer(&mut rtps_writer_lock);
         }
+        self.sedp_condvar.notify_all();
     }
 }
 
