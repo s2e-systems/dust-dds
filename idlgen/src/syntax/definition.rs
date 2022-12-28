@@ -51,9 +51,29 @@ fn enum_dcl<'i>() -> AnalyserObject<'i, idl::Enum> {
 }
 
 fn struct_member<'i>() -> AnalyserObject<'i, idl::StructMember> {
-    type_spec()
+    key_annotation()
+        .zip(type_spec())
         .zip(declarators())
-        .map(|(datatype, name)| idl::StructMember { datatype, name })
+        .map(|((is_key, datatype), name)| idl::StructMember {
+            is_key,
+            datatype,
+            name,
+        })
+}
+
+fn key_annotation<'i>() -> AnalyserObject<'i, bool> {
+    extract(
+        try_within(
+            rule(Rule::annotation_appl),
+            within(
+                rule(Rule::scoped_name),
+                identifier()
+                    .filter(|identifier| identifier == "key")
+                    .map(|_| true),
+            ),
+        )
+        .or(pure(Ok(Analysed::pure(false)))),
+    )
 }
 
 fn declarators<'i>() -> AnalyserObject<'i, String> {

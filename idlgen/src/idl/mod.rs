@@ -19,6 +19,7 @@ pub struct Struct {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructMember {
+    pub is_key: bool,
     pub datatype: Type,
     pub name: String,
 }

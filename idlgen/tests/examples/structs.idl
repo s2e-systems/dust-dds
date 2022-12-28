@@ -4,8 +4,8 @@ struct Point {
 };
 
 struct ChessSquare {
-    char column;
-    unsigned short line;
+    @key char column;
+    @key unsigned short line;
 };
 
 struct HelloWorld {

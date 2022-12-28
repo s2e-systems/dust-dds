@@ -40,7 +40,12 @@ pub fn type_spec(t: idl::Type) -> String {
 }
 
 pub fn struct_member(member: idl::StructMember) -> String {
-    format!("pub {}: {}", member.name, type_spec(member.datatype))
+    let key_tag = if member.is_key {
+        "#[key] "
+    } else {
+        ""
+    };
+    format!("{}pub {}: {}", key_tag, member.name, type_spec(member.datatype))
 }
 
 pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
@@ -105,14 +110,17 @@ mod tests {
                 name: "Toto".to_string(),
                 members: vec![
                     StructMember {
+                        is_key: false,
                         datatype: Type::BaseType(BaseType::LongLong),
                         name: "a".to_string()
                     },
                     StructMember {
+                        is_key: false,
                         datatype: Type::BaseType(BaseType::Char),
                         name: "b".to_string()
                     },
                     StructMember {
+                        is_key: false,
                         datatype: Type::BaseType(BaseType::Double),
                         name: "c".to_string()
                     },
@@ -164,8 +172,9 @@ mod tests {
                     Definition::Struct(Struct {
                         name: "A".to_string(),
                         members: vec![StructMember {
+                            is_key: false,
                             datatype: Type::BaseType(BaseType::Short),
-                            name: "a".to_string()
+                            name: "a".to_string(),
                         }]
                     }),
                     Definition::Module(Module {
