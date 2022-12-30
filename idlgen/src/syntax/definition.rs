@@ -5,24 +5,18 @@ use crate::idl;
 use crate::parser::Rule;
 
 pub fn definition<'i>() -> AnalyserObject<'i, idl::Definition> {
-    match_pair(vec![
+    match_rule(vec![
         (
-            rule(Rule::type_dcl),
+            Rule::type_dcl,
             within(
                 rule(Rule::constr_type_dcl),
-                match_pair(vec![
-                    (
-                        rule(Rule::struct_dcl),
-                        struct_dcl().map(idl::Definition::Struct),
-                    ),
-                    (rule(Rule::enum_dcl), enum_dcl().map(idl::Definition::Enum)),
+                match_rule(vec![
+                    (Rule::struct_dcl, struct_dcl().map(idl::Definition::Struct)),
+                    (Rule::enum_dcl, enum_dcl().map(idl::Definition::Enum)),
                 ]),
             ),
         ),
-        (
-            rule(Rule::module_dcl),
-            module_dcl().map(idl::Definition::Module),
-        ),
+        (Rule::module_dcl, module_dcl().map(idl::Definition::Module)),
     ])
 }
 

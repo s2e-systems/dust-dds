@@ -64,6 +64,13 @@ pub enum Type {
     // ScopedName(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOperator {
+    Minus,
+    Plus,
+    Not,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Integer(i64),

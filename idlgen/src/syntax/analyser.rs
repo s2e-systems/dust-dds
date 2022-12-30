@@ -288,6 +288,14 @@ pub fn next_pair<'i>() -> AnalyserObject<'i, Pair<'i>> {
     })
 }
 
+pub fn maybe<'i, A, T>(a: A) -> AnalyserObject<'i, Option<T>>
+where
+    A: Analyser<'i, T> + 'i,
+    T: Clone + 'i,
+{
+    a.map(Some).or(pure(None))
+}
+
 pub fn many<'i, A, T>(a: A) -> AnalyserObject<'i, Vec<T>>
 where
     A: Analyser<'i, T> + 'i,
@@ -392,6 +400,18 @@ where
     extract(try_within(pair_analyser, analyser))
 }
 
+pub fn maybe_within<'i, APair, A, T>(
+    pair_analyser: APair,
+    analyser: A,
+) -> AnalyserObject<'i, Option<T>>
+where
+    APair: Analyser<'i, Pair<'i>> + 'i,
+    A: Analyser<'i, T> + 'i,
+    T: Clone + 'i,
+{
+    extract(try_within(pair_analyser, analyser.map(Some)).or(pure(Ok(Analysed::pure(None)))))
+}
+
 pub fn many_within<'i, APair, A, T>(pair_analyser: APair, analyser: A) -> AnalyserObject<'i, Vec<T>>
 where
     APair: Analyser<'i, Pair<'i>> + 'i,
@@ -401,16 +421,31 @@ where
     extract_vec(many(try_within(pair_analyser, analyser)))
 }
 
-pub fn match_pair<'i, T>(
-    cases: Vec<(AnalyserObject<'i, Pair<'i>>, AnalyserObject<'i, T>)>,
-) -> AnalyserObject<'i, T>
+pub fn match_rule<'i, T>(cases: Vec<(Rule, AnalyserObject<'i, T>)>) -> AnalyserObject<'i, T>
 where
     T: Clone + 'i,
 {
+    let rules: Vec<Rule> = cases.iter().map(|&(r, _)| r).collect();
+    let rules2 = rules.clone();
+
+    let match_fail = next_pair()
+        .and_then(move |p| {
+            fail(&format!(
+                "Expected one of {:?} but got {:?} instead",
+                rules,
+                p.as_rule()
+            ))
+        })
+        .or(fail(&format!(
+            "Expected one of {:?} but reached end of input",
+            rules2
+        )));
+
     extract(
         cases
             .into_iter()
-            .map(|(pair_analyser, analyser)| try_within(pair_analyser, analyser))
-            .fold(fail("match_pair: empty case list"), |a, b| a.or(b)),
+            .map(|(rule_name, analyser)| try_within(rule(rule_name), analyser))
+            .chain([match_fail])
+            .fold(fail("unreachable"), |a, b| a.or(b)),
     )
 }
