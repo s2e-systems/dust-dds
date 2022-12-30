@@ -64,9 +64,9 @@ jobs:
             cmake ../interoperability_tests
             cmake --build .
       - run:
-          name: Build examples
+          name: Build dust binaries
           command: |
-            cargo build --examples
+            cargo build
       - run:
           name: Hello world subscriber interoperability test
           no_output_timeout: 30s
