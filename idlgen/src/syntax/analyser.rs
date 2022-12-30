@@ -254,7 +254,10 @@ pub fn eoi<'i>() -> AnalyserObject<'i, ()> {
     AnalyserObject::new(|input| {
         let not_analysed = input
             .clone()
-            .map(|pair| Some(pair.as_span()))
+            .filter_map(|pair| match pair.as_rule() {
+                Rule::COMMENT => None,
+                _ => Some(Some(pair.as_span()))
+            })
             .fold(None, join_spans);
 
         if not_analysed.is_some() {
@@ -274,7 +277,7 @@ pub fn eoi<'i>() -> AnalyserObject<'i, ()> {
 
 pub fn next_pair<'i>() -> AnalyserObject<'i, Pair<'i>> {
     AnalyserObject::new(|mut pairs| {
-        let pair = pairs.next().ok_or(Error {
+        let pair = pairs.find(|p| p.as_rule() != Rule::COMMENT).ok_or(Error {
             message: "Unexpected end of input".to_string(),
             span: None,
         })?;
