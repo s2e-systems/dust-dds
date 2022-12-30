@@ -19,6 +19,7 @@ pub struct Struct {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructMember {
+    pub is_key: bool,
     pub datatype: Type,
     pub name: String,
 }
@@ -61,6 +62,13 @@ pub enum Type {
     BaseType(BaseType),
     TemplateType(TemplateType),
     // ScopedName(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOperator {
+    Minus,
+    Plus,
+    Not,
 }
 
 #[derive(Debug, Clone, PartialEq)]

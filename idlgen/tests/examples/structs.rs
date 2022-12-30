@@ -5,8 +5,8 @@ pub struct Point {
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
 pub struct ChessSquare {
-    pub column: char,
-    pub line: u16,
+    #[key] pub column: char,
+    #[key] pub line: u16,
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
 pub struct HelloWorld {
@@ -16,4 +16,9 @@ pub struct HelloWorld {
 #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
 pub struct Sentence {
     pub words: Vec<String>,
+    pub dependencies: Vec<[u32; 2]>,
+}
+#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]
+pub struct User {
+    pub name: [char; 8],
 }

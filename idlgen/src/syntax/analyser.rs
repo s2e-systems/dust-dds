@@ -21,10 +21,40 @@ impl<'i> Error<'i> {
     }
 }
 
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
+pub struct Input<'i> {
+    pairs: Option<Pairs<'i>>,
+}
+
+impl<'i> From<Pairs<'i>> for Input<'i> {
+    fn from(pairs: Pairs<'i>) -> Self {
+        Input { pairs: Some(pairs) }
+    }
+}
+
+impl<'i> Iterator for Input<'i> {
+    type Item = Pair<'i>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pairs.as_mut().and_then(|it| it.next())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Analysed<'i, T> {
     pub value: T,
     pub span: Option<Span<'i>>,
-    pub next: Pairs<'i>,
+    pub next: Input<'i>,
+}
+
+impl<'i, T> Analysed<'i, T> {
+    pub fn pure(value: T) -> Self {
+        Analysed {
+            value,
+            span: None,
+            next: Input::default(),
+        }
+    }
 }
 
 fn join_spans<'i>(a: Option<Span<'i>>, b: Option<Span<'i>>) -> Option<Span<'i>> {
@@ -39,15 +69,15 @@ fn join_spans<'i>(a: Option<Span<'i>>, b: Option<Span<'i>>) -> Option<Span<'i>> 
 pub type Result<'i, T> = core::result::Result<Analysed<'i, T>, Error<'i>>;
 
 pub trait Analyser<'i, T> {
-    fn analyse(&self, pairs: Pairs<'i>) -> Result<'i, T>;
+    fn analyse(&self, input: Input<'i>) -> Result<'i, T>;
 
     fn filter<Pred>(self, pred: Pred) -> AnalyserObject<'i, T>
     where
         Self: Sized + 'i,
         Pred: Fn(&T) -> bool + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            let analysed = self.analyse(pairs)?;
+        AnalyserObject::new(move |input| {
+            let analysed = self.analyse(input)?;
             if !pred(&analysed.value) {
                 Err(Error {
                     message: "Predicate failed".to_string(),
@@ -64,8 +94,9 @@ pub trait Analyser<'i, T> {
         Self: Sized + 'i,
         A: Analyser<'i, T> + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            self.analyse(pairs.clone()).or_else(|_| other.analyse(pairs))
+        AnalyserObject::new(move |input| {
+            self.analyse(input.clone())
+                .or_else(|_| other.analyse(input))
         })
     }
 
@@ -74,8 +105,8 @@ pub trait Analyser<'i, T> {
         Self: Sized + 'i,
         Map: Fn(T) -> U + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            let analysed = self.analyse(pairs)?;
+        AnalyserObject::new(move |input| {
+            let analysed = self.analyse(input)?;
             Ok(Analysed {
                 value: map(analysed.value),
                 span: analysed.span,
@@ -89,8 +120,8 @@ pub trait Analyser<'i, T> {
         Self: Sized + 'i,
         A: Analyser<'i, U> + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            let fst = self.analyse(pairs)?;
+        AnalyserObject::new(move |input| {
+            let fst = self.analyse(input)?;
             let snd = other.analyse(fst.next)?;
 
             Ok(Analysed {
@@ -107,8 +138,8 @@ pub trait Analyser<'i, T> {
         Bind: Fn(T) -> A + 'i,
         A: Analyser<'i, U> + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            let analysed = self.analyse(pairs)?;
+        AnalyserObject::new(move |input| {
+            let analysed = self.analyse(input)?;
             bind(analysed.value).analyse(analysed.next)
         })
     }
@@ -117,16 +148,10 @@ pub trait Analyser<'i, T> {
     where
         Self: Sized + 'i,
     {
-        AnalyserObject::new(move |pairs| {
-            self.analyse(pairs)
-                .map(|analysed| Analysed {
-                    span,
-                    ..analysed
-                })
-                .map_err(|err| Error {
-                    span,
-                    ..err
-                })
+        AnalyserObject::new(move |input| {
+            self.analyse(input)
+                .map(|analysed| Analysed { span, ..analysed })
+                .map_err(|err| Error { span, ..err })
         })
     }
 
@@ -135,8 +160,8 @@ pub trait Analyser<'i, T> {
         Self: Sized + 'i,
     {
         let msg = msg.to_string();
-        AnalyserObject::new(move |pairs| {
-            self.analyse(pairs).map_err(|err| Error {
+        AnalyserObject::new(move |input| {
+            self.analyse(input).map_err(|err| Error {
                 message: msg.clone(),
                 ..err
             })
@@ -166,10 +191,10 @@ pub trait Analyser<'i, T> {
 
 impl<'i, T, F> Analyser<'i, T> for F
 where
-    F: Fn(Pairs<'i>) -> Result<'i, T>,
+    F: Fn(Input<'i>) -> Result<'i, T>,
 {
-    fn analyse(&self, pairs: Pairs<'i>) -> Result<'i, T> {
-        self(pairs)
+    fn analyse(&self, input: Input<'i>) -> Result<'i, T> {
+        self(input)
     }
 }
 
@@ -180,7 +205,7 @@ pub struct AnalyserObject<'i, T> {
 impl<'i, T> AnalyserObject<'i, T> {
     pub fn new<F>(analyse: F) -> Self
     where
-        F: Fn(Pairs<'i>) -> Result<'i, T> + 'i,
+        F: Fn(Input<'i>) -> Result<'i, T> + 'i,
     {
         AnalyserObject {
             analyser: Box::new(analyse),
@@ -189,8 +214,8 @@ impl<'i, T> AnalyserObject<'i, T> {
 }
 
 impl<'i, T> Analyser<'i, T> for AnalyserObject<'i, T> {
-    fn analyse(&self, pairs: Pairs<'i>) -> Result<'i, T> {
-        self.analyser.analyse(pairs)
+    fn analyse(&self, input: Input<'i>) -> Result<'i, T> {
+        self.analyser.analyse(input)
     }
 }
 
@@ -198,11 +223,11 @@ pub fn pure<'i, T>(x: T) -> AnalyserObject<'i, T>
 where
     T: Clone + 'i,
 {
-    AnalyserObject::new(move |pairs| {
+    AnalyserObject::new(move |input| {
         Ok(Analysed {
             value: x.clone(),
             span: None,
-            next: pairs,
+            next: input,
         })
     })
 }
@@ -222,14 +247,17 @@ where
     LazyA: Fn() -> A + 'i,
     A: Analyser<'i, T> + 'i,
 {
-    AnalyserObject::new(move |pairs| analyser().analyse(pairs))
+    AnalyserObject::new(move |input| analyser().analyse(input))
 }
 
 pub fn eoi<'i>() -> AnalyserObject<'i, ()> {
-    AnalyserObject::new(|pairs| {
-        let not_analysed = pairs
+    AnalyserObject::new(|input| {
+        let not_analysed = input
             .clone()
-            .map(|pair| Some(pair.as_span()))
+            .filter_map(|pair| match pair.as_rule() {
+                Rule::COMMENT => None,
+                _ => Some(Some(pair.as_span()))
+            })
             .fold(None, join_spans);
 
         if not_analysed.is_some() {
@@ -241,7 +269,7 @@ pub fn eoi<'i>() -> AnalyserObject<'i, ()> {
             Ok(Analysed {
                 value: (),
                 span: None,
-                next: pairs,
+                next: input,
             })
         }
     })
@@ -249,7 +277,7 @@ pub fn eoi<'i>() -> AnalyserObject<'i, ()> {
 
 pub fn next_pair<'i>() -> AnalyserObject<'i, Pair<'i>> {
     AnalyserObject::new(|mut pairs| {
-        let pair = pairs.next().ok_or(Error {
+        let pair = pairs.find(|p| p.as_rule() != Rule::COMMENT).ok_or(Error {
             message: "Unexpected end of input".to_string(),
             span: None,
         })?;
@@ -263,14 +291,22 @@ pub fn next_pair<'i>() -> AnalyserObject<'i, Pair<'i>> {
     })
 }
 
+pub fn maybe<'i, A, T>(a: A) -> AnalyserObject<'i, Option<T>>
+where
+    A: Analyser<'i, T> + 'i,
+    T: Clone + 'i,
+{
+    a.map(Some).or(pure(None))
+}
+
 pub fn many<'i, A, T>(a: A) -> AnalyserObject<'i, Vec<T>>
 where
     A: Analyser<'i, T> + 'i,
 {
-    AnalyserObject::new(move |pairs| {
+    AnalyserObject::new(move |input| {
         let mut result = vec![];
         let mut span = None;
-        let mut next = pairs;
+        let mut next = input;
 
         while let Ok(analysed) = a.analyse(next.clone()) {
             result.push(analysed.value);
@@ -312,7 +348,7 @@ where
     A: Analyser<'i, T> + 'i,
     T: Clone,
 {
-    pair_analyser.map(move |pair| analyser.analyse(pair.into_inner()))
+    pair_analyser.map(move |pair| analyser.analyse(pair.into_inner().into()))
 }
 
 pub fn try_within<'i, APair, A, T>(
@@ -367,6 +403,18 @@ where
     extract(try_within(pair_analyser, analyser))
 }
 
+pub fn maybe_within<'i, APair, A, T>(
+    pair_analyser: APair,
+    analyser: A,
+) -> AnalyserObject<'i, Option<T>>
+where
+    APair: Analyser<'i, Pair<'i>> + 'i,
+    A: Analyser<'i, T> + 'i,
+    T: Clone + 'i,
+{
+    extract(try_within(pair_analyser, analyser.map(Some)).or(pure(Ok(Analysed::pure(None)))))
+}
+
 pub fn many_within<'i, APair, A, T>(pair_analyser: APair, analyser: A) -> AnalyserObject<'i, Vec<T>>
 where
     APair: Analyser<'i, Pair<'i>> + 'i,
@@ -376,16 +424,31 @@ where
     extract_vec(many(try_within(pair_analyser, analyser)))
 }
 
-pub fn match_pair<'i, T>(
-    cases: Vec<(AnalyserObject<'i, Pair<'i>>, AnalyserObject<'i, T>)>,
-) -> AnalyserObject<'i, T>
+pub fn match_rule<'i, T>(cases: Vec<(Rule, AnalyserObject<'i, T>)>) -> AnalyserObject<'i, T>
 where
     T: Clone + 'i,
 {
+    let rules: Vec<Rule> = cases.iter().map(|&(r, _)| r).collect();
+    let rules2 = rules.clone();
+
+    let match_fail = next_pair()
+        .and_then(move |p| {
+            fail(&format!(
+                "Expected one of {:?} but got {:?} instead",
+                rules,
+                p.as_rule()
+            ))
+        })
+        .or(fail(&format!(
+            "Expected one of {:?} but reached end of input",
+            rules2
+        )));
+
     extract(
         cases
             .into_iter()
-            .map(|(pair_analyser, analyser)| try_within(pair_analyser, analyser))
-            .fold(fail("match_pair: empty case list"), |a, b| a.or(b)),
+            .map(|(rule_name, analyser)| try_within(rule(rule_name), analyser))
+            .chain([match_fail])
+            .fold(fail("unreachable"), |a, b| a.or(b)),
     )
 }

@@ -5,24 +5,18 @@ use crate::idl;
 use crate::parser::Rule;
 
 pub fn definition<'i>() -> AnalyserObject<'i, idl::Definition> {
-    match_pair(vec![
+    match_rule(vec![
         (
-            rule(Rule::type_dcl),
+            Rule::type_dcl,
             within(
                 rule(Rule::constr_type_dcl),
-                match_pair(vec![
-                    (
-                        rule(Rule::struct_dcl),
-                        struct_dcl().map(idl::Definition::Struct),
-                    ),
-                    (rule(Rule::enum_dcl), enum_dcl().map(idl::Definition::Enum)),
+                match_rule(vec![
+                    (Rule::struct_dcl, struct_dcl().map(idl::Definition::Struct)),
+                    (Rule::enum_dcl, enum_dcl().map(idl::Definition::Enum)),
                 ]),
             ),
         ),
-        (
-            rule(Rule::module_dcl),
-            module_dcl().map(idl::Definition::Module),
-        ),
+        (Rule::module_dcl, module_dcl().map(idl::Definition::Module)),
     ])
 }
 
@@ -51,9 +45,29 @@ fn enum_dcl<'i>() -> AnalyserObject<'i, idl::Enum> {
 }
 
 fn struct_member<'i>() -> AnalyserObject<'i, idl::StructMember> {
-    type_spec()
+    key_annotation()
+        .zip(type_spec())
         .zip(declarators())
-        .map(|(datatype, name)| idl::StructMember { datatype, name })
+        .map(|((is_key, datatype), name)| idl::StructMember {
+            is_key,
+            datatype,
+            name,
+        })
+}
+
+fn key_annotation<'i>() -> AnalyserObject<'i, bool> {
+    extract(
+        try_within(
+            rule(Rule::annotation_appl),
+            within(
+                rule(Rule::scoped_name),
+                identifier()
+                    .filter(|identifier| identifier == "key")
+                    .map(|_| true),
+            ),
+        )
+        .or(pure(Ok(Analysed::pure(false)))),
+    )
 }
 
 fn declarators<'i>() -> AnalyserObject<'i, String> {
