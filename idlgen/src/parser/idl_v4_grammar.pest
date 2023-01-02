@@ -305,7 +305,7 @@ struct_dcl = {
 // (46) (195)
 struct_def = { "struct" ~ identifier ~ (":" ~ scoped_name)? ~ "{" ~ member* ~ "}" }
 // (47)
-member = { type_spec ~ declarators ~ ";" }
+member = { annotation_appl? ~ type_spec ~ declarators ~ ";" }
 // (48)
 struct_forward_dcl = { "struct" ~ identifier }
 // (49)

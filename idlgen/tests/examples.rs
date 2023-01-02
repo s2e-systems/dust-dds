@@ -4,9 +4,9 @@ use std::{
 };
 
 use dust_idlgen::{
-    idl_parser,
-    idl_syntax::{self, Analyser},
-    rust_mapping,
+    parser,
+    syntax::{self, Analyser},
+    mappings::rust,
 };
 use pest::Parser;
 
@@ -34,15 +34,15 @@ fn verify_examples() {
 
         let idl_src = std::fs::read_to_string(idl_path.clone())
             .expect("(;_;) Couldn't read IDL source file!");
-        let parsed_idl = idl_parser::IdlParser::parse(idl_parser::Rule::specification, &idl_src)
+        let parsed_idl = parser::IdlParser::parse(parser::Rule::specification, &idl_src)
             .expect(&format!("(;_;) Parse error in {:?}", idl_path));
-        let idl_spec = idl_syntax::specification()
-            .analyse(parsed_idl.tokens())
+        let idl_spec = syntax::specification()
+            .analyse(parsed_idl.into())
             .expect(&format!("(;_;) Syntax error in {:?}", idl_path));
         let result_lines = idl_spec
             .value
             .into_iter()
-            .flat_map(rust_mapping::definition);
+            .flat_map(rust::definition);
 
         for (expected_line, result_line) in
             expected_lines.zip(result_lines.chain(std::iter::repeat("".to_string())))

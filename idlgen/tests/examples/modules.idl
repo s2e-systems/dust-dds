@@ -1,5 +1,11 @@
+/*
+ * Module IDL example
+ */
+
+/// Game module
 module Game
 {
+    /// Chess
     module Chess
     {
         enum ChessPiece
@@ -9,14 +15,14 @@ module Game
 
         struct ChessSquare
         {
-            char column;
-            unsigned short line;
+            char column;          // A, B, ..., G
+            unsigned short line;  // 1, 2, ..., 8
         };
     };
 
     module Cards
     {
-        enum Suit { Spades, Hearts, Diamonds, Clubs };
+        enum Suit { Spades, Hearts, Diamonds, Clubs /*, NoTrump */ };
     };
 };
 

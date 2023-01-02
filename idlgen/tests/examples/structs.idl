@@ -4,8 +4,8 @@ struct Point {
 };
 
 struct ChessSquare {
-    char column;
-    unsigned short line;
+    @key char column;
+    @key unsigned short line;
 };
 
 struct HelloWorld {
@@ -15,4 +15,9 @@ struct HelloWorld {
 
 struct Sentence {
     sequence<wstring> words;
+    sequence<sequence<unsigned long, 2> > dependencies;
+};
+
+struct User {
+    wstring<8> name;
 };
