@@ -204,7 +204,7 @@ impl Subscriber {
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
             SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.get_default_datareader_qos(),
+            SubscriberKind::UserDefined(s) => Ok(s.upgrade()?.get_default_datareader_qos()),
         }
     }
 

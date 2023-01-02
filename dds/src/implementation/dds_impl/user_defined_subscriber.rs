@@ -46,7 +46,7 @@ pub struct UserDefinedSubscriber {
     rtps_group: RtpsGroupImpl,
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
     user_defined_data_reader_counter: u8,
-    default_data_reader_qos: DataReaderQos,
+    default_data_reader_qos: DdsRwLock<DataReaderQos>,
     enabled: DdsRwLock<bool>,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -70,7 +70,7 @@ impl UserDefinedSubscriber {
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
             user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DataReaderQos::default(),
+            default_data_reader_qos: DdsRwLock::new(DataReaderQos::default()),
             enabled: DdsRwLock::new(false),
             parent_participant,
             user_defined_data_send_condvar,
@@ -136,7 +136,7 @@ impl DdsShared<UserDefinedSubscriber> {
         // /////// Create data reader
         let data_reader_shared = {
             let qos = match qos {
-                QosKind::Default => self.default_data_reader_qos.clone(),
+                QosKind::Default => self.default_data_reader_qos.read_lock().clone(),
                 QosKind::Specific(q) => q,
             };
             qos.is_consistent()?;
@@ -253,12 +253,21 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn set_default_datareader_qos(&self, _qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => {
+                *self.default_data_reader_qos.write_lock() = DataReaderQos::default()
+            }
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                *self.default_data_reader_qos.write_lock() = q;
+            }
+        }
+        Ok(())
     }
 
-    pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
-        todo!()
+    pub fn get_default_datareader_qos(&self) -> DataReaderQos {
+        self.default_data_reader_qos.read_lock().clone()
     }
 
     pub fn update_communication_status(&self, now: Time) {
