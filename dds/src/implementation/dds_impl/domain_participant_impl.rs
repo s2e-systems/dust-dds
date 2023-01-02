@@ -357,7 +357,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber_shared.enable(self)?;
+            subscriber_shared.enable()?;
         }
 
         self.user_defined_subscriber_list
@@ -746,7 +746,7 @@ impl DdsShared<DomainParticipantImpl> {
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                    subscriber.enable(self)?;
+                    subscriber.enable()?;
                 }
 
                 for topic in self.topic_list.read_lock().iter() {

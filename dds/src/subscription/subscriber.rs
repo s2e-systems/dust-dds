@@ -1,7 +1,5 @@
 use crate::{
-    domain::{
-        domain_participant::DomainParticipant, domain_participant_factory::THE_PARTICIPANT_FACTORY,
-    },
+    domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener, builtin_subscriber::BuiltInSubscriber,
     },
@@ -157,10 +155,12 @@ impl Subscriber {
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        let dp = THE_PARTICIPANT_FACTORY
-            .lookup_participant_by_entity_handle(self.get_instance_handle()?);
-
-        Ok(DomainParticipant::new(dp.downgrade()))
+        match &self.0 {
+            SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
+            SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(
+                s.upgrade()?.get_participant().downgrade(),
+            )),
+        }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
@@ -323,10 +323,7 @@ impl Subscriber {
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.enable(
-                &THE_PARTICIPANT_FACTORY
-                    .lookup_participant_by_entity_handle(self.get_instance_handle()?),
-            ),
+            SubscriberKind::UserDefined(s) => s.upgrade()?.enable(),
         }
     }
 

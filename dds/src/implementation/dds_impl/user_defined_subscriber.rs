@@ -303,8 +303,8 @@ impl DdsShared<UserDefinedSubscriber> {
         todo!()
     }
 
-    pub fn enable(&self, parent_participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
-        if !parent_participant.is_enabled() {
+    pub fn enable(&self) -> DdsResult<()> {
+        if !self.get_participant().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
