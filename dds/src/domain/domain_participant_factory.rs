@@ -1,20 +1,16 @@
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        dds_impl::{
-            configuration::DustDdsConfiguration, dcps_service::DcpsService,
-            domain_participant_impl::DomainParticipantImpl,
-        },
+        dds_impl::{configuration::DustDdsConfiguration, dcps_service::DcpsService},
         rtps::{
             participant::RtpsParticipant,
             types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
         },
         rtps_udp_psm::udp_transport::RtpsUdpPsm,
-        utils::shared_object::{DdsRwLock, DdsShared},
+        utils::shared_object::DdsRwLock,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -187,29 +183,5 @@ impl DomainParticipantFactory {
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {
         self.qos.read_lock().clone()
-    }
-}
-
-impl DomainParticipantFactory {
-    /// This functions returns the participant which is the parent
-    /// of the object passed as instance handle.
-    pub(crate) fn lookup_participant_by_entity_handle(
-        &self,
-        instance_handle: InstanceHandle,
-    ) -> DdsShared<DomainParticipantImpl> {
-        let participant_list_lock = self.participant_list.read_lock();
-        participant_list_lock
-            .iter()
-            .find(|x| {
-                if let Ok(handle) = x.participant().get_instance_handle() {
-                    <[u8; 16]>::from(handle)[0..12] == <[u8; 16]>::from(instance_handle)[0..12]
-                } else {
-                    false
-                }
-            })
-            .map(|x| x.participant().clone())
-            // This function is only used internally and only for valid handles
-            // so it should never fail to find an existing participant
-            .expect("Failed to find participant in factory")
     }
 }
