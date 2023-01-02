@@ -685,10 +685,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         let now_system_time = SystemTime::now();
         match now_system_time.duration_since(UNIX_EPOCH) {
             Ok(unix_time) => Ok(Time::new(
