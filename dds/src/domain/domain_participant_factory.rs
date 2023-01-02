@@ -31,6 +31,7 @@ lazy_static! {
     pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
         participant_list: DdsRwLock::new(vec![]),
         qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
+        default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
     };
 }
 
@@ -40,6 +41,7 @@ lazy_static! {
 pub struct DomainParticipantFactory {
     participant_list: DdsRwLock<Vec<DcpsService>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
+    default_participant_qos: DdsRwLock<DomainParticipantQos>,
 }
 
 impl DomainParticipantFactory {
@@ -65,7 +67,7 @@ impl DomainParticipantFactory {
         };
 
         let qos = match qos {
-            QosKind::Default => Default::default(),
+            QosKind::Default => self.default_participant_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
         };
 
@@ -148,11 +150,15 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] entities in the case where the QoS policies are defaulted in the [`DomainParticipantFactory::create_participant`] operation.
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
-    pub fn set_default_participant_qos(
-        &self,
-        _qos: QosKind<DomainParticipantQos>,
-    ) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => {
+                *self.default_participant_qos.write_lock() = DomainParticipantQos::default()
+            }
+            QosKind::Specific(q) => *self.default_participant_qos.write_lock() = q,
+        };
+
+        Ok(())
     }
 
     /// This operation retrieves the default value of the [`DomainParticipantQos`], that is, the QoS policies which will be used for
@@ -161,7 +167,7 @@ impl DomainParticipantFactory {
     /// The values retrieved by [`DomainParticipantFactory::get_default_participant_qos`] will match the set of values specified on the last successful call to
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
-        todo!()
+        self.default_participant_qos.read_lock().clone()
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object

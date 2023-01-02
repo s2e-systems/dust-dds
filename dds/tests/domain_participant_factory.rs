@@ -3,8 +3,14 @@ use dust_dds::{
     infrastructure::{
         error::DdsError,
         instance::HANDLE_NIL,
-        qos::{DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, QosKind},
-        qos_policy::{EntityFactoryQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos::{
+            DataReaderQos, DataWriterQos, DomainParticipantFactoryQos, DomainParticipantQos,
+            QosKind,
+        },
+        qos_policy::{
+            EntityFactoryQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            UserDataQosPolicy,
+        },
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -48,6 +54,34 @@ fn create_not_enabled_entities() {
         .unwrap();
 
     assert_eq!(result, Err(DdsError::NotEnabled));
+}
+
+#[test]
+fn default_participant_qos() {
+    let domain_id = 0;
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let user_data = vec![1, 2, 3];
+    let qos = DomainParticipantQos {
+        user_data: UserDataQosPolicy {
+            value: user_data.clone(),
+        },
+        ..Default::default()
+    };
+
+    domain_participant_factory
+        .set_default_participant_qos(QosKind::Specific(qos))
+        .unwrap();
+
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    domain_participant_factory
+        .set_default_participant_qos(QosKind::Default)
+        .unwrap();
+
+    assert_eq!(participant.get_qos().unwrap().user_data.value, user_data);
 }
 
 #[test]
