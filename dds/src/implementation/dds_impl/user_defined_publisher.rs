@@ -45,7 +45,7 @@ pub struct UserDefinedPublisher {
     rtps_group: RtpsGroupImpl,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
     user_defined_data_writer_counter: AtomicU8,
-    default_datawriter_qos: DataWriterQos,
+    default_datawriter_qos: DdsRwLock<DataWriterQos>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
@@ -67,7 +67,7 @@ impl UserDefinedPublisher {
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
             user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DataWriterQos::default(),
+            default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
@@ -125,7 +125,7 @@ impl DdsShared<UserDefinedPublisher> {
         // /////// Create data writer
         let data_writer_shared = {
             let qos = match qos {
-                QosKind::Default => self.default_datawriter_qos.clone(),
+                QosKind::Default => self.default_datawriter_qos.read_lock().clone(),
                 QosKind::Specific(q) => q,
             };
             qos.is_consistent()?;
@@ -275,12 +275,22 @@ impl DdsShared<UserDefinedPublisher> {
         Ok(())
     }
 
-    pub fn set_default_datawriter_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => {
+                *self.default_datawriter_qos.write_lock() = DataWriterQos::default()
+            }
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                *self.default_datawriter_qos.write_lock() = q;
+            }
+        }
+
+        Ok(())
     }
 
-    pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        todo!()
+    pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
+        self.default_datawriter_qos.read_lock().clone()
     }
 
     pub fn copy_from_topic_qos(

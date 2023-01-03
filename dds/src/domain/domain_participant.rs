@@ -319,7 +319,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.upgrade()?.get_default_publisher_qos()
+        Ok(self.0.upgrade()?.get_default_publisher_qos())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -337,7 +337,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        self.0.upgrade()?.get_default_subscriber_qos()
+        Ok(self.0.upgrade()?.get_default_subscriber_qos())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -355,7 +355,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        self.0.upgrade()?.get_default_topic_qos()
+        Ok(self.0.upgrade()?.get_default_topic_qos())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not

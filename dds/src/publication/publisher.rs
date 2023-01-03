@@ -200,7 +200,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0.upgrade()?.get_default_datawriter_qos()
+        Ok(self.0.upgrade()?.get_default_datawriter_qos())
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.

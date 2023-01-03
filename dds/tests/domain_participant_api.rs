@@ -1,11 +1,14 @@
 use std::io::Write;
 
-use dust_dds::infrastructure::qos::QosKind;
-use dust_dds::infrastructure::status::NO_STATUS;
-use dust_dds::topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness};
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        qos::{PublisherQos, QosKind, SubscriberQos, TopicQos},
+        qos_policy::{GroupDataQosPolicy, TopicDataQosPolicy},
+        status::NO_STATUS,
+    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, Endianness},
 };
 
 struct TestType;
@@ -338,4 +341,106 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .delete_datareader(&a_datareader)
         .expect("Failed to delete datareader");
     assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
+}
+
+#[test]
+fn default_publisher_qos() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let group_data = vec![1, 2, 3];
+    let qos = PublisherQos {
+        group_data: GroupDataQosPolicy {
+            value: group_data.clone(),
+        },
+        ..Default::default()
+    };
+
+    participant
+        .set_default_publisher_qos(QosKind::Specific(qos))
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert_eq!(
+        &participant
+            .get_default_publisher_qos()
+            .unwrap()
+            .group_data
+            .value,
+        &group_data
+    );
+    assert_eq!(&publisher.get_qos().unwrap().group_data.value, &group_data);
+}
+
+#[test]
+fn default_subscriber_qos() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let group_data = vec![1, 2, 3];
+    let qos = SubscriberQos {
+        group_data: GroupDataQosPolicy {
+            value: group_data.clone(),
+        },
+        ..Default::default()
+    };
+
+    participant
+        .set_default_subscriber_qos(QosKind::Specific(qos))
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert_eq!(
+        &participant
+            .get_default_subscriber_qos()
+            .unwrap()
+            .group_data
+            .value,
+        &group_data
+    );
+    assert_eq!(&subscriber.get_qos().unwrap().group_data.value, &group_data);
+}
+
+#[test]
+fn default_topic_qos() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic_data = vec![1, 2, 3];
+    let qos = TopicQos {
+        topic_data: TopicDataQosPolicy {
+            value: topic_data.clone(),
+        },
+        ..Default::default()
+    };
+
+    participant
+        .set_default_topic_qos(QosKind::Specific(qos))
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<TestType>("default_topic_qos", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert_eq!(
+        &participant
+            .get_default_topic_qos()
+            .unwrap()
+            .topic_data
+            .value,
+        &topic_data
+    );
+    assert_eq!(&topic.get_qos().unwrap().topic_data.value, &topic_data);
 }
