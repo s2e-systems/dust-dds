@@ -117,10 +117,16 @@ impl DomainParticipantFactory {
             .position(|pm| DomainParticipant::new(pm.participant().downgrade()).eq(participant))
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        participant_list[index].shutdown_tasks();
-        participant_list.remove(index);
+        if participant_list[index].participant().is_empty() {
+            participant_list[index].shutdown_tasks();
+            participant_list.remove(index);
 
-        Ok(())
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
+        }
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple

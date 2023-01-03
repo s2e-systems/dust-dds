@@ -239,6 +239,12 @@ impl DomainParticipantImpl {
 }
 
 impl DdsShared<DomainParticipantImpl> {
+    pub fn is_empty(&self) -> bool {
+        self.user_defined_publisher_list.read_lock().is_empty()
+            && self.user_defined_publisher_list.read_lock().is_empty()
+            && self.topic_list.read_lock().is_empty()
+    }
+
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
