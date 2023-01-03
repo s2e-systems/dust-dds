@@ -579,11 +579,17 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
+        for user_defined_publisher in self.user_defined_publisher_list.write_lock().drain(..) {
+            user_defined_publisher.delete_contained_entities()?;
         }
 
-        todo!()
+        for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
+            user_defined_subscriber.delete_contained_entities()?;
+        }
+
+        self.topic_list.write_lock().clear();
+
+        Ok(())
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {

@@ -264,11 +264,15 @@ impl DdsShared<UserDefinedPublisher> {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
+        for data_writer in self.data_writer_list.write_lock().drain(..) {
+            // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+            if data_writer.is_enabled() {
+                self.get_participant()
+                    .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+            }
         }
 
-        todo!()
+        Ok(())
     }
 
     pub fn set_default_datawriter_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
