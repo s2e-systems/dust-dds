@@ -246,11 +246,14 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
+        for data_reader in self.data_reader_list.write_lock().drain(..) {
+            if data_reader.is_enabled() {
+                self.get_participant()
+                    .announce_deleted_datareader(data_reader.as_discovered_reader_data())?;
+            }
         }
 
-        todo!()
+        Ok(())
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {

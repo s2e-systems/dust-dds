@@ -85,6 +85,66 @@ fn default_participant_qos() {
 }
 
 #[test]
+fn not_allowed_to_delete_participant_with_entities() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .expect("Error creating topic");
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datareader = subscriber
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datawriter = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    assert!(domain_participant_factory
+        .delete_participant(&participant)
+        .is_err());
+}
+
+#[test]
+fn allowed_to_delete_participant_after_delete_contained_entities() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("Test", QosKind::Default, None, NO_STATUS)
+        .expect("Error creating topic");
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datareader = subscriber
+        .create_datareader::<KeyedData>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datawriter = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    participant.delete_contained_entities().unwrap();
+
+    assert!(domain_participant_factory
+        .delete_participant(&participant)
+        .is_ok());
+}
+
+#[test]
 fn all_objects_are_dropped() {
     let domain_id = 0;
     let domain_participant_factory = DomainParticipantFactory::get_instance();
