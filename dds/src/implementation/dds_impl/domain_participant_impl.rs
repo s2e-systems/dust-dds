@@ -101,13 +101,13 @@ pub struct DomainParticipantImpl {
     builtin_publisher: DdsShared<BuiltinPublisher>,
     user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
-    default_subscriber_qos: SubscriberQos,
+    default_subscriber_qos: DdsRwLock<SubscriberQos>,
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
     user_defined_publisher_counter: AtomicU8,
-    default_publisher_qos: PublisherQos,
+    default_publisher_qos: DdsRwLock<PublisherQos>,
     topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
     user_defined_topic_counter: AtomicU8,
-    default_topic_qos: TopicQos,
+    default_topic_qos: DdsRwLock<TopicQos>,
     manual_liveliness_count: Count,
     lease_duration: Duration,
     metatraffic_unicast_locator_list: Vec<Locator>,
@@ -215,13 +215,13 @@ impl DomainParticipantImpl {
             builtin_publisher,
             user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
             user_defined_subscriber_counter: AtomicU8::new(0),
-            default_subscriber_qos: SubscriberQos::default(),
+            default_subscriber_qos: DdsRwLock::new(SubscriberQos::default()),
             user_defined_publisher_list: DdsRwLock::new(Vec::new()),
             user_defined_publisher_counter: AtomicU8::new(0),
-            default_publisher_qos: PublisherQos::default(),
+            default_publisher_qos: DdsRwLock::new(PublisherQos::default()),
             topic_list: DdsRwLock::new(Vec::new()),
             user_defined_topic_counter: AtomicU8::new(0),
-            default_topic_qos: TopicQos::default(),
+            default_topic_qos: DdsRwLock::new(TopicQos::default()),
             manual_liveliness_count: Count::new(0),
             lease_duration,
             metatraffic_unicast_locator_list,
@@ -261,7 +261,7 @@ impl DdsShared<DomainParticipantImpl> {
         mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
         let publisher_qos = match qos {
-            QosKind::Default => self.default_publisher_qos.clone(),
+            QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
         };
         let publisher_counter = self
@@ -330,7 +330,7 @@ impl DdsShared<DomainParticipantImpl> {
         mask: &[StatusKind],
     ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
         let subscriber_qos = match qos {
-            QosKind::Default => self.default_subscriber_qos.clone(),
+            QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
         };
         let subcriber_counter = self
@@ -410,7 +410,7 @@ impl DdsShared<DomainParticipantImpl> {
             EntityId::new(EntityKey::new([topic_counter, 0, 0]), USER_DEFINED_TOPIC),
         );
         let qos = match qos {
-            QosKind::Default => self.default_topic_qos.clone(),
+            QosKind::Default => self.default_topic_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
         };
 
@@ -594,28 +594,48 @@ impl DdsShared<DomainParticipantImpl> {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => *self.default_publisher_qos.write_lock() = PublisherQos::default(),
+            QosKind::Specific(q) => *self.default_publisher_qos.write_lock() = q,
+        }
+
+        Ok(())
     }
 
-    pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        todo!()
+    pub fn get_default_publisher_qos(&self) -> PublisherQos {
+        self.default_publisher_qos.read_lock().clone()
     }
 
-    pub fn set_default_subscriber_qos(&self, _qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => {
+                *self.default_subscriber_qos.write_lock() = SubscriberQos::default()
+            }
+            QosKind::Specific(q) => *self.default_subscriber_qos.write_lock() = q,
+        }
+
+        Ok(())
     }
 
-    pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        todo!()
+    pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
+        self.default_subscriber_qos.read_lock().clone()
     }
 
-    pub fn set_default_topic_qos(&self, _qos: QosKind<TopicQos>) -> DdsResult<()> {
-        todo!()
+    pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => *self.default_topic_qos.write_lock() = TopicQos::default(),
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                *self.default_topic_qos.write_lock() = q;
+            }
+        }
+
+        Ok(())
     }
 
-    pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.default_topic_qos.clone())
+    pub fn get_default_topic_qos(&self) -> TopicQos {
+        self.default_topic_qos.read_lock().clone()
     }
 
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
