@@ -339,3 +339,34 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .expect("Failed to delete datareader");
     assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
 }
+
+#[test]
+fn allowed_to_delete_participant_after_delete_contained_entities() {
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<TestType>("Test", QosKind::Default, None, NO_STATUS)
+        .expect("Error creating topic");
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datareader = subscriber
+        .create_datareader::<TestType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _datawriter = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    participant.delete_contained_entities().unwrap();
+
+    assert!(domain_participant_factory
+        .delete_participant(&participant)
+        .is_ok());
+}
