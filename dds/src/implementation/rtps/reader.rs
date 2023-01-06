@@ -410,6 +410,12 @@ impl RtpsReader {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
+        if let Some(h) = specific_instance_handle {
+            if !self.instances.contains_key(&h) {
+                return Err(DdsError::BadParameter);
+            }
+        };
+
         let mut indexed_samples = Vec::new();
 
         let instance_handle_build = &self.instance_handle_builder;
@@ -572,9 +578,6 @@ impl RtpsReader {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-
         let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
             max_samples,
             sample_states,
@@ -582,6 +585,9 @@ impl RtpsReader {
             instance_states,
             specific_instance_handle,
         )?;
+
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let mut change_index_list: Vec<usize>;
         let samples;
