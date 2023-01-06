@@ -198,6 +198,7 @@ impl DdsShared<BuiltinStatefulReader> {
             sample_states,
             view_states,
             instance_states,
+            None,
         )
     }
 }

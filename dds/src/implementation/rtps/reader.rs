@@ -405,10 +405,17 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(usize, Sample<Foo>)>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
+        if let Some(h) = specific_instance_handle {
+            if !self.instances.contains_key(&h) {
+                return Err(DdsError::BadParameter);
+            }
+        };
+
         let mut indexed_samples = Vec::new();
 
         let instance_handle_build = &self.instance_handle_builder;
@@ -417,7 +424,8 @@ impl RtpsReader {
         for (index, cache_change) in self
             .changes
             .iter_mut()
-            .filter(|cc| {
+            .enumerate()
+            .filter(|(_, cc)| {
                 let sample_instance_handle = instance_handle_build
                     .build_instance_handle(cc.kind, cc.data.as_slice())
                     .unwrap();
@@ -425,8 +433,12 @@ impl RtpsReader {
                 sample_states.contains(&cc.sample_state)
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
                     && instance_states.contains(&instances[&sample_instance_handle].instance_state)
+                    && if let Some(h) = specific_instance_handle {
+                        h == sample_instance_handle
+                    } else {
+                        true
+                    }
             })
-            .enumerate()
             .take(max_samples as usize)
         {
             let sample_instance_handle = self
@@ -527,6 +539,7 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -539,6 +552,7 @@ impl RtpsReader {
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )?;
 
         let change_index_list: Vec<usize>;
@@ -559,19 +573,21 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.status_condition
-            .remove_communication_state(StatusKind::DataAvailable);
-
         let indexed_sample_list = self.create_indexed_sample_collection::<Foo>(
             max_samples,
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )?;
+
+        self.status_condition
+            .remove_communication_state(StatusKind::DataAvailable);
 
         let mut change_index_list: Vec<usize>;
         let samples;
@@ -583,6 +599,59 @@ impl RtpsReader {
         }
 
         Ok(samples)
+    }
+
+    fn next_instance(&self, previous_handle: Option<InstanceHandle>) -> Option<InstanceHandle> {
+        match previous_handle {
+            Some(p) => self.instances.keys().filter(|&h| h > &p).min().cloned(),
+            None => self.instances.keys().min().cloned(),
+        }
+    }
+
+    pub fn read_next_instance<Foo>(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
+    }
+
+    pub fn take_next_instance<Foo>(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        match self.next_instance(previous_handle) {
+            Some(next_handle) => self.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(next_handle),
+            ),
+            None => Err(DdsError::NoData),
+        }
     }
 }
 
@@ -737,7 +806,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<UnkeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
         assert_eq!(samples.len(), 1);
         assert_eq!(samples[0].data.as_ref(), Some(&data2));
@@ -822,7 +897,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 2);
@@ -908,7 +989,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<UnkeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 3);
@@ -1056,7 +1143,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 6);
@@ -1358,7 +1451,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 6);
@@ -1475,7 +1574,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                4,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 4);
@@ -1571,7 +1676,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                3,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 3);
