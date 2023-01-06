@@ -405,6 +405,7 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<(usize, Sample<Foo>)>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -426,6 +427,11 @@ impl RtpsReader {
                 sample_states.contains(&cc.sample_state)
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
                     && instance_states.contains(&instances[&sample_instance_handle].instance_state)
+                    && if let Some(h) = specific_instance_handle {
+                        h == sample_instance_handle
+                    } else {
+                        true
+                    }
             })
             .take(max_samples as usize)
         {
@@ -527,6 +533,7 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -539,6 +546,7 @@ impl RtpsReader {
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )?;
 
         let change_index_list: Vec<usize>;
@@ -559,6 +567,7 @@ impl RtpsReader {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -571,6 +580,7 @@ impl RtpsReader {
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )?;
 
         let mut change_index_list: Vec<usize>;
@@ -737,7 +747,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<UnkeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
         assert_eq!(samples.len(), 1);
         assert_eq!(samples[0].data.as_ref(), Some(&data2));
@@ -822,7 +838,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 2);
@@ -908,7 +930,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<UnkeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<UnkeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 3);
@@ -1056,7 +1084,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 6);
@@ -1358,7 +1392,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                10,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 6);
@@ -1475,7 +1515,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(4, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                4,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 4);
@@ -1571,7 +1617,13 @@ mod tests {
             .unwrap();
 
         let samples = reader
-            .read::<KeyedType>(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            .read::<KeyedType>(
+                3,
+                ANY_SAMPLE_STATE,
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )
             .unwrap();
 
         assert_eq!(samples.len(), 3);

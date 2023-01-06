@@ -394,6 +394,7 @@ impl DdsShared<UserDefinedDataReader> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -407,6 +408,7 @@ impl DdsShared<UserDefinedDataReader> {
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )
     }
 
@@ -416,6 +418,7 @@ impl DdsShared<UserDefinedDataReader> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
     ) -> DdsResult<Vec<Sample<Foo>>>
     where
         Foo: for<'de> DdsDeserialize<'de>,
@@ -429,37 +432,8 @@ impl DdsShared<UserDefinedDataReader> {
             sample_states,
             view_states,
             instance_states,
+            specific_instance_handle,
         )
-    }
-
-    pub fn read_instance<Foo>(
-        &self,
-        _max_samples: i32,
-        _a_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn take_instance<Foo>(
-        &self,
-        _max_samples: i32,
-        _a_handle: InstanceHandle,
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
     }
 
     pub fn read_next_instance<Foo>(

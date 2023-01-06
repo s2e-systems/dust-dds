@@ -129,9 +129,13 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.0
-            .upgrade()?
-            .read(max_samples, sample_states, view_states, instance_states)
+        self.0.upgrade()?.read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            None,
+        )
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
@@ -144,9 +148,13 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.0
-            .upgrade()?
-            .take(max_samples, sample_states, view_states, instance_states)
+        self.0.upgrade()?.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            None,
+        )
     }
 
     /// This operation reads the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -162,6 +170,7 @@ where
             &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         )?;
         Ok(samples.pop().unwrap())
     }
@@ -179,6 +188,7 @@ where
             &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         )?;
         Ok(samples.pop().unwrap())
     }
@@ -199,12 +209,12 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.0.upgrade()?.read_instance(
+        self.0.upgrade()?.read(
             max_samples,
-            a_handle,
             sample_states,
             view_states,
             instance_states,
+            Some(a_handle),
         )
     }
 
@@ -224,12 +234,12 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.0.upgrade()?.take_instance(
+        self.0.upgrade()?.take(
             max_samples,
-            a_handle,
             sample_states,
             view_states,
             instance_states,
+            Some(a_handle),
         )
     }
 
