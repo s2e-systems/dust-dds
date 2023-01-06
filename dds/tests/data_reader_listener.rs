@@ -19,6 +19,9 @@ use dust_dds::{
 
 use mockall::mock;
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct MyData {
     #[key]
@@ -42,7 +45,7 @@ fn deadline_missed_listener() {
         }
 
     }
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -142,7 +145,7 @@ fn sample_rejected_listener() {
 
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -256,7 +259,7 @@ fn subscription_matched_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -347,7 +350,7 @@ fn requested_incompatible_qos_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory

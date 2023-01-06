@@ -15,6 +15,9 @@ use dust_dds::{
     topic_definition::type_support::{DdsSerde, DdsType},
 };
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct KeyedData {
     #[key]
@@ -24,7 +27,7 @@ struct KeyedData {
 
 #[test]
 fn each_key_sample_is_read() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let participant = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -110,7 +113,7 @@ fn each_key_sample_is_read() {
 
 #[test]
 fn write_read_disposed_samples() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -194,7 +197,7 @@ fn write_read_disposed_samples() {
 
 #[test]
 fn write_read_sample_view_state() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory

@@ -19,6 +19,9 @@ use dust_dds::{
     topic_definition::type_support::{DdsSerde, DdsType},
 };
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct KeyedData {
     #[key]
@@ -28,7 +31,7 @@ struct KeyedData {
 
 #[test]
 fn create_not_enabled_entities() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let qos = DomainParticipantFactoryQos {
@@ -58,7 +61,7 @@ fn create_not_enabled_entities() {
 
 #[test]
 fn default_participant_qos() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let user_data = vec![1, 2, 3];
@@ -86,9 +89,10 @@ fn default_participant_qos() {
 
 #[test]
 fn not_allowed_to_delete_participant_with_entities() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -115,9 +119,10 @@ fn not_allowed_to_delete_participant_with_entities() {
 
 #[test]
 fn allowed_to_delete_participant_after_delete_contained_entities() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
-        .create_participant(0, QosKind::Default, None, NO_STATUS)
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let topic = participant
@@ -146,7 +151,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
 
 #[test]
 fn all_objects_are_dropped() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     {

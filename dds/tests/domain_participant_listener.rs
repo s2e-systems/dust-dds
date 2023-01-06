@@ -23,6 +23,9 @@ use dust_dds::{
 };
 use mockall::mock;
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct MyData {
     #[key]
@@ -44,7 +47,7 @@ fn deadline_missed_listener() {
         }
 
     }
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
     let mut participant_listener = MockDeadlineMissedListener::new();
     participant_listener
@@ -142,7 +145,7 @@ fn sample_rejected_listener() {
 
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut participant_listener = MockSampleRejectedListener::new();
@@ -254,7 +257,7 @@ fn subscription_matched_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut participant_listener = MockSubscriptionMatchedListener::new();
@@ -343,7 +346,7 @@ fn requested_incompatible_qos_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut participant_listener = MockRequestedIncompatibleQosListener::new();
@@ -432,7 +435,7 @@ fn publication_matched_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut participant_listener = MockPublicationMatchedListener::new();
@@ -522,7 +525,7 @@ fn offered_incompatible_qos_listener() {
         }
     }
 
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let mut participant_listener = MockOfferedIncompatibleQosListener::new();
