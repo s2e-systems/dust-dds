@@ -1,7 +1,7 @@
 use crate::{implementation::rtps::types::Guid, topic_definition::type_support::DdsSerializedKey};
 
 /// Type for the instance handle representing an Entity
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct InstanceHandle([u8; 16]);
 
 impl Default for InstanceHandle {
