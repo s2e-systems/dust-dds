@@ -31,11 +31,15 @@ use std::marker::PhantomData;
 use crate::topic_definition::topic::Topic;
 
 use super::{
-    sample_info::{InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind},
+    sample_info::{
+        InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
+        ANY_VIEW_STATE,
+    },
     subscriber::{Subscriber, SubscriberKind},
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
+#[derive(Debug, PartialEq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
     pub data: Option<Foo>,
@@ -153,7 +157,13 @@ where
     /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.0.upgrade()?.read_next_sample()
+        let mut samples = self.0.upgrade()?.read(
+            1,
+            &[SampleStateKind::NotRead],
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        )?;
+        Ok(samples.pop().unwrap())
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -164,7 +174,13 @@ where
     /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        self.0.upgrade()?.take_next_sample()
+        let mut samples = self.0.upgrade()?.take(
+            1,
+            &[SampleStateKind::NotRead],
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        )?;
+        Ok(samples.pop().unwrap())
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. The

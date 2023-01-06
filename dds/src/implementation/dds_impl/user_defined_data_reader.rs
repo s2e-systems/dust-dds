@@ -432,22 +432,6 @@ impl DdsShared<UserDefinedDataReader> {
         )
     }
 
-    pub fn read_next_sample<Foo>(&self) -> DdsResult<Sample<Foo>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn take_next_sample<Foo>(&self) -> DdsResult<Sample<Foo>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
     pub fn read_instance<Foo>(
         &self,
         _max_samples: i32,
