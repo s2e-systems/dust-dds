@@ -417,7 +417,8 @@ impl RtpsReader {
         for (index, cache_change) in self
             .changes
             .iter_mut()
-            .filter(|cc| {
+            .enumerate()
+            .filter(|(_, cc)| {
                 let sample_instance_handle = instance_handle_build
                     .build_instance_handle(cc.kind, cc.data.as_slice())
                     .unwrap();
@@ -426,7 +427,6 @@ impl RtpsReader {
                     && view_states.contains(&instances[&sample_instance_handle].view_state)
                     && instance_states.contains(&instances[&sample_instance_handle].instance_state)
             })
-            .enumerate()
             .take(max_samples as usize)
         {
             let sample_instance_handle = self
