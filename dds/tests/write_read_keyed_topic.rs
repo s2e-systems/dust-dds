@@ -280,6 +280,74 @@ fn read_next_sample() {
 }
 
 #[test]
+fn take_next_sample() {
+    let domain_id = 0;
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 2, value: 10 };
+    let data3 = KeyedData { id: 3, value: 20 };
+
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+    writer.write(&data3, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(1, 0))
+        .unwrap();
+
+    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data1);
+    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data2);
+    assert_eq!(reader.take_next_sample().unwrap().data.unwrap(), data3);
+    assert_eq!(reader.take_next_sample(), Err(DdsError::NoData));
+}
+
+#[test]
 fn each_key_sample_is_read() {
     let domain_id = 0;
 
