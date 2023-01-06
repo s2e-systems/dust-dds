@@ -129,13 +129,9 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        self.0.upgrade()?.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            None,
-        )
+        self.0
+            .upgrade()?
+            .read(max_samples, sample_states, view_states, instance_states, None)
     }
 
     /// This operation accesses a collection of [`Sample`] from the [`DataReader`]. This operation uses the same
