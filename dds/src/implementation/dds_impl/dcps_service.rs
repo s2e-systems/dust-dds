@@ -28,6 +28,9 @@ pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
     quit: Arc<AtomicBool>,
     threads: Vec<JoinHandle<()>>,
+    announcer_condvar: DdsCondvar,
+    sedp_condvar: DdsCondvar,
+    user_defined_data_send_condvar: DdsCondvar,
 }
 
 impl DcpsService {
@@ -128,11 +131,12 @@ impl DcpsService {
 
             let mut metatraffic_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
+            let sedp_condvar_clone = sedp_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
-                let _r = sedp_condvar.wait_timeout(Duration::new(0, 500000000));
+                let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
 
                 domain_participant.send_built_in_data(&mut metatraffic_unicast_transport_send);
             }));
@@ -164,13 +168,14 @@ impl DcpsService {
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
             let mut default_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
-
+            let user_defined_data_send_condvar_clone = user_defined_data_send_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
 
-                let _r = user_defined_data_send_condvar.wait_timeout(Duration::new(0, 100_000_000));
+                let _r = user_defined_data_send_condvar_clone
+                    .wait_timeout(Duration::new(0, 100_000_000));
 
                 domain_participant.send_user_defined_data(&mut default_unicast_transport_send);
             }));
@@ -179,7 +184,7 @@ impl DcpsService {
         // //////////// Announce participant
         let domain_participant = participant.clone();
         let task_quit = quit.clone();
-
+        let announcer_condvar_clone = announcer_condvar.clone();
         threads.push(std::thread::spawn(move || {
             // TODO: Temporary solution to ensure tests pass by announcing as soon as possible
             domain_participant.announce_participant().ok();
@@ -188,7 +193,7 @@ impl DcpsService {
                     break;
                 }
 
-                let _r = announcer_condvar.wait_timeout(Duration::new(5, 0));
+                let _r = announcer_condvar_clone.wait_timeout(Duration::new(5, 0));
 
                 match domain_participant.announce_participant() {
                     Ok(_) => (),
@@ -201,6 +206,9 @@ impl DcpsService {
             participant,
             quit,
             threads,
+            announcer_condvar,
+            sedp_condvar,
+            user_defined_data_send_condvar,
         })
     }
 
@@ -210,6 +218,9 @@ impl DcpsService {
 
     pub fn shutdown_tasks(&mut self) {
         self.quit.store(true, atomic::Ordering::SeqCst);
+        self.announcer_condvar.notify_all();
+        self.sedp_condvar.notify_all();
+        self.user_defined_data_send_condvar.notify_all();
 
         while let Some(thread) = self.threads.pop() {
             thread.join().unwrap();
