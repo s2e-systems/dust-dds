@@ -23,6 +23,90 @@ struct KeyedData {
 }
 
 #[test]
+fn samples_are_taken() {
+    let domain_id = 0;
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 2, value: 10 };
+    let data3 = KeyedData { id: 3, value: 20 };
+    let data4 = KeyedData { id: 4, value: 30 };
+    let data5 = KeyedData { id: 5, value: 40 };
+
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+    writer.write(&data3, None).unwrap();
+    writer.write(&data4, None).unwrap();
+    writer.write(&data5, None).unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(1, 0))
+        .unwrap();
+
+    let samples1 = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    let samples2 = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples1.len(), 3);
+    assert_eq!(samples1[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples1[1].data.as_ref().unwrap(), &data2);
+    assert_eq!(samples1[2].data.as_ref().unwrap(), &data3);
+
+    assert_eq!(samples2.len(), 2);
+    assert_eq!(samples2[0].data.as_ref().unwrap(), &data4);
+    assert_eq!(samples2[1].data.as_ref().unwrap(), &data5);
+}
+
+#[test]
 fn each_key_sample_is_read() {
     let domain_id = 0;
 
