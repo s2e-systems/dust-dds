@@ -10,12 +10,15 @@ use dust_dds::{
     topic_definition::type_support::{DdsSerde, DdsType},
 };
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
 struct UserType(i32);
 
 #[test]
 fn writer_discovers_reader_in_same_participant() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -50,7 +53,7 @@ fn writer_discovers_reader_in_same_participant() {
 
 #[test]
 fn deleted_readers_are_disposed_from_writer() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -89,7 +92,7 @@ fn deleted_readers_are_disposed_from_writer() {
 
 #[test]
 fn updated_readers_are_announced_to_writer() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -139,7 +142,7 @@ fn updated_readers_are_announced_to_writer() {
 
 #[test]
 fn reader_discovers_writer_in_same_participant() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -174,7 +177,7 @@ fn reader_discovers_writer_in_same_participant() {
 
 #[test]
 fn deleted_writers_are_disposed_from_reader() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -213,7 +216,7 @@ fn deleted_writers_are_disposed_from_reader() {
 
 #[test]
 fn updated_writers_are_announced_to_reader() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
@@ -264,8 +267,7 @@ fn updated_writers_are_announced_to_reader() {
 
 #[test]
 fn participant_records_discovered_topics() {
-    let domain_id = 0;
-
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
@@ -303,8 +305,7 @@ fn participant_records_discovered_topics() {
 
 #[test]
 fn participant_announces_updated_qos() {
-    let domain_id = 0;
-
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
 
     let participant1 = domain_participant_factory
@@ -332,12 +333,9 @@ fn participant_announces_updated_qos() {
     std::thread::sleep(std::time::Duration::from_secs(5));
 }
 
-
-
-
 #[test]
 fn reader_discovers_disposed_writer_same_participant() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let dp = DomainParticipantFactory::get_instance()
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();

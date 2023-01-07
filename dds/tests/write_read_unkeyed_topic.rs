@@ -15,12 +15,15 @@ use dust_dds::{
     topic_definition::type_support::{DdsSerde, DdsType},
 };
 
+mod utils;
+use crate::utils::domain_id_generator::TEST_DOMAIN_ID_GENERATOR;
+
 #[derive(Debug, PartialEq, DdsType, DdsSerde, serde::Serialize, serde::Deserialize)]
 struct UserData(u8);
 
 #[test]
 fn write_read_unkeyed_topic() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -87,7 +90,7 @@ fn write_read_unkeyed_topic() {
 
 #[test]
 fn data_reader_resource_limits() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -177,7 +180,7 @@ fn data_reader_resource_limits() {
 
 #[test]
 fn data_reader_order_by_source_timestamp() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
@@ -265,7 +268,7 @@ fn data_reader_order_by_source_timestamp() {
 
 #[test]
 fn data_reader_publication_handle_sample_info() {
-    let domain_id = 0;
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
     let participant = participant_factory
