@@ -1,9 +1,21 @@
-use crate::infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-    HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-    OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-    ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-    TransportPriorityQosPolicy, UserDataQosPolicy,
+use crate::{
+    implementation::{
+        data_representation_builtin_endpoints::parameter_id_values::{
+            PID_PARTICIPANT_GUID, PID_USER_DATA,
+        },
+        parameter_list_serde::parameter_list_deserializer::ParameterListDeserializer,
+    },
+    infrastructure::{
+        error::DdsResult,
+        qos_policy::{
+            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
+            HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
+            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
+            ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
+            TransportPriorityQosPolicy, UserDataQosPolicy,
+        },
+    },
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -15,6 +27,26 @@ pub struct BuiltInTopicKey {
 pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub user_data: UserDataQosPolicy,
+}
+
+impl DdsType for ParticipantBuiltinTopicData {
+    fn type_name() -> &'static str {
+        "ParticipantBuiltinTopicData"
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
+    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+        let param_list = ParameterListDeserializer::read(buf)?;
+
+        let participant_key = param_list.get::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+        let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
+
+        Ok(ParticipantBuiltinTopicData {
+            key: participant_key,
+            user_data,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
