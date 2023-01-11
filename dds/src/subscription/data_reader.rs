@@ -41,7 +41,7 @@ use super::{
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Sample<Foo> {
     /// Data received by the [`DataReader`]. A sample might contain no valid data in which case this field is [`None`].
     pub data: Option<Foo>,

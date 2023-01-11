@@ -8,6 +8,12 @@ use crate::infrastructure::{
 #[derive(Clone)]
 pub struct DdsCondvar(Arc<(Condvar, Mutex<bool>)>);
 
+impl Default for DdsCondvar {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DdsCondvar {
     pub fn new() -> Self {
         Self(Arc::new((Condvar::new(), Mutex::new(false))))
