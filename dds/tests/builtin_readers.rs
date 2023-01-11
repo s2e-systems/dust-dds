@@ -1,5 +1,8 @@
 use dust_dds::{
-    builtin_topics::ParticipantBuiltinTopicData,
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{qos::QosKind, status::NO_STATUS},
 };
@@ -19,5 +22,17 @@ fn builtin_reader_access() {
 
     assert!(builtin_subscriber
         .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")
+        .is_ok());
+
+    assert!(builtin_subscriber
+        .lookup_datareader::<TopicBuiltinTopicData>("DCPSTopic")
+        .is_ok());
+
+    assert!(builtin_subscriber
+        .lookup_datareader::<PublicationBuiltinTopicData>("DCPSPublication")
+        .is_ok());
+
+    assert!(builtin_subscriber
+        .lookup_datareader::<SubscriptionBuiltinTopicData>("DCPSSubscription")
         .is_ok());
 }

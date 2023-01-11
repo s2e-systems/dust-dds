@@ -1,4 +1,8 @@
 use crate::{
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -127,9 +131,25 @@ impl DdsShared<BuiltInSubscriber> {
         Foo: DdsType,
     {
         match topic_name {
-            "DCPSParticipant" if Foo::type_name() == "ParticipantBuiltinTopicData" => Ok(
-                BuiltinDataReaderKind::Stateless(&self.spdp_builtin_participant_reader),
+            "DCPSParticipant" if Foo::type_name() == ParticipantBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateless(
+                    &self.spdp_builtin_participant_reader,
+                ))
+            }
+            "DCPSTopic" if Foo::type_name() == TopicBuiltinTopicData::type_name() => Ok(
+                BuiltinDataReaderKind::Stateful(&self.sedp_builtin_topics_reader),
             ),
+            "DCPSPublication" if Foo::type_name() == PublicationBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateful(
+                    &self.sedp_builtin_publications_reader,
+                ))
+            }
+            "DCPSSubscription" if Foo::type_name() == SubscriptionBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateful(
+                    &self.sedp_builtin_subscriptions_reader,
+                ))
+            }
+
             _ => Err(DdsError::BadParameter),
         }
     }
