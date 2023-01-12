@@ -1,4 +1,8 @@
 use crate::{
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -15,7 +19,10 @@ use crate::{
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
-        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
+        condition::StatusCondition,
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::SubscriberQos,
         status::StatusKind,
     },
     topic_definition::type_support::DdsType,
@@ -30,8 +37,12 @@ use super::{
     },
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
 };
+
+pub enum BuiltinDataReaderKind<'a> {
+    Stateless(&'a DdsShared<BuiltinStatelessReader>),
+    Stateful(&'a DdsShared<BuiltinStatefulReader>),
+}
 
 pub struct BuiltInSubscriber {
     qos: DdsRwLock<SubscriberQos>,
@@ -115,14 +126,32 @@ impl DdsShared<BuiltInSubscriber> {
         &self.sedp_builtin_subscriptions_reader
     }
 
-    pub fn lookup_datareader<Foo>(
-        &self,
-        _topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<BuiltinDataReaderKind>
     where
         Foo: DdsType,
     {
-        todo!()
+        match topic_name {
+            "DCPSParticipant" if Foo::type_name() == ParticipantBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateless(
+                    &self.spdp_builtin_participant_reader,
+                ))
+            }
+            "DCPSTopic" if Foo::type_name() == TopicBuiltinTopicData::type_name() => Ok(
+                BuiltinDataReaderKind::Stateful(&self.sedp_builtin_topics_reader),
+            ),
+            "DCPSPublication" if Foo::type_name() == PublicationBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateful(
+                    &self.sedp_builtin_publications_reader,
+                ))
+            }
+            "DCPSSubscription" if Foo::type_name() == SubscriptionBuiltinTopicData::type_name() => {
+                Ok(BuiltinDataReaderKind::Stateful(
+                    &self.sedp_builtin_subscriptions_reader,
+                ))
+            }
+
+            _ => Err(DdsError::BadParameter),
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
-        any_data_reader_listener::AnyDataReaderListener, builtin_subscriber::BuiltInSubscriber,
+        any_data_reader_listener::AnyDataReaderListener,
+        builtin_subscriber::{BuiltInSubscriber, BuiltinDataReaderKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -21,7 +22,8 @@ use crate::{
 use crate::topic_definition::topic::Topic;
 
 use super::{
-    data_reader::DataReader, data_reader_listener::DataReaderListener,
+    data_reader::{DataReader, DataReaderKind},
+    data_reader_listener::DataReaderListener,
     subscriber_listener::SubscriberListener,
 };
 
@@ -101,7 +103,7 @@ impl Subscriber {
                         }),
                         mask,
                     )
-                    .map(|x| DataReader::new(x.downgrade()))
+                    .map(|x| DataReader::new(DataReaderKind::UserDefined(x.downgrade())))
             }
         }
     }
@@ -126,19 +128,27 @@ impl Subscriber {
     /// If multiple [`DataReader`] attached to the [`Subscriber`] satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in [`Subscriber`] allows access to the built-in [`DataReader`] entities for the built-in topics.
-    pub fn lookup_datareader<Foo>(&self, topic: &Topic<Foo>) -> DdsResult<Option<DataReader<Foo>>>
+    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<Option<DataReader<Foo>>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         match &self.0 {
-            SubscriberKind::BuiltIn(s) => s
-                .upgrade()?
-                .lookup_datareader::<Foo>(&topic.0.upgrade()?)
-                .map(|x| Some(DataReader::new(x.downgrade()))),
+            SubscriberKind::BuiltIn(s) => {
+                s.upgrade()?.lookup_datareader::<Foo>(topic_name).map(|x| {
+                    Some(match x {
+                        BuiltinDataReaderKind::Stateless(r) => {
+                            DataReader::new(DataReaderKind::BuiltinStateless(r.downgrade()))
+                        }
+                        BuiltinDataReaderKind::Stateful(r) => {
+                            DataReader::new(DataReaderKind::BuiltinStateful(r.downgrade()))
+                        }
+                    })
+                })
+            }
             SubscriberKind::UserDefined(s) => s
                 .upgrade()?
-                .lookup_datareader::<Foo>(&topic.0.upgrade()?)
-                .map(|x| Some(DataReader::new(x.downgrade()))),
+                .lookup_datareader::<Foo>(topic_name)
+                .map(|x| Some(DataReader::new(DataReaderKind::UserDefined(x.downgrade())))),
         }
     }
 

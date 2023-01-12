@@ -149,7 +149,7 @@ impl DdsSerialize for DiscoveredTopicData {
 
 impl DdsDeserialize<'_> for DiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf).unwrap();
+        let param_list = ParameterListDeserializer::read(buf)?;
 
         let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
         let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;

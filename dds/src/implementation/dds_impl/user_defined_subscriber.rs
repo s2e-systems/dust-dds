@@ -210,7 +210,7 @@ impl DdsShared<UserDefinedSubscriber> {
 
     pub fn lookup_datareader<Foo>(
         &self,
-        topic: &DdsShared<TopicImpl>,
+        topic_name: &str,
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType,
@@ -222,7 +222,7 @@ impl DdsShared<UserDefinedSubscriber> {
             .find_map(|data_reader_shared| {
                 let data_reader_topic = data_reader_shared.get_topicdescription();
 
-                if data_reader_topic.get_name() == topic.get_name()
+                if data_reader_topic.get_name() == topic_name
                     && data_reader_topic.get_type_name() == Foo::type_name()
                 {
                     Some(data_reader_shared.clone())

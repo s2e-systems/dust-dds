@@ -54,7 +54,7 @@ pub const NOT_ALIVE_INSTANCE_STATE: &[InstanceStateKind] = &[
 ];
 
 /// The [`SampleInfo`] contains the information associated with each received data value.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SampleInfo {
     /// This field indicates whether or not the corresponding data sample has already been read.
     pub sample_state: SampleStateKind,
