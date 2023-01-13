@@ -8,7 +8,9 @@ use crate::{
         },
         utils::shared_object::DdsWeak,
     },
-    infrastructure::{instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration},
+    infrastructure::{
+        error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
+    },
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 use crate::{
@@ -140,8 +142,20 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
             DataReaderKind::UserDefined(x) => x.upgrade()?.read(
                 max_samples,
                 sample_states,
@@ -163,8 +177,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => x.upgrade()?.take(
                 max_samples,
                 sample_states,
@@ -183,20 +197,30 @@ where
     /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                let mut samples = x.upgrade()?.read(
-                    1,
-                    &[SampleStateKind::NotRead],
-                    ANY_VIEW_STATE,
-                    ANY_INSTANCE_STATE,
-                    None,
-                )?;
-                Ok(samples.pop().unwrap())
-            }
-        }
+        let mut samples = match &self.0 {
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
+            DataReaderKind::UserDefined(x) => x.upgrade()?.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
+        };
+        Ok(samples.pop().unwrap())
     }
 
     /// This operation takes the next, non-previously accessed [`Sample`] value from the [`DataReader`].
@@ -208,8 +232,8 @@ where
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => {
                 let mut samples = x.upgrade()?.take(
                     1,
@@ -240,8 +264,20 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(a_handle),
+            ),
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(a_handle),
+            ),
             DataReaderKind::UserDefined(x) => x.upgrade()?.read(
                 max_samples,
                 sample_states,
@@ -269,8 +305,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => x.upgrade()?.take(
                 max_samples,
                 sample_states,
@@ -313,8 +349,20 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
             DataReaderKind::UserDefined(x) => x.upgrade()?.read_next_instance(
                 max_samples,
                 previous_handle,
@@ -337,8 +385,8 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => x.upgrade()?.take_next_instance(
                 max_samples,
                 previous_handle,
