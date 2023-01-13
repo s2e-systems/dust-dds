@@ -45,7 +45,7 @@ use crate::{
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
-        sample_info::{InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+        sample_info::{InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
         subscriber_listener::SubscriberListener,
     },
     topic_definition::type_support::DdsType,
@@ -940,11 +940,12 @@ impl DdsShared<DomainParticipantImpl> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
-        while let Ok(samples) = spdp_builtin_participant_data_reader.take(
+        while let Ok(samples) = spdp_builtin_participant_data_reader.read(
             1,
-            ANY_SAMPLE_STATE,
+            &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         ) {
             for discovered_participant_data_sample in samples.into_iter() {
                 if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
@@ -960,11 +961,12 @@ impl DdsShared<DomainParticipantImpl> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
-            .take::<DiscoveredWriterData>(
+            .read::<DiscoveredWriterData>(
             1,
-            ANY_SAMPLE_STATE,
+            &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         ) {
             for discovered_writer_data_sample in samples.into_iter() {
                 match discovered_writer_data_sample.sample_info.instance_state {
@@ -1014,11 +1016,12 @@ impl DdsShared<DomainParticipantImpl> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_subscriptions_reader()
-            .take::<DiscoveredReaderData>(
+            .read::<DiscoveredReaderData>(
             1,
-            ANY_SAMPLE_STATE,
+            &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         ) {
             for discovered_reader_data_sample in samples.into_iter() {
                 match discovered_reader_data_sample.sample_info.instance_state {
@@ -1068,11 +1071,12 @@ impl DdsShared<DomainParticipantImpl> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()
-            .take::<DiscoveredTopicData>(
+            .read::<DiscoveredTopicData>(
             1,
-            ANY_SAMPLE_STATE,
+            &[SampleStateKind::NotRead],
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
+            None,
         ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {

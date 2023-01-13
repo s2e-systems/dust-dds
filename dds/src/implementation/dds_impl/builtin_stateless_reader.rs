@@ -143,29 +143,6 @@ impl DdsShared<BuiltinStatelessReader> {
                 instance_states,
             )
     }
-
-    pub fn take<Foo>(
-        &self,
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-    ) -> DdsResult<Vec<Sample<Foo>>>
-    where
-        Foo: for<'de> DdsDeserialize<'de>,
-    {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.rtps_reader.write_lock().reader_mut().take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            None,
-        )
-    }
 }
 
 impl DdsShared<BuiltinStatelessReader> {
