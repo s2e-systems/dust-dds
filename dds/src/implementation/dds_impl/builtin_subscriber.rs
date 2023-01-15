@@ -153,9 +153,7 @@ impl DdsShared<BuiltInSubscriber> {
             _ => Err(DdsError::BadParameter),
         }
     }
-}
 
-impl DdsShared<BuiltInSubscriber> {
     pub fn get_qos(&self) -> SubscriberQos {
         self.qos.read_lock().clone()
     }
@@ -181,6 +179,14 @@ impl DdsShared<BuiltInSubscriber> {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
+    }
+
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+        self.sedp_builtin_topics_reader.send_message(transport);
+        self.sedp_builtin_publications_reader
+            .send_message(transport);
+        self.sedp_builtin_subscriptions_reader
+            .send_message(transport);
     }
 }
 
@@ -211,15 +217,5 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.sedp_builtin_subscriptions_reader
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-    }
-}
-
-impl DdsShared<BuiltInSubscriber> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.sedp_builtin_topics_reader.send_message(transport);
-        self.sedp_builtin_publications_reader
-            .send_message(transport);
-        self.sedp_builtin_subscriptions_reader
-            .send_message(transport);
     }
 }

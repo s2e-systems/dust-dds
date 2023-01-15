@@ -12,9 +12,8 @@ use crate::{
 use crate::{
     implementation::{
         rtps::{
-            messages::submessages::DataSubmessage,
-            stateless_reader::RtpsStatelessReader,
-            types::{EntityId, Guid, ENTITYID_UNKNOWN},
+            messages::submessages::DataSubmessage, stateless_reader::RtpsStatelessReader,
+            types::Guid,
         },
         utils::shared_object::{DdsRwLock, DdsShared},
     },
@@ -78,22 +77,9 @@ impl DdsShared<BuiltinStatelessReader> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
-
-        let data_reader_id: EntityId = data_submessage.reader_id;
-        if data_reader_id == ENTITYID_UNKNOWN
-            || data_reader_id == rtps_reader.reader().guid().entity_id()
-        {
-            rtps_reader
-                .reader_mut()
-                .add_change(
-                    data_submessage,
-                    Some(message_receiver.timestamp()),
-                    message_receiver.source_guid_prefix(),
-                    message_receiver.reception_timestamp(),
-                )
-                .ok();
-        }
+        self.rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver);
     }
 }
 
