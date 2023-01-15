@@ -149,8 +149,9 @@ fn get_discovery_data_from_builtin_reader() {
 
     std::thread::sleep(std::time::Duration::from_millis(2000));
 
+    // Note: Participant also discovers itself
     let participant_samples = participants_reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
     let topic_samples = topics_reader
@@ -165,15 +166,10 @@ fn get_discovery_data_from_builtin_reader() {
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(
-        &participant_samples[0]
-            .data
-            .as_ref()
-            .unwrap()
-            .user_data
-            .value,
-        &participant_user_data
-    );
+    assert!(participant_samples
+        .iter()
+        .find(|x| &x.data.as_ref().unwrap().user_data.value == &participant_user_data)
+        .is_some());
 
     assert_eq!(
         &topic_samples[0].data.as_ref().unwrap().topic_data.value,
