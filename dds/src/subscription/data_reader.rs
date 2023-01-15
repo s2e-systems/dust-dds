@@ -538,8 +538,8 @@ where
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => x
                 .upgrade()?
                 .get_matched_publication_data(publication_handle),
@@ -554,8 +554,8 @@ where
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_matched_publications()),
         }
     }
@@ -632,13 +632,17 @@ where
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                Ok(StatusCondition::new(x.upgrade()?.get_statuscondition()))
+        Ok(match &self.0 {
+            DataReaderKind::BuiltinStateless(x) => {
+                StatusCondition::new(x.upgrade()?.get_statuscondition())
             }
-        }
+            DataReaderKind::BuiltinStateful(x) => {
+                StatusCondition::new(x.upgrade()?.get_statuscondition())
+            }
+            DataReaderKind::UserDefined(x) => {
+                StatusCondition::new(x.upgrade()?.get_statuscondition())
+            }
+        })
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -685,11 +689,11 @@ where
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_instance_handle()),
-        }
+        Ok(match &self.0 {
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_instance_handle(),
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_instance_handle(),
+            DataReaderKind::UserDefined(x) => x.upgrade()?.get_instance_handle(),
+        })
     }
 }
 

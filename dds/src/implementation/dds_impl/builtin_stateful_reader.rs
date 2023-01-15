@@ -47,7 +47,7 @@ use crate::{
 
 use super::{
     message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    topic_impl::TopicImpl,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
 };
 
 pub struct BuiltinStatefulReader {
@@ -60,6 +60,7 @@ pub struct BuiltinStatefulReader {
     _subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     _matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl BuiltinStatefulReader {
@@ -133,6 +134,7 @@ impl BuiltinStatefulReader {
             }),
             _matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -242,5 +244,13 @@ impl DdsShared<BuiltinStatefulReader> {
 
     pub fn get_qos(&self) -> DataReaderQos {
         self.rtps_reader.read_lock().reader().get_qos().clone()
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.read_lock().reader().guid().into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 }

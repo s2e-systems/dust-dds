@@ -23,12 +23,16 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{message_receiver::MessageReceiver, topic_impl::TopicImpl};
+use super::{
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl,
+};
 
 pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
     _topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl BuiltinStatelessReader {
@@ -63,6 +67,7 @@ impl BuiltinStatelessReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             _topic: topic,
             enabled: DdsRwLock::new(false),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -152,5 +157,13 @@ impl DdsShared<BuiltinStatelessReader> {
 
     pub fn get_qos(&self) -> DataReaderQos {
         self.rtps_reader.read_lock().reader().get_qos().clone()
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.read_lock().reader().guid().into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 }
