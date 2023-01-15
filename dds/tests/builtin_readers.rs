@@ -8,6 +8,8 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind, TopicQos},
         qos_policy::{TopicDataQosPolicy, UserDataQosPolicy},
         status::NO_STATUS,
+        time::Duration,
+        wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
     topic_definition::type_support::{DdsSerde, DdsType},
@@ -147,7 +149,12 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap()
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
+    let subscriptions_reader_cond = subscriptions_reader.get_statuscondition().unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(subscriptions_reader_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(2, 0)).unwrap();
 
     // Note: Participant also discovers itself
     let participant_samples = participants_reader
