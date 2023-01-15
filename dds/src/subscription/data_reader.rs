@@ -580,19 +580,19 @@ where
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderKind::UserDefined(x) => x.upgrade()?.set_qos(qos),
         }
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        match &self.0 {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
+        Ok(match &self.0 {
+            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_qos(),
+            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_qos(),
             DataReaderKind::UserDefined(x) => x.upgrade()?.get_qos(),
-        }
+        })
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status

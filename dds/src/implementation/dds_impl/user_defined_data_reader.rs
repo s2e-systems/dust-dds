@@ -602,8 +602,8 @@ impl DdsShared<UserDefinedDataReader> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(self.rtps_reader.read_lock().reader().get_qos().clone())
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().reader().get_qos().clone()
     }
 
     pub fn set_listener(

@@ -229,18 +229,18 @@ impl DdsShared<BuiltinStatefulReader> {
                 instance_states,
             )
     }
-}
 
-impl DdsShared<BuiltinStatefulReader> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
         Ok(())
     }
-}
 
-impl DdsShared<BuiltinStatefulReader> {
     pub fn send_message(&self, transport: &mut impl TransportWrite) {
         self.rtps_reader.write_lock().send_message(transport);
+    }
+
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().reader().get_qos().clone()
     }
 }
