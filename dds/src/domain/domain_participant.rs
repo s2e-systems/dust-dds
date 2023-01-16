@@ -41,7 +41,7 @@ use super::{
 /// ([`DomainParticipant::ignore_subscription()`]), or topic ([`DomainParticipant::ignore_topic()`]).
 ///
 /// The following operations may be called even if the [`DomainParticipant`] is not enabled. Other operations will return a NotEnabled error if called on a disabled [`DomainParticipant`]:
-/// - Operations defined at the base-class level namely, [`DomainParticipant::set_qos()`], [`DomainParticipant::get_qos()`], [`DomainParticipant::set_listener()`], [`DomainParticipant::get_listener()`], and [`DomainParticipant::enable()`].
+/// - Operations defined at the base-class level namely, [`DomainParticipant::set_qos()`], [`DomainParticipant::get_qos()`], [`DomainParticipant::set_listener()`], and [`DomainParticipant::enable()`].
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
@@ -451,13 +451,6 @@ impl DomainParticipant {
     ) -> DdsResult<()> {
         self.0.upgrade()?.set_listener(a_listener, mask);
         Ok(())
-    }
-
-    /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(
-        &self,
-    ) -> DdsResult<Option<Box<dyn DomainParticipantListener + Send + Sync>>> {
-        todo!()
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
