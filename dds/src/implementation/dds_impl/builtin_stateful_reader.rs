@@ -9,6 +9,7 @@ use crate::{
     infrastructure::qos::DataReaderQos,
     infrastructure::{
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy},
+        status::StatusKind,
         time::DURATION_ZERO,
     },
     subscription::data_reader::Sample,
@@ -45,6 +46,7 @@ use super::{
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
 };
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BuiltInStatefulReaderDataSubmessageReceivedResult {
     NoChange,
     NewDataAvailable,
@@ -224,5 +226,11 @@ impl DdsShared<BuiltinStatefulReader> {
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
+    }
+
+    pub fn on_data_available(&self) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
     }
 }

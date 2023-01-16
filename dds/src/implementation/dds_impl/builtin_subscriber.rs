@@ -29,8 +29,12 @@ use crate::{
 };
 
 use super::{
-    builtin_stateful_reader::BuiltinStatefulReader,
-    builtin_stateless_reader::BuiltinStatelessReader,
+    builtin_stateful_reader::{
+        BuiltInStatefulReaderDataSubmessageReceivedResult, BuiltinStatefulReader,
+    },
+    builtin_stateless_reader::{
+        BuiltInStatelessReaderDataSubmessageReceivedResult, BuiltinStatelessReader,
+    },
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -196,14 +200,41 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        self.spdp_builtin_participant_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_topics_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_publications_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_subscriptions_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
+        if self
+            .spdp_builtin_participant_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.spdp_builtin_participant_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_topics_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_publications_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_publications_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_publications_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_subscriptions_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_subscriptions_reader.on_data_available();
+            return;
+        }
     }
 
     fn on_heartbeat_submessage_received(

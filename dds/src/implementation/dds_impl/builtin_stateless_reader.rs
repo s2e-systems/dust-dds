@@ -7,7 +7,7 @@ use crate::{
     infrastructure::{
         instance::InstanceHandle,
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-        time::DURATION_ZERO,
+        time::DURATION_ZERO, status::StatusKind,
     },
     subscription::data_reader::Sample,
     topic_definition::type_support::DdsType,
@@ -30,6 +30,7 @@ use super::{
     topic_impl::TopicImpl,
 };
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BuiltInStatelessReaderDataSubmessageReceivedResult {
     NoChange,
     NewDataAvailable,
@@ -169,5 +170,9 @@ impl DdsShared<BuiltinStatelessReader> {
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
+    }
+
+    pub fn on_data_available(&self) {
+        self.status_condition.write_lock().add_communication_state(StatusKind::DataAvailable);
     }
 }
