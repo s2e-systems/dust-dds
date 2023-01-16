@@ -1,5 +1,8 @@
 use crate::{
-    implementation::rtps::{endpoint::RtpsEndpoint, reader::RtpsReader, types::TopicKind},
+    implementation::rtps::{
+        endpoint::RtpsEndpoint, reader::RtpsReader,
+        stateless_reader::StatelessReaderDataReceivedResult, types::TopicKind,
+    },
     infrastructure::qos::DataReaderQos,
     infrastructure::{
         instance::InstanceHandle,
@@ -26,6 +29,11 @@ use super::{
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
 };
+
+pub enum BuiltInStatelessReaderDataSubmessageReceivedResult {
+    NoChange,
+    NewDataAvailable,
+}
 
 pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
@@ -76,14 +84,24 @@ impl DdsShared<BuiltinStatelessReader> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) {
-        self.rtps_reader
+    ) -> BuiltInStatelessReaderDataSubmessageReceivedResult {
+        let r = self
+            .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-    }
-}
 
-impl DdsShared<BuiltinStatelessReader> {
+        match r {
+            StatelessReaderDataReceivedResult::NotForThisReader
+            | StatelessReaderDataReceivedResult::SampleRejected(_, _)
+            | StatelessReaderDataReceivedResult::InvalidData(_) => {
+                BuiltInStatelessReaderDataSubmessageReceivedResult::NoChange
+            }
+            StatelessReaderDataReceivedResult::NewSampleAdded(_) => {
+                BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
+            }
+        }
+    }
+
     pub fn read<Foo>(
         &self,
         max_samples: i32,

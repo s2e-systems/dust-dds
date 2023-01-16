@@ -1,19 +1,18 @@
-use std::collections::HashMap;
-
 use crate::{
     implementation::rtps::{
         stateful_reader::{
-            DEFAULT_HEARTBEAT_RESPONSE_DELAY, DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
+            StatefulReaderDataReceivedResult, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
+            DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
         },
         types::TopicKind,
     },
+    infrastructure::qos::DataReaderQos,
     infrastructure::{
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy},
         time::DURATION_ZERO,
     },
     subscription::data_reader::Sample,
     topic_definition::type_support::DdsType,
-    {builtin_topics::PublicationBuiltinTopicData, infrastructure::qos::DataReaderQos},
 };
 use crate::{
     implementation::{
@@ -34,12 +33,8 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::{InstanceHandle, HANDLE_NIL},
+        instance::InstanceHandle,
         qos_policy::ReliabilityQosPolicyKind,
-        status::{
-            LivelinessChangedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, SampleRejectedStatusKind, SubscriptionMatchedStatus,
-        },
     },
     subscription::sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
     topic_definition::type_support::DdsDeserialize,
@@ -50,15 +45,14 @@ use super::{
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
 };
 
+pub enum BuiltInStatefulReaderDataSubmessageReceivedResult {
+    NoChange,
+    NewDataAvailable,
+}
+
 pub struct BuiltinStatefulReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
-    _liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
-    _requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
-    _sample_lost_status: DdsRwLock<SampleLostStatus>,
-    _sample_rejected_status: DdsRwLock<SampleRejectedStatus>,
-    _subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
-    _matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
@@ -102,44 +96,13 @@ impl BuiltinStatefulReader {
         DdsShared::new(BuiltinStatefulReader {
             rtps_reader: DdsRwLock::new(sedp_builtin_publications_rtps_reader),
             topic,
-            _liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus {
-                alive_count: 0,
-                not_alive_count: 0,
-                alive_count_change: 0,
-                not_alive_count_change: 0,
-                last_publication_handle: HANDLE_NIL,
-            }),
-            _requested_incompatible_qos_status: DdsRwLock::new(RequestedIncompatibleQosStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_policy_id: 0,
-                policies: Vec::new(),
-            }),
-            _sample_lost_status: DdsRwLock::new(SampleLostStatus {
-                total_count: 0,
-                total_count_change: 0,
-            }),
-            _sample_rejected_status: DdsRwLock::new(SampleRejectedStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_reason: SampleRejectedStatusKind::NotRejected,
-                last_instance_handle: HANDLE_NIL,
-            }),
-            _subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus {
-                total_count: 0,
-                total_count_change: 0,
-                last_publication_handle: HANDLE_NIL,
-                current_count: 0,
-                current_count_change: 0,
-            }),
-            _matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
 
-impl BuiltinStatefulReader {
+impl DdsShared<BuiltinStatefulReader> {
     pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
         let mut rtps_reader_lock = self.rtps_reader.write_lock();
 
@@ -154,21 +117,32 @@ impl BuiltinStatefulReader {
             participant_discovery.discovered_participant_add_topics_reader(&mut rtps_reader_lock);
         }
     }
-}
 
-impl DdsShared<BuiltinStatefulReader> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) {
-        self.rtps_reader
+    ) -> BuiltInStatefulReaderDataSubmessageReceivedResult {
+        let r = self
+            .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-    }
-}
 
-impl DdsShared<BuiltinStatefulReader> {
+        match r {
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy
+            | StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
+            | StatefulReaderDataReceivedResult::SampleRejected(_, _)
+            | StatefulReaderDataReceivedResult::InvalidData(_) => {
+                BuiltInStatefulReaderDataSubmessageReceivedResult::NoChange
+            }
+
+            StatefulReaderDataReceivedResult::NewSampleAdded(_)
+            | StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(_) => {
+                BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+            }
+        }
+    }
+
     pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -178,9 +152,7 @@ impl DdsShared<BuiltinStatefulReader> {
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
     }
-}
 
-impl DdsShared<BuiltinStatefulReader> {
     pub fn read<Foo>(
         &self,
         max_samples: i32,

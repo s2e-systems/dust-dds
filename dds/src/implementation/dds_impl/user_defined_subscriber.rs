@@ -38,7 +38,7 @@ use super::{
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
-    user_defined_data_reader::{DataSubmessageReceivedResult, UserDefinedDataReader},
+    user_defined_data_reader::{UserDefinedReaderDataSubmessageReceivedResult, UserDefinedDataReader},
 };
 
 pub struct UserDefinedSubscriber {
@@ -467,8 +467,8 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
             let data_submessage_received_result =
                 data_reader.on_data_submessage_received(data_submessage, message_receiver);
             match data_submessage_received_result {
-                DataSubmessageReceivedResult::NoChange => (),
-                DataSubmessageReceivedResult::NewDataAvailable => {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
                     *self.data_on_readers_status_changed_flag.write_lock() = true
                 }
             }
