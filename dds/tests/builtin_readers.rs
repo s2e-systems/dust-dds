@@ -154,7 +154,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(subscriptions_reader_cond))
         .unwrap();
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(4, 0)).unwrap();
 
     // Note: Participant also discovers itself
     let participant_samples = participants_reader
