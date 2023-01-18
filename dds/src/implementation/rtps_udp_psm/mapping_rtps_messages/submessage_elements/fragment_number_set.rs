@@ -4,8 +4,22 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::{submessage_elements::FragmentNumberSet, types::FragmentNumber},
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
 };
+
+
+
+impl NumberOfBytes for FragmentNumberSet {
+    fn number_of_bytes(&self) -> usize {
+        let num_bits: u32 = if let Some(max) = self.set.iter().max() {
+            *max - self.base + FragmentNumber::new(1)
+        } else {
+            FragmentNumber::new(0)
+        }.into();
+        let number_of_bitmap_elements = (num_bits as usize + 31) / 32; // aka "M"
+        8 /*bitmapBase + numBits */ + 4 * number_of_bitmap_elements /* bitmap[0] .. bitmap[M-1] */
+    }
+}
 
 impl MappingWriteByteOrdered for FragmentNumberSet {
     fn mapping_write_byte_ordered<W: Write, B: ByteOrder>(
