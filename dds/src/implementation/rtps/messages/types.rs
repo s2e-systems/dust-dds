@@ -46,7 +46,7 @@ pub enum SubmessageKind {
 pub struct ParameterId(pub u16);
 
 #[derive(
-    Clone, Copy, PartialEq, Eq, Debug, derive_more::Into, derive_more::Sub, derive_more::Add,
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, derive_more::Into, derive_more::Sub, derive_more::Add,
 )]
 pub struct FragmentNumber(u32);
 
