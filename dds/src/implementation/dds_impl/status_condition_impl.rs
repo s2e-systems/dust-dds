@@ -55,7 +55,6 @@ impl StatusConditionImpl {
         self.communication_status.push(state);
 
         if self.get_trigger_value() {
-            self.communication_status.retain(|x| x != &state);
             for cvar in self.cvar_list.iter() {
                 cvar.notify_all();
             }
@@ -68,5 +67,11 @@ impl StatusConditionImpl {
 
     pub fn push_cvar(&mut self, cvar: Arc<Condvar>) {
         self.cvar_list.push(cvar)
+    }
+
+    pub fn clear_triggered_conditions(&mut self) {
+        let enabled_statuses = &self.enabled_statuses;
+        self.communication_status
+            .retain(|x| !enabled_statuses.contains(x));
     }
 }

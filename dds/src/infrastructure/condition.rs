@@ -56,4 +56,8 @@ impl StatusCondition {
     pub(crate) fn push_cvar(&self, cvar: Arc<Condvar>) {
         self.0.write_lock().push_cvar(cvar)
     }
+
+    pub(crate) fn clear_triggered_conditions(&self) {
+        self.0.write_lock().clear_triggered_conditions()
+    }
 }

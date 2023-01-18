@@ -58,10 +58,20 @@ impl WaitSet {
         let enabled = self.enabled.lock().unwrap();
         let std_duration = std::time::Duration::new(timeout.sec() as u64, timeout.nanosec());
 
-        let result = self.cvar.wait_timeout(enabled, std_duration).unwrap();
+        // Wait only if the condition is not yet triggered
+        if !self.conditions.iter().any(|x| x.get_trigger_value()) {
+            let result = self.cvar.wait_timeout(enabled, std_duration).unwrap();
 
-        if result.1.timed_out() {
-            return Err(DdsError::Timeout);
+            if result.1.timed_out() {
+                return Err(DdsError::Timeout);
+            }
+        }
+
+        // After waiting must remove all conditions that were already checked
+        for condition in self.conditions.iter().filter(|x| x.get_trigger_value()) {
+            match condition {
+                Condition::StatusCondition(c) => c.clear_triggered_conditions(),
+            }
         }
 
         Ok(self
