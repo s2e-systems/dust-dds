@@ -7,7 +7,9 @@ use crate::implementation::rtps::messages::{
 };
 
 use crate::implementation::rtps::messages::submessages::NackFragSubmessage;
-use crate::implementation::rtps_udp_psm::mapping_traits::{NumberOfBytes, MappingWriteByteOrdered, MappingReadByteOrdered};
+use crate::implementation::rtps_udp_psm::mapping_traits::{
+    MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+};
 
 use super::submessage::{MappingReadSubmessage, MappingWriteSubmessage};
 
@@ -56,7 +58,7 @@ impl<'de> MappingReadSubmessage<'de> for NackFragSubmessage {
         buf: &mut &'de [u8],
         header: RtpsSubmessageHeader,
     ) -> Result<Self, Error> {
-         Ok(Self {
+        Ok(Self {
             endianness_flag: header.flags[0],
             reader_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
             writer_id: MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?,
