@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
+use crate::implementation::rtps_udp_psm::mapping_traits::NumberOfBytes;
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -223,6 +225,12 @@ impl SequenceNumber {
         Self(value)
     }
 }
+impl NumberOfBytes for SequenceNumber {
+    fn number_of_bytes(&self) -> usize {
+        8
+    }
+}
+
 #[allow(dead_code)]
 pub const SEQUENCENUMBER_UNKNOWN: SequenceNumber = SequenceNumber(i64::MIN);
 
