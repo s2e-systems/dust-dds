@@ -1,9 +1,13 @@
 use crate::{
-    implementation::rtps::{endpoint::RtpsEndpoint, reader::RtpsReader, types::TopicKind},
+    implementation::rtps::{
+        endpoint::RtpsEndpoint, reader::RtpsReader,
+        stateless_reader::StatelessReaderDataReceivedResult, types::TopicKind,
+    },
     infrastructure::qos::DataReaderQos,
     infrastructure::{
+        instance::InstanceHandle,
         qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-        time::DURATION_ZERO,
+        time::DURATION_ZERO, status::StatusKind,
     },
     subscription::data_reader::Sample,
     topic_definition::type_support::DdsType,
@@ -11,9 +15,8 @@ use crate::{
 use crate::{
     implementation::{
         rtps::{
-            messages::submessages::DataSubmessage,
-            stateless_reader::RtpsStatelessReader,
-            types::{EntityId, Guid, ENTITYID_UNKNOWN},
+            messages::submessages::DataSubmessage, stateless_reader::RtpsStatelessReader,
+            types::Guid,
         },
         utils::shared_object::{DdsRwLock, DdsShared},
     },
@@ -22,12 +25,22 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{message_receiver::MessageReceiver, topic_impl::TopicImpl};
+use super::{
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl,
+};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum BuiltInStatelessReaderDataSubmessageReceivedResult {
+    NoChange,
+    NewDataAvailable,
+}
 
 pub struct BuiltinStatelessReader {
     rtps_reader: DdsRwLock<RtpsStatelessReader>,
     _topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl BuiltinStatelessReader {
@@ -62,6 +75,7 @@ impl BuiltinStatelessReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             _topic: topic,
             enabled: DdsRwLock::new(false),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -71,30 +85,52 @@ impl DdsShared<BuiltinStatelessReader> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) {
-        let mut rtps_reader = self.rtps_reader.write_lock();
+    ) -> BuiltInStatelessReaderDataSubmessageReceivedResult {
+        let r = self
+            .rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver);
 
-        let data_reader_id: EntityId = data_submessage.reader_id;
-        if data_reader_id == ENTITYID_UNKNOWN
-            || data_reader_id == rtps_reader.reader().guid().entity_id()
-        {
-            rtps_reader
-                .reader_mut()
-                .add_change(
-                    data_submessage,
-                    Some(message_receiver.timestamp()),
-                    message_receiver.source_guid_prefix(),
-                    message_receiver.reception_timestamp(),
-                )
-                .ok();
+        match r {
+            StatelessReaderDataReceivedResult::NotForThisReader
+            | StatelessReaderDataReceivedResult::SampleRejected(_, _)
+            | StatelessReaderDataReceivedResult::InvalidData(_) => {
+                BuiltInStatelessReaderDataSubmessageReceivedResult::NoChange
+            }
+            StatelessReaderDataReceivedResult::NewSampleAdded(_) => {
+                BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
+            }
         }
     }
-}
 
-impl DdsShared<BuiltinStatelessReader> {
-    pub fn take<Foo>(
+    pub fn read<Foo>(
         &self,
         max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        if !*self.enabled.read_lock() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.rtps_reader.write_lock().reader_mut().read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn read_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
@@ -106,20 +142,37 @@ impl DdsShared<BuiltinStatelessReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader.write_lock().reader_mut().take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            None,
-        )
+        self.rtps_reader
+            .write_lock()
+            .reader_mut()
+            .read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )
     }
-}
 
-impl DdsShared<BuiltinStatelessReader> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
         Ok(())
+    }
+
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().reader().get_qos().clone()
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.read_lock().reader().guid().into()
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn on_data_available(&self) {
+        self.status_condition.write_lock().add_communication_state(StatusKind::DataAvailable);
     }
 }

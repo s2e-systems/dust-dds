@@ -48,7 +48,7 @@ use super::{
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
-pub enum DataSubmessageReceivedResult {
+pub enum UserDefinedReaderDataSubmessageReceivedResult {
     NoChange,
     NewDataAvailable,
 }
@@ -223,7 +223,7 @@ impl DdsShared<UserDefinedDataReader> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-    ) -> DataSubmessageReceivedResult {
+    ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
             .write_lock()
@@ -231,17 +231,17 @@ impl DdsShared<UserDefinedDataReader> {
 
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
-                DataSubmessageReceivedResult::NoChange
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
-                DataSubmessageReceivedResult::NoChange
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
                 self.instance_reception_time
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                DataSubmessageReceivedResult::NewDataAvailable
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
                 self.instance_reception_time
@@ -249,14 +249,14 @@ impl DdsShared<UserDefinedDataReader> {
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
                 self.on_sample_lost();
-                DataSubmessageReceivedResult::NewDataAvailable
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
                 self.on_sample_rejected(instance_handle, rejected_reason);
-                DataSubmessageReceivedResult::NoChange
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::InvalidData(_) => {
-                DataSubmessageReceivedResult::NoChange
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
         }
     }
@@ -602,8 +602,8 @@ impl DdsShared<UserDefinedDataReader> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(self.rtps_reader.read_lock().reader().get_qos().clone())
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().reader().get_qos().clone()
     }
 
     pub fn set_listener(

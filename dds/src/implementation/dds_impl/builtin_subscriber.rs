@@ -29,8 +29,12 @@ use crate::{
 };
 
 use super::{
-    builtin_stateful_reader::BuiltinStatefulReader,
-    builtin_stateless_reader::BuiltinStatelessReader,
+    builtin_stateful_reader::{
+        BuiltInStatefulReaderDataSubmessageReceivedResult, BuiltinStatefulReader,
+    },
+    builtin_stateless_reader::{
+        BuiltInStatelessReaderDataSubmessageReceivedResult, BuiltinStatelessReader,
+    },
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -153,9 +157,7 @@ impl DdsShared<BuiltInSubscriber> {
             _ => Err(DdsError::BadParameter),
         }
     }
-}
 
-impl DdsShared<BuiltInSubscriber> {
     pub fn get_qos(&self) -> SubscriberQos {
         self.qos.read_lock().clone()
     }
@@ -182,6 +184,14 @@ impl DdsShared<BuiltInSubscriber> {
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
+
+    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+        self.sedp_builtin_topics_reader.send_message(transport);
+        self.sedp_builtin_publications_reader
+            .send_message(transport);
+        self.sedp_builtin_subscriptions_reader
+            .send_message(transport);
+    }
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
@@ -190,14 +200,40 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
-        self.spdp_builtin_participant_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_topics_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_publications_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-        self.sedp_builtin_subscriptions_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
+        if self
+            .spdp_builtin_participant_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.spdp_builtin_participant_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_topics_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_publications_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_publications_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_publications_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .sedp_builtin_subscriptions_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.sedp_builtin_subscriptions_reader.on_data_available();
+        }
     }
 
     fn on_heartbeat_submessage_received(
@@ -211,15 +247,5 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.sedp_builtin_subscriptions_reader
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-    }
-}
-
-impl DdsShared<BuiltInSubscriber> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.sedp_builtin_topics_reader.send_message(transport);
-        self.sedp_builtin_publications_reader
-            .send_message(transport);
-        self.sedp_builtin_subscriptions_reader
-            .send_message(transport);
     }
 }
