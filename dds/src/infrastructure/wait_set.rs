@@ -67,13 +67,6 @@ impl WaitSet {
             }
         }
 
-        // After waiting must remove all conditions that were already checked
-        for condition in self.conditions.iter().filter(|x| x.get_trigger_value()) {
-            match condition {
-                Condition::StatusCondition(c) => c.clear_triggered_conditions(),
-            }
-        }
-
         Ok(self
             .conditions
             .iter()

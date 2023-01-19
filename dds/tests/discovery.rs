@@ -121,6 +121,7 @@ fn updated_readers_are_announced_to_writer() {
         .attach_condition(Condition::StatusCondition(cond.clone()))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_writer.get_publication_matched_status().unwrap();
 
     let user_data_qos_policy = UserDataQosPolicy {
         value: vec![1, 2, 3, 4],

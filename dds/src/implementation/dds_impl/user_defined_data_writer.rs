@@ -462,6 +462,9 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::PublicationMatched);
         self.publication_matched_status
             .write_lock()
             .read_and_reset(self.matched_subscription_list.read_lock().len() as i32)
