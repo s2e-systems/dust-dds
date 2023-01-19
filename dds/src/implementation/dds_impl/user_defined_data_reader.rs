@@ -527,10 +527,16 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SampleRejected);
         self.sample_rejected_status.write_lock().read_and_reset()
     }
 
     pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
         self.subscription_matched_status
             .write_lock()
             .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
