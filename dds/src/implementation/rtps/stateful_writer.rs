@@ -16,6 +16,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+            InfoTimestampSubmessage,
         },
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
@@ -300,10 +301,25 @@ where
                     // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
                     // should be full-filled by next_unsent_change()
                     if change.is_relevant() {
-                        let (info_ts_submessage, mut data_submessage) = change.into();
-                        data_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
+                        let info_ts_submessage = InfoTimestampSubmessage {
+                            endianness_flag: true,
+                            invalidate_flag: false,
+                            timestamp: super::messages::types::Time::new(
+                                change.timestamp().sec(),
+                                change.timestamp().nanosec(),
+                            ),
+                        };
+                        let max_bytes = 60000;
+                        let data_frag_submessage_list = change.into_data_frag_submessages(
+                            max_bytes,
+                            reader_proxy.remote_reader_guid().entity_id(),
+                        );
+
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
+
+                        for data_frag_submessage in data_frag_submessage_list {
+                            submessages.push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
+                        }
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
                         gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
@@ -441,5 +457,122 @@ where
                 reader_proxy.reliable_receive_acknack(acknack_submessage);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        implementation::rtps::{
+            endpoint::RtpsEndpoint,
+            messages::types::FragmentNumber,
+            types::{
+                EntityId, EntityKey, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
+                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_READER_NO_KEY,
+            },
+            utils::clock::StdTimer,
+        },
+        topic_definition::type_support::{DdsSerde, DdsType},
+    };
+
+    use super::*;
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct LargeData {
+        id: u8,
+        value: Vec<u8>,
+    }
+    impl DdsType for LargeData {
+        fn type_name() -> &'static str {
+            "LargeData"
+        }
+    }
+    impl DdsSerde for LargeData {}
+
+    use mockall::mock;
+
+    mock! {
+        Transport{}
+
+        impl TransportWrite for Transport {
+            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator: Locator);
+        }
+    }
+
+    #[test]
+    fn write_frag_message() {
+        let remote_reader_guid = Guid::new(
+            GuidPrefix::new([4; 12]),
+            EntityId::new(EntityKey::new([0, 0, 0x03]), USER_DEFINED_READER_NO_KEY),
+        );
+
+        let mut rtps_writer = RtpsStatefulWriter::<StdTimer>::new(RtpsWriter::new(
+            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
+            true,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            None,
+            DataWriterQos::default(),
+        ));
+        let data = LargeData {
+            id: 5,
+            value: vec![3; 100000],
+        };
+        rtps_writer
+            .write_w_timestamp(&data, None, Time::new(1, 0))
+            .unwrap();
+
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let expects_inline_qos = false;
+        let proxy = RtpsReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &[Locator::new(
+                LocatorKind::new(1),
+                LocatorPort::new(2),
+                LocatorAddress::new([3; 16]),
+            )],
+            &[],
+            expects_inline_qos,
+            true,
+        );
+        rtps_writer.matched_reader_add(proxy);
+
+        let mut transport = MockTransport::new();
+        transport
+            .expect_write()
+            .once()
+            .withf(|message, destination_locator| {
+                let data_frag_submessages: Vec<_> = message
+                    .submessages
+                    .iter()
+                    .filter(|s| match s {
+                        RtpsSubmessageKind::DataFrag(_) => true,
+                        _ => false,
+                    })
+                    .collect();
+                if data_frag_submessages.len() != 2 {
+                    false
+                } else {
+                    let ret1 = if let RtpsSubmessageKind::DataFrag(submessage) =
+                        data_frag_submessages[0]
+                    {
+                        submessage.fragment_starting_num == FragmentNumber::new(1)
+                    } else {
+                        false
+                    };
+                    let ret2 = if let RtpsSubmessageKind::DataFrag(submessage) =
+                        data_frag_submessages[1]
+                    {
+                        submessage.fragment_starting_num == FragmentNumber::new(1)
+                    } else {
+                        false
+                    };
+                    ret1 && ret2
+                }
+            })
+            .return_const(());
+
+        rtps_writer.send_submessage_reliable(&mut transport);
     }
 }

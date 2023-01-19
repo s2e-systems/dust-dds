@@ -2,8 +2,13 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
+    messages::{
+        submessage_elements::{Parameter, ParameterList},
+        submessages::{
+            AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
+            InfoTimestampSubmessage,
+        },
+        types::{FragmentNumber, SerializedPayload, ULong, UShort},
     },
     types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber},
 };
@@ -124,6 +129,78 @@ impl RtpsChangeForReader {
 pub struct RtpsChangeForReaderCacheChange<'a> {
     change_for_reader: RtpsChangeForReader,
     cache_change: &'a RtpsWriterCacheChange,
+}
+
+impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn into_data_frag_submessages(
+        self,
+        max_bytes: usize,
+        reader_id: EntityId,
+    ) -> Vec<DataFragSubmessage<'a>> {
+        let data = self.cache_change.data_value();
+        let data_size = ULong::new(data.len() as u32);
+        let mut fragment_starting_num = FragmentNumber::new(1);
+        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+        let fragment_size = UShort::new(max_bytes as u16);
+
+        let mut messages = Vec::new();
+
+        let mut data_fragment;
+        let mut data_remaining = data;
+
+        while !data_remaining.is_empty() {
+            if data_remaining.len() >= max_bytes {
+                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+            } else {
+                data_fragment = data_remaining;
+                data_remaining = &[];
+            }
+
+            let endianness_flag = true;
+            let inline_qos_flag = true;
+            let key_flag = match self.kind() {
+                ChangeKind::Alive => false,
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+                _ => todo!(),
+            };
+            let non_standard_payload_flag = false;
+            let writer_id = self.writer_guid().entity_id();
+            let writer_sn = self.sequence_number();
+            let inline_qos = ParameterList {
+                parameter: self
+                    .cache_change
+                    .inline_qos()
+                    .iter()
+                    .map(|p| Parameter {
+                        parameter_id: p.parameter_id.0,
+                        length: p.value.len() as i16,
+                        value: p.value.as_ref(),
+                    })
+                    .collect(),
+            };
+            let serialized_payload = SerializedPayload::new(data_fragment);
+            let message = DataFragSubmessage {
+                endianness_flag,
+                inline_qos_flag,
+                non_standard_payload_flag,
+                key_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                fragment_starting_num,
+                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+                data_size,
+                fragment_size,
+                inline_qos,
+                serialized_payload,
+            };
+
+            messages.push(message);
+
+            fragment_starting_num += FragmentNumber::new(1);
+        }
+        messages
+    }
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {

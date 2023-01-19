@@ -11,8 +11,8 @@ use super::{
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsParameter {
-    parameter_id: ParameterId,
-    value: Vec<u8>,
+    pub parameter_id: ParameterId,
+    pub value: Vec<u8>,
 }
 
 impl RtpsParameter {
