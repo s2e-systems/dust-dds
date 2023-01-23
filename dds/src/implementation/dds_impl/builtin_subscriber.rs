@@ -214,7 +214,7 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
             .on_data_submessage_received(data_submessage, message_receiver)
             == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
         {
-            self.sedp_builtin_publications_reader.on_data_available();
+            self.sedp_builtin_topics_reader.on_data_available();
             return;
         }
 

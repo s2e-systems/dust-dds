@@ -82,6 +82,7 @@ fn deleted_readers_are_disposed_from_writer() {
         .attach_condition(Condition::StatusCondition(cond.clone()))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_writer.get_publication_matched_status().unwrap();
 
     subscriber.delete_datareader(&data_reader).unwrap();
 
@@ -121,6 +122,7 @@ fn updated_readers_are_announced_to_writer() {
         .attach_condition(Condition::StatusCondition(cond.clone()))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_writer.get_publication_matched_status().unwrap();
 
     let user_data_qos_policy = UserDataQosPolicy {
         value: vec![1, 2, 3, 4],
@@ -206,6 +208,7 @@ fn deleted_writers_are_disposed_from_reader() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_reader.get_subscription_matched_status().unwrap();
 
     publisher.delete_datawriter(&data_writer).unwrap();
 
@@ -245,6 +248,7 @@ fn updated_writers_are_announced_to_reader() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_reader.get_subscription_matched_status().unwrap();
 
     let user_data_qos_policy = UserDataQosPolicy {
         value: vec![1, 2, 3, 4],
@@ -364,6 +368,7 @@ fn reader_discovers_disposed_writer_same_participant() {
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
+    data_reader.get_subscription_matched_status().unwrap();
 
     publisher.delete_datawriter(&data_writer).unwrap();
 
