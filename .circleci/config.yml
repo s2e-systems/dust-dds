@@ -14,7 +14,7 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo clippy -- -D warnings
+            cargo clippy --jobs 4 -- -D warnings
       - run:
           name: Run Tests
           command: |
@@ -66,7 +66,7 @@ jobs:
       - run:
           name: Build dust binaries
           command: |
-            cargo build
+            cargo build --jobs 4
       - run:
           name: Hello world subscriber interoperability test
           no_output_timeout: 30s
