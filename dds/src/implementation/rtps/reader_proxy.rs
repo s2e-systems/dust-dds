@@ -132,6 +132,41 @@ pub struct RtpsChangeForReaderCacheChange<'a> {
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn into_data_submessage(
+        self,
+        reader_id: EntityId,
+    ) -> DataSubmessage<'a> {
+        let (data_flag, key_flag) = match self.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let inline_qos = ParameterList {
+            parameter: self.cache_change
+                .inline_qos()
+                .iter()
+                .map(|p| Parameter {
+                    parameter_id: p.parameter_id.0,
+                    length: p.value.len() as i16,
+                    value: p.value.as_ref(),
+                })
+                .collect(),
+        };
+        DataSubmessage {
+            endianness_flag : true,
+            inline_qos_flag : true,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag: false,
+            reader_id,
+            writer_id: self.writer_guid().entity_id(),
+            writer_sn: self.sequence_number(),
+            inline_qos,
+            serialized_payload: SerializedPayload::new(self.cache_change.data_value()),
+        }
+    }
+
+
     pub fn into_data_frag_submessages(
         self,
         max_bytes: usize,
@@ -141,7 +176,6 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         let data_size = ULong::new(data.len() as u32);
         let mut fragment_starting_num = FragmentNumber::new(1);
         const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
-        let fragment_size = UShort::new(max_bytes as u16);
 
         let mut messages = Vec::new();
 
@@ -190,7 +224,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
                 fragment_starting_num,
                 fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
                 data_size,
-                fragment_size,
+                fragment_size: UShort::new(data_fragment.len() as u16),
                 inline_qos,
                 serialized_payload,
             };

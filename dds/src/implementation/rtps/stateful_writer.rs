@@ -309,16 +309,21 @@ where
                                 change.timestamp().nanosec(),
                             ),
                         };
-                        let max_bytes = 60000;
-                        let data_frag_submessage_list = change.into_data_frag_submessages(
-                            max_bytes,
-                            reader_proxy.remote_reader_guid().entity_id(),
-                        );
-
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
 
-                        for data_frag_submessage in data_frag_submessage_list {
-                            submessages.push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
+                        let max_bytes = 60000;
+                        let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                        if change.data_value().len() > max_bytes {
+                            let data_frag_submessage_list =
+                                change.into_data_frag_submessages(max_bytes, reader_id);
+                            for data_frag_submessage in data_frag_submessage_list {
+                                submessages
+                                    .push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
+                            }
+                        } else {
+                            submessages.push(RtpsSubmessageKind::Data(
+                                change.into_data_submessage(reader_id),
+                            ));
                         }
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
@@ -465,7 +470,7 @@ mod tests {
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
-            messages::types::FragmentNumber,
+            messages::types::{FragmentNumber, UShort},
             types::{
                 EntityId, EntityKey, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
                 ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_READER_NO_KEY,
@@ -478,7 +483,6 @@ mod tests {
     use super::*;
     #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
     struct LargeData {
-        id: u8,
         value: Vec<u8>,
     }
     impl DdsType for LargeData {
@@ -515,9 +519,10 @@ mod tests {
             DataWriterQos::default(),
         ));
         let data = LargeData {
-            id: 5,
             value: vec![3; 100000],
         };
+        let data_length = data.value.len() + 4 /*CDR header*/ + 4 /*length of vector*/;
+
         rtps_writer
             .write_w_timestamp(&data, None, Time::new(1, 0))
             .unwrap();
@@ -538,11 +543,13 @@ mod tests {
         );
         rtps_writer.matched_reader_add(proxy);
 
+        let max_bytes = 60000;
+
         let mut transport = MockTransport::new();
         transport
             .expect_write()
             .once()
-            .withf(|message, destination_locator| {
+            .withf(move |message, _destination_locator| {
                 let data_frag_submessages: Vec<_> = message
                     .submessages
                     .iter()
@@ -558,13 +565,19 @@ mod tests {
                         data_frag_submessages[0]
                     {
                         submessage.fragment_starting_num == FragmentNumber::new(1)
+                            && submessage.fragment_size == UShort::new(max_bytes as u16)
+                            && <&[u8]>::from(&submessage.serialized_payload).len() == max_bytes
                     } else {
                         false
                     };
                     let ret2 = if let RtpsSubmessageKind::DataFrag(submessage) =
                         data_frag_submessages[1]
                     {
-                        submessage.fragment_starting_num == FragmentNumber::new(1)
+                        submessage.fragment_starting_num == FragmentNumber::new(2)
+                            && submessage.fragment_size
+                                == UShort::new((data_length - max_bytes) as u16)
+                            && <&[u8]>::from(&submessage.serialized_payload).len()
+                                == data_length - max_bytes
                     } else {
                         false
                     };
