@@ -110,13 +110,6 @@ where
         Ok(())
     }
 
-    /// This operation allows access to the existing Listener attached to the Entity.
-    pub fn get_listener(
-        &self,
-    ) -> DdsResult<Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>> {
-        todo!()
-    }
-
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.

@@ -7,7 +7,7 @@ use dust_dds::{
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind, TopicQos},
         qos_policy::{TopicDataQosPolicy, UserDataQosPolicy},
-        status::NO_STATUS,
+        status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
@@ -61,10 +61,6 @@ fn get_discovery_data_from_builtin_reader() {
     let writer_user_data = vec![7, 8];
 
     let participant = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-
-    let participant2 = DomainParticipantFactory::get_instance()
         .create_participant(
             domain_id,
             QosKind::Specific(DomainParticipantQos {
@@ -78,7 +74,7 @@ fn get_discovery_data_from_builtin_reader() {
         )
         .unwrap();
 
-    let topic = participant2
+    let topic = participant
         .create_topic::<MyData>(
             "topic_name",
             QosKind::Specific(TopicQos {
@@ -92,7 +88,7 @@ fn get_discovery_data_from_builtin_reader() {
         )
         .unwrap();
 
-    let publisher = participant2
+    let publisher = participant
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -110,7 +106,7 @@ fn get_discovery_data_from_builtin_reader() {
         )
         .unwrap();
 
-    let subscriber = participant2
+    let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
@@ -149,34 +145,68 @@ fn get_discovery_data_from_builtin_reader() {
         .unwrap()
         .unwrap();
 
+    let participants_reader_cond = participants_reader.get_statuscondition().unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(participants_reader_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(4, 0)).unwrap();
+
+    let participant_samples = participants_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    let topics_reader_cond = topics_reader.get_statuscondition().unwrap();
+    topics_reader_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(topics_reader_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(4, 0)).unwrap();
+
+    let topic_samples = topics_reader
+        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
     let subscriptions_reader_cond = subscriptions_reader.get_statuscondition().unwrap();
+    subscriptions_reader_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(subscriptions_reader_cond))
         .unwrap();
     wait_set.wait(Duration::new(4, 0)).unwrap();
 
-    // Note: Participant also discovers itself
-    let participant_samples = participants_reader
-        .read(2, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
-    let topic_samples = topics_reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
     let subscription_samples = subscriptions_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
+
+    let publications_reader_cond = publications_reader.get_statuscondition().unwrap();
+    publications_reader_cond
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(publications_reader_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(100, 0)).unwrap();
 
     let publication_samples = publications_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert!(participant_samples
-        .iter()
-        .find(|x| &x.data.as_ref().unwrap().user_data.value == &participant_user_data)
-        .is_some());
+    assert_eq!(
+        &participant_samples[0]
+            .data
+            .as_ref()
+            .unwrap()
+            .user_data
+            .value,
+        &participant_user_data
+    );
 
     assert_eq!(
         &topic_samples[0].data.as_ref().unwrap().topic_data.value,

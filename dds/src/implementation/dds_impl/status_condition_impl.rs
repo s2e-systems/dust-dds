@@ -55,7 +55,6 @@ impl StatusConditionImpl {
         self.communication_status.push(state);
 
         if self.get_trigger_value() {
-            self.communication_status.retain(|x| x != &state);
             for cvar in self.cvar_list.iter() {
                 cvar.notify_all();
             }
