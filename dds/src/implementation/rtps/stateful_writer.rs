@@ -315,14 +315,14 @@ where
                         let reader_id = reader_proxy.remote_reader_guid().entity_id();
                         if change.data_value().len() > max_bytes {
                             let data_frag_submessage_list =
-                                change.into_data_frag_submessages(max_bytes, reader_id);
+                                change.cache_change().as_data_frag_submessages(max_bytes, reader_id);
                             for data_frag_submessage in data_frag_submessage_list {
                                 submessages
                                     .push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
                             }
                         } else {
                             submessages.push(RtpsSubmessageKind::Data(
-                                change.into_data_submessage(reader_id),
+                                change.cache_change().as_data_submessage(reader_id),
                             ));
                         }
                     } else {

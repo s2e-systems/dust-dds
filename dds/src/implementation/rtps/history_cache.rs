@@ -1,18 +1,21 @@
-use crate::infrastructure::{instance::InstanceHandle, time::Time};
+use crate::{
+    implementation::rtps::messages::types::{FragmentNumber, ULong, UShort},
+    infrastructure::{instance::InstanceHandle, time::Time},
+};
 
 use super::{
     messages::{
         submessage_elements::{Parameter, ParameterList},
-        submessages::DataSubmessage,
+        submessages::{DataFragSubmessage, DataSubmessage},
         types::{ParameterId, SerializedPayload},
     },
-    types::{ChangeKind, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsParameter {
-    pub parameter_id: ParameterId,
-    pub value: Vec<u8>,
+    parameter_id: ParameterId,
+    value: Vec<u8>,
 }
 
 impl RtpsParameter {
@@ -40,6 +43,107 @@ pub struct RtpsWriterCacheChange {
     timestamp: Time,
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
+}
+
+impl RtpsWriterCacheChange {
+    pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
+        let (data_flag, key_flag) = match self.kind() {
+            ChangeKind::Alive => (true, false),
+            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (false, true),
+            _ => todo!(),
+        };
+        let inline_qos = ParameterList {
+            parameter: self
+                .inline_qos()
+                .iter()
+                .map(|p| Parameter {
+                    parameter_id: p.parameter_id.0,
+                    length: p.value.len() as i16,
+                    value: p.value.as_ref(),
+                })
+                .collect(),
+        };
+        DataSubmessage {
+            endianness_flag: true,
+            inline_qos_flag: true,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag: false,
+            reader_id,
+            writer_id: self.writer_guid().entity_id(),
+            writer_sn: self.sequence_number(),
+            inline_qos,
+            serialized_payload: SerializedPayload::new(self.data_value()),
+        }
+    }
+
+    pub fn as_data_frag_submessages(
+        &self,
+        max_bytes: usize,
+        reader_id: EntityId,
+    ) -> Vec<DataFragSubmessage> {
+        let data = self.data_value();
+        let data_size = ULong::new(data.len() as u32);
+        let mut fragment_starting_num = FragmentNumber::new(1);
+        const FRAGMENTS_IN_SUBMESSAGE: UShort = UShort::new(1);
+
+        let mut messages = Vec::new();
+
+        let mut data_fragment;
+        let mut data_remaining = data;
+
+        while !data_remaining.is_empty() {
+            if data_remaining.len() >= max_bytes {
+                (data_fragment, data_remaining) = data_remaining.split_at(max_bytes);
+            } else {
+                data_fragment = data_remaining;
+                data_remaining = &[];
+            }
+
+            let endianness_flag = true;
+            let inline_qos_flag = true;
+            let key_flag = match self.kind() {
+                ChangeKind::Alive => false,
+                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => true,
+                _ => todo!(),
+            };
+            let non_standard_payload_flag = false;
+            let writer_id = self.writer_guid().entity_id();
+            let writer_sn = self.sequence_number();
+            let inline_qos = ParameterList {
+                parameter: self
+                    .inline_qos()
+                    .iter()
+                    .map(|p| Parameter {
+                        parameter_id: p.parameter_id.0,
+                        length: p.value.len() as i16,
+                        value: p.value.as_ref(),
+                    })
+                    .collect(),
+            };
+            let serialized_payload = SerializedPayload::new(data_fragment);
+            let message = DataFragSubmessage {
+                endianness_flag,
+                inline_qos_flag,
+                non_standard_payload_flag,
+                key_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                fragment_starting_num,
+                fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
+                data_size,
+                fragment_size: UShort::new(data_fragment.len() as u16),
+                inline_qos,
+                serialized_payload,
+            };
+
+            messages.push(message);
+
+            fragment_starting_num += FragmentNumber::new(1);
+        }
+        messages
+    }
 }
 
 impl PartialEq for RtpsWriterCacheChange {
