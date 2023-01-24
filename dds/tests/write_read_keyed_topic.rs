@@ -27,12 +27,12 @@ struct KeyedData {
     value: u8,
 }
 
-#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
-struct LargeData {
-    #[key]
-    id: u8,
-    value: Vec<u8>,
-}
+// #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
+// struct LargeData {
+//     #[key]
+//     id: u8,
+//     value: Vec<u8>,
+// }
 
 // #[test]
 // fn large_data_should_be_fragmented() {
