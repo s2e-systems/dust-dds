@@ -311,20 +311,23 @@ where
                         };
                         submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
 
-                        let max_bytes = 60000;
                         let reader_id = reader_proxy.remote_reader_guid().entity_id();
-                        if change.data_value().len() > max_bytes {
-                            let data_frag_submessage_list = change
-                                .cache_change()
-                                .as_data_frag_submessages(max_bytes, reader_id);
-                            for data_frag_submessage in data_frag_submessage_list {
-                                submessages
-                                    .push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
+
+                        match self.writer.data_max_size_serialized() {
+                            Some(data_max_size_serialized)
+                                if change.data_value().len() > data_max_size_serialized =>
+                            {
+                                let data_frag_submessage_list = change
+                                    .cache_change()
+                                    .as_data_frag_submessages(data_max_size_serialized, reader_id);
+                                for data_frag_submessage in data_frag_submessage_list {
+                                    submessages
+                                        .push(RtpsSubmessageKind::DataFrag(data_frag_submessage));
+                                }
                             }
-                        } else {
-                            submessages.push(RtpsSubmessageKind::Data(
+                            _ => submessages.push(RtpsSubmessageKind::Data(
                                 change.cache_change().as_data_submessage(reader_id),
-                            ));
+                            )),
                         }
                     } else {
                         let mut gap_submessage: GapSubmessage = change.into();
@@ -510,13 +513,15 @@ mod tests {
             EntityId::new(EntityKey::new([0, 0, 0x03]), USER_DEFINED_READER_NO_KEY),
         );
 
+        let max_bytes = 60000;
+
         let mut rtps_writer = RtpsStatefulWriter::<StdTimer>::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
-            None,
+            Some(max_bytes),
             DataWriterQos::default(),
         ));
         let data = LargeData {
@@ -544,7 +549,6 @@ mod tests {
         );
         rtps_writer.matched_reader_add(proxy);
 
-        let max_bytes = 60000;
 
         let mut transport = MockTransport::new();
         transport
