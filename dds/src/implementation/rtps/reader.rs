@@ -26,7 +26,10 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::RtpsParameter,
-    messages::{submessages::DataSubmessage, types::ParameterId},
+    messages::{
+        submessages::{DataFragSubmessage, DataSubmessage},
+        types::ParameterId,
+    },
     types::{ChangeKind, Guid, GuidPrefix},
 };
 
@@ -47,6 +50,57 @@ pub struct RtpsReaderCacheChange {
     disposed_generation_count: i32,
     no_writers_generation_count: i32,
     reception_timestamp: Time,
+}
+
+pub fn convert_data_frag_to_cache_change(
+    data_frag_submessage: &DataFragSubmessage,
+    data: Vec<u8>,
+    source_timestamp: Option<Time>,
+    source_guid_prefix: GuidPrefix,
+    reception_timestamp: Time,
+) -> Result<RtpsReaderCacheChange, RtpsReaderError> {
+    let writer_guid = Guid::new(source_guid_prefix, data_frag_submessage.writer_id);
+
+    let inline_qos: Vec<RtpsParameter> = data_frag_submessage
+        .inline_qos
+        .parameter
+        .iter()
+        .map(|p| RtpsParameter::new(ParameterId(p.parameter_id), p.value.to_vec()))
+        .collect();
+
+    let change_kind = if data_frag_submessage.key_flag {
+        if let Some(p) = inline_qos
+            .iter()
+            .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
+        {
+            let mut deserializer =
+                cdr::Deserializer::<_, _, cdr::LittleEndian>::new(p.value(), cdr::Infinite);
+            let status_info: StatusInfo =
+                serde::Deserialize::deserialize(&mut deserializer).unwrap();
+            match status_info {
+                STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
+                STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
+            }
+        } else {
+            Err(RtpsReaderError::InvalidData(
+                "Missing mandatory StatusInfo parameter",
+            ))
+        }
+    } else {
+        Ok(ChangeKind::Alive)
+    }?;
+
+    Ok(RtpsReaderCacheChange {
+        kind: change_kind,
+        writer_guid,
+        data,
+        source_timestamp,
+        sample_state: SampleStateKind::NotRead,
+        disposed_generation_count: 0, // To be filled up only when getting stored
+        no_writers_generation_count: 0, // To be filled up only when getting stored
+        reception_timestamp,
+    })
 }
 
 struct InstanceHandleBuilder(fn(&mut &[u8]) -> RtpsReaderResult<DdsSerializedKey>);
@@ -296,7 +350,6 @@ impl RtpsReader {
         &mut self,
         mut change: RtpsReaderCacheChange,
     ) -> RtpsReaderResult<InstanceHandle> {
-
         let change_instance_handle = self
             .instance_handle_builder
             .build_instance_handle(change.kind, &change.data)?;
@@ -758,927 +811,927 @@ impl RtpsReader {
 
 //     impl DdsSerde for UnkeyedType {}
 
-    // #[test]
-    // fn reader_no_key_add_change_keep_last_1() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepLast,
-    //             depth: 1,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
-    //     let data1 = UnkeyedType { data: [1; 5] };
-    //     let data2 = UnkeyedType { data: [2; 5] };
+// #[test]
+// fn reader_no_key_add_change_keep_last_1() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepLast,
+//             depth: 1,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+//     let data1 = UnkeyedType { data: [1; 5] };
+//     let data2 = UnkeyedType { data: [2; 5] };
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<UnkeyedType>(
-    //             10,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
-    //     assert_eq!(samples.len(), 1);
-    //     assert_eq!(samples[0].data.as_ref(), Some(&data2));
-    // }
+//     let samples = reader
+//         .read::<UnkeyedType>(
+//             10,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
+//     assert_eq!(samples.len(), 1);
+//     assert_eq!(samples[0].data.as_ref(), Some(&data2));
+// }
 
-    // #[test]
-    // fn reader_with_key_add_change_keep_last_1() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepLast,
-    //             depth: 1,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_with_key_add_change_keep_last_1() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepLast,
+//             depth: 1,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     let data1_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [1; 5],
-    //     };
-    //     let data2_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [2; 5],
-    //     };
+//     let data1_instance1 = KeyedType {
+//         key: 1,
+//         data: [1; 5],
+//     };
+//     let data2_instance1 = KeyedType {
+//         key: 1,
+//         data: [2; 5],
+//     };
 
-    //     let data1_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [1; 5],
-    //     };
+//     let data1_instance2 = KeyedType {
+//         key: 2,
+//         data: [1; 5],
+//     };
 
-    //     let data2_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [2; 5],
-    //     };
+//     let data2_instance2 = KeyedType {
+//         key: 2,
+//         data: [2; 5],
+//     };
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1_instance1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             Some(Time::new(1, 0)),
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2_instance1),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             Some(Time::new(1, 0)),
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1_instance1),
+//                 SequenceNumber::new(1),
+//             ),
+//             Some(Time::new(1, 0)),
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2_instance1),
+//                 SequenceNumber::new(2),
+//             ),
+//             Some(Time::new(1, 0)),
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1_instance2),
-    //                 SequenceNumber::new(3),
-    //             ),
-    //             Some(Time::new(1, 0)),
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2_instance2),
-    //                 SequenceNumber::new(4),
-    //             ),
-    //             Some(Time::new(1, 0)),
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1_instance2),
+//                 SequenceNumber::new(3),
+//             ),
+//             Some(Time::new(1, 0)),
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2_instance2),
+//                 SequenceNumber::new(4),
+//             ),
+//             Some(Time::new(1, 0)),
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<KeyedType>(
-    //             10,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<KeyedType>(
+//             10,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 2);
+//     assert_eq!(samples.len(), 2);
 
-    //     // Last sample of each instance exists
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data2_instance1)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data2_instance2)));
+//     // Last sample of each instance exists
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data2_instance1)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data2_instance2)));
 
-    //     // First sample of each instance does not exist
-    //     assert!(!samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data1_instance1)));
-    //     assert!(!samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data1_instance2)));
-    // }
+//     // First sample of each instance does not exist
+//     assert!(!samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data1_instance1)));
+//     assert!(!samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data1_instance2)));
+// }
 
-    // #[test]
-    // fn reader_no_key_add_change_keep_last_3() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepLast,
-    //             depth: 3,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_no_key_add_change_keep_last_3() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepLast,
+//             depth: 3,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     let data1 = UnkeyedType { data: [1; 5] };
-    //     let data2 = UnkeyedType { data: [2; 5] };
-    //     let data3 = UnkeyedType { data: [3; 5] };
-    //     let data4 = UnkeyedType { data: [4; 5] };
+//     let data1 = UnkeyedType { data: [1; 5] };
+//     let data2 = UnkeyedType { data: [2; 5] };
+//     let data3 = UnkeyedType { data: [3; 5] };
+//     let data4 = UnkeyedType { data: [4; 5] };
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data3),
-    //                 SequenceNumber::new(3),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data4),
-    //                 SequenceNumber::new(4),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data3),
+//                 SequenceNumber::new(3),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data4),
+//                 SequenceNumber::new(4),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<UnkeyedType>(
-    //             10,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<UnkeyedType>(
+//             10,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 3);
+//     assert_eq!(samples.len(), 3);
 
-    //     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data2)));
-    //     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data3)));
-    //     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data4)));
-    // }
+//     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data2)));
+//     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data3)));
+//     assert!(samples.iter().any(|s| s.data.as_ref() == Some(&data4)));
+// }
 
-    // #[test]
-    // fn reader_with_key_add_change_keep_last_3() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepLast,
-    //             depth: 3,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_with_key_add_change_keep_last_3() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepLast,
+//             depth: 3,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     let data1_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [1; 5],
-    //     };
-    //     let data2_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [2; 5],
-    //     };
-    //     let data3_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [3; 5],
-    //     };
-    //     let data4_instance1 = KeyedType {
-    //         key: 1,
-    //         data: [4; 5],
-    //     };
+//     let data1_instance1 = KeyedType {
+//         key: 1,
+//         data: [1; 5],
+//     };
+//     let data2_instance1 = KeyedType {
+//         key: 1,
+//         data: [2; 5],
+//     };
+//     let data3_instance1 = KeyedType {
+//         key: 1,
+//         data: [3; 5],
+//     };
+//     let data4_instance1 = KeyedType {
+//         key: 1,
+//         data: [4; 5],
+//     };
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1_instance1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2_instance1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data3_instance1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data4_instance1),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1_instance1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2_instance1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data3_instance1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data4_instance1),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let data1_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [1; 5],
-    //     };
-    //     let data2_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [2; 5],
-    //     };
-    //     let data3_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [3; 5],
-    //     };
-    //     let data4_instance2 = KeyedType {
-    //         key: 2,
-    //         data: [4; 5],
-    //     };
+//     let data1_instance2 = KeyedType {
+//         key: 2,
+//         data: [1; 5],
+//     };
+//     let data2_instance2 = KeyedType {
+//         key: 2,
+//         data: [2; 5],
+//     };
+//     let data3_instance2 = KeyedType {
+//         key: 2,
+//         data: [3; 5],
+//     };
+//     let data4_instance2 = KeyedType {
+//         key: 2,
+//         data: [4; 5],
+//     };
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data1_instance2),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data2_instance2),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data3_instance2),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&data4_instance2),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data1_instance2),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data2_instance2),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data3_instance2),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&data4_instance2),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<KeyedType>(
-    //             10,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<KeyedType>(
+//             10,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 6);
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data2_instance1)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data3_instance1)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data4_instance1)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data2_instance2)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data3_instance2)));
-    //     assert!(samples
-    //         .iter()
-    //         .any(|s| s.data.as_ref() == Some(&data4_instance2)));
-    // }
+//     assert_eq!(samples.len(), 6);
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data2_instance1)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data3_instance1)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data4_instance1)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data2_instance2)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data3_instance2)));
+//     assert!(samples
+//         .iter()
+//         .any(|s| s.data.as_ref() == Some(&data4_instance2)));
+// }
 
-    // #[test]
-    // fn reader_max_samples() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         resource_limits: ResourceLimitsQosPolicy {
-    //             max_samples: Length::Limited(1),
-    //             max_instances: Length::Unlimited,
-    //             max_samples_per_instance: Length::Unlimited,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_max_samples() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         resource_limits: ResourceLimitsQosPolicy {
+//             max_samples: Length::Limited(1),
+//             max_instances: Length::Unlimited,
+//             max_samples_per_instance: Length::Unlimited,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<UnkeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&UnkeyedType { data: [1; 5] }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&UnkeyedType { data: [1; 5] }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let sample = UnkeyedType { data: [1; 5] };
-    //     let instance_handle = sample.get_serialized_key().into();
-    //     assert_eq!(
-    //         reader.add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&sample),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         ),
-    //         Err(RtpsReaderError::Rejected(
-    //             instance_handle,
-    //             SampleRejectedStatusKind::RejectedBySamplesLimit
-    //         ))
-    //     );
-    // }
+//     let sample = UnkeyedType { data: [1; 5] };
+//     let instance_handle = sample.get_serialized_key().into();
+//     assert_eq!(
+//         reader.add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&sample),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         ),
+//         Err(RtpsReaderError::Rejected(
+//             instance_handle,
+//             SampleRejectedStatusKind::RejectedBySamplesLimit
+//         ))
+//     );
+// }
 
-    // #[test]
-    // fn reader_max_instances() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         resource_limits: ResourceLimitsQosPolicy {
-    //             max_samples: Length::Unlimited,
-    //             max_instances: Length::Limited(1),
-    //             max_samples_per_instance: Length::Unlimited,
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_max_instances() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         resource_limits: ResourceLimitsQosPolicy {
+//             max_samples: Length::Unlimited,
+//             max_instances: Length::Limited(1),
+//             max_samples_per_instance: Length::Unlimited,
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let sample = KeyedType {
-    //         key: 2,
-    //         data: [1; 5],
-    //     };
-    //     let instance_handle = sample.get_serialized_key().into();
-    //     assert_eq!(
-    //         reader.add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&sample),
-    //                 SequenceNumber::new(1)
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         ),
-    //         Err(RtpsReaderError::Rejected(
-    //             instance_handle,
-    //             SampleRejectedStatusKind::RejectedByInstancesLimit
-    //         ))
-    //     );
-    // }
+//     let sample = KeyedType {
+//         key: 2,
+//         data: [1; 5],
+//     };
+//     let instance_handle = sample.get_serialized_key().into();
+//     assert_eq!(
+//         reader.add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&sample),
+//                 SequenceNumber::new(1)
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         ),
+//         Err(RtpsReaderError::Rejected(
+//             instance_handle,
+//             SampleRejectedStatusKind::RejectedByInstancesLimit
+//         ))
+//     );
+// }
 
-    // #[test]
-    // fn reader_max_samples_per_instance() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         resource_limits: ResourceLimitsQosPolicy {
-    //             max_samples: Length::Unlimited,
-    //             max_instances: Length::Unlimited,
-    //             max_samples_per_instance: Length::Limited(1),
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_max_samples_per_instance() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         resource_limits: ResourceLimitsQosPolicy {
+//             max_samples: Length::Unlimited,
+//             max_instances: Length::Unlimited,
+//             max_samples_per_instance: Length::Limited(1),
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::NoKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 2,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 2,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let sample = KeyedType {
-    //         key: 2,
-    //         data: [2; 5],
-    //     };
-    //     let instance_handle = sample.get_serialized_key().into();
-    //     assert_eq!(
-    //         reader.add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&sample),
-    //                 SequenceNumber::new(1)
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         ),
-    //         Err(RtpsReaderError::Rejected(
-    //             instance_handle,
-    //             SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit
-    //         ))
-    //     );
-    // }
+//     let sample = KeyedType {
+//         key: 2,
+//         data: [2; 5],
+//     };
+//     let instance_handle = sample.get_serialized_key().into();
+//     assert_eq!(
+//         reader.add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&sample),
+//                 SequenceNumber::new(1)
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         ),
+//         Err(RtpsReaderError::Rejected(
+//             instance_handle,
+//             SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit
+//         ))
+//     );
+// }
 
-    // #[test]
-    // fn reader_sample_info_absolute_generation_rank() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_sample_info_absolute_generation_rank() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [2; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_disposed_change(
-    //                 &to_bytes_le(
-    //                     &KeyedType {
-    //                         key: 1,
-    //                         data: [0; 5],
-    //                     }
-    //                     .get_serialized_key(),
-    //                 ),
-    //                 SequenceNumber::new(3),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [4; 5],
-    //                 }),
-    //                 SequenceNumber::new(4),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_disposed_change(
-    //                 &to_bytes_le(
-    //                     &KeyedType {
-    //                         key: 1,
-    //                         data: [0; 5],
-    //                     }
-    //                     .get_serialized_key(),
-    //                 ),
-    //                 SequenceNumber::new(5),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [6; 5],
-    //                 }),
-    //                 SequenceNumber::new(6),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [2; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_disposed_change(
+//                 &to_bytes_le(
+//                     &KeyedType {
+//                         key: 1,
+//                         data: [0; 5],
+//                     }
+//                     .get_serialized_key(),
+//                 ),
+//                 SequenceNumber::new(3),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [4; 5],
+//                 }),
+//                 SequenceNumber::new(4),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_disposed_change(
+//                 &to_bytes_le(
+//                     &KeyedType {
+//                         key: 1,
+//                         data: [0; 5],
+//                     }
+//                     .get_serialized_key(),
+//                 ),
+//                 SequenceNumber::new(5),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [6; 5],
+//                 }),
+//                 SequenceNumber::new(6),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<KeyedType>(
-    //             10,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<KeyedType>(
+//             10,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 6);
-    //     assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
-    //     assert_eq!(samples[4].sample_info.absolute_generation_rank, 1);
-    //     assert_eq!(samples[5].sample_info.absolute_generation_rank, 0);
-    // }
+//     assert_eq!(samples.len(), 6);
+//     assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
+//     assert_eq!(samples[4].sample_info.absolute_generation_rank, 1);
+//     assert_eq!(samples[5].sample_info.absolute_generation_rank, 0);
+// }
 
-    // #[test]
-    // fn reader_sample_info_generation_rank_and_count() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_sample_info_generation_rank_and_count() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [2; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_disposed_change(
-    //                 &to_bytes_le(
-    //                     &KeyedType {
-    //                         key: 1,
-    //                         data: [0; 5],
-    //                     }
-    //                     .get_serialized_key(),
-    //                 ),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [4; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_disposed_change(
-    //                 &to_bytes_le(
-    //                     &KeyedType {
-    //                         key: 1,
-    //                         data: [0; 5],
-    //                     }
-    //                     .get_serialized_key(),
-    //                 ),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [6; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [2; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_disposed_change(
+//                 &to_bytes_le(
+//                     &KeyedType {
+//                         key: 1,
+//                         data: [0; 5],
+//                     }
+//                     .get_serialized_key(),
+//                 ),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [4; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_disposed_change(
+//                 &to_bytes_le(
+//                     &KeyedType {
+//                         key: 1,
+//                         data: [0; 5],
+//                     }
+//                     .get_serialized_key(),
+//                 ),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [6; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<KeyedType>(
-    //             4,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<KeyedType>(
+//             4,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 4);
-    //     assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[0].sample_info.generation_rank, 1);
-    //     assert_eq!(samples[0].sample_info.disposed_generation_count, 0);
-    //     assert_eq!(samples[0].sample_info.no_writers_generation_count, 0);
+//     assert_eq!(samples.len(), 4);
+//     assert_eq!(samples[0].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[0].sample_info.generation_rank, 1);
+//     assert_eq!(samples[0].sample_info.disposed_generation_count, 0);
+//     assert_eq!(samples[0].sample_info.no_writers_generation_count, 0);
 
-    //     assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[1].sample_info.generation_rank, 1);
-    //     assert_eq!(samples[1].sample_info.disposed_generation_count, 0);
-    //     assert_eq!(samples[1].sample_info.no_writers_generation_count, 0);
+//     assert_eq!(samples[1].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[1].sample_info.generation_rank, 1);
+//     assert_eq!(samples[1].sample_info.disposed_generation_count, 0);
+//     assert_eq!(samples[1].sample_info.no_writers_generation_count, 0);
 
-    //     assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
-    //     assert_eq!(samples[2].sample_info.generation_rank, 1);
-    //     assert_eq!(samples[2].sample_info.disposed_generation_count, 0);
-    //     assert_eq!(samples[2].sample_info.no_writers_generation_count, 0);
+//     assert_eq!(samples[2].sample_info.absolute_generation_rank, 2);
+//     assert_eq!(samples[2].sample_info.generation_rank, 1);
+//     assert_eq!(samples[2].sample_info.disposed_generation_count, 0);
+//     assert_eq!(samples[2].sample_info.no_writers_generation_count, 0);
 
-    //     assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
-    //     assert_eq!(samples[3].sample_info.generation_rank, 0);
-    //     assert_eq!(samples[3].sample_info.disposed_generation_count, 1);
-    //     assert_eq!(samples[3].sample_info.no_writers_generation_count, 0);
-    // }
+//     assert_eq!(samples[3].sample_info.absolute_generation_rank, 1);
+//     assert_eq!(samples[3].sample_info.generation_rank, 0);
+//     assert_eq!(samples[3].sample_info.disposed_generation_count, 1);
+//     assert_eq!(samples[3].sample_info.no_writers_generation_count, 0);
+// }
 
-    // #[test]
-    // fn reader_sample_info_sample_rank() {
-    //     let qos = DataReaderQos {
-    //         history: HistoryQosPolicy {
-    //             kind: HistoryQosPolicyKind::KeepAll,
-    //             ..Default::default()
-    //         },
-    //         ..Default::default()
-    //     };
-    //     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
-    //     let mut reader =
-    //         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
+// #[test]
+// fn reader_sample_info_sample_rank() {
+//     let qos = DataReaderQos {
+//         history: HistoryQosPolicy {
+//             kind: HistoryQosPolicyKind::KeepAll,
+//             ..Default::default()
+//         },
+//         ..Default::default()
+//     };
+//     let endpoint = RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]);
+//     let mut reader =
+//         RtpsReader::new::<KeyedType>(endpoint, DURATION_ZERO, DURATION_ZERO, false, qos);
 
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [1; 5],
-    //                 }),
-    //                 SequenceNumber::new(1),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [2; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [3; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
-    //     reader
-    //         .add_change(
-    //             &create_data_submessage_for_alive_change(
-    //                 &to_bytes_le(&KeyedType {
-    //                     key: 1,
-    //                     data: [4; 5],
-    //                 }),
-    //                 SequenceNumber::new(2),
-    //             ),
-    //             None,
-    //             GUIDPREFIX_UNKNOWN,
-    //             TIME_INVALID,
-    //         )
-    //         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [1; 5],
+//                 }),
+//                 SequenceNumber::new(1),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [2; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [3; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
+//     reader
+//         .add_change(
+//             &create_data_submessage_for_alive_change(
+//                 &to_bytes_le(&KeyedType {
+//                     key: 1,
+//                     data: [4; 5],
+//                 }),
+//                 SequenceNumber::new(2),
+//             ),
+//             None,
+//             GUIDPREFIX_UNKNOWN,
+//             TIME_INVALID,
+//         )
+//         .unwrap();
 
-    //     let samples = reader
-    //         .read::<KeyedType>(
-    //             3,
-    //             ANY_SAMPLE_STATE,
-    //             ANY_VIEW_STATE,
-    //             ANY_INSTANCE_STATE,
-    //             None,
-    //         )
-    //         .unwrap();
+//     let samples = reader
+//         .read::<KeyedType>(
+//             3,
+//             ANY_SAMPLE_STATE,
+//             ANY_VIEW_STATE,
+//             ANY_INSTANCE_STATE,
+//             None,
+//         )
+//         .unwrap();
 
-    //     assert_eq!(samples.len(), 3);
-    //     assert_eq!(samples[0].sample_info.sample_rank, 2);
-    //     assert_eq!(samples[1].sample_info.sample_rank, 1);
-    //     assert_eq!(samples[2].sample_info.sample_rank, 0);
-    // }
+//     assert_eq!(samples.len(), 3);
+//     assert_eq!(samples[0].sample_info.sample_rank, 2);
+//     assert_eq!(samples[1].sample_info.sample_rank, 1);
+//     assert_eq!(samples[2].sample_info.sample_rank, 0);
+// }
 // }

@@ -1,6 +1,12 @@
-use std::cmp::{max, min};
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+};
 
-use super::types::{Count, EntityId, Guid, Locator, SequenceNumber};
+use super::{
+    messages::types::FragmentNumber,
+    types::{Count, EntityId, Guid, Locator, SequenceNumber},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
@@ -16,6 +22,8 @@ pub struct RtpsWriterProxy {
     must_send_acknacks: bool,
     last_received_heartbeat_count: Count,
     acknack_count: Count,
+
+    frag_buffer: HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>>,
 }
 
 impl RtpsWriterProxy {
@@ -39,6 +47,42 @@ impl RtpsWriterProxy {
             must_send_acknacks: false,
             last_received_heartbeat_count: Count::new(0),
             acknack_count: Count::new(0),
+            frag_buffer: HashMap::new(),
+        }
+    }
+
+    pub fn push_data_frag(
+        &mut self,
+        sequence_number: SequenceNumber,
+        fragment_number: FragmentNumber,
+        data: Vec<u8>,
+    ) {
+        self.frag_buffer
+            .entry(sequence_number)
+            .or_insert(HashMap::new())
+            .insert(fragment_number, data);
+    }
+
+    pub fn frag_buffer(&self) -> &HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>> {
+        &self.frag_buffer
+    }
+
+    pub fn extract_frag(&mut self, data_size: usize, seq_num: SequenceNumber) -> Option<Vec<u8>> {
+        let mut data = Vec::new();
+        if let Some(m) = self.frag_buffer.get(&seq_num) {
+            for fragment_number in 1..m.len() as u32 {
+                if let Some(mut data_frag) = m.get(&FragmentNumber::new(fragment_number)).cloned() {
+                    data.append(&mut data_frag);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        if data.len() >= data_size {
+            Some(data)
+        } else {
+            None
         }
     }
 
@@ -110,9 +154,9 @@ impl RtpsWriterProxy {
             .unwrap_or(SequenceNumber::new(0));
         // The highest sequence number of all present
         let highest_number = max(
-            self.last_available_seq_num, max(
-            highest_received_seq_num,
-            highest_irrelevant_seq_num));
+            self.last_available_seq_num,
+            max(highest_received_seq_num, highest_irrelevant_seq_num),
+        );
         // Changes below first_available_seq_num are LOST (or RECEIVED, but in any case not MISSING) and above last_available_seq_num are unknown.
         // In between those two numbers, every change that is not RECEIVED or IRRELEVANT is MISSING
         let mut seq_num = self.first_available_seq_num;
