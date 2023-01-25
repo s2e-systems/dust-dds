@@ -23,8 +23,8 @@ cdr = "0.2.4"
 
 [build-dependencies]
 dust_idlgen = {path = "../idlgen" }
-pest = "2.5"
-pest_derive = "2.5"
+pest = "=2.5.3"
+pest_derive = "=2.5.3"
 
 [[bin]]
 name = "dust_dds_publisher"
