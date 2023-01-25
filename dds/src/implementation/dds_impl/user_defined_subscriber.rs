@@ -478,6 +478,26 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         }
     }
 
+    fn on_data_frag_submessage_received(
+        &self,
+        data_frag_submessage: &crate::implementation::rtps::messages::submessages::DataFragSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            let data_submessage_received_result =
+                data_reader.on_data_frag_submessage_received(data_frag_submessage, message_receiver);
+            match data_submessage_received_result {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
+                    *self.data_on_readers_status_changed_flag.write_lock() = true
+                }
+            }
+        }
+        if *self.data_on_readers_status_changed_flag.read_lock() {
+            self.on_data_on_readers();
+        }
+    }
+
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
@@ -487,4 +507,5 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
     }
+
 }

@@ -8,7 +8,7 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
+            messages::submessages::{DataSubmessage, HeartbeatSubmessage, DataFragSubmessage},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
             types::{GuidPrefix, Locator, GUID_UNKNOWN},
@@ -228,6 +228,48 @@ impl DdsShared<UserDefinedDataReader> {
             .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
+
+        match data_submessage_received_result {
+            StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
+            }
+            StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
+            }
+            StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
+                self.instance_reception_time
+                    .write_lock()
+                    .insert(instance_handle, message_receiver.reception_timestamp());
+                *self.data_available_status_changed_flag.write_lock() = true;
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
+            }
+            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
+                self.instance_reception_time
+                    .write_lock()
+                    .insert(instance_handle, message_receiver.reception_timestamp());
+                *self.data_available_status_changed_flag.write_lock() = true;
+                self.on_sample_lost();
+                UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
+            }
+            StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
+                self.on_sample_rejected(instance_handle, rejected_reason);
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
+            }
+            StatefulReaderDataReceivedResult::InvalidData(_) => {
+                UserDefinedReaderDataSubmessageReceivedResult::NoChange
+            }
+        }
+    }
+
+    pub fn on_data_frag_submessage_received(
+        &self,
+        data_frag_submessage: &DataFragSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) -> UserDefinedReaderDataSubmessageReceivedResult {
+        let data_submessage_received_result = self
+            .rtps_reader
+            .write_lock()
+            .on_data_frag_submessage_received(data_frag_submessage, message_receiver);
 
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {

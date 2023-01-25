@@ -248,4 +248,15 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         self.sedp_builtin_subscriptions_reader
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
     }
+
+    fn on_data_frag_submessage_received(
+        &self,
+        _data_frag_submessage: &crate::implementation::rtps::messages::submessages::DataFragSubmessage<'_>,
+        _message_receiver: &MessageReceiver,
+    ) {
+        // Maybe necessary for user data
+        todo!()
+    }
+
+
 }
