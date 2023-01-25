@@ -27,81 +27,82 @@ struct KeyedData {
     value: u8,
 }
 
-// #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
-// struct LargeData {
-//     #[key]
-//     id: u8,
-//     value: Vec<u8>,
-// }
+#[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize, DdsType, DdsSerde)]
+struct LargeData {
+    #[key]
+    id: u8,
+    value: Vec<u8>,
+}
 
-// #[test]
-// fn large_data_should_be_fragmented() {
-//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+#[ignore]
+#[test]
+fn large_data_should_be_fragmented() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
-//     let participant = DomainParticipantFactory::get_instance()
-//         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-//         .unwrap();
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-//     let topic = participant
-//         .create_topic::<LargeData>("LargeDataTopic", QosKind::Default, None, NO_STATUS)
-//         .unwrap();
+    let topic = participant
+        .create_topic::<LargeData>("LargeDataTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
 
-//     let publisher = participant
-//         .create_publisher(QosKind::Default, None, NO_STATUS)
-//         .unwrap();
-//     let writer_qos = DataWriterQos {
-//         reliability: ReliabilityQosPolicy {
-//             kind: ReliabilityQosPolicyKind::Reliable,
-//             max_blocking_time: Duration::new(1, 0),
-//         },
-//         ..Default::default()
-//     };
-//     let writer = publisher
-//         .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
-//         .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
 
-//     let subscriber = participant
-//         .create_subscriber(QosKind::Default, None, NO_STATUS)
-//         .unwrap();
-//     let reader_qos = DataReaderQos {
-//         reliability: ReliabilityQosPolicy {
-//             kind: ReliabilityQosPolicyKind::Reliable,
-//             max_blocking_time: Duration::new(1, 0),
-//         },
-//         ..Default::default()
-//     };
-//     let reader = subscriber
-//         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
-//         .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
 
-//     let cond = writer.get_statuscondition().unwrap();
-//     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-//         .unwrap();
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
 
-//     let mut wait_set = WaitSet::new();
-//     wait_set
-//         .attach_condition(Condition::StatusCondition(cond))
-//         .unwrap();
-//     wait_set.wait(Duration::new(5, 0)).unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
 
-//     let data = LargeData {
-//         id: 1,
-//         value: vec![8; 100000],
-//     };
+    let data = LargeData {
+        id: 1,
+        value: vec![8; 100000],
+    };
 
-//     writer.write(&data, None).unwrap();
+    writer.write(&data, None).unwrap();
 
-//     writer
-//         .wait_for_acknowledgments(Duration::new(1, 0))
-//         .unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(1, 0))
+        .unwrap();
 
-//     let samples = reader
-//         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-//         .unwrap();
+    let samples = reader
+        .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
 
-    // assert_eq!(samples.len(), 1);
-    // assert_eq!(samples[0].data.as_ref().unwrap(), &data);
-// }
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data);
+}
 
 #[test]
 fn samples_are_taken() {
