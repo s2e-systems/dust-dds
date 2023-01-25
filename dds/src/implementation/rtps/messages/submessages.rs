@@ -3,10 +3,8 @@ use crate::implementation::rtps::types::{
 };
 
 use super::{
-    submessage_elements::{
-        FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet,
-    },
-    types::{FragmentNumber, SubmessageFlag, Time, ULong, UShort, SerializedPayload},
+    submessage_elements::{FragmentNumberSet, LocatorList, ParameterList, SequenceNumberSet},
+    types::{FragmentNumber, SerializedPayload, SubmessageFlag, Time, ULong, UShort},
 };
 
 #[derive(Debug, PartialEq, Eq)]

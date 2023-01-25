@@ -30,7 +30,7 @@ pub struct RtpsWriter {
     _nack_response_delay: Duration,
     _nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
-    _data_max_size_serialized: Option<i32>,
+    data_max_size_serialized: Option<usize>,
     writer_cache: WriterHistoryCache,
     qos: DataWriterQos,
     registered_instance_list: HashMap<InstanceHandle, DdsSerializedKey>,
@@ -43,7 +43,7 @@ impl RtpsWriter {
         heartbeat_period: Duration,
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
-        data_max_size_serialized: Option<i32>,
+        data_max_size_serialized: Option<usize>,
         qos: DataWriterQos,
     ) -> Self {
         Self {
@@ -53,7 +53,7 @@ impl RtpsWriter {
             _nack_response_delay: nack_response_delay,
             _nack_suppression_duration: nack_suppression_duration,
             last_change_sequence_number: SequenceNumber::new(0),
-            _data_max_size_serialized: data_max_size_serialized,
+            data_max_size_serialized,
             writer_cache: WriterHistoryCache::new(),
             qos,
             registered_instance_list: HashMap::new(),
@@ -317,5 +317,9 @@ impl RtpsWriter {
         } else {
             None
         }
+    }
+
+    pub fn data_max_size_serialized(&self) -> Option<usize> {
+        self.data_max_size_serialized
     }
 }

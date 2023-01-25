@@ -127,6 +127,12 @@ pub struct RtpsChangeForReaderCacheChange<'a> {
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn cache_change(self) -> &'a RtpsWriterCacheChange {
+        self.cache_change
+    }
+}
+
+impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn status(&self) -> ChangeForReaderStatusKind {
         self.change_for_reader.status
     }

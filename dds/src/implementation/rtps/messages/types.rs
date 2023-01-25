@@ -46,7 +46,18 @@ pub enum SubmessageKind {
 pub struct ParameterId(pub u16);
 
 #[derive(
-    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, derive_more::Into, derive_more::Sub, derive_more::Add,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    derive_more::Into,
+    derive_more::Sub,
+    derive_more::SubAssign,
+    derive_more::Add,
+    derive_more::AddAssign,
 )]
 pub struct FragmentNumber(u32);
 
@@ -112,7 +123,7 @@ pub const TIME_INVALID: Time = Time {
 pub struct SerializedPayload<'a>(&'a [u8]);
 
 impl<'a> SerializedPayload<'a> {
-    pub fn new(value: &'a[u8]) -> Self {
+    pub fn new(value: &'a [u8]) -> Self {
         Self(value)
     }
 }
