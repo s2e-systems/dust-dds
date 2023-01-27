@@ -1,10 +1,7 @@
 use std::{
     io::{self},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
-    str::FromStr,
 };
-
-use mac_address::MacAddress;
 
 use socket2::Socket;
 
@@ -97,7 +94,6 @@ fn locator_from_ipv4(address: Ipv4Addr) -> LocatorAddress {
 pub struct RtpsUdpPsm {
     domain_id: DomainId,
     participant_id: usize,
-    guid_prefix: [u8; 12],
     unicast_address_list: Vec<Ipv4Addr>,
     multicast_address: Ipv4Addr,
     metatraffic_multicast: Option<UdpTransport>,
@@ -134,14 +130,6 @@ impl RtpsUdpPsm {
             "Could not find any IPv4 address"
         );
 
-        let mac_address = ifcfg::IfCfg::get()
-            .expect("Could not scan interfaces")
-            .into_iter()
-            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
-            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
-            .expect("Could not find any mac address")
-            .bytes();
-
         let multicast_address = ipv4_from_locator(&DEFAULT_MULTICAST_LOCATOR_ADDRESS);
         let metatraffic_multicast_socket =
             get_multicast_socket(multicast_address, port_builtin_multicast(domain_id))
@@ -152,17 +140,9 @@ impl RtpsUdpPsm {
         let default_unicast_socket =
             get_unicast_socket(port_user_unicast(domain_id, participant_id)).unwrap();
 
-        #[rustfmt::skip]
-        let guid_prefix = [
-            mac_address[0], mac_address[1], mac_address[2],
-            mac_address[3], mac_address[4], mac_address[5],
-            domain_id as u8, participant_id as u8, 0, 0, 0, 0
-        ];
-
         Ok(Self {
             domain_id,
             participant_id,
-            guid_prefix,
             unicast_address_list,
             multicast_address,
             metatraffic_multicast: Some(UdpTransport::new(metatraffic_multicast_socket)),
@@ -207,10 +187,6 @@ impl RtpsUdpPsm {
 
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         &[]
-    }
-
-    pub fn guid_prefix(&self) -> [u8; 12] {
-        self.guid_prefix
     }
 
     pub fn metatraffic_multicast_transport(&mut self) -> Option<UdpTransport> {
@@ -402,13 +378,5 @@ mod tests {
             locator.address(),
             LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1])
         );
-    }
-
-    #[test]
-    fn new_transport_makes_different_guid() {
-        let comm1 = RtpsUdpPsm::new(0, 0, None).unwrap();
-        let comm2 = RtpsUdpPsm::new(0, 1, None).unwrap();
-
-        assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
     }
 }

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
@@ -16,6 +18,7 @@ use crate::{
     },
 };
 use lazy_static::lazy_static;
+use mac_address::MacAddress;
 
 use super::domain_participant::DomainParticipant;
 
@@ -79,8 +82,24 @@ impl DomainParticipantFactory {
             configuration.interface_name.as_ref(),
         )
         .map_err(DdsError::PreconditionNotMet)?;
+
+        let mac_address = ifcfg::IfCfg::get()
+            .expect("Could not scan interfaces")
+            .into_iter()
+            .filter_map(|i| MacAddress::from_str(&i.mac).ok())
+            .find(|&mac| mac != MacAddress::new([0, 0, 0, 0, 0, 0]))
+            .expect("Could not find any mac address")
+            .bytes();
+
+        #[rustfmt::skip]
+        let guid_prefix = GuidPrefix::new([
+            mac_address[0], mac_address[1], mac_address[2],
+            mac_address[3], mac_address[4], mac_address[5],
+            domain_id as u8, participant_id as u8, 0, 0, 0, 0
+        ]);
+
         let rtps_participant = RtpsParticipant::new(
-            GuidPrefix::new(rtps_udp_psm.guid_prefix()),
+            guid_prefix,
             rtps_udp_psm.default_unicast_locator_list().as_ref(),
             rtps_udp_psm.default_multicast_locator_list(),
             PROTOCOLVERSION,
