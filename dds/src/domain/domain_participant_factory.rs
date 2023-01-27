@@ -77,6 +77,12 @@ impl DomainParticipantFactory {
             VENDOR_ID_S2E,
         );
 
+        let mut participant_list_lock = self.participant_list.write_lock();
+        let participant_id = participant_list_lock
+            .iter()
+            .filter(|p| p.participant().get_domain_id() == domain_id)
+            .count();
+
         let dcps_service = DcpsService::new(
             rtps_participant,
             domain_id,
@@ -98,10 +104,7 @@ impl DomainParticipantFactory {
             participant.enable()?;
         }
 
-        THE_PARTICIPANT_FACTORY
-            .participant_list
-            .write_lock()
-            .push(dcps_service);
+        participant_list_lock.push(dcps_service);
 
         Ok(participant)
     }
