@@ -1,5 +1,5 @@
 use std::{
-    io::{self, ErrorKind},
+    io::{self},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, ToSocketAddrs, UdpSocket},
     str::FromStr,
 };
@@ -39,12 +39,12 @@ pub fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
     LocatorPort::new((PB + DG * domain_id + d0) as u32)
 }
 
-pub fn port_builtin_unicast(domain_id: DomainId, participant_id: i32) -> LocatorPort {
-    LocatorPort::new((PB + DG * domain_id + d1 + PG * participant_id) as u32)
+pub fn port_builtin_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d1 + PG * participant_id as i32) as u32)
 }
 
-pub fn port_user_unicast(domain_id: DomainId, participant_id: i32) -> LocatorPort {
-    LocatorPort::new((PB + DG * domain_id + d3 + PG * participant_id) as u32)
+pub fn port_user_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d3 + PG * participant_id as i32) as u32)
 }
 
 pub fn get_multicast_socket(
@@ -96,7 +96,7 @@ fn locator_from_ipv4(address: Ipv4Addr) -> LocatorAddress {
 
 pub struct RtpsUdpPsm {
     domain_id: DomainId,
-    participant_id: i32,
+    participant_id: usize,
     guid_prefix: [u8; 12],
     unicast_address_list: Vec<Ipv4Addr>,
     multicast_address: Ipv4Addr,
@@ -106,7 +106,11 @@ pub struct RtpsUdpPsm {
 }
 
 impl RtpsUdpPsm {
-    pub fn new(domain_id: DomainId, interface_name: Option<&String>) -> Result<Self, String> {
+    pub fn new(
+        domain_id: DomainId,
+        participant_id: usize,
+        interface_name: Option<&String>,
+    ) -> Result<Self, String> {
         let unicast_address_list: Vec<_> = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
             .into_iter()
@@ -143,22 +147,10 @@ impl RtpsUdpPsm {
             get_multicast_socket(multicast_address, port_builtin_multicast(domain_id))
                 .map_err(|e| format!("{}", e))?;
 
-        let (participant_id, metatraffic_unicast_socket, default_unicast_socket) = (0..)
-            .map(
-                |participant_id| -> io::Result<(i32, UdpSocket, UdpSocket)> {
-                    Ok((
-                        participant_id,
-                        get_unicast_socket(port_builtin_unicast(domain_id, participant_id))?,
-                        get_unicast_socket(port_user_unicast(domain_id, participant_id))?,
-                    ))
-                },
-            )
-            .find(|result| match result {
-                Err(e) => e.kind() != ErrorKind::AddrInUse,
-                _ => true,
-            })
-            .unwrap()
-            .map_err(|e| format!("{}", e))?;
+        let metatraffic_unicast_socket =
+            get_unicast_socket(port_builtin_unicast(domain_id, participant_id)).unwrap();
+        let default_unicast_socket =
+            get_unicast_socket(port_user_unicast(domain_id, participant_id)).unwrap();
 
         #[rustfmt::skip]
         let guid_prefix = [
@@ -414,8 +406,8 @@ mod tests {
 
     #[test]
     fn new_transport_makes_different_guid() {
-        let comm1 = RtpsUdpPsm::new(0, None).unwrap();
-        let comm2 = RtpsUdpPsm::new(0, None).unwrap();
+        let comm1 = RtpsUdpPsm::new(0, 0, None).unwrap();
+        let comm2 = RtpsUdpPsm::new(0, 1, None).unwrap();
 
         assert_ne!(comm1.guid_prefix, comm2.guid_prefix);
     }

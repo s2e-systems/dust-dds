@@ -67,8 +67,18 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        let rtps_udp_psm = RtpsUdpPsm::new(domain_id, configuration.interface_name.as_ref())
-            .map_err(DdsError::PreconditionNotMet)?;
+        let mut participant_list_lock = self.participant_list.write_lock();
+        let participant_id = participant_list_lock
+            .iter()
+            .filter(|p| p.participant().get_domain_id() == domain_id)
+            .count();
+
+        let rtps_udp_psm = RtpsUdpPsm::new(
+            domain_id,
+            participant_id,
+            configuration.interface_name.as_ref(),
+        )
+        .map_err(DdsError::PreconditionNotMet)?;
         let rtps_participant = RtpsParticipant::new(
             GuidPrefix::new(rtps_udp_psm.guid_prefix()),
             rtps_udp_psm.default_unicast_locator_list().as_ref(),
@@ -76,12 +86,6 @@ impl DomainParticipantFactory {
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
-
-        let mut participant_list_lock = self.participant_list.write_lock();
-        let participant_id = participant_list_lock
-            .iter()
-            .filter(|p| p.participant().get_domain_id() == domain_id)
-            .count();
 
         let dcps_service = DcpsService::new(
             rtps_participant,
