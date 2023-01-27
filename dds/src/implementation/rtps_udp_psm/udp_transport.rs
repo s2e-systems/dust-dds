@@ -11,7 +11,7 @@ use socket2::Socket;
 use crate::{
     domain::domain_participant_factory::DomainId,
     implementation::rtps::{
-        messages::RtpsMessage,
+        messages::{RtpsMessage, RtpsSubmessageKind},
         transport::TransportWrite,
         types::{Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4, LOCATOR_KIND_UDP_V6},
     },
@@ -269,7 +269,9 @@ impl UdpTransport {
 
 impl TransportWrite for UdpTransport {
     fn write(&mut self, message: &RtpsMessage<'_>, destination_locator: Locator) {
+
         let buf = to_bytes(message).unwrap();
+
         if UdpLocator(destination_locator).is_multicast() {
             let socket2: socket2::Socket = self.socket.try_clone().unwrap().into();
             let interface_addresses: Vec<_> = ifcfg::IfCfg::get()
