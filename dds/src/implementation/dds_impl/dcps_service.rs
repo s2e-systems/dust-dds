@@ -110,9 +110,7 @@ impl DcpsService {
                     break;
                 }
 
-                if let Some((locator, message)) = metatraffic_multicast_transport
-                    .read(Some(std::time::Duration::from_millis(1000)))
-                {
+                if let Some((locator, message)) = metatraffic_multicast_transport.read() {
                     domain_participant
                         .receive_built_in_data(locator, message)
                         .ok();
@@ -136,9 +134,7 @@ impl DcpsService {
                     break;
                 }
 
-                if let Some((locator, message)) =
-                    metatraffic_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
-                {
+                if let Some((locator, message)) = metatraffic_unicast_transport.read() {
                     domain_participant
                         .receive_built_in_data(locator, message)
                         .ok();
@@ -179,9 +175,7 @@ impl DcpsService {
                     break;
                 }
 
-                if let Some((locator, message)) =
-                    default_unicast_transport.read(Some(std::time::Duration::from_millis(1000)))
-                {
+                if let Some((locator, message)) = default_unicast_transport.read() {
                     domain_participant
                         .receive_user_defined_data(locator, message)
                         .ok();

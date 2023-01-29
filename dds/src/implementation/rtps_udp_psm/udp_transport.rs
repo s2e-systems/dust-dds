@@ -22,9 +22,8 @@ impl UdpTransport {
         }
     }
 
-    pub fn read(&mut self, dur: Option<std::time::Duration>) -> Option<(Locator, RtpsMessage<'_>)> {
+    pub fn read(&mut self) -> Option<(Locator, RtpsMessage<'_>)> {
         self.socket.set_nonblocking(false).ok()?;
-        self.socket.set_read_timeout(dur).ok()?;
         match self.socket.recv_from(self.receive_buffer.as_mut()) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
