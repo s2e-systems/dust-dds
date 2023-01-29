@@ -196,9 +196,9 @@ impl DomainParticipantFactory {
             a_listener,
             mask,
             &spdp_discovery_locator_list,
-            announcer_condvar.clone(),
-            sedp_condvar.clone(),
-            user_defined_data_send_condvar.clone(),
+            announcer_condvar,
+            sedp_condvar,
+            user_defined_data_send_condvar,
         );
 
         let dcps_service = DcpsService::new(participant)?;
