@@ -110,16 +110,15 @@ pub struct DomainParticipantImpl {
     default_topic_qos: DdsRwLock<TopicQos>,
     manual_liveliness_count: Count,
     lease_duration: Duration,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
     discovered_participant_list: DdsRwLock<HashMap<InstanceHandle, SpdpDiscoveredParticipantData>>,
     discovered_topic_list: DdsShared<DdsRwLock<HashMap<InstanceHandle, TopicBuiltinTopicData>>>,
     enabled: DdsRwLock<bool>,
     listener: DdsRwLock<Option<Box<dyn DomainParticipantListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
-    announce_condvar: DdsCondvar,
+    announcer_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
+    sedp_condvar: DdsCondvar,
 }
 
 impl DomainParticipantImpl {
@@ -131,10 +130,8 @@ impl DomainParticipantImpl {
         domain_participant_qos: DomainParticipantQos,
         listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
-        metatraffic_unicast_locator_list: Vec<Locator>,
-        metatraffic_multicast_locator_list: Vec<Locator>,
         spdp_discovery_locator_list: &[Locator],
-        announce_condvar: DdsCondvar,
+        announcer_condvar: DdsCondvar,
         sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
@@ -203,7 +200,7 @@ impl DomainParticipantImpl {
             sedp_topic_publications,
             sedp_topic_subscriptions,
             spdp_discovery_locator_list,
-            sedp_condvar,
+            sedp_condvar.clone(),
         );
 
         DdsShared::new(DomainParticipantImpl {
@@ -224,16 +221,15 @@ impl DomainParticipantImpl {
             default_topic_qos: DdsRwLock::new(TopicQos::default()),
             manual_liveliness_count: Count::new(0),
             lease_duration,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
             discovered_participant_list: DdsRwLock::new(HashMap::new()),
             discovered_topic_list: DdsShared::new(DdsRwLock::new(HashMap::new())),
             enabled: DdsRwLock::new(false),
-            announce_condvar,
+            announcer_condvar,
             user_defined_data_send_condvar,
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             topic_find_condvar: DdsCondvar::new(),
+            sedp_condvar,
         })
     }
 }
@@ -732,7 +728,7 @@ impl DdsShared<DomainParticipantImpl> {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
-        self.announce_condvar.notify_all();
+        self.announcer_condvar.notify_all();
 
         Ok(())
     }
@@ -785,7 +781,7 @@ impl DdsShared<DomainParticipantImpl> {
                     topic.enable()?;
                 }
             }
-            self.announce_condvar.notify_all();
+            self.announcer_condvar.notify_all();
         }
         Ok(())
     }
@@ -813,8 +809,14 @@ impl DdsShared<DomainParticipantImpl> {
                 guid_prefix: self.rtps_participant.guid().prefix(),
                 vendor_id: self.rtps_participant.vendor_id(),
                 expects_inline_qos: false,
-                metatraffic_unicast_locator_list: self.metatraffic_unicast_locator_list.clone(),
-                metatraffic_multicast_locator_list: self.metatraffic_multicast_locator_list.clone(),
+                metatraffic_unicast_locator_list: self
+                    .rtps_participant
+                    .metatraffic_unicast_locator_list()
+                    .to_vec(),
+                metatraffic_multicast_locator_list: self
+                    .rtps_participant
+                    .metatraffic_multicast_locator_list()
+                    .to_vec(),
                 default_unicast_locator_list: self
                     .rtps_participant
                     .default_unicast_locator_list()
@@ -876,14 +878,6 @@ impl DdsShared<DomainParticipantImpl> {
                 discovered_participant_data,
             );
         }
-    }
-
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.default_unicast_locator_list()
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.rtps_participant.default_multicast_locator_list()
     }
 
     pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
@@ -1241,5 +1235,33 @@ impl DdsShared<DomainParticipantImpl> {
             }
             _ => (),
         }
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &[Locator] {
+        self.rtps_participant.default_unicast_locator_list()
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &[Locator] {
+        self.rtps_participant.default_multicast_locator_list()
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        self.rtps_participant.metatraffic_unicast_locator_list()
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        self.rtps_participant.metatraffic_multicast_locator_list()
+    }
+
+    pub fn sedp_condvar(&self) -> &DdsCondvar {
+        &self.sedp_condvar
+    }
+
+    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
+        &self.user_defined_data_send_condvar
+    }
+
+    pub fn announcer_condvar(&self) -> &DdsCondvar {
+        &self.announcer_condvar
     }
 }

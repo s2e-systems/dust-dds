@@ -1,5 +1,5 @@
 use std::{
-    net::UdpSocket,
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -7,22 +7,59 @@ use std::{
     thread::JoinHandle,
 };
 
+use socket2::Socket;
+
 use crate::{
-    domain::{
-        domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
-    },
     implementation::{
-        rtps::participant::RtpsParticipant,
-        rtps_udp_psm::udp_transport::{RtpsUdpPsm, UdpTransport},
+        rtps::types::{LocatorAddress, LocatorPort},
+        rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{
-        error::DdsResult, qos::DomainParticipantQos, status::StatusKind, time::Duration,
-    },
+    infrastructure::{error::DdsResult, time::Duration},
 };
 
-use super::{configuration::DustDdsConfiguration, domain_participant_impl::DomainParticipantImpl};
+use super::domain_participant_impl::DomainParticipantImpl;
+
+pub fn get_multicast_socket(
+    multicast_address: LocatorAddress,
+    port: LocatorPort,
+) -> std::io::Result<UdpSocket> {
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+
+    let socket = Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+
+    socket.set_reuse_address(true)?;
+
+    //socket.set_nonblocking(true).ok()?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
+
+    socket.bind(&socket_addr.into())?;
+    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
+    let addr = Ipv4Addr::new(
+        multicast_addr_bytes[12],
+        multicast_addr_bytes[13],
+        multicast_addr_bytes[14],
+        multicast_addr_bytes[15],
+    );
+    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    socket.set_multicast_loop_v4(true)?;
+
+    Ok(socket.into())
+}
+
+pub fn get_unicast_socket(port: LocatorPort) -> std::io::Result<UdpSocket> {
+    let socket = UdpSocket::bind(SocketAddr::from((
+        Ipv4Addr::UNSPECIFIED,
+        <u32>::from(port) as u16,
+    )))?;
+    socket.set_nonblocking(true)?;
+
+    Ok(socket)
+}
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -34,33 +71,7 @@ pub struct DcpsService {
 }
 
 impl DcpsService {
-    pub fn new(
-        rtps_participant: RtpsParticipant,
-        domain_id: DomainId,
-        configuration: DustDdsConfiguration,
-        domain_participant_qos: DomainParticipantQos,
-        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-        mut transport: RtpsUdpPsm,
-    ) -> DdsResult<Self> {
-        let announcer_condvar = DdsCondvar::new();
-        let sedp_condvar = DdsCondvar::new();
-        let user_defined_data_send_condvar = DdsCondvar::new();
-        let participant = DomainParticipantImpl::new(
-            rtps_participant,
-            domain_id,
-            configuration.domain_tag,
-            domain_participant_qos,
-            listener,
-            mask,
-            transport.metatraffic_unicast_locator_list(),
-            vec![],
-            transport.metatraffic_multicast_locator_list().as_slice(),
-            announcer_condvar.clone(),
-            sedp_condvar.clone(),
-            user_defined_data_send_condvar.clone(),
-        );
-
+    pub fn new(participant: DdsShared<DomainParticipantImpl>) -> DdsResult<Self> {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
 
@@ -84,8 +95,13 @@ impl DcpsService {
         // ////////////// SPDP participant discovery
         {
             let domain_participant = participant.clone();
+            let l = domain_participant
+                .metatraffic_multicast_locator_list()
+                .get(0)
+                .unwrap();
+
             let mut metatraffic_multicast_transport =
-                transport.metatraffic_multicast_transport().unwrap();
+                UdpTransport::new(get_multicast_socket(l.address(), l.port()).unwrap());
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -106,8 +122,13 @@ impl DcpsService {
         // //////////// Unicast metatraffic Communication receive
         {
             let domain_participant = participant.clone();
+            let l = domain_participant
+                .metatraffic_unicast_locator_list()
+                .get(0)
+                .unwrap();
             let mut metatraffic_unicast_transport =
-                transport.metatraffic_unicast_transport().unwrap();
+                UdpTransport::new(get_unicast_socket(l.port()).unwrap());
+
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -131,7 +152,7 @@ impl DcpsService {
 
             let mut metatraffic_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
-            let sedp_condvar_clone = sedp_condvar.clone();
+            let sedp_condvar_clone = domain_participant.sedp_condvar().clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
@@ -145,7 +166,12 @@ impl DcpsService {
         // //////////// User-defined Communication receive
         {
             let domain_participant = participant.clone();
-            let mut default_unicast_transport = transport.default_unicast_transport().unwrap();
+            let default_unicast_locator_list = domain_participant
+                .default_unicast_locator_list()
+                .get(0)
+                .unwrap();
+            let mut default_unicast_transport =
+                UdpTransport::new(get_unicast_socket(default_unicast_locator_list.port()).unwrap());
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -168,7 +194,8 @@ impl DcpsService {
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
             let mut default_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
-            let user_defined_data_send_condvar_clone = user_defined_data_send_condvar.clone();
+            let user_defined_data_send_condvar_clone =
+                domain_participant.user_defined_data_send_condvar().clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
@@ -181,27 +208,31 @@ impl DcpsService {
             }));
         }
 
-        // //////////// Announce participant
-        let domain_participant = participant.clone();
-        let task_quit = quit.clone();
-        let announcer_condvar_clone = announcer_condvar.clone();
-        threads.push(std::thread::spawn(move || {
-            // TODO: Temporary solution to ensure tests pass by announcing as soon as possible
-            domain_participant.announce_participant().ok();
-            loop {
-                if task_quit.load(atomic::Ordering::SeqCst) {
-                    break;
+        {
+            // //////////// Announce participant
+            let domain_participant = participant.clone();
+            let task_quit = quit.clone();
+            let announcer_condvar_clone = domain_participant.announcer_condvar().clone();
+            threads.push(std::thread::spawn(move || {
+                // TODO: Temporary solution to ensure tests pass by announcing as soon as possible
+                domain_participant.announce_participant().ok();
+                loop {
+                    if task_quit.load(atomic::Ordering::SeqCst) {
+                        break;
+                    }
+
+                    let _r = announcer_condvar_clone.wait_timeout(Duration::new(5, 0));
+
+                    match domain_participant.announce_participant() {
+                        Ok(_) => (),
+                        Err(e) => println!("participant announcement failed: {:?}", e),
+                    }
                 }
-
-                let _r = announcer_condvar_clone.wait_timeout(Duration::new(5, 0));
-
-                match domain_participant.announce_participant() {
-                    Ok(_) => (),
-                    Err(e) => println!("participant announcement failed: {:?}", e),
-                }
-            }
-        }));
-
+            }));
+        }
+        let announcer_condvar = participant.announcer_condvar().clone();
+        let sedp_condvar = participant.sedp_condvar().clone();
+        let user_defined_data_send_condvar = participant.user_defined_data_send_condvar().clone();
         Ok(DcpsService {
             participant,
             quit,

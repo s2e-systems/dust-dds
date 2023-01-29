@@ -1,15 +1,20 @@
-use std::str::FromStr;
+use std::{net::SocketAddr, str::FromStr};
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        dds_impl::{configuration::DustDdsConfiguration, dcps_service::DcpsService},
+        dds_impl::{
+            configuration::DustDdsConfiguration, dcps_service::DcpsService,
+            domain_participant_impl::DomainParticipantImpl,
+        },
         rtps::{
             participant::RtpsParticipant,
-            types::{GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+            types::{
+                GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
+                PROTOCOLVERSION, VENDOR_ID_S2E,
+            },
         },
-        rtps_udp_psm::udp_transport::RtpsUdpPsm,
-        utils::shared_object::DdsRwLock,
+        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -32,6 +37,60 @@ lazy_static! {
         qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
         default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
     };
+}
+
+// As of 9.6.1.4.1  Default multicast address
+const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
+    LocatorAddress::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
+
+const PB: i32 = 7400;
+const DG: i32 = 250;
+const PG: i32 = 2;
+#[allow(non_upper_case_globals)]
+const d0: i32 = 0;
+#[allow(non_upper_case_globals)]
+const d1: i32 = 10;
+#[allow(non_upper_case_globals)]
+const _d2: i32 = 1;
+#[allow(non_upper_case_globals)]
+const d3: i32 = 11;
+
+pub fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d0) as u32)
+}
+
+pub fn port_builtin_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d1 + PG * participant_id as i32) as u32)
+}
+
+pub fn port_user_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+    LocatorPort::new((PB + DG * domain_id + d3 + PG * participant_id as i32) as u32)
+}
+
+fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAddress> {
+    ifcfg::IfCfg::get()
+        .expect("Could not scan interfaces")
+        .into_iter()
+        .filter(|x| {
+            if let Some(if_name) = interface_name {
+                &x.name == if_name
+            } else {
+                true
+            }
+        })
+        .flat_map(|i| {
+            i.addresses.into_iter().filter_map(|a| match a.address? {
+                #[rustfmt::skip]
+                SocketAddr::V4(v4) if !v4.ip().is_loopback() => Some(
+                    LocatorAddress::new([0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        0, 0, 0, 0,
+                        v4.ip().octets()[0], v4.ip().octets()[1], v4.ip().octets()[2], v4.ip().octets()[3]])
+                    ),
+                _ => None,
+            })
+        })
+        .collect()
 }
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -65,7 +124,7 @@ impl DomainParticipantFactory {
             Default::default()
         };
 
-        let qos = match qos {
+        let domain_participant_qos = match qos {
             QosKind::Default => self.default_participant_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
         };
@@ -76,12 +135,31 @@ impl DomainParticipantFactory {
             .filter(|p| p.participant().get_domain_id() == domain_id)
             .count();
 
-        let rtps_udp_psm = RtpsUdpPsm::new(
-            domain_id,
-            participant_id,
-            configuration.interface_name.as_ref(),
-        )
-        .map_err(DdsError::PreconditionNotMet)?;
+        let interface_address_list =
+            get_interface_address_list(configuration.interface_name.as_ref());
+
+        let user_defined_unicast_locator_port = port_user_unicast(domain_id, participant_id);
+        let default_unicast_locator_list = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
+            .collect();
+
+        let default_multicast_locator_list = vec![];
+
+        let metattrafic_unicast_locator_port = port_builtin_unicast(domain_id, participant_id);
+        let metatraffic_unicast_locator_list = interface_address_list
+            .iter()
+            .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
+            .collect();
+
+        let metatraffic_multicast_locator_port = port_builtin_multicast(domain_id);
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            metatraffic_multicast_locator_port,
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
+
+        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
         let mac_address = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
@@ -100,21 +178,30 @@ impl DomainParticipantFactory {
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
-            rtps_udp_psm.default_unicast_locator_list().as_ref(),
-            rtps_udp_psm.default_multicast_locator_list(),
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
-
-        let dcps_service = DcpsService::new(
+        let announcer_condvar = DdsCondvar::new();
+        let sedp_condvar = DdsCondvar::new();
+        let user_defined_data_send_condvar = DdsCondvar::new();
+        let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
-            configuration,
-            qos,
+            configuration.domain_tag,
+            domain_participant_qos,
             a_listener,
             mask,
-            rtps_udp_psm,
-        )?;
+            &spdp_discovery_locator_list,
+            announcer_condvar.clone(),
+            sedp_condvar.clone(),
+            user_defined_data_send_condvar.clone(),
+        );
+
+        let dcps_service = DcpsService::new(participant)?;
 
         let participant = DomainParticipant::new(dcps_service.participant().downgrade());
 
