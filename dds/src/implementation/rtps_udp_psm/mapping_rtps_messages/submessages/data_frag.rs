@@ -120,7 +120,6 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
         *buf = following;
         let serialized_payload = SerializedPayload::new(data);
 
-
         Ok(Self {
             endianness_flag,
             inline_qos_flag,
@@ -211,7 +210,7 @@ mod tests {
                     value: &[71, 72, 73, 74],
                 }],
             },
-            serialized_payload: SerializedPayload::new(&[1,2,3]),
+            serialized_payload: SerializedPayload::new(&[1, 2, 3]),
         };
         #[rustfmt::skip]
         assert_eq!(to_bytes(&submessage).unwrap(), vec![
@@ -285,7 +284,7 @@ mod tests {
                     value: &[71, 72, 73, 74],
                 }],
             },
-            serialized_payload: SerializedPayload::new(&[1,2,3,0]),
+            serialized_payload: SerializedPayload::new(&[1, 2, 3, 0]),
         };
         #[rustfmt::skip]
         let result = from_bytes(&[
@@ -305,7 +304,4 @@ mod tests {
         ]).unwrap();
         assert_eq!(expected, result);
     }
-
 }
-
-
