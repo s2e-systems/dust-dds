@@ -28,10 +28,13 @@ impl UdpTransport {
         match self.socket.recv_from(self.receive_buffer.as_mut()) {
             Ok((bytes, source_address)) => {
                 if bytes > 0 {
-                    let message =
-                        from_bytes(&self.receive_buffer[0..bytes]).expect("Failed to deserialize");
-                    let udp_locator: UdpLocator = source_address.into();
-                    Some((udp_locator.0, message))
+                    if let Ok(message) = from_bytes(&self.receive_buffer[0..bytes]) {
+                        let udp_locator: UdpLocator = source_address.into();
+                        Some((udp_locator.0, message))
+                    } else {
+                        // Invalid message received
+                        None
+                    }
                 } else {
                     None
                 }

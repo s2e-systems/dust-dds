@@ -1,5 +1,5 @@
 use std::{
-    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -68,6 +68,7 @@ pub struct DcpsService {
     announcer_condvar: DdsCondvar,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
+    sender_socket: UdpSocket,
 }
 
 impl DcpsService {
@@ -230,6 +231,7 @@ impl DcpsService {
                 }
             }));
         }
+        let sender_socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
         let announcer_condvar = participant.announcer_condvar().clone();
         let sedp_condvar = participant.sedp_condvar().clone();
         let user_defined_data_send_condvar = participant.user_defined_data_send_condvar().clone();
@@ -240,6 +242,7 @@ impl DcpsService {
             announcer_condvar,
             sedp_condvar,
             user_defined_data_send_condvar,
+            sender_socket,
         })
     }
 
@@ -252,6 +255,34 @@ impl DcpsService {
         self.announcer_condvar.notify_all();
         self.sedp_condvar.notify_all();
         self.user_defined_data_send_condvar.notify_all();
+
+        if let Some(default_unicast_locator) =
+            self.participant.default_unicast_locator_list().get(0)
+        {
+            let port: u32 = default_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_unicast_locator) =
+            self.participant.metatraffic_unicast_locator_list().get(0)
+        {
+            let port: u32 = metatraffic_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_multicast_transport) =
+            self.participant.metatraffic_multicast_locator_list().get(0)
+        {
+            let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
+            let port: u32 = metatraffic_multicast_transport.port().into();
+            let addr = SocketAddrV4::new(
+                Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
+                port as u16,
+            );
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
 
         while let Some(thread) = self.threads.pop() {
             thread.join().unwrap();
