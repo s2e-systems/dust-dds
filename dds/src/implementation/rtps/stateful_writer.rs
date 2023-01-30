@@ -215,12 +215,15 @@ impl<T> RtpsStatefulWriter<T> {
 }
 
 fn info_timestamp_submessage<'a>(
-    timestamp: super::messages::types::Time,
+    timestamp: Time,
 ) -> RtpsSubmessageKind<'a> {
     RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
         endianness_flag: true,
         invalidate_flag: false,
-        timestamp,
+        timestamp: super::messages::types::Time::new(
+            timestamp.sec(),
+            timestamp.nanosec(),
+        ),
     })
 }
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
@@ -266,10 +269,7 @@ where
 
     fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            let info_dst = RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
-                endianness_flag: true,
-                guid_prefix: reader_proxy.remote_reader_guid().prefix(),
-            });
+            let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
             let mut submessages = vec![info_dst];
 
             while !reader_proxy.unsent_changes().is_empty() {
@@ -279,11 +279,7 @@ where
                 let change = reader_proxy.next_unsent_change(self.writer.writer_cache());
 
                 if change.is_relevant() {
-                    let timestamp = super::messages::types::Time::new(
-                        change.timestamp().sec(),
-                        change.timestamp().nanosec(),
-                    );
-
+                    let timestamp = change.timestamp();
                     match self.writer.data_max_size_serialized() {
                         Some(data_max_size_serialized)
                             if change.data_value().len() > data_max_size_serialized =>
