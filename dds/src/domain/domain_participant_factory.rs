@@ -150,24 +150,17 @@ impl DomainParticipantFactory {
             QosKind::Specific(q) => q,
         };
 
-        let mut participant_list_lock = self.participant_list.write_lock();
-        let participant_id = participant_list_lock
-            .iter()
-            .filter(|p| p.participant().get_domain_id() == domain_id)
-            .count();
-
         let interface_address_list =
             get_interface_address_list(configuration.interface_name.as_ref());
 
         let default_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
             .map_err(|_| DdsError::Error)?;
-        let user_defined_unicast_locator_port = LocatorPort::new(
-            default_unicast_socket
-                .local_addr()
-                .map_err(|_| DdsError::Error)?
-                .port()
-                .into(),
-        );
+        let user_defined_unicast_port = default_unicast_socket
+            .local_addr()
+            .map_err(|_| DdsError::Error)?
+            .port();
+        let user_defined_unicast_locator_port = LocatorPort::new(user_defined_unicast_port.into());
+
         let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
@@ -175,10 +168,11 @@ impl DomainParticipantFactory {
 
         let default_multicast_locator_list = vec![];
 
-        let builtin_unicast_socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
-            .map_err(|_| DdsError::Error)?;
+        let metattrafic_unicast_socket =
+            UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)))
+                .map_err(|_| DdsError::Error)?;
         let metattrafic_unicast_locator_port = LocatorPort::new(
-            builtin_unicast_socket
+            metattrafic_unicast_socket
                 .local_addr()
                 .map_err(|_| DdsError::Error)?
                 .port()
@@ -189,22 +183,25 @@ impl DomainParticipantFactory {
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
             .collect();
 
-        let metatraffic_multicast_locator_port = port_builtin_multicast(domain_id);
-        let metatraffic_multicast_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            metatraffic_multicast_locator_port,
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
+        let metatraffic_multicast_locator_list = vec![];
 
-        let l = metatraffic_multicast_locator_list.get(0).unwrap();
-        let metatraffic_multicast_transport =
-            UdpTransport::new(get_multicast_socket(l.address(), l.port()).unwrap());
+        let metatraffic_multicast_transport = UdpTransport::new(
+            get_multicast_socket(
+                DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+                port_builtin_multicast(domain_id),
+            )
+            .unwrap(),
+        );
 
-        let metatraffic_unicast_transport = UdpTransport::new(builtin_unicast_socket);
+        let metatraffic_unicast_transport = UdpTransport::new(metattrafic_unicast_socket);
 
         let default_unicast_transport = UdpTransport::new(default_unicast_socket);
 
-        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
+        let spdp_discovery_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id),
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
 
         let mac_address = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
@@ -218,7 +215,7 @@ impl DomainParticipantFactory {
         let guid_prefix = GuidPrefix::new([
             mac_address[0], mac_address[1], mac_address[2],
             mac_address[3], mac_address[4], mac_address[5],
-            domain_id as u8, participant_id as u8, 0, 0, 0, 0
+            domain_id as u8, (user_defined_unicast_port >> 8) as u8, (user_defined_unicast_port & 0x00FF) as u8, 0, 0, 0
         ]);
 
         let rtps_participant = RtpsParticipant::new(
@@ -264,7 +261,7 @@ impl DomainParticipantFactory {
             participant.enable()?;
         }
 
-        participant_list_lock.push(dcps_service);
+        self.participant_list.write_lock().push(dcps_service);
 
         Ok(participant)
     }
