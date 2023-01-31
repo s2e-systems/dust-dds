@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, str::FromStr};
+use std::{
+    net::{Ipv4Addr, SocketAddr, UdpSocket},
+    str::FromStr,
+};
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
@@ -14,6 +17,7 @@ use crate::{
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
         },
+        rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
@@ -24,6 +28,7 @@ use crate::{
 };
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
+use socket2::Socket;
 
 use super::domain_participant::DomainParticipant;
 
@@ -55,15 +60,15 @@ const _d2: i32 = 1;
 #[allow(non_upper_case_globals)]
 const d3: i32 = 11;
 
-pub fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
+fn port_builtin_multicast(domain_id: DomainId) -> LocatorPort {
     LocatorPort::new((PB + DG * domain_id + d0) as u32)
 }
 
-pub fn port_builtin_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+fn port_builtin_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
     LocatorPort::new((PB + DG * domain_id + d1 + PG * participant_id as i32) as u32)
 }
 
-pub fn port_user_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
+fn port_user_unicast(domain_id: DomainId, participant_id: usize) -> LocatorPort {
     LocatorPort::new((PB + DG * domain_id + d3 + PG * participant_id as i32) as u32)
 }
 
@@ -91,6 +96,47 @@ fn get_interface_address_list(interface_name: Option<&String>) -> Vec<LocatorAdd
             })
         })
         .collect()
+}
+
+fn get_multicast_socket(
+    multicast_address: LocatorAddress,
+    port: LocatorPort,
+) -> std::io::Result<UdpSocket> {
+    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
+
+    let socket = Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::DGRAM,
+        Some(socket2::Protocol::UDP),
+    )?;
+
+    socket.set_reuse_address(true)?;
+
+    //socket.set_nonblocking(true).ok()?;
+    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
+
+    socket.bind(&socket_addr.into())?;
+    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
+    let addr = Ipv4Addr::new(
+        multicast_addr_bytes[12],
+        multicast_addr_bytes[13],
+        multicast_addr_bytes[14],
+        multicast_addr_bytes[15],
+    );
+    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
+    socket.set_multicast_loop_v4(true)?;
+
+    Ok(socket.into())
+}
+
+pub fn get_unicast_socket(port: LocatorPort) -> std::io::Result<UdpSocket> {
+    let socket = UdpSocket::bind(SocketAddr::from((
+        Ipv4Addr::UNSPECIFIED,
+        <u32>::from(port) as u16,
+    )))?;
+    socket.set_nonblocking(true)?;
+
+    Ok(socket)
 }
 
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
@@ -139,7 +185,7 @@ impl DomainParticipantFactory {
             get_interface_address_list(configuration.interface_name.as_ref());
 
         let user_defined_unicast_locator_port = port_user_unicast(domain_id, participant_id);
-        let default_unicast_locator_list = interface_address_list
+        let default_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, user_defined_unicast_locator_port, *a))
             .collect();
@@ -147,7 +193,7 @@ impl DomainParticipantFactory {
         let default_multicast_locator_list = vec![];
 
         let metattrafic_unicast_locator_port = port_builtin_unicast(domain_id, participant_id);
-        let metatraffic_unicast_locator_list = interface_address_list
+        let metatraffic_unicast_locator_list: Vec<Locator> = interface_address_list
             .iter()
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
             .collect();
@@ -158,6 +204,18 @@ impl DomainParticipantFactory {
             metatraffic_multicast_locator_port,
             DEFAULT_MULTICAST_LOCATOR_ADDRESS,
         )];
+
+        let l = metatraffic_multicast_locator_list.get(0).unwrap();
+        let metatraffic_multicast_transport =
+            UdpTransport::new(get_multicast_socket(l.address(), l.port()).unwrap());
+
+        let l = metatraffic_unicast_locator_list.get(0).unwrap();
+        let metatraffic_unicast_transport =
+            UdpTransport::new(get_unicast_socket(l.port()).unwrap());
+
+        let default_unicast_locator = default_unicast_locator_list.get(0).unwrap();
+        let default_unicast_transport =
+            UdpTransport::new(get_unicast_socket(default_unicast_locator.port()).unwrap());
 
         let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
@@ -201,7 +259,12 @@ impl DomainParticipantFactory {
             user_defined_data_send_condvar,
         );
 
-        let dcps_service = DcpsService::new(participant)?;
+        let dcps_service = DcpsService::new(
+            participant,
+            metatraffic_multicast_transport,
+            metatraffic_unicast_transport,
+            default_unicast_transport,
+        )?;
 
         let participant = DomainParticipant::new(dcps_service.participant().downgrade());
 

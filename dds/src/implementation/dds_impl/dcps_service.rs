@@ -1,5 +1,5 @@
 use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket},
+    net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
         Arc,
@@ -7,11 +7,8 @@ use std::{
     thread::JoinHandle,
 };
 
-use socket2::Socket;
-
 use crate::{
     implementation::{
-        rtps::types::{LocatorAddress, LocatorPort},
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
@@ -19,47 +16,6 @@ use crate::{
 };
 
 use super::domain_participant_impl::DomainParticipantImpl;
-
-pub fn get_multicast_socket(
-    multicast_address: LocatorAddress,
-    port: LocatorPort,
-) -> std::io::Result<UdpSocket> {
-    let socket_addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, <u32>::from(port) as u16));
-
-    let socket = Socket::new(
-        socket2::Domain::IPV4,
-        socket2::Type::DGRAM,
-        Some(socket2::Protocol::UDP),
-    )?;
-
-    socket.set_reuse_address(true)?;
-
-    //socket.set_nonblocking(true).ok()?;
-    socket.set_read_timeout(Some(std::time::Duration::from_millis(50)))?;
-
-    socket.bind(&socket_addr.into())?;
-    let multicast_addr_bytes: [u8; 16] = multicast_address.into();
-    let addr = Ipv4Addr::new(
-        multicast_addr_bytes[12],
-        multicast_addr_bytes[13],
-        multicast_addr_bytes[14],
-        multicast_addr_bytes[15],
-    );
-    socket.join_multicast_v4(&addr, &Ipv4Addr::UNSPECIFIED)?;
-    socket.set_multicast_loop_v4(true)?;
-
-    Ok(socket.into())
-}
-
-pub fn get_unicast_socket(port: LocatorPort) -> std::io::Result<UdpSocket> {
-    let socket = UdpSocket::bind(SocketAddr::from((
-        Ipv4Addr::UNSPECIFIED,
-        <u32>::from(port) as u16,
-    )))?;
-    socket.set_nonblocking(true)?;
-
-    Ok(socket)
-}
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -72,7 +28,12 @@ pub struct DcpsService {
 }
 
 impl DcpsService {
-    pub fn new(participant: DdsShared<DomainParticipantImpl>) -> DdsResult<Self> {
+    pub fn new(
+        participant: DdsShared<DomainParticipantImpl>,
+        mut metatraffic_multicast_transport: UdpTransport,
+        mut metatraffic_unicast_transport: UdpTransport,
+        mut default_unicast_transport: UdpTransport,
+    ) -> DdsResult<Self> {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
 
@@ -96,13 +57,7 @@ impl DcpsService {
         // ////////////// SPDP participant discovery
         {
             let domain_participant = participant.clone();
-            let l = domain_participant
-                .metatraffic_multicast_locator_list()
-                .get(0)
-                .unwrap();
 
-            let mut metatraffic_multicast_transport =
-                UdpTransport::new(get_multicast_socket(l.address(), l.port()).unwrap());
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -121,12 +76,6 @@ impl DcpsService {
         // //////////// Unicast metatraffic Communication receive
         {
             let domain_participant = participant.clone();
-            let l = domain_participant
-                .metatraffic_unicast_locator_list()
-                .get(0)
-                .unwrap();
-            let mut metatraffic_unicast_transport =
-                UdpTransport::new(get_unicast_socket(l.port()).unwrap());
 
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
@@ -163,12 +112,6 @@ impl DcpsService {
         // //////////// User-defined Communication receive
         {
             let domain_participant = participant.clone();
-            let default_unicast_locator_list = domain_participant
-                .default_unicast_locator_list()
-                .get(0)
-                .unwrap();
-            let mut default_unicast_transport =
-                UdpTransport::new(get_unicast_socket(default_unicast_locator_list.port()).unwrap());
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
