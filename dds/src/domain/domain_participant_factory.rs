@@ -183,7 +183,11 @@ impl DomainParticipantFactory {
             .map(|a| Locator::new(LOCATOR_KIND_UDP_V4, metattrafic_unicast_locator_port, *a))
             .collect();
 
-        let metatraffic_multicast_locator_list = vec![];
+        let metatraffic_multicast_locator_list = vec![Locator::new(
+            LOCATOR_KIND_UDP_V4,
+            port_builtin_multicast(domain_id),
+            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
+        )];
 
         let metatraffic_multicast_transport = UdpTransport::new(
             get_multicast_socket(
@@ -197,11 +201,7 @@ impl DomainParticipantFactory {
 
         let default_unicast_transport = UdpTransport::new(default_unicast_socket);
 
-        let spdp_discovery_locator_list = vec![Locator::new(
-            LOCATOR_KIND_UDP_V4,
-            port_builtin_multicast(domain_id),
-            DEFAULT_MULTICAST_LOCATOR_ADDRESS,
-        )];
+        let spdp_discovery_locator_list = metatraffic_multicast_locator_list.clone();
 
         let mac_address = ifcfg::IfCfg::get()
             .expect("Could not scan interfaces")
