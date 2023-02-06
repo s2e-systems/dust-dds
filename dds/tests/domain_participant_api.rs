@@ -10,7 +10,10 @@ use dust_dds::{
             DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, QosKind,
             SubscriberQos, TopicQos,
         },
-        qos_policy::{GroupDataQosPolicy, TopicDataQosPolicy, UserDataQosPolicy},
+        qos_policy::{
+            GroupDataQosPolicy, ReliabilityQosPolicy, ReliabilityQosPolicyKind, TopicDataQosPolicy,
+            UserDataQosPolicy,
+        },
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -669,32 +672,58 @@ fn get_discovery_data_from_builtin_reader() {
 }
 
 #[test]
-fn ignore_participant() {
+fn ignore_publication() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
     let participant = domain_participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(2500));
-    let builtin_subscriber = participant.get_builtin_subscriber().unwrap();
-    let participants_reader = builtin_subscriber
-        .lookup_datareader::<ParticipantBuiltinTopicData>("DCPSParticipant")
-        .unwrap()
+    let topic = participant
+        .create_topic::<MyData>("MyTopic", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let discovered_participants = participants_reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
         .unwrap();
 
-    let participant_key = discovered_participants[0]
-        .data
-        .as_ref()
-        .unwrap()
-        .key
-        .clone();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
 
     participant
-        .ignore_participant(participant_key.into())
+        .ignore_publication(writer.get_instance_handle().unwrap())
         .unwrap();
+
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    // Readers and writers from ignored participant should never match
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    assert!(wait_set.wait(Duration::new(2, 0)).is_err());
 }
