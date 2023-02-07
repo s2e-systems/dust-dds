@@ -33,3 +33,7 @@ path = "dust_dds_publisher.rs"
 [[bin]]
 name = "dust_dds_subscriber"
 path = "dust_dds_subscriber.rs"
+
+[[bin]]
+name = "dust_dds_big_data_subscriber"
+path = "dust_dds_big_data_subscriber.rs"
