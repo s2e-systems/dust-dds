@@ -497,8 +497,8 @@ where
                 );
                 submessages.push(heartbeat);
             }
-            // Send messages only if more than INFO_DST and TIMESTAMP is added
-            if submessages.len() > 2 {
+            // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
+            if submessages.len() >= 2 {
                 send_submessages(
                     self.writer.guid().prefix(),
                     transport,
