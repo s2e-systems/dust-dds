@@ -133,7 +133,7 @@ impl RtpsWriterCacheChange {
                 fragment_starting_num,
                 fragments_in_submessage: FRAGMENTS_IN_SUBMESSAGE,
                 data_size,
-                fragment_size: UShort::new(data_fragment.len() as u16),
+                fragment_size: UShort::new(max_bytes as u16),
                 inline_qos,
                 serialized_payload,
             };

@@ -146,7 +146,7 @@ impl DdsShared<UserDefinedPublisher> {
                 Duration::new(0, 200_000_000),
                 DURATION_ZERO,
                 DURATION_ZERO,
-                1400,
+                1344,
                 qos,
             ));
 
