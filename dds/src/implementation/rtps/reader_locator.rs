@@ -4,7 +4,7 @@ use super::{
         submessages::{DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
         types::Time,
     },
-    types::{Locator, SequenceNumber},
+    types::{Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsReaderLocator {
@@ -88,7 +88,7 @@ impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for (InfoTimestampSubmessage, Da
                 cache_change.timestamp().nanosec(),
             ),
         };
-        let data_submessage = cache_change.into();
+        let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
         (info_ts_submessage, data_submessage)
     }
 }
