@@ -13,8 +13,8 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
         submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatSubmessage,
-            InfoDestinationSubmessage,
+            AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+            HeartbeatSubmessage, InfoDestinationSubmessage,
         },
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
@@ -310,6 +310,29 @@ impl RtpsStatefulReader {
                     writer_proxy.missing_changes_update(heartbeat_submessage.last_sn);
                     writer_proxy.lost_changes_update(heartbeat_submessage.first_sn);
                 }
+            }
+        }
+    }
+
+    pub fn on_heartbeat_frag_submessage_received(
+        &mut self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        if self.reader.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let writer_guid = Guid::new(source_guid_prefix, heartbeat_frag_submessage.writer_id);
+
+            if let Some(writer_proxy) = self
+                .matched_writers
+                .iter_mut()
+                .find(|x| x.remote_writer_guid() == writer_guid)
+            {
+                if writer_proxy.last_received_heartbeat_count() < heartbeat_frag_submessage.count {
+                    writer_proxy
+                        .set_last_received_heartbeat_frag_count(heartbeat_frag_submessage.count);
+                }
+
+                // todo!()
             }
         }
     }

@@ -12,7 +12,9 @@ use crate::{
         },
         rtps::{
             group::RtpsGroupImpl,
-            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
+            messages::submessages::{
+                DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            },
             transport::TransportWrite,
             types::{EntityId, EntityKey, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
         },
@@ -195,6 +197,28 @@ impl DdsShared<BuiltInSubscriber> {
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
+    fn on_heartbeat_submessage_received(
+        &self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.sedp_builtin_topics_reader
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.sedp_builtin_publications_reader
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.sedp_builtin_subscriptions_reader
+            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+    }
+
+    fn on_heartbeat_frag_submessage_received(
+        &self,
+        _heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        _source_guid_prefix: GuidPrefix,
+    ) {
+        // Maybe necessary for user data
+        todo!()
+    }
+
     fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -236,27 +260,12 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         }
     }
 
-    fn on_heartbeat_submessage_received(
-        &self,
-        heartbeat_submessage: &HeartbeatSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        self.sedp_builtin_topics_reader
-            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-        self.sedp_builtin_publications_reader
-            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-        self.sedp_builtin_subscriptions_reader
-            .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-    }
-
     fn on_data_frag_submessage_received(
         &self,
-        _data_frag_submessage: &crate::implementation::rtps::messages::submessages::DataFragSubmessage<'_>,
+        _data_frag_submessage: &DataFragSubmessage<'_>,
         _message_receiver: &MessageReceiver,
     ) {
         // Maybe necessary for user data
         todo!()
     }
-
-
 }

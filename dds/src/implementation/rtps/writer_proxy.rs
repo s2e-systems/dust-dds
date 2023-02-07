@@ -21,6 +21,7 @@ pub struct RtpsWriterProxy {
     received_changes: Vec<SequenceNumber>,
     must_send_acknacks: bool,
     last_received_heartbeat_count: Count,
+    last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
 
     frag_buffer: HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>>,
@@ -46,6 +47,7 @@ impl RtpsWriterProxy {
             received_changes: Vec::new(),
             must_send_acknacks: false,
             last_received_heartbeat_count: Count::new(0),
+            last_received_heartbeat_frag_count: Count::new(0),
             acknack_count: Count::new(0),
             frag_buffer: HashMap::new(),
         }
@@ -200,8 +202,16 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count
     }
 
+    pub fn last_received_heartbeat_frag_count(&self) -> Count {
+        self.last_received_heartbeat_frag_count
+    }
+
     pub fn set_last_received_heartbeat_count(&mut self, last_received_heartbeat_count: Count) {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
+    }
+
+    pub fn set_last_received_heartbeat_frag_count(&mut self, last_received_heartbeat_frag_count: Count) {
+        self.last_received_heartbeat_frag_count = last_received_heartbeat_frag_count;
     }
 
     pub fn acknack_count(&self) -> Count {

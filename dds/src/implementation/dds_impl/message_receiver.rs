@@ -2,8 +2,8 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-                InfoTimestampSubmessage, DataFragSubmessage,
+                AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                HeartbeatSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -30,6 +30,12 @@ pub trait SubscriberSubmessageReceiver {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    );
+
+    fn on_heartbeat_frag_submessage_received(
+        &self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
     );
 
@@ -112,7 +118,7 @@ impl MessageReceiver {
                     for subscriber in subscriber_list {
                         subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
                     }
-                },
+                }
                 RtpsSubmessageKind::Gap(_) => todo!(),
                 RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
@@ -122,7 +128,14 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageKind::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageKind::HeartbeatFrag(heartbeat_frag) => {
+                    for subscriber in subscriber_list {
+                        subscriber.on_heartbeat_frag_submessage_received(
+                            heartbeat_frag,
+                            self.source_guid_prefix,
+                        );
+                    }
+                }
                 RtpsSubmessageKind::InfoDestination(info_dst) => {
                     self.process_info_destination_submessage(info_dst)
                 }
