@@ -5,7 +5,7 @@ use super::{
     messages::submessages::{
         AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
     },
-    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber},
+    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 /// ChangeForReaderStatusKind
@@ -207,7 +207,7 @@ impl<'a> From<RtpsChangeForReaderCacheChange<'a>>
                 val.cache_change.timestamp().nanosec(),
             ),
         };
-        let data_submessage = val.cache_change.into();
+        let data_submessage = val.cache_change.as_data_submessage(ENTITYID_UNKNOWN);
         (info_ts_submessage, data_submessage)
     }
 }

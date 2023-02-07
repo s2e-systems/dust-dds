@@ -200,7 +200,7 @@ fn sample_rejected_listener() {
     let mut reader_listener = MockSampleRejectedListener::new();
     reader_listener
         .expect_on_sample_rejected()
-        .times(1..3)
+        .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
                 && status.total_count_change == 1

@@ -9,19 +9,17 @@ pub struct RtpsParticipant {
     vendor_id: VendorId,
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
-}
-
-impl RtpsParticipant {
-    pub fn guid(&self) -> Guid {
-        self.entity.guid()
-    }
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
 }
 
 impl RtpsParticipant {
     pub fn new(
         guid_prefix: GuidPrefix,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
     ) -> Self {
@@ -29,9 +27,15 @@ impl RtpsParticipant {
             entity: RtpsEntity::new(Guid::new(guid_prefix, ENTITYID_PARTICIPANT)),
             protocol_version,
             vendor_id,
-            default_unicast_locator_list: default_unicast_locator_list.to_vec(),
-            default_multicast_locator_list: default_multicast_locator_list.to_vec(),
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
         }
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.entity.guid()
     }
 
     pub fn protocol_version(&self) -> ProtocolVersion {
@@ -48,5 +52,13 @@ impl RtpsParticipant {
 
     pub fn default_multicast_locator_list(&self) -> &[Locator] {
         self.default_multicast_locator_list.as_slice()
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        self.metatraffic_unicast_locator_list.as_ref()
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        self.metatraffic_multicast_locator_list.as_ref()
     }
 }
