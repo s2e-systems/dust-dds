@@ -445,10 +445,40 @@ where
                     // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
                     // should be full-filled by next_requested_change()
                     if change_for_reader.is_relevant() {
-                        let (info_ts_submessage, mut data_submessage) = change_for_reader.into();
-                        data_submessage.reader_id = reader_id;
-                        submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
+                        let timestamp = change_for_reader.timestamp();
+                        if change_for_reader.data_value().len() > self.writer.data_max_size_serialized() {
+                            let data_frag_submessage_list =
+                            change_for_reader.cache_change().as_data_frag_submessages(
+                                    self.writer.data_max_size_serialized(),
+                                    reader_id,
+                                );
+                            for data_frag_submessage in data_frag_submessage_list {
+                                let info_dst = info_destination_submessage(
+                                    reader_proxy.remote_reader_guid().prefix(),
+                                );
+                                let into_timestamp = info_timestamp_submessage(timestamp);
+                                let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+                                let heartbeat = heartbeat_submessage(
+                                    reader_id,
+                                    writer_id,
+                                    self.writer.writer_cache(),
+                                    self.heartbeat_count,
+                                );
+                                send_submessages(
+                                    self.writer.guid().prefix(),
+                                    transport,
+                                    vec![info_dst, into_timestamp, data_frag, heartbeat],
+                                    reader_proxy.unicast_locator_list(),
+                                )
+                            }
+                        } else {
+                            let info_ts_submessage = info_timestamp_submessage(timestamp);
+                            let data_submessage = RtpsSubmessageKind::Data(
+                                change_for_reader.cache_change().as_data_submessage(reader_id),
+                            );
+                            submessages.push(info_ts_submessage);
+                            submessages.push(data_submessage);
+                        }
                     } else {
                         let mut gap_submessage: GapSubmessage = change_for_reader.into();
                         gap_submessage.reader_id = reader_id;
