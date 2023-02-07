@@ -9,7 +9,7 @@ use super::{
         submessages::{DataFragSubmessage, DataSubmessage},
         types::{ParameterId, SerializedPayload},
     },
-    types::{ChangeKind, EntityId, Guid, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, EntityId, Guid, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
