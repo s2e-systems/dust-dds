@@ -16,7 +16,7 @@ use super::{
         overall_structure::RtpsMessageHeader,
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-            InfoTimestampSubmessage,
+            InfoTimestampSubmessage, NackFragSubmessage,
         },
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
@@ -523,6 +523,24 @@ where
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
                 reader_proxy.reliable_receive_acknack(acknack_submessage);
+            }
+        }
+    }
+
+    pub fn on_nack_frag_submessage_received(
+        &mut self,
+        nackfrag_submessage: &NackFragSubmessage,
+        src_guid_prefix: GuidPrefix,
+    ) {
+        if self.writer.get_qos().reliability.kind == ReliabilityQosPolicyKind::Reliable {
+            let reader_guid = Guid::new(src_guid_prefix, nackfrag_submessage.reader_id);
+
+            if let Some(reader_proxy) = self
+                .matched_readers
+                .iter_mut()
+                .find(|x| x.remote_reader_guid() == reader_guid)
+            {
+                reader_proxy.reliable_receive_nack_frag(nackfrag_submessage);
             }
         }
     }

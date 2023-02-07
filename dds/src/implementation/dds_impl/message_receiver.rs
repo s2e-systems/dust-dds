@@ -4,6 +4,7 @@ use crate::{
             submessages::{
                 AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
                 HeartbeatSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage,
+                NackFragSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -22,6 +23,12 @@ pub trait PublisherMessageReceiver {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
+        message_receiver: &MessageReceiver,
+    );
+
+    fn on_nack_frag_submessage_received(
+        &self,
+        nackfrag_submessage: &NackFragSubmessage,
         message_receiver: &MessageReceiver,
     );
 }
@@ -144,7 +151,11 @@ impl MessageReceiver {
                 RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageKind::NackFrag(_) => todo!(),
+                RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
+                    for publisher in publisher_list {
+                        publisher.on_nack_frag_submessage_received(nack_frag_submessage, self)
+                    }
+                }
                 RtpsSubmessageKind::Pad(_) => todo!(),
             }
         }

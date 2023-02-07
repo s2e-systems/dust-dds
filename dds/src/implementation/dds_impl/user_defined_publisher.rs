@@ -6,7 +6,7 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
-            messages::submessages::AckNackSubmessage,
+            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
@@ -146,7 +146,7 @@ impl DdsShared<UserDefinedPublisher> {
                 Duration::new(0, 200_000_000),
                 DURATION_ZERO,
                 DURATION_ZERO,
-                60000,
+                1400,
                 qos,
             ));
 
@@ -436,6 +436,16 @@ impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.on_acknack_submessage_received(acknack_submessage, message_receiver);
+        }
+    }
+
+    fn on_nack_frag_submessage_received(
+        &self,
+        nackfrag_submessage: &NackFragSubmessage,
+        message_receiver: &MessageReceiver,
+    ) {
+        for data_writer in self.data_writer_list.read_lock().iter() {
+            data_writer.on_nack_frag_submessage_received(nackfrag_submessage, message_receiver);
         }
     }
 }
