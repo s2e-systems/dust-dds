@@ -108,8 +108,6 @@ fn large_data_should_be_fragmented() {
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
 
-
-#[ignore]
 #[test]
 fn large_data_should_be_fragmented_reliable() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

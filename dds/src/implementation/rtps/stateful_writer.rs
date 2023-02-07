@@ -385,6 +385,8 @@ where
                                 );
                                 let into_timestamp = info_timestamp_submessage(timestamp);
                                 let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+                                self.heartbeat_timer.reset();
+                                self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
                                 let heartbeat = heartbeat_submessage(
                                     reader_id,
                                     writer_id,
