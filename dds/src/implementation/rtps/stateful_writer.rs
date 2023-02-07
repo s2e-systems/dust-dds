@@ -21,10 +21,7 @@ use super::{
         types::ProtocolId,
         RtpsMessage, RtpsSubmessageKind,
     },
-    reader_proxy::{
-        ChangeForReaderStatusKind, RtpsChangeForReader, RtpsChangeForReaderCacheChange,
-        RtpsReaderProxy,
-    },
+    reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
     types::{Count, Guid, GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
     writer::RtpsWriter,
@@ -214,16 +211,11 @@ impl<T> RtpsStatefulWriter<T> {
     }
 }
 
-fn info_timestamp_submessage<'a>(
-    timestamp: Time,
-) -> RtpsSubmessageKind<'a> {
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
     RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
         endianness_flag: true,
         invalidate_flag: false,
-        timestamp: super::messages::types::Time::new(
-            timestamp.sec(),
-            timestamp.nanosec(),
-        ),
+        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
     })
 }
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {

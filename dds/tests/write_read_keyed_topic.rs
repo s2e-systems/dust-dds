@@ -52,7 +52,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
+            kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
@@ -66,7 +66,7 @@ fn large_data_should_be_fragmented() {
         .unwrap();
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
+            kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
@@ -92,9 +92,14 @@ fn large_data_should_be_fragmented() {
 
     writer.write(&data, None).unwrap();
 
-    writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
+    let mut reader_wait_set = WaitSet::new();
+    reader_wait_set
+            .attach_condition(Condition::StatusCondition(cond))
+            .unwrap();
+            reader_wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

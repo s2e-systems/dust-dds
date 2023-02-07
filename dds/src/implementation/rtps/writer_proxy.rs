@@ -59,7 +59,7 @@ impl RtpsWriterProxy {
     ) {
         self.frag_buffer
             .entry(sequence_number)
-            .or_insert(HashMap::new())
+            .or_default()
             .insert(fragment_number, data);
     }
 
@@ -70,7 +70,7 @@ impl RtpsWriterProxy {
     pub fn extract_frag(&mut self, data_size: usize, seq_num: SequenceNumber) -> Option<Vec<u8>> {
         let mut data = Vec::new();
         if let Some(m) = self.frag_buffer.get(&seq_num) {
-            for fragment_number in 1..m.len() as u32 {
+            for fragment_number in 1..=m.len() as u32 {
                 if let Some(mut data_frag) = m.get(&FragmentNumber::new(fragment_number)).cloned() {
                     data.append(&mut data_frag);
                 } else {
@@ -80,6 +80,7 @@ impl RtpsWriterProxy {
         }
 
         if data.len() >= data_size {
+            self.frag_buffer.remove(&seq_num);
             Some(data)
         } else {
             None

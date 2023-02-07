@@ -8,7 +8,7 @@ use crate::implementation::rtps::{
 
 use super::mapping_traits::{from_bytes, to_bytes};
 
-const BUFFER_SIZE: usize = 32000;
+const BUFFER_SIZE: usize = 65000;
 pub struct UdpTransport {
     socket: UdpSocket,
     receive_buffer: Box<[u8; BUFFER_SIZE]>,
