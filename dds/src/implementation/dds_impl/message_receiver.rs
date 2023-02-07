@@ -3,7 +3,7 @@ use crate::{
         messages::{
             submessages::{
                 AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-                InfoTimestampSubmessage,
+                InfoTimestampSubmessage, DataFragSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -36,6 +36,12 @@ pub trait SubscriberSubmessageReceiver {
     fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    );
+
+    fn on_data_frag_submessage_received(
+        &self,
+        data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
     );
 }
@@ -102,7 +108,11 @@ impl MessageReceiver {
                         subscriber.on_data_submessage_received(data_submessage, self)
                     }
                 }
-                RtpsSubmessageKind::DataFrag(_) => todo!(),
+                RtpsSubmessageKind::DataFrag(data_frag_submessage) => {
+                    for subscriber in subscriber_list {
+                        subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
+                    }
+                },
                 RtpsSubmessageKind::Gap(_) => todo!(),
                 RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {

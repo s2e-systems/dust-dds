@@ -211,6 +211,7 @@ impl EntityKey {
     Eq,
     PartialOrd,
     Ord,
+    Hash,
     Debug,
     derive_more::Into,
     derive_more::Add,

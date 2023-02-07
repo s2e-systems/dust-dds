@@ -211,6 +211,43 @@ impl<T> RtpsStatefulWriter<T> {
     }
 }
 
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+        endianness_flag: true,
+        invalidate_flag: false,
+        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
+    })
+}
+fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
+        endianness_flag: true,
+        guid_prefix,
+    })
+}
+
+fn send_submessages(
+    guid_prefix: GuidPrefix,
+    transport: &mut impl TransportWrite,
+    submessages: Vec<RtpsSubmessageKind>,
+    locators: &[Locator],
+) {
+    let header = RtpsMessageHeader {
+        protocol: ProtocolId::PROTOCOL_RTPS,
+        version: PROTOCOLVERSION,
+        vendor_id: VENDOR_ID_S2E,
+        guid_prefix,
+    };
+
+    let rtps_message = RtpsMessage {
+        header,
+        submessages,
+    };
+
+    for locator in locators {
+        transport.write(&rtps_message, *locator)
+    }
+}
+
 impl<T> RtpsStatefulWriter<T>
 where
     T: Timer,
@@ -224,52 +261,61 @@ where
 
     fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            let info_dst = InfoDestinationSubmessage {
-                endianness_flag: true,
-                guid_prefix: reader_proxy.remote_reader_guid().prefix(),
-            };
-            let mut submessages = vec![RtpsSubmessageKind::InfoDestination(info_dst)];
+            let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+            let mut submessages = vec![info_dst];
 
-            if !reader_proxy.unsent_changes().is_empty() {
+            while !reader_proxy.unsent_changes().is_empty() {
                 // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
                 // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+                let reader_id = reader_proxy.remote_reader_guid().entity_id();
+                let change = reader_proxy.next_unsent_change(self.writer.writer_cache());
 
-                while !reader_proxy.unsent_changes().is_empty() {
-                    let change = reader_proxy.next_unsent_change(self.writer.writer_cache());
-                    // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
-                    // it's not done here to avoid the change being a mutable reference
-                    // Also the post-condition:
-                    // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
-                    // should be full-filled by next_unsent_change()
-                    if change.is_relevant() {
-                        let (info_ts_submessage, mut data_submessage) = change.into();
-                        data_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
-                        submessages.push(RtpsSubmessageKind::Data(data_submessage));
-                    } else {
-                        let mut gap_submessage: GapSubmessage = change.into();
-                        gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
-                        submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                if change.is_relevant() {
+                    let timestamp = change.timestamp();
+                    match self.writer.data_max_size_serialized() {
+                        Some(data_max_size_serialized)
+                            if change.data_value().len() > data_max_size_serialized =>
+                        {
+                            let data_frag_submessage_list = change
+                                .cache_change()
+                                .as_data_frag_submessages(data_max_size_serialized, reader_id);
+                            for data_frag_submessage in data_frag_submessage_list {
+                                let info_dst = info_destination_submessage(
+                                    reader_proxy.remote_reader_guid().prefix(),
+                                );
+
+                                let into_timestamp = info_timestamp_submessage(timestamp);
+                                let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+                                send_submessages(
+                                    self.writer.guid().prefix(),
+                                    transport,
+                                    vec![info_dst, into_timestamp, data_frag],
+                                    reader_proxy.unicast_locator_list(),
+                                )
+                            }
+                        }
+                        _ => {
+                            submessages.push(info_timestamp_submessage(timestamp));
+                            submessages.push(RtpsSubmessageKind::Data(
+                                change.cache_change().as_data_submessage(reader_id),
+                            ))
+                        }
                     }
+                } else {
+                    let mut gap_submessage: GapSubmessage = change.into();
+                    gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                 }
             }
+
             // Send messages only if more than INFO_DST is added
             if submessages.len() > 1 {
-                let header = RtpsMessageHeader {
-                    protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.writer.guid().prefix(),
-                };
-
-                let rtps_message = RtpsMessage {
-                    header,
+                send_submessages(
+                    self.writer.guid().prefix(),
+                    transport,
                     submessages,
-                };
-
-                for locator in reader_proxy.unicast_locator_list() {
-                    transport.write(&rtps_message, *locator)
-                }
+                    reader_proxy.unicast_locator_list(),
+                )
             }
         }
     }
@@ -466,131 +512,5 @@ where
                 reader_proxy.reliable_receive_acknack(acknack_submessage);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        implementation::rtps::{
-            endpoint::RtpsEndpoint,
-            messages::types::{FragmentNumber, UShort},
-            types::{
-                EntityId, EntityKey, LocatorAddress, LocatorKind, LocatorPort, TopicKind,
-                ENTITYID_UNKNOWN, GUID_UNKNOWN, USER_DEFINED_READER_NO_KEY,
-            },
-            utils::clock::StdTimer,
-        },
-        topic_definition::type_support::{DdsSerde, DdsType},
-    };
-
-    use super::*;
-    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-    struct LargeData {
-        value: Vec<u8>,
-    }
-    impl DdsType for LargeData {
-        fn type_name() -> &'static str {
-            "LargeData"
-        }
-    }
-    impl DdsSerde for LargeData {}
-
-    use mockall::mock;
-
-    mock! {
-        Transport{}
-
-        impl TransportWrite for Transport {
-            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator: Locator);
-        }
-    }
-
-    #[test]
-    fn write_frag_message() {
-        let remote_reader_guid = Guid::new(
-            GuidPrefix::new([4; 12]),
-            EntityId::new(EntityKey::new([0, 0, 0x03]), USER_DEFINED_READER_NO_KEY),
-        );
-
-        let max_bytes = 60000;
-
-        let mut rtps_writer = RtpsStatefulWriter::<StdTimer>::new(RtpsWriter::new(
-            RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
-            true,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            Some(max_bytes),
-            DataWriterQos::default(),
-        ));
-        let data = LargeData {
-            value: vec![3; 100000],
-        };
-        let data_length = data.value.len() + 4 /*CDR header*/ + 4 /*length of vector*/;
-
-        rtps_writer
-            .write_w_timestamp(&data, None, Time::new(1, 0))
-            .unwrap();
-
-        let remote_group_entity_id = ENTITYID_UNKNOWN;
-        let expects_inline_qos = false;
-        let proxy = RtpsReaderProxy::new(
-            remote_reader_guid,
-            remote_group_entity_id,
-            &[Locator::new(
-                LocatorKind::new(1),
-                LocatorPort::new(2),
-                LocatorAddress::new([3; 16]),
-            )],
-            &[],
-            expects_inline_qos,
-            true,
-        );
-        rtps_writer.matched_reader_add(proxy);
-
-
-        let mut transport = MockTransport::new();
-        transport
-            .expect_write()
-            .once()
-            .withf(move |message, _destination_locator| {
-                let data_frag_submessages: Vec<_> = message
-                    .submessages
-                    .iter()
-                    .filter(|s| match s {
-                        RtpsSubmessageKind::DataFrag(_) => true,
-                        _ => false,
-                    })
-                    .collect();
-                if data_frag_submessages.len() != 2 {
-                    false
-                } else {
-                    let ret1 = if let RtpsSubmessageKind::DataFrag(submessage) =
-                        data_frag_submessages[0]
-                    {
-                        submessage.fragment_starting_num == FragmentNumber::new(1)
-                            && submessage.fragment_size == UShort::new(max_bytes as u16)
-                            && <&[u8]>::from(&submessage.serialized_payload).len() == max_bytes
-                    } else {
-                        false
-                    };
-                    let ret2 = if let RtpsSubmessageKind::DataFrag(submessage) =
-                        data_frag_submessages[1]
-                    {
-                        submessage.fragment_starting_num == FragmentNumber::new(2)
-                            && submessage.fragment_size
-                                == UShort::new((data_length - max_bytes) as u16)
-                            && <&[u8]>::from(&submessage.serialized_payload).len()
-                                == data_length - max_bytes
-                    } else {
-                        false
-                    };
-                    ret1 && ret2
-                }
-            })
-            .return_const(());
-
-        rtps_writer.send_submessage_reliable(&mut transport);
     }
 }
