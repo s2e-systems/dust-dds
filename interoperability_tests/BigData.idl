@@ -1,0 +1,5 @@
+
+struct BigDataType
+{
+	sequence<char> msg;
+};
