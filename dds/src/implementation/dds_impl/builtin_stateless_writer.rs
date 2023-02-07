@@ -44,7 +44,7 @@ impl BuiltinStatelessWriter {
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
-            None,
+            usize::MAX,
             DataWriterQos {
                 reliability: ReliabilityQosPolicy {
                     kind: ReliabilityQosPolicyKind::BestEffort,

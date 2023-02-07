@@ -57,7 +57,7 @@ impl BuiltinStatefulWriter {
         let heartbeat_period = DEFAULT_HEARTBEAT_PERIOD;
         let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
         let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
-        let data_max_size_serialized = None;
+        let data_max_size_serialized = usize::MAX;
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(
                 guid,
