@@ -240,7 +240,38 @@ impl RtpsStatefulReader {
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
-                        todo!()
+                        writer_proxy.push_data_frag(
+                            data_frag_submessage.writer_sn,
+                            data_frag_submessage.fragment_starting_num,
+                            <&[u8]>::from(&data_frag_submessage.serialized_payload).to_vec(),
+                        );
+                        if let Some(data) = writer_proxy.extract_frag(
+                            <u32>::from(data_frag_submessage.data_size) as usize,
+                            sequence_number,
+                        ) {
+                            if let Ok(change) = convert_data_frag_to_cache_change(
+                                data_frag_submessage,
+                                data,
+                                Some(message_receiver.timestamp()),
+                                message_receiver.source_guid_prefix(),
+                                message_receiver.reception_timestamp(),
+                            ) {
+                                let add_change_result = self.reader.add_change(change);
+                                match add_change_result {
+                                    Ok(instance_handle) => {
+                                        writer_proxy.received_change_set(sequence_number);
+                                        StatefulReaderDataReceivedResult::NewSampleAdded(
+                                            instance_handle,
+                                        )
+                                    }
+                                    Err(err) => err.into(),
+                                }
+                            } else {
+                                todo!()
+                            }
+                        } else {
+                            StatefulReaderDataReceivedResult::NoMatchedWriterProxy
+                        }
                     } else {
                         StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
                     }

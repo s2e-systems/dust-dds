@@ -763,7 +763,7 @@ mod test {
             DURATION_ZERO,
             DURATION_ZERO,
             DURATION_ZERO,
-            None,
+            usize::MAX,
             DataWriterQos::default(),
         ));
 
