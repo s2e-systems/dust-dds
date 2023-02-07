@@ -1,4 +1,7 @@
-use crate::{implementation::rtps::types::Guid, topic_definition::type_support::DdsSerializedKey};
+use crate::{
+    builtin_topics::BuiltInTopicKey, implementation::rtps::types::Guid,
+    topic_definition::type_support::DdsSerializedKey,
+};
 
 /// Type for the instance handle representing an Entity
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
@@ -36,5 +39,11 @@ impl From<InstanceHandle> for [u8; 16] {
 impl From<Guid> for InstanceHandle {
     fn from(x: Guid) -> Self {
         InstanceHandle(x.into())
+    }
+}
+
+impl From<BuiltInTopicKey> for InstanceHandle {
+    fn from(x: BuiltInTopicKey) -> Self {
+        InstanceHandle(x.value)
     }
 }
