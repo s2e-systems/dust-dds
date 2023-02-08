@@ -265,22 +265,6 @@ fn heartbeat_frag<'a>(
     })
 }
 
-fn send_submessages(
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-    submessages: Vec<RtpsSubmessageKind>,
-    locators: &[Locator],
-) {
-    let rtps_message = RtpsMessage {
-        header,
-        submessages,
-    };
-
-    for locator in locators {
-        transport.write(&rtps_message, *locator)
-    }
-}
-
 impl<T> RtpsStatefulWriter<T>
 where
     T: Timer,
@@ -325,12 +309,12 @@ where
 
                             let into_timestamp = info_timestamp_submessage(timestamp);
                             let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
-                            send_submessages(
+                            let rtps_message = RtpsMessage {
                                 header,
-                                transport,
-                                vec![info_dst, into_timestamp, data_frag],
-                                reader_proxy.unicast_locator_list(),
-                            )
+                                submessages: vec![info_dst, into_timestamp, data_frag],
+                            };
+
+                            transport.write(&rtps_message, reader_proxy.unicast_locator_list())
                         }
                     } else {
                         submessages.push(info_timestamp_submessage(timestamp));
@@ -347,12 +331,12 @@ where
 
             // Send messages only if more than INFO_DST is added
             if submessages.len() > 1 {
-                send_submessages(
+                let rtps_message = RtpsMessage {
                     header,
-                    transport,
                     submessages,
-                    reader_proxy.unicast_locator_list(),
-                )
+                };
+
+                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
             }
         }
     }
@@ -428,12 +412,18 @@ where
                                         self.heartbeat_frag_count,
                                     )
                                 };
-                                send_submessages(
+
+                                let rtps_message = RtpsMessage {
                                     header,
-                                    transport,
-                                    vec![info_dst, into_timestamp, data_frag, hearbeat],
-                                    reader_proxy.unicast_locator_list(),
-                                )
+                                    submessages: vec![
+                                        info_dst,
+                                        into_timestamp,
+                                        data_frag,
+                                        hearbeat,
+                                    ],
+                                };
+
+                                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
                             }
                         } else {
                             submessages.push(info_timestamp_submessage(timestamp));
@@ -522,12 +512,17 @@ where
                                     )
                                 };
 
-                                send_submessages(
+                                let rtps_message = RtpsMessage {
                                     header,
-                                    transport,
-                                    vec![info_dst, into_timestamp, data_frag, hearbeat],
-                                    reader_proxy.unicast_locator_list(),
-                                )
+                                    submessages: vec![
+                                        info_dst,
+                                        into_timestamp,
+                                        data_frag,
+                                        hearbeat,
+                                    ],
+                                };
+
+                                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
                             }
                         } else {
                             let info_ts_submessage = info_timestamp_submessage(timestamp);
@@ -557,12 +552,12 @@ where
             }
             // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
             if submessages.len() >= 2 {
-                send_submessages(
+                let rtps_message = RtpsMessage {
                     header,
-                    transport,
                     submessages,
-                    reader_proxy.unicast_locator_list(),
-                );
+                };
+
+                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
             }
         }
     }

@@ -108,7 +108,7 @@ impl DdsShared<BuiltinStatelessWriter> {
                 header,
                 submessages,
             };
-            transport.write(&rtps_message, reader_locator.locator())
+            transport.write(&rtps_message, &[reader_locator.locator()])
         }
     }
 }

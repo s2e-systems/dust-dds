@@ -7,11 +7,8 @@ use crate::{
 };
 
 use super::{
-    history_cache::RtpsWriterCacheChange,
-    messages::RtpsSubmessageKind,
-    reader_locator::RtpsReaderLocator,
-    types::{Count, Guid},
-    writer::RtpsWriter,
+    history_cache::RtpsWriterCacheChange, messages::RtpsSubmessageKind,
+    reader_locator::RtpsReaderLocator, types::Count, writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
@@ -27,10 +24,6 @@ impl RtpsStatelessWriter {
             reader_locators: Vec::new(),
             _heartbeat_count: Count::new(0),
         }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.writer.guid()
     }
 
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {

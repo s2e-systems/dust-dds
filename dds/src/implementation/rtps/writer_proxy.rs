@@ -327,9 +327,7 @@ impl RtpsWriterProxy {
                 submessages,
             };
 
-            for locator in self.unicast_locator_list() {
-                transport.write(&message, *locator);
-            }
+            transport.write(&message, self.unicast_locator_list());
         }
     }
 }
