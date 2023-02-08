@@ -66,5 +66,5 @@ fn main() {
         .unwrap();
 
     let big_data = samples[0].data.as_ref().unwrap();
-    println!("Received: {:?}", big_data);
+    println!("Received total msg length: {:?}", big_data.msg.len());
 }
