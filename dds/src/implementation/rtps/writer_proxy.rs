@@ -289,16 +289,12 @@ impl RtpsWriterProxy {
                 let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
                 let mut missing_fragment_number = Vec::new();
                 for fragment_number in 1..=total_fragments_expected {
-                    if owning_data_frag_list
-                        .iter()
-                        .find(|x| {
-                            fragment_number >= u32::from(x.fragment_starting_num)
-                                && fragment_number
-                                    < u32::from(x.fragment_starting_num)
-                                        + (u16::from(x.fragments_in_submessage) as u32)
-                        })
-                        .is_none()
-                    {
+                    if !owning_data_frag_list.iter().any(|x| {
+                        fragment_number >= u32::from(x.fragment_starting_num)
+                            && fragment_number
+                                < u32::from(x.fragment_starting_num)
+                                    + (u16::from(x.fragments_in_submessage) as u32)
+                    }) {
                         missing_fragment_number.push(FragmentNumber::new(fragment_number))
                     }
                 }
@@ -309,7 +305,7 @@ impl RtpsWriterProxy {
                         endianness_flag: true,
                         reader_id: reader_guid.entity_id(),
                         writer_id: self.remote_writer_guid().entity_id(),
-                        writer_sn: seq_num.clone(),
+                        writer_sn: *seq_num,
                         fragment_number_state: FragmentNumberSet {
                             base: missing_fragment_number[0],
                             set: missing_fragment_number,
