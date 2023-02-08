@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::{
-    messages::types::FragmentNumber,
+    messages::{types::FragmentNumber, submessages::DataFragSubmessage},
     types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
 
@@ -53,16 +53,18 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn push_data_frag(
-        &mut self,
-        sequence_number: SequenceNumber,
-        fragment_number: FragmentNumber,
-        data: Vec<u8>,
-    ) {
-        self.frag_buffer
-            .entry(sequence_number)
-            .or_default()
-            .insert(fragment_number, data);
+    pub fn push_data_frag(&mut self, submessage: &DataFragSubmessage) {
+        let fragment_size = <u16>::from(submessage.fragment_size).into();
+        let mut fragment_number = submessage.fragment_starting_num;
+        let mut fragment_iter = <&[u8]>::from(&submessage.serialized_payload).chunks(fragment_size);
+
+        while let Some(fragment) = fragment_iter.next() {
+            self.frag_buffer
+                .entry(submessage.writer_sn)
+                .or_default()
+                .insert(fragment_number, fragment.to_vec());
+            fragment_number += FragmentNumber::new(1);
+        }
     }
 
     pub fn frag_buffer(&self) -> &HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>> {
@@ -210,7 +212,10 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
     }
 
-    pub fn set_last_received_heartbeat_frag_count(&mut self, last_received_heartbeat_frag_count: Count) {
+    pub fn set_last_received_heartbeat_frag_count(
+        &mut self,
+        last_received_heartbeat_frag_count: Count,
+    ) {
         self.last_received_heartbeat_frag_count = last_received_heartbeat_frag_count;
     }
 

@@ -197,11 +197,7 @@ impl RtpsStatefulReader {
             match self.reader.get_qos().reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     if sequence_number >= expected_seq_num {
-                        writer_proxy.push_data_frag(
-                            data_frag_submessage.writer_sn,
-                            data_frag_submessage.fragment_starting_num,
-                            <&[u8]>::from(&data_frag_submessage.serialized_payload).to_vec(),
-                        );
+                        writer_proxy.push_data_frag(data_frag_submessage);
                         if let Some(data) = writer_proxy.extract_frag(
                             <u32>::from(data_frag_submessage.data_size) as usize,
                             sequence_number,
@@ -240,11 +236,7 @@ impl RtpsStatefulReader {
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
-                        writer_proxy.push_data_frag(
-                            data_frag_submessage.writer_sn,
-                            data_frag_submessage.fragment_starting_num,
-                            <&[u8]>::from(&data_frag_submessage.serialized_payload).to_vec(),
-                        );
+                        writer_proxy.push_data_frag(data_frag_submessage);
                         if let Some(data) = writer_proxy.extract_frag(
                             <u32>::from(data_frag_submessage.data_size) as usize,
                             sequence_number,
