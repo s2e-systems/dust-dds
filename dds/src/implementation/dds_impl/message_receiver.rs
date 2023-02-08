@@ -156,7 +156,7 @@ impl MessageReceiver {
                         publisher.on_nack_frag_submessage_received(nack_frag_submessage, self)
                     }
                 }
-                RtpsSubmessageKind::Pad(_) => todo!(),
+                RtpsSubmessageKind::Pad(_) => (),
             }
         }
 
