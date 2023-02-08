@@ -4,9 +4,46 @@ use std::{
 };
 
 use super::{
-    messages::types::FragmentNumber,
-    types::{Count, EntityId, Guid, Locator, SequenceNumber},
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::{FragmentNumberSet, SequenceNumberSet},
+        submessages::{
+            AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage, NackFragSubmessage,
+        },
+        types::{FragmentNumber, ProtocolId, ULong, UShort},
+        RtpsMessage, RtpsSubmessageKind,
+    },
+    transport::TransportWrite,
+    types::{Count, EntityId, Guid, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct OwningDataFragSubmessage {
+    fragment_starting_num: FragmentNumber,
+    data_size: ULong,
+    fragment_size: UShort,
+    fragments_in_submessage: UShort,
+    serialized_payload: Vec<u8>,
+}
+
+impl From<&DataFragSubmessage<'_>> for OwningDataFragSubmessage {
+    fn from(x: &DataFragSubmessage<'_>) -> Self {
+        Self {
+            fragment_starting_num: x.fragment_starting_num,
+            data_size: x.data_size,
+            fragment_size: x.fragment_size,
+            fragments_in_submessage: x.fragments_in_submessage,
+            serialized_payload: <&[u8]>::from(&x.serialized_payload).to_vec(),
+        }
+    }
+}
+
+fn total_fragments_expected(data_frag_submessage: &OwningDataFragSubmessage) -> u32 {
+    let data_size = u32::from(data_frag_submessage.data_size);
+    let fragment_size = u16::from(data_frag_submessage.fragment_size) as u32;
+    let total_fragments_correction = if data_size % fragment_size == 0 { 0 } else { 1 };
+    data_size / fragment_size + total_fragments_correction
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
@@ -21,9 +58,10 @@ pub struct RtpsWriterProxy {
     received_changes: Vec<SequenceNumber>,
     must_send_acknacks: bool,
     last_received_heartbeat_count: Count,
+    last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
-
-    frag_buffer: HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>>,
+    nack_frag_count: Count,
+    frag_buffer: HashMap<SequenceNumber, Vec<OwningDataFragSubmessage>>,
 }
 
 impl RtpsWriterProxy {
@@ -46,45 +84,42 @@ impl RtpsWriterProxy {
             received_changes: Vec::new(),
             must_send_acknacks: false,
             last_received_heartbeat_count: Count::new(0),
+            last_received_heartbeat_frag_count: Count::new(0),
             acknack_count: Count::new(0),
+            nack_frag_count: Count::new(0),
             frag_buffer: HashMap::new(),
         }
     }
 
-    pub fn push_data_frag(
-        &mut self,
-        sequence_number: SequenceNumber,
-        fragment_number: FragmentNumber,
-        data: Vec<u8>,
-    ) {
-        self.frag_buffer
-            .entry(sequence_number)
-            .or_default()
-            .insert(fragment_number, data);
+    pub fn push_data_frag(&mut self, submessage: &DataFragSubmessage) {
+        let owning_data_frag = submessage.into();
+        let frag_bug_seq_num = self.frag_buffer.entry(submessage.writer_sn).or_default();
+        if !frag_bug_seq_num.contains(&owning_data_frag) {
+            frag_bug_seq_num.push(owning_data_frag);
+        }
     }
 
-    pub fn frag_buffer(&self) -> &HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>> {
-        &self.frag_buffer
-    }
+    pub fn extract_frag(&mut self, seq_num: SequenceNumber) -> Option<Vec<u8>> {
+        if let Some(seq_num_frag) = self.frag_buffer.get(&seq_num) {
+            let total_fragments_expected = total_fragments_expected(&seq_num_frag[0]);
 
-    pub fn extract_frag(&mut self, data_size: usize, seq_num: SequenceNumber) -> Option<Vec<u8>> {
-        let mut data = Vec::new();
-        if let Some(m) = self.frag_buffer.get(&seq_num) {
-            for fragment_number in 1..=m.len() as u32 {
-                if let Some(mut data_frag) = m.get(&FragmentNumber::new(fragment_number)).cloned() {
-                    data.append(&mut data_frag);
-                } else {
-                    break;
+            let mut total_fragments = 0;
+            for frag_seq_num in seq_num_frag {
+                total_fragments += u16::from(frag_seq_num.fragments_in_submessage) as u32;
+            }
+
+            if total_fragments == total_fragments_expected {
+                let mut frag_seq_num_list = self.frag_buffer.remove(&seq_num).expect("Must exist");
+                frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num);
+
+                let mut data = Vec::new();
+                for mut frag in frag_seq_num_list {
+                    data.append(&mut frag.serialized_payload);
                 }
+                return Some(data);
             }
         }
-
-        if data.len() >= data_size {
-            self.frag_buffer.remove(&seq_num);
-            Some(data)
-        } else {
-            None
-        }
+        None
     }
 
     pub fn remote_writer_guid(&self) -> Guid {
@@ -200,8 +235,19 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count
     }
 
+    pub fn last_received_heartbeat_frag_count(&self) -> Count {
+        self.last_received_heartbeat_frag_count
+    }
+
     pub fn set_last_received_heartbeat_count(&mut self, last_received_heartbeat_count: Count) {
         self.last_received_heartbeat_count = last_received_heartbeat_count;
+    }
+
+    pub fn set_last_received_heartbeat_frag_count(
+        &mut self,
+        last_received_heartbeat_frag_count: Count,
+    ) {
+        self.last_received_heartbeat_frag_count = last_received_heartbeat_frag_count;
     }
 
     pub fn acknack_count(&self) -> Count {
@@ -210,6 +256,83 @@ impl RtpsWriterProxy {
 
     pub fn increment_acknack_count(&mut self) {
         self.acknack_count = self.acknack_count.wrapping_add(1);
+    }
+
+    pub fn send_message(&mut self, reader_guid: &Guid, transport: &mut impl TransportWrite) {
+        if self.must_send_acknacks() || !self.missing_changes().is_empty() {
+            self.set_must_send_acknacks(false);
+            self.increment_acknack_count();
+
+            let info_dst_submessage = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: self.remote_writer_guid().prefix(),
+            };
+
+            let acknack_submessage = AckNackSubmessage {
+                endianness_flag: true,
+                final_flag: true,
+                reader_id: reader_guid.entity_id(),
+                writer_id: self.remote_writer_guid().entity_id(),
+                reader_sn_state: SequenceNumberSet {
+                    base: self.available_changes_max() + 1,
+                    set: self.missing_changes(),
+                },
+                count: self.acknack_count(),
+            };
+
+            let mut submessages = vec![
+                RtpsSubmessageKind::InfoDestination(info_dst_submessage),
+                RtpsSubmessageKind::AckNack(acknack_submessage),
+            ];
+
+            for (seq_num, owning_data_frag_list) in self.frag_buffer.iter() {
+                let total_fragments_expected = total_fragments_expected(&owning_data_frag_list[0]);
+                let mut missing_fragment_number = Vec::new();
+                for fragment_number in 1..=total_fragments_expected {
+                    if !owning_data_frag_list.iter().any(|x| {
+                        fragment_number >= u32::from(x.fragment_starting_num)
+                            && fragment_number
+                                < u32::from(x.fragment_starting_num)
+                                    + (u16::from(x.fragments_in_submessage) as u32)
+                    }) {
+                        missing_fragment_number.push(FragmentNumber::new(fragment_number))
+                    }
+                }
+
+                if !missing_fragment_number.is_empty() {
+                    self.nack_frag_count = self.nack_frag_count.wrapping_add(1);
+                    let nack_frag_submessage = RtpsSubmessageKind::NackFrag(NackFragSubmessage {
+                        endianness_flag: true,
+                        reader_id: reader_guid.entity_id(),
+                        writer_id: self.remote_writer_guid().entity_id(),
+                        writer_sn: *seq_num,
+                        fragment_number_state: FragmentNumberSet {
+                            base: missing_fragment_number[0],
+                            set: missing_fragment_number,
+                        },
+                        count: self.nack_frag_count,
+                    });
+
+                    submessages.push(nack_frag_submessage)
+                }
+            }
+
+            let header = RtpsMessageHeader {
+                protocol: ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: reader_guid.prefix(),
+            };
+
+            let message = RtpsMessage {
+                header,
+                submessages,
+            };
+
+            for locator in self.unicast_locator_list() {
+                transport.write(&message, *locator);
+            }
+        }
     }
 }
 

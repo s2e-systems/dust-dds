@@ -24,12 +24,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<big_data::BigDataType>(
-            "BigData",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic::<big_data::BigDataType>("BigData", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
@@ -71,5 +66,5 @@ fn main() {
         .unwrap();
 
     let big_data = samples[0].data.as_ref().unwrap();
-    println!("Received: {:?}", big_data);
+    println!("Received total msg length: {:?}", big_data.msg.len());
 }

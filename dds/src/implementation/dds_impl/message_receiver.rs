@@ -2,8 +2,9 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                AckNackSubmessage, DataSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-                InfoTimestampSubmessage, DataFragSubmessage,
+                AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                HeartbeatSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage,
+                NackFragSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -24,12 +25,24 @@ pub trait PublisherMessageReceiver {
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     );
+
+    fn on_nack_frag_submessage_received(
+        &self,
+        nackfrag_submessage: &NackFragSubmessage,
+        message_receiver: &MessageReceiver,
+    );
 }
 
 pub trait SubscriberSubmessageReceiver {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    );
+
+    fn on_heartbeat_frag_submessage_received(
+        &self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
     );
 
@@ -112,7 +125,7 @@ impl MessageReceiver {
                     for subscriber in subscriber_list {
                         subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
                     }
-                },
+                }
                 RtpsSubmessageKind::Gap(_) => todo!(),
                 RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
@@ -122,7 +135,14 @@ impl MessageReceiver {
                         )
                     }
                 }
-                RtpsSubmessageKind::HeartbeatFrag(_) => todo!(),
+                RtpsSubmessageKind::HeartbeatFrag(heartbeat_frag) => {
+                    for subscriber in subscriber_list {
+                        subscriber.on_heartbeat_frag_submessage_received(
+                            heartbeat_frag,
+                            self.source_guid_prefix,
+                        );
+                    }
+                }
                 RtpsSubmessageKind::InfoDestination(info_dst) => {
                     self.process_info_destination_submessage(info_dst)
                 }
@@ -131,8 +151,12 @@ impl MessageReceiver {
                 RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
-                RtpsSubmessageKind::NackFrag(_) => todo!(),
-                RtpsSubmessageKind::Pad(_) => todo!(),
+                RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
+                    for publisher in publisher_list {
+                        publisher.on_nack_frag_submessage_received(nack_frag_submessage, self)
+                    }
+                }
+                RtpsSubmessageKind::Pad(_) => (),
             }
         }
 

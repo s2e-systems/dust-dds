@@ -8,7 +8,7 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
-            messages::submessages::AckNackSubmessage,
+            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
@@ -194,6 +194,23 @@ impl DdsShared<UserDefinedDataWriter> {
                 .write_lock()
                 .on_acknack_submessage_received(
                     acknack_submessage,
+                    message_receiver.source_guid_prefix(),
+                );
+        }
+    }
+
+    pub fn on_nack_frag_submessage_received(
+        &self,
+        nackfrag_submessage: &NackFragSubmessage,
+        message_receiver: &MessageReceiver,
+    ) {
+        if self.rtps_writer.read_lock().get_qos().reliability.kind
+            == ReliabilityQosPolicyKind::Reliable
+        {
+            self.rtps_writer
+                .write_lock()
+                .on_nack_frag_submessage_received(
+                    nackfrag_submessage,
                     message_receiver.source_guid_prefix(),
                 );
         }

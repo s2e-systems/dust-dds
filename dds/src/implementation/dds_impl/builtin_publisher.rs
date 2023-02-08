@@ -142,4 +142,13 @@ impl PublisherMessageReceiver for DdsShared<BuiltinPublisher> {
         self.sedp_builtin_topics_writer
             .on_acknack_submessage_received(acknack_submessage, message_receiver);
     }
+
+    fn on_nack_frag_submessage_received(
+        &self,
+        _nackfrag_submessage: &crate::implementation::rtps::messages::submessages::NackFragSubmessage,
+        _message_receiver: &MessageReceiver,
+    ) {
+        // Only for user defined
+        todo!()
+    }
 }

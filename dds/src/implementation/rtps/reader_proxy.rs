@@ -4,6 +4,7 @@ use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     messages::submessages::{
         AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
+        NackFragSubmessage,
     },
     types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
@@ -29,6 +30,7 @@ pub struct RtpsReaderProxy {
     expects_inline_qos: bool,
     is_active: bool,
     last_received_acknack_count: Count,
+    last_received_nack_frag_count: Count,
 }
 
 impl RtpsReaderProxy {
@@ -55,6 +57,7 @@ impl RtpsReaderProxy {
             expects_inline_qos,
             is_active,
             last_received_acknack_count: Count::new(0),
+            last_received_nack_frag_count: Count::new(0),
         }
     }
 }
@@ -78,6 +81,13 @@ impl RtpsReaderProxy {
             self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
 
             self.last_received_acknack_count = acknack_submessage.count;
+        }
+    }
+
+    pub fn reliable_receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
+        if nack_frag_submessage.count > self.last_received_nack_frag_count {
+            self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
+            self.last_received_nack_frag_count = nack_frag_submessage.count;
         }
     }
 }

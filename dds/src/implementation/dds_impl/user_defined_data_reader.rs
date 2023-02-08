@@ -8,7 +8,9 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            messages::submessages::{DataSubmessage, HeartbeatSubmessage, DataFragSubmessage},
+            messages::submessages::{
+                DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            },
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
             types::{GuidPrefix, Locator, GUID_UNKNOWN},
@@ -312,6 +314,16 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.user_defined_data_send_condvar.notify_all();
+    }
+
+    pub fn on_heartbeat_frag_submessage_received(
+        &self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.rtps_reader
+            .write_lock()
+            .on_heartbeat_frag_submessage_received(heartbeat_frag_submessage, source_guid_prefix);
     }
 
     pub fn add_matched_writer(

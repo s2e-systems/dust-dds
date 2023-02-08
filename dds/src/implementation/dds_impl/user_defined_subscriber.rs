@@ -4,7 +4,7 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
-            messages::submessages::{DataSubmessage, HeartbeatSubmessage},
+            messages::submessages::{DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage},
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
@@ -38,7 +38,9 @@ use super::{
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
-    user_defined_data_reader::{UserDefinedReaderDataSubmessageReceivedResult, UserDefinedDataReader},
+    user_defined_data_reader::{
+        UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
+    },
 };
 
 pub struct UserDefinedSubscriber {
@@ -458,6 +460,29 @@ impl DdsShared<UserDefinedSubscriber> {
 }
 
 impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
+    fn on_heartbeat_submessage_received(
+        &self,
+        heartbeat_submessage: &HeartbeatSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
+        }
+    }
+
+    fn on_heartbeat_frag_submessage_received(
+        &self,
+        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader.on_heartbeat_frag_submessage_received(
+                heartbeat_frag_submessage,
+                source_guid_prefix,
+            )
+        }
+    }
+
     fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -484,8 +509,8 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            let data_submessage_received_result =
-                data_reader.on_data_frag_submessage_received(data_frag_submessage, message_receiver);
+            let data_submessage_received_result = data_reader
+                .on_data_frag_submessage_received(data_frag_submessage, message_receiver);
             match data_submessage_received_result {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
@@ -497,15 +522,4 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
             self.on_data_on_readers();
         }
     }
-
-    fn on_heartbeat_submessage_received(
-        &self,
-        heartbeat_submessage: &HeartbeatSubmessage,
-        source_guid_prefix: GuidPrefix,
-    ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
-        }
-    }
-
 }
