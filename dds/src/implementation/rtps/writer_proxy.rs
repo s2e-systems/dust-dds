@@ -322,12 +322,10 @@ impl RtpsWriterProxy {
                 }
             }
 
-            let message = RtpsMessage {
-                header,
-                submessages,
-            };
-
-            transport.write(&message, self.unicast_locator_list());
+            transport.write(
+                &RtpsMessage::new(header, submessages),
+                self.unicast_locator_list(),
+            );
         }
     }
 }

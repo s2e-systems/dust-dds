@@ -104,11 +104,10 @@ impl DdsShared<BuiltinStatelessWriter> {
 
         let destined_submessages = rtps_writer_lock.produce_submessages();
         for (reader_locator, submessages) in destined_submessages {
-            let rtps_message = RtpsMessage {
-                header,
-                submessages,
-            };
-            transport.write(&rtps_message, &[reader_locator.locator()])
+            transport.write(
+                &RtpsMessage::new(header, submessages),
+                &[reader_locator.locator()],
+            )
         }
     }
 }

@@ -309,12 +309,13 @@ where
 
                             let into_timestamp = info_timestamp_submessage(timestamp);
                             let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
-                            let rtps_message = RtpsMessage {
-                                header,
-                                submessages: vec![info_dst, into_timestamp, data_frag],
-                            };
 
-                            transport.write(&rtps_message, reader_proxy.unicast_locator_list())
+                            let submessages = vec![info_dst, into_timestamp, data_frag];
+
+                            transport.write(
+                                &RtpsMessage::new(header, submessages),
+                                reader_proxy.unicast_locator_list(),
+                            )
                         }
                     } else {
                         submessages.push(info_timestamp_submessage(timestamp));
@@ -331,12 +332,10 @@ where
 
             // Send messages only if more than INFO_DST is added
             if submessages.len() > 1 {
-                let rtps_message = RtpsMessage {
-                    header,
-                    submessages,
-                };
-
-                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
+                transport.write(
+                    &RtpsMessage::new(header, submessages),
+                    reader_proxy.unicast_locator_list(),
+                )
             }
         }
     }
@@ -413,17 +412,13 @@ where
                                     )
                                 };
 
-                                let rtps_message = RtpsMessage {
-                                    header,
-                                    submessages: vec![
-                                        info_dst,
-                                        into_timestamp,
-                                        data_frag,
-                                        hearbeat,
-                                    ],
-                                };
+                                let submessages =
+                                    vec![info_dst, into_timestamp, data_frag, hearbeat];
 
-                                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
+                                transport.write(
+                                    &RtpsMessage::new(header, submessages),
+                                    reader_proxy.unicast_locator_list(),
+                                )
                             }
                         } else {
                             submessages.push(info_timestamp_submessage(timestamp));
@@ -512,17 +507,13 @@ where
                                     )
                                 };
 
-                                let rtps_message = RtpsMessage {
-                                    header,
-                                    submessages: vec![
-                                        info_dst,
-                                        into_timestamp,
-                                        data_frag,
-                                        hearbeat,
-                                    ],
-                                };
+                                let submessages =
+                                    vec![info_dst, into_timestamp, data_frag, hearbeat];
 
-                                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
+                                transport.write(
+                                    &RtpsMessage::new(header, submessages),
+                                    reader_proxy.unicast_locator_list(),
+                                )
                             }
                         } else {
                             let info_ts_submessage = info_timestamp_submessage(timestamp);
@@ -552,12 +543,10 @@ where
             }
             // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
             if submessages.len() >= 2 {
-                let rtps_message = RtpsMessage {
-                    header,
-                    submessages,
-                };
-
-                transport.write(&rtps_message, reader_proxy.unicast_locator_list())
+                transport.write(
+                    &RtpsMessage::new(header, submessages),
+                    reader_proxy.unicast_locator_list(),
+                )
             }
         }
     }
