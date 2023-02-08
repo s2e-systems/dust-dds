@@ -4,8 +4,15 @@ use std::{
 };
 
 use super::{
-    messages::{types::FragmentNumber, submessages::DataFragSubmessage},
-    types::{Count, EntityId, Guid, Locator, SequenceNumber},
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::SequenceNumberSet,
+        submessages::{AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage},
+        types::{FragmentNumber, ProtocolId, ULong},
+        RtpsMessage, RtpsSubmessageKind,
+    },
+    transport::TransportWrite,
+    types::{Count, EntityId, Guid, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -24,7 +31,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
 
-    frag_buffer: HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>>,
+    frag_buffer: HashMap<SequenceNumber, (HashMap<FragmentNumber, Vec<u8>>, ULong)>,
 }
 
 impl RtpsWriterProxy {
@@ -61,21 +68,19 @@ impl RtpsWriterProxy {
         while let Some(fragment) = fragment_iter.next() {
             self.frag_buffer
                 .entry(submessage.writer_sn)
-                .or_default()
+                .or_insert((HashMap::new(), submessage.data_size))
+                .0
                 .insert(fragment_number, fragment.to_vec());
             fragment_number += FragmentNumber::new(1);
         }
     }
 
-    pub fn frag_buffer(&self) -> &HashMap<SequenceNumber, HashMap<FragmentNumber, Vec<u8>>> {
-        &self.frag_buffer
-    }
-
     pub fn extract_frag(&mut self, data_size: usize, seq_num: SequenceNumber) -> Option<Vec<u8>> {
         let mut data = Vec::new();
         if let Some(m) = self.frag_buffer.get(&seq_num) {
-            for fragment_number in 1..=m.len() as u32 {
-                if let Some(mut data_frag) = m.get(&FragmentNumber::new(fragment_number)).cloned() {
+            for fragment_number in 1..=m.0.len() as u32 {
+                if let Some(mut data_frag) = m.0.get(&FragmentNumber::new(fragment_number)).cloned()
+                {
                     data.append(&mut data_frag);
                 } else {
                     break;
@@ -225,6 +230,49 @@ impl RtpsWriterProxy {
 
     pub fn increment_acknack_count(&mut self) {
         self.acknack_count = self.acknack_count.wrapping_add(1);
+    }
+
+    pub fn send_message(&mut self, reader_guid: &Guid, transport: &mut impl TransportWrite) {
+        if self.must_send_acknacks() || !self.missing_changes().is_empty() {
+            self.set_must_send_acknacks(false);
+            self.increment_acknack_count();
+
+            let info_dst_submessage = InfoDestinationSubmessage {
+                endianness_flag: true,
+                guid_prefix: self.remote_writer_guid().prefix(),
+            };
+
+            let acknack_submessage = AckNackSubmessage {
+                endianness_flag: true,
+                final_flag: true,
+                reader_id: reader_guid.entity_id(),
+                writer_id: self.remote_writer_guid().entity_id(),
+                reader_sn_state: SequenceNumberSet {
+                    base: self.available_changes_max() + 1,
+                    set: self.missing_changes(),
+                },
+                count: self.acknack_count(),
+            };
+
+            let header = RtpsMessageHeader {
+                protocol: ProtocolId::PROTOCOL_RTPS,
+                version: PROTOCOLVERSION,
+                vendor_id: VENDOR_ID_S2E,
+                guid_prefix: reader_guid.prefix(),
+            };
+
+            let message = RtpsMessage {
+                header,
+                submessages: vec![
+                    RtpsSubmessageKind::InfoDestination(info_dst_submessage),
+                    RtpsSubmessageKind::AckNack(acknack_submessage),
+                ],
+            };
+
+            for locator in self.unicast_locator_list() {
+                transport.write(&message, *locator);
+            }
+        }
     }
 }
 

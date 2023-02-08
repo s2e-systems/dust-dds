@@ -9,19 +9,12 @@ use crate::{
 };
 
 use super::{
-    messages::{
-        overall_structure::RtpsMessageHeader,
-        submessage_elements::SequenceNumberSet,
-        submessages::{
-            AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
-            HeartbeatSubmessage, InfoDestinationSubmessage,
-        },
-        types::ProtocolId,
-        RtpsMessage, RtpsSubmessageKind,
+    messages::submessages::{
+        DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
     },
     reader::{convert_data_frag_to_cache_change, RtpsReader, RtpsReaderError},
     transport::TransportWrite,
-    types::{Guid, GuidPrefix, PROTOCOLVERSION, VENDOR_ID_S2E},
+    types::{Guid, GuidPrefix},
     writer_proxy::RtpsWriterProxy,
 };
 
@@ -331,46 +324,7 @@ impl RtpsStatefulReader {
 
     pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            if writer_proxy.must_send_acknacks() || !writer_proxy.missing_changes().is_empty() {
-                writer_proxy.set_must_send_acknacks(false);
-                writer_proxy.increment_acknack_count();
-
-                let info_dst_submessage = InfoDestinationSubmessage {
-                    endianness_flag: true,
-                    guid_prefix: writer_proxy.remote_writer_guid().prefix(),
-                };
-
-                let acknack_submessage = AckNackSubmessage {
-                    endianness_flag: true,
-                    final_flag: true,
-                    reader_id: self.reader.guid().entity_id(),
-                    writer_id: writer_proxy.remote_writer_guid().entity_id(),
-                    reader_sn_state: SequenceNumberSet {
-                        base: writer_proxy.available_changes_max() + 1,
-                        set: writer_proxy.missing_changes(),
-                    },
-                    count: writer_proxy.acknack_count(),
-                };
-
-                let header = RtpsMessageHeader {
-                    protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: PROTOCOLVERSION,
-                    vendor_id: VENDOR_ID_S2E,
-                    guid_prefix: self.reader.guid().prefix(),
-                };
-
-                let message = RtpsMessage {
-                    header,
-                    submessages: vec![
-                        RtpsSubmessageKind::InfoDestination(info_dst_submessage),
-                        RtpsSubmessageKind::AckNack(acknack_submessage),
-                    ],
-                };
-
-                for locator in writer_proxy.unicast_locator_list() {
-                    transport.write(&message, *locator);
-                }
-            }
+            writer_proxy.send_message(&self.reader.guid(), transport)
         }
     }
 }
