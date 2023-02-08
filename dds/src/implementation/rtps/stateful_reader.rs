@@ -191,10 +191,7 @@ impl RtpsStatefulReader {
                 ReliabilityQosPolicyKind::BestEffort => {
                     if sequence_number >= expected_seq_num {
                         writer_proxy.push_data_frag(data_frag_submessage);
-                        if let Some(data) = writer_proxy.extract_frag(
-                            <u32>::from(data_frag_submessage.data_size) as usize,
-                            sequence_number,
-                        ) {
+                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
                             if let Ok(change) = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,
@@ -230,10 +227,7 @@ impl RtpsStatefulReader {
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
                         writer_proxy.push_data_frag(data_frag_submessage);
-                        if let Some(data) = writer_proxy.extract_frag(
-                            <u32>::from(data_frag_submessage.data_size) as usize,
-                            sequence_number,
-                        ) {
+                        if let Some(data) = writer_proxy.extract_frag(sequence_number) {
                             if let Ok(change) = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,

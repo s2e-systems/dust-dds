@@ -1,19 +1,39 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-};
+use std::cmp::{max, min};
 
 use super::{
     messages::{
         overall_structure::RtpsMessageHeader,
         submessage_elements::SequenceNumberSet,
         submessages::{AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage},
-        types::{FragmentNumber, ProtocolId, ULong},
+        types::{FragmentNumber, ProtocolId, ULong, UShort},
         RtpsMessage, RtpsSubmessageKind,
     },
     transport::TransportWrite,
     types::{Count, EntityId, Guid, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
 };
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct OwningDataFragSubmessage {
+    writer_sn: SequenceNumber,
+    fragment_starting_num: FragmentNumber,
+    data_size: ULong,
+    fragment_size: UShort,
+    fragments_in_submessage: UShort,
+    serialized_payload: Vec<u8>,
+}
+
+impl From<&DataFragSubmessage<'_>> for OwningDataFragSubmessage {
+    fn from(x: &DataFragSubmessage<'_>) -> Self {
+        Self {
+            writer_sn: x.writer_sn,
+            fragment_starting_num: x.fragment_starting_num,
+            data_size: x.data_size,
+            fragment_size: x.fragment_size,
+            fragments_in_submessage: x.fragments_in_submessage,
+            serialized_payload: <&[u8]>::from(&x.serialized_payload).to_vec(),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsWriterProxy {
@@ -31,7 +51,7 @@ pub struct RtpsWriterProxy {
     last_received_heartbeat_frag_count: Count,
     acknack_count: Count,
 
-    frag_buffer: HashMap<SequenceNumber, (HashMap<FragmentNumber, Vec<u8>>, ULong)>,
+    frag_buffer: Vec<OwningDataFragSubmessage>,
 }
 
 impl RtpsWriterProxy {
@@ -56,44 +76,46 @@ impl RtpsWriterProxy {
             last_received_heartbeat_count: Count::new(0),
             last_received_heartbeat_frag_count: Count::new(0),
             acknack_count: Count::new(0),
-            frag_buffer: HashMap::new(),
+            frag_buffer: Vec::new(),
         }
     }
 
     pub fn push_data_frag(&mut self, submessage: &DataFragSubmessage) {
-        let fragment_size = <u16>::from(submessage.fragment_size).into();
-        let mut fragment_number = submessage.fragment_starting_num;
-        let mut fragment_iter = <&[u8]>::from(&submessage.serialized_payload).chunks(fragment_size);
-
-        while let Some(fragment) = fragment_iter.next() {
-            self.frag_buffer
-                .entry(submessage.writer_sn)
-                .or_insert((HashMap::new(), submessage.data_size))
-                .0
-                .insert(fragment_number, fragment.to_vec());
-            fragment_number += FragmentNumber::new(1);
+        let owning_data_frag = submessage.into();
+        if !self.frag_buffer.contains(&owning_data_frag) {
+            self.frag_buffer.push(owning_data_frag);
         }
     }
 
-    pub fn extract_frag(&mut self, data_size: usize, seq_num: SequenceNumber) -> Option<Vec<u8>> {
-        let mut data = Vec::new();
-        if let Some(m) = self.frag_buffer.get(&seq_num) {
-            for fragment_number in 1..=m.0.len() as u32 {
-                if let Some(mut data_frag) = m.0.get(&FragmentNumber::new(fragment_number)).cloned()
-                {
-                    data.append(&mut data_frag);
-                } else {
-                    break;
+    pub fn extract_frag(&mut self, seq_num: SequenceNumber) -> Option<Vec<u8>> {
+        if let Some(seq_num_frag) = self.frag_buffer.iter().find(|x| x.writer_sn == seq_num) {
+            let data_size = u32::from(seq_num_frag.data_size);
+            let fragment_size = u16::from(seq_num_frag.fragment_size) as u32;
+            let total_fragments_correction = if data_size % fragment_size == 0 { 0 } else { 1 };
+            let total_fragments_expected = data_size / fragment_size + total_fragments_correction;
+
+            let mut total_fragments = 0;
+            for frag_seq_num in self.frag_buffer.iter().filter(|x| x.writer_sn == seq_num) {
+                total_fragments += u16::from(frag_seq_num.fragments_in_submessage) as u32;
+            }
+
+            if total_fragments == total_fragments_expected {
+                let mut frag_seq_num_list = self
+                    .frag_buffer
+                    .iter()
+                    .filter(|x| x.writer_sn == seq_num)
+                    .collect::<Vec<_>>();
+                frag_seq_num_list.sort_by_key(|k| k.fragment_starting_num);
+
+                let mut data = Vec::new();
+                for frag in frag_seq_num_list {
+                    data.append(&mut frag.serialized_payload.clone());
                 }
+                self.frag_buffer.retain(|x| x.writer_sn != seq_num);
+                return Some(data);
             }
         }
-
-        if data.len() >= data_size {
-            self.frag_buffer.remove(&seq_num);
-            Some(data)
-        } else {
-            None
-        }
+        None
     }
 
     pub fn remote_writer_guid(&self) -> Guid {

@@ -77,7 +77,18 @@ impl GroupDigest {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, derive_more::Into)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    derive_more::Into,
+    derive_more::Sub,
+    derive_more::SubAssign,
+    derive_more::Add,
+    derive_more::AddAssign,
+)]
 pub struct UShort(u16);
 
 impl UShort {
