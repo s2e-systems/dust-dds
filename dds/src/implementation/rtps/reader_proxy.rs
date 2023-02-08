@@ -92,12 +92,6 @@ impl RtpsReaderProxy {
     }
 }
 
-impl From<RtpsChangeForReaderCacheChange<'_>> for SequenceNumber {
-    fn from(v: RtpsChangeForReaderCacheChange<'_>) -> Self {
-        v.change_for_reader.sequence_number
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsChangeForReader {
     status: ChangeForReaderStatusKind,
