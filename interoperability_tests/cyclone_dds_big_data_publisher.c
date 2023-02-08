@@ -44,7 +44,8 @@ int main(int argc, char *argv[])
 	dds_attach_t wsresults[1];
 	const size_t wsresultsize = 1U;
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(60));
-	if (rc == 0) {
+	if (rc == 0)
+	{
 		DDS_FATAL("dds_waitset_wait: timeout");
 	}
 	if (rc != wsresultsize)
@@ -56,16 +57,16 @@ int main(int argc, char *argv[])
 	for (int i = 0; i<sizeof(data_bytes); i++) {
 		data_bytes[i] = i;
 	};
-	const struct dds_sequence_char msg = {
+	const struct dds_sequence_octet msg = {
 		._length = sizeof(data_bytes),
 		._buffer = data_bytes,
-		._release = true
-	};
+		._release = true};
 	const BigDataType data = {msg};
 	dds_write(data_writer, &data);
 
 	rc = dds_wait_for_acks(data_writer, DDS_SECS(30));
-	if (rc != DDS_RETCODE_OK) {
+	if (rc != DDS_RETCODE_OK)
+	{
 		DDS_FATAL("dds_wait_for_acks: %s\n", dds_strretcode(-rc));
 	}
 }

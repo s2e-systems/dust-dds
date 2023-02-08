@@ -1,5 +1,5 @@
 
 struct BigDataType
 {
-	sequence<char> msg;
+	sequence<octet> msg;
 };
