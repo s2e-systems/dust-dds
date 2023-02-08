@@ -211,6 +211,7 @@ impl RtpsStatefulWriter {
                     self.writer.writer_cache(),
                     self.writer.guid().entity_id(),
                     self.writer.data_max_size_serialized(),
+                    self.writer.heartbeat_period(),
                     header,
                     transport,
                 ),

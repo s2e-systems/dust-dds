@@ -1,4 +1,7 @@
-use crate::infrastructure::{instance::InstanceHandle, time::Time};
+use crate::infrastructure::{
+    instance::InstanceHandle,
+    time::{Duration, Time},
+};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
@@ -14,6 +17,7 @@ use super::{
     },
     transport::TransportWrite,
     types::{ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber},
+    utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
@@ -92,6 +96,7 @@ pub struct RtpsReaderProxy {
     last_received_nack_frag_count: Count,
     heartbeat_count: Count,
     heartbeat_frag_count: Count,
+    heartbeat_timer: StdTimer,
 }
 
 impl RtpsReaderProxy {
@@ -115,6 +120,7 @@ impl RtpsReaderProxy {
             last_received_nack_frag_count: Count::new(0),
             heartbeat_count: Count::new(0),
             heartbeat_frag_count: Count::new(0),
+            heartbeat_timer: StdTimer::new(),
         }
     }
 
@@ -345,17 +351,17 @@ impl RtpsReaderProxy {
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,
         data_max_size_serialized: usize,
+        heartbeat_period: Duration,
         header: RtpsMessageHeader,
         transport: &mut impl TransportWrite,
     ) {
-        let time_for_heartbeat = false;
-        // self.heartbeat_timer.elapsed()
-        //     >= std::time::Duration::from_secs(self.writer.heartbeat_period().sec() as u64)
-        //         + std::time::Duration::from_nanos(self.writer.heartbeat_period().nanosec() as u64);
-        // if time_for_heartbeat {
-        //     self.heartbeat_timer.reset();
-        //     self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
-        // }
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
+                + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+        }
         let reader_id = self.remote_reader_guid().entity_id();
 
         let info_dst = info_destination_submessage(self.remote_reader_guid().prefix());
@@ -430,7 +436,7 @@ impl RtpsReaderProxy {
                 }
             }
 
-            // self.heartbeat_timer.reset();
+            self.heartbeat_timer.reset();
             self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
             let heartbeat =
                 heartbeat_submessage(reader_id, writer_id, writer_cache, self.heartbeat_count);
@@ -513,7 +519,7 @@ impl RtpsReaderProxy {
                     submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                 }
             }
-            // self.heartbeat_timer.reset();
+            self.heartbeat_timer.reset();
             self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
             let heartbeat =
                 heartbeat_submessage(reader_id, writer_id, writer_cache, self.heartbeat_count);
