@@ -4,7 +4,10 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
-            messages::submessages::{DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage},
+            },
             reader::RtpsReader,
             stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
@@ -365,9 +368,9 @@ impl DdsShared<UserDefinedSubscriber> {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.send_message(transport);
+            data_reader.send_message(header, transport);
         }
     }
 

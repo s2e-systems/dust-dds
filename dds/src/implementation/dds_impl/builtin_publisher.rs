@@ -1,3 +1,4 @@
+use crate::implementation::rtps::messages::overall_structure::RtpsMessageHeader;
 use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
 use crate::implementation::rtps::transport::TransportWrite;
 use crate::implementation::rtps::types::{
@@ -119,13 +120,14 @@ impl DdsShared<BuiltinPublisher> {
 }
 
 impl DdsShared<BuiltinPublisher> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.spdp_builtin_participant_writer.send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.spdp_builtin_participant_writer.send_message(header, transport);
         self.sedp_builtin_publications_writer
-            .send_message(transport);
+            .send_message(header, transport);
         self.sedp_builtin_subscriptions_writer
-            .send_message(transport);
-        self.sedp_builtin_topics_writer.send_message(transport);
+            .send_message(header, transport);
+        self.sedp_builtin_topics_writer
+            .send_message(header, transport);
     }
 }
 

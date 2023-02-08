@@ -10,11 +10,11 @@ use super::{
         submessages::{
             AckNackSubmessage, DataFragSubmessage, InfoDestinationSubmessage, NackFragSubmessage,
         },
-        types::{FragmentNumber, ProtocolId, ULong, UShort},
+        types::{FragmentNumber, ULong, UShort},
         RtpsMessage, RtpsSubmessageKind,
     },
     transport::TransportWrite,
-    types::{Count, EntityId, Guid, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E},
+    types::{Count, EntityId, Guid, Locator, SequenceNumber},
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -258,7 +258,12 @@ impl RtpsWriterProxy {
         self.acknack_count = self.acknack_count.wrapping_add(1);
     }
 
-    pub fn send_message(&mut self, reader_guid: &Guid, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &mut self,
+        reader_guid: &Guid,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
         if self.must_send_acknacks() || !self.missing_changes().is_empty() {
             self.set_must_send_acknacks(false);
             self.increment_acknack_count();
@@ -316,13 +321,6 @@ impl RtpsWriterProxy {
                     submessages.push(nack_frag_submessage)
                 }
             }
-
-            let header = RtpsMessageHeader {
-                protocol: ProtocolId::PROTOCOL_RTPS,
-                version: PROTOCOLVERSION,
-                vendor_id: VENDOR_ID_S2E,
-                guid_prefix: reader_guid.prefix(),
-            };
 
             let message = RtpsMessage {
                 header,

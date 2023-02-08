@@ -18,14 +18,12 @@ use super::{
             AckNackSubmessage, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
             InfoDestinationSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
         },
-        types::{FragmentNumber, ProtocolId},
+        types::FragmentNumber,
         RtpsMessage, RtpsSubmessageKind,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
-    types::{
-        Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber, PROTOCOLVERSION, VENDOR_ID_S2E,
-    },
+    types::{Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber},
     writer::RtpsWriter,
 };
 
@@ -268,18 +266,11 @@ fn heartbeat_frag<'a>(
 }
 
 fn send_submessages(
-    guid_prefix: GuidPrefix,
+    header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
     submessages: Vec<RtpsSubmessageKind>,
     locators: &[Locator],
 ) {
-    let header = RtpsMessageHeader {
-        protocol: ProtocolId::PROTOCOL_RTPS,
-        version: PROTOCOLVERSION,
-        vendor_id: VENDOR_ID_S2E,
-        guid_prefix,
-    };
-
     let rtps_message = RtpsMessage {
         header,
         submessages,
@@ -294,14 +285,20 @@ impl<T> RtpsStatefulWriter<T>
 where
     T: Timer,
 {
-    pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
+    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         match self.writer.get_qos().reliability.kind {
-            ReliabilityQosPolicyKind::BestEffort => self.send_message_best_effort(transport),
-            ReliabilityQosPolicyKind::Reliable => self.send_submessage_reliable(transport),
+            ReliabilityQosPolicyKind::BestEffort => {
+                self.send_message_best_effort(header, transport)
+            }
+            ReliabilityQosPolicyKind::Reliable => self.send_submessage_reliable(header, transport),
         }
     }
 
-    fn send_message_best_effort(&mut self, transport: &mut impl TransportWrite) {
+    fn send_message_best_effort(
+        &mut self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
         for reader_proxy in self.matched_readers.iter_mut() {
             let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
             let mut submessages = vec![info_dst];
@@ -329,7 +326,7 @@ where
                             let into_timestamp = info_timestamp_submessage(timestamp);
                             let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
                             send_submessages(
-                                self.writer.guid().prefix(),
+                                header,
                                 transport,
                                 vec![info_dst, into_timestamp, data_frag],
                                 reader_proxy.unicast_locator_list(),
@@ -351,7 +348,7 @@ where
             // Send messages only if more than INFO_DST is added
             if submessages.len() > 1 {
                 send_submessages(
-                    self.writer.guid().prefix(),
+                    header,
                     transport,
                     submessages,
                     reader_proxy.unicast_locator_list(),
@@ -360,7 +357,11 @@ where
         }
     }
 
-    fn send_submessage_reliable(&mut self, transport: &mut impl TransportWrite) {
+    fn send_submessage_reliable(
+        &mut self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
         let writer_id = self.writer.guid().entity_id();
 
         let time_for_heartbeat = self.heartbeat_timer.elapsed()
@@ -428,7 +429,7 @@ where
                                     )
                                 };
                                 send_submessages(
-                                    self.writer.guid().prefix(),
+                                    header,
                                     transport,
                                     vec![info_dst, into_timestamp, data_frag, hearbeat],
                                     reader_proxy.unicast_locator_list(),
@@ -522,7 +523,7 @@ where
                                 };
 
                                 send_submessages(
-                                    self.writer.guid().prefix(),
+                                    header,
                                     transport,
                                     vec![info_dst, into_timestamp, data_frag, hearbeat],
                                     reader_proxy.unicast_locator_list(),
@@ -557,7 +558,7 @@ where
             // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
             if submessages.len() >= 2 {
                 send_submessages(
-                    self.writer.guid().prefix(),
+                    header,
                     transport,
                     submessages,
                     reader_proxy.unicast_locator_list(),

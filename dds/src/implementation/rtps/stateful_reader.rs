@@ -9,8 +9,11 @@ use crate::{
 };
 
 use super::{
-    messages::submessages::{
-        DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessages::{
+            DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+        },
     },
     reader::{convert_data_frag_to_cache_change, RtpsReader, RtpsReaderError},
     transport::TransportWrite,
@@ -316,9 +319,9 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn send_message(&mut self, transport: &mut impl TransportWrite) {
+    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for writer_proxy in self.matched_writers.iter_mut() {
-            writer_proxy.send_message(&self.reader.guid(), transport)
+            writer_proxy.send_message(&self.reader.guid(), header, transport)
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::{
     implementation::rtps::{
+        messages::overall_structure::RtpsMessageHeader,
         stateful_reader::{
             StatefulReaderDataReceivedResult, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
             DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
@@ -212,8 +213,10 @@ impl DdsShared<BuiltinStatefulReader> {
         Ok(())
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.rtps_reader.write_lock().send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.rtps_reader
+            .write_lock()
+            .send_message(header, transport);
     }
 
     pub fn get_qos(&self) -> DataReaderQos {

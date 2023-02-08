@@ -7,7 +7,7 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
-            messages::submessages::AckNackSubmessage,
+            messages::{overall_structure::RtpsMessageHeader, submessages::AckNackSubmessage},
             stateful_writer::{
                 RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
                 DEFAULT_NACK_SUPPRESSION_DURATION,
@@ -163,7 +163,9 @@ impl DdsShared<BuiltinStatefulWriter> {
 }
 
 impl DdsShared<BuiltinStatefulWriter> {
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.rtps_writer.write_lock().send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.rtps_writer
+            .write_lock()
+            .send_message(header, transport);
     }
 }

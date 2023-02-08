@@ -6,7 +6,10 @@ use crate::{
         rtps::{
             endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
-            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{AckNackSubmessage, NackFragSubmessage},
+            },
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
@@ -391,9 +394,9 @@ impl DdsShared<UserDefinedPublisher> {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.send_message(transport);
+            data_writer.send_message(header, transport);
         }
     }
 

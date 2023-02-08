@@ -2,7 +2,7 @@ use crate::implementation::rtps::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use super::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 pub struct RtpsMessageHeader {
     pub protocol: ProtocolId,
     pub version: ProtocolVersion,

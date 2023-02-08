@@ -8,7 +8,10 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
-            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{AckNackSubmessage, NackFragSubmessage},
+            },
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
@@ -641,8 +644,10 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.rtps_writer.write_lock().send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.rtps_writer
+            .write_lock()
+            .send_message(header, transport);
     }
 
     fn on_publication_matched(&self, instance_handle: InstanceHandle) {
