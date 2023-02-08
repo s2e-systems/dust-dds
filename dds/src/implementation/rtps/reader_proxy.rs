@@ -2,11 +2,11 @@ use crate::infrastructure::{instance::InstanceHandle, time::Time};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
-        NackFragSubmessage,
+    messages::{
+        submessage_elements::SequenceNumberSet,
+        submessages::{AckNackSubmessage, GapSubmessage, NackFragSubmessage},
     },
-    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber},
 };
 
 /// ChangeForReaderStatusKind
@@ -137,12 +137,25 @@ pub struct RtpsChangeForReaderCacheChange<'a> {
 }
 
 impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn new(
+        change_for_reader: RtpsChangeForReader,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        let cache_change = writer_cache
+            .changes()
+            .iter()
+            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
+            .unwrap();
+        RtpsChangeForReaderCacheChange {
+            change_for_reader,
+            cache_change,
+        }
+    }
+
     pub fn cache_change(self) -> &'a RtpsWriterCacheChange {
         self.cache_change
     }
-}
 
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn status(&self) -> ChangeForReaderStatusKind {
         self.change_for_reader.status
     }
@@ -150,9 +163,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn is_relevant(&self) -> bool {
         self.change_for_reader.is_relevant
     }
-}
 
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn kind(&self) -> ChangeKind {
         self.cache_change.kind()
     }
@@ -180,45 +191,18 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn timestamp(&self) -> Time {
         self.cache_change.timestamp()
     }
-}
 
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn new(
-        change_for_reader: RtpsChangeForReader,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> Self {
-        let cache_change = writer_cache
-            .changes()
-            .iter()
-            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
-            .unwrap();
-        RtpsChangeForReaderCacheChange {
-            change_for_reader,
-            cache_change,
-        }
-    }
-}
-
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage {
-    fn from(_val: RtpsChangeForReaderCacheChange<'a>) -> Self {
-        todo!()
-    }
-}
-
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>>
-    for (InfoTimestampSubmessage, DataSubmessage<'a>)
-{
-    fn from(val: RtpsChangeForReaderCacheChange<'a>) -> Self {
-        let info_ts_submessage = InfoTimestampSubmessage {
+    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessage {
+        GapSubmessage {
             endianness_flag: true,
-            invalidate_flag: false,
-            timestamp: super::messages::types::Time::new(
-                val.cache_change.timestamp().sec(),
-                val.cache_change.timestamp().nanosec(),
-            ),
-        };
-        let data_submessage = val.cache_change.as_data_submessage(ENTITYID_UNKNOWN);
-        (info_ts_submessage, data_submessage)
+            reader_id,
+            writer_id: self.cache_change.writer_guid().entity_id(),
+            gap_start: self.cache_change.sequence_number(),
+            gap_list: SequenceNumberSet {
+                base: self.cache_change.sequence_number(),
+                set: vec![],
+            },
+        }
     }
 }
 

@@ -324,8 +324,8 @@ where
                         ))
                     }
                 } else {
-                    let mut gap_submessage: GapSubmessage = change.into();
-                    gap_submessage.reader_id = reader_proxy.remote_reader_guid().entity_id();
+                    let gap_submessage: GapSubmessage =
+                        change.as_gap_message(reader_proxy.remote_reader_guid().entity_id());
                     submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                 }
             }
@@ -427,8 +427,8 @@ where
                             ))
                         }
                     } else {
-                        let mut gap_submessage: GapSubmessage = change.into();
-                        gap_submessage.reader_id = reader_id;
+                        let gap_submessage: GapSubmessage = change.as_gap_message(reader_id);
+
                         submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
@@ -526,8 +526,9 @@ where
                             submessages.push(data_submessage);
                         }
                     } else {
-                        let mut gap_submessage: GapSubmessage = change_for_reader.into();
-                        gap_submessage.reader_id = reader_id;
+                        let gap_submessage: GapSubmessage =
+                            change_for_reader.as_gap_message(reader_id);
+
                         submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                     }
                 }
