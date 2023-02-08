@@ -1,9 +1,12 @@
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
+        overall_structure::RtpsMessageHeader,
         submessages::{DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
         types::Time,
+        RtpsMessage, RtpsSubmessageKind,
     },
+    transport::TransportWrite,
     types::{Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
@@ -24,10 +27,6 @@ impl RtpsReaderLocator {
 
     pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         &mut self.unsent_changes
-    }
-
-    pub fn locator(&self) -> Locator {
-        self.locator
     }
 
     pub fn next_unsent_change<'a>(
@@ -56,6 +55,32 @@ impl RtpsReaderLocator {
 
     pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
         self.unsent_changes.clone()
+    }
+
+    pub fn send_message(
+        &mut self,
+        writer_cache: &WriterHistoryCache,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
+        let mut submessages = Vec::new();
+        while !self.unsent_changes().is_empty() {
+            let change = self.next_unsent_change(writer_cache);
+            // The post-condition:
+            // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
+            if change.is_in_cache() {
+                let (info_ts_submessage, data_submessage) = change.into();
+                submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+                submessages.push(RtpsSubmessageKind::Data(data_submessage));
+            } else {
+                let gap_submessage = change.into();
+                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+            }
+        }
+        if !submessages.is_empty() {
+            transport.write(&RtpsMessage::new(header, submessages), &[self.locator])
+        }
     }
 }
 

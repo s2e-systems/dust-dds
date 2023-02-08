@@ -2,7 +2,7 @@ use crate::implementation::rtps::stateless_writer::RtpsStatelessWriter;
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
-        messages::{overall_structure::RtpsMessageHeader, RtpsMessage},
+        messages::overall_structure::RtpsMessageHeader,
         reader_locator::RtpsReaderLocator,
         transport::TransportWrite,
         types::{Guid, Locator, TopicKind},
@@ -100,14 +100,8 @@ impl DdsShared<BuiltinStatelessWriter> {
 
 impl DdsShared<BuiltinStatelessWriter> {
     pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-
-        let destined_submessages = rtps_writer_lock.produce_submessages();
-        for (reader_locator, submessages) in destined_submessages {
-            transport.write(
-                &RtpsMessage::new(header, submessages),
-                &[reader_locator.locator()],
-            )
-        }
+        self.rtps_writer
+            .write_lock()
+            .send_message(header, transport)
     }
 }
