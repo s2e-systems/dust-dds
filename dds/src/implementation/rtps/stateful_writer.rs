@@ -1,5 +1,4 @@
 use crate::{
-    implementation::rtps::utils::clock::{Timer, TimerConstructor},
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
@@ -26,23 +25,19 @@ pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
 pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
 
-pub struct RtpsStatefulWriter<T> {
+pub struct RtpsStatefulWriter {
     writer: RtpsWriter,
     matched_readers: Vec<RtpsReaderProxy>,
-    heartbeat_timer: T,
 }
 
-impl<T: TimerConstructor> RtpsStatefulWriter<T> {
+impl RtpsStatefulWriter {
     pub fn new(writer: RtpsWriter) -> Self {
         Self {
             writer,
             matched_readers: Vec::new(),
-            heartbeat_timer: T::new(),
         }
     }
-}
 
-impl<T> RtpsStatefulWriter<T> {
     pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
@@ -202,12 +197,7 @@ impl<T> RtpsStatefulWriter<T> {
     pub fn writer_cache(&self) -> &WriterHistoryCache {
         self.writer.writer_cache()
     }
-}
 
-impl<T> RtpsStatefulWriter<T>
-where
-    T: Timer,
-{
     pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
             match self.writer.get_qos().reliability.kind {

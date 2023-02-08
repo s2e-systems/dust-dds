@@ -16,7 +16,6 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
-            utils::clock::StdTimer,
         },
         utils::{
             condvar::DdsCondvar,
@@ -138,7 +137,7 @@ impl OfferedIncompatibleQosStatus {
 }
 
 pub struct UserDefinedDataWriter {
-    rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
+    rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -155,7 +154,7 @@ pub struct UserDefinedDataWriter {
 
 impl UserDefinedDataWriter {
     pub fn new(
-        rtps_writer: RtpsStatefulWriter<StdTimer>,
+        rtps_writer: RtpsStatefulWriter,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,

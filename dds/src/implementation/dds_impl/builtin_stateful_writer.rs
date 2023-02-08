@@ -14,7 +14,6 @@ use crate::{
             },
             transport::TransportWrite,
             types::{Guid, TopicKind},
-            utils::clock::StdTimer,
             writer::RtpsWriter,
         },
         utils::{
@@ -38,7 +37,7 @@ use super::{
 };
 
 pub struct BuiltinStatefulWriter {
-    rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
+    rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
     enabled: DdsRwLock<bool>,
     sedp_condvar: DdsCondvar,
