@@ -91,6 +91,14 @@ jobs:
             pid=$!
             cargo run --bin dust_dds_big_data_publisher
             wait $pid
+      - run:
+          name: Big data subscriber interoperability test
+          no_output_timeout: 30s
+          command: |
+            build/CycloneDdsBigDataPublisher &
+            pid=$!
+            cargo run --bin dust_dds_big_data_subscriber
+            wait $pid
 
 workflows:
   version: 2
