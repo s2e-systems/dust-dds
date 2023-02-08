@@ -1,13 +1,76 @@
-use crate::infrastructure::{instance::InstanceHandle, time::Time};
+use crate::infrastructure::{
+    instance::InstanceHandle,
+    time::{Duration, Time},
+};
 
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
-    messages::submessages::{
-        AckNackSubmessage, DataSubmessage, GapSubmessage, InfoTimestampSubmessage,
-        NackFragSubmessage,
+    messages::{
+        overall_structure::RtpsMessageHeader,
+        submessage_elements::SequenceNumberSet,
+        submessages::{
+            AckNackSubmessage, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            InfoDestinationSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+        },
+        types::FragmentNumber,
+        RtpsMessage, RtpsSubmessageKind,
     },
-    types::{ChangeKind, Count, EntityId, Guid, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    transport::TransportWrite,
+    types::{ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber},
+    utils::clock::{StdTimer, Timer, TimerConstructor},
 };
+
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+        endianness_flag: true,
+        invalidate_flag: false,
+        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
+    })
+}
+fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
+        endianness_flag: true,
+        guid_prefix,
+    })
+}
+fn heartbeat_submessage<'a>(
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_cache: &WriterHistoryCache,
+    count: Count,
+) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::Heartbeat(HeartbeatSubmessage {
+        endianness_flag: true,
+        final_flag: false,
+        liveliness_flag: false,
+        reader_id,
+        writer_id,
+        first_sn: writer_cache
+            .get_seq_num_min()
+            .unwrap_or(SequenceNumber::new(1)),
+        last_sn: writer_cache
+            .get_seq_num_max()
+            .unwrap_or_else(|| SequenceNumber::new(0)),
+        count,
+    })
+}
+
+fn heartbeat_frag<'a>(
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    last_fragment_num: FragmentNumber,
+    count: Count,
+) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::HeartbeatFrag(HeartbeatFragSubmessage {
+        endianness_flag: true,
+        reader_id,
+        writer_id,
+        writer_sn,
+        last_fragment_num,
+        count,
+    })
+}
 
 /// ChangeForReaderStatusKind
 /// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
@@ -31,12 +94,9 @@ pub struct RtpsReaderProxy {
     is_active: bool,
     last_received_acknack_count: Count,
     last_received_nack_frag_count: Count,
-}
-
-impl RtpsReaderProxy {
-    pub fn changes_for_reader_mut(&mut self) -> &mut Vec<RtpsChangeForReader> {
-        &mut self.changes_for_reader
-    }
+    heartbeat_count: Count,
+    heartbeat_frag_count: Count,
+    heartbeat_timer: StdTimer,
 }
 
 impl RtpsReaderProxy {
@@ -58,11 +118,12 @@ impl RtpsReaderProxy {
             is_active,
             last_received_acknack_count: Count::new(0),
             last_received_nack_frag_count: Count::new(0),
+            heartbeat_count: Count::new(0),
+            heartbeat_frag_count: Count::new(0),
+            heartbeat_timer: StdTimer::new(),
         }
     }
-}
 
-impl RtpsReaderProxy {
     pub fn remote_reader_guid(&self) -> Guid {
         self.remote_reader_guid
     }
@@ -73,6 +134,10 @@ impl RtpsReaderProxy {
 
     pub fn changes_for_reader(&self) -> &[RtpsChangeForReader] {
         self.changes_for_reader.as_slice()
+    }
+
+    pub fn changes_for_reader_mut(&mut self) -> &mut Vec<RtpsChangeForReader> {
+        &mut self.changes_for_reader
     }
 
     pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
@@ -90,139 +155,7 @@ impl RtpsReaderProxy {
             self.last_received_nack_frag_count = nack_frag_submessage.count;
         }
     }
-}
 
-impl From<RtpsChangeForReaderCacheChange<'_>> for SequenceNumber {
-    fn from(v: RtpsChangeForReaderCacheChange<'_>) -> Self {
-        v.change_for_reader.sequence_number
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RtpsChangeForReader {
-    status: ChangeForReaderStatusKind,
-    is_relevant: bool,
-    sequence_number: SequenceNumber,
-}
-
-impl RtpsChangeForReader {
-    pub fn new(
-        status: ChangeForReaderStatusKind,
-        is_relevant: bool,
-        sequence_number: SequenceNumber,
-    ) -> Self {
-        Self {
-            status,
-            is_relevant,
-            sequence_number,
-        }
-    }
-
-    pub fn status(&self) -> ChangeForReaderStatusKind {
-        self.status
-    }
-
-    pub fn is_relevant(&self) -> bool {
-        self.is_relevant
-    }
-
-    pub fn sequence_number(&self) -> SequenceNumber {
-        self.sequence_number
-    }
-}
-
-pub struct RtpsChangeForReaderCacheChange<'a> {
-    change_for_reader: RtpsChangeForReader,
-    cache_change: &'a RtpsWriterCacheChange,
-}
-
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn cache_change(self) -> &'a RtpsWriterCacheChange {
-        self.cache_change
-    }
-}
-
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn status(&self) -> ChangeForReaderStatusKind {
-        self.change_for_reader.status
-    }
-
-    pub fn is_relevant(&self) -> bool {
-        self.change_for_reader.is_relevant
-    }
-}
-
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn kind(&self) -> ChangeKind {
-        self.cache_change.kind()
-    }
-
-    pub fn writer_guid(&self) -> Guid {
-        self.cache_change.writer_guid()
-    }
-
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.cache_change.instance_handle()
-    }
-
-    pub fn sequence_number(&self) -> SequenceNumber {
-        self.cache_change.sequence_number()
-    }
-
-    pub fn data_value(&self) -> &[u8] {
-        self.cache_change.data_value()
-    }
-
-    pub fn inline_qos(&self) -> &[RtpsParameter] {
-        self.cache_change.inline_qos()
-    }
-
-    pub fn timestamp(&self) -> Time {
-        self.cache_change.timestamp()
-    }
-}
-
-impl<'a> RtpsChangeForReaderCacheChange<'a> {
-    pub fn new(
-        change_for_reader: RtpsChangeForReader,
-        writer_cache: &'a WriterHistoryCache,
-    ) -> Self {
-        let cache_change = writer_cache
-            .changes()
-            .iter()
-            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
-            .unwrap();
-        RtpsChangeForReaderCacheChange {
-            change_for_reader,
-            cache_change,
-        }
-    }
-}
-
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>> for GapSubmessage {
-    fn from(_val: RtpsChangeForReaderCacheChange<'a>) -> Self {
-        todo!()
-    }
-}
-
-impl<'a> From<RtpsChangeForReaderCacheChange<'a>>
-    for (InfoTimestampSubmessage, DataSubmessage<'a>)
-{
-    fn from(val: RtpsChangeForReaderCacheChange<'a>) -> Self {
-        let info_ts_submessage = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: false,
-            timestamp: super::messages::types::Time::new(
-                val.cache_change.timestamp().sec(),
-                val.cache_change.timestamp().nanosec(),
-            ),
-        };
-        let data_submessage = val.cache_change.as_data_submessage(ENTITYID_UNKNOWN);
-        (info_ts_submessage, data_submessage)
-    }
-}
-
-impl RtpsReaderProxy {
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         // "FOR_EACH change in this.changes_for_reader
         // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
@@ -353,7 +286,364 @@ impl RtpsReaderProxy {
             })
             .collect()
     }
+
+    pub fn send_message_best_effort(
+        &mut self,
+        writer_cache: &WriterHistoryCache,
+        data_max_size_serialized: usize,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
+        let info_dst = info_destination_submessage(self.remote_reader_guid().prefix());
+        let mut submessages = vec![info_dst];
+
+        while !self.unsent_changes().is_empty() {
+            // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+            // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+            let reader_id = self.remote_reader_guid().entity_id();
+            let change = self.next_unsent_change(writer_cache);
+
+            if change.is_relevant() {
+                let timestamp = change.timestamp();
+
+                if change.data_value().len() > data_max_size_serialized {
+                    let data_frag_submessage_list = change
+                        .cache_change()
+                        .as_data_frag_submessages(data_max_size_serialized, reader_id);
+                    for data_frag_submessage in data_frag_submessage_list {
+                        let info_dst =
+                            info_destination_submessage(self.remote_reader_guid().prefix());
+
+                        let into_timestamp = info_timestamp_submessage(timestamp);
+                        let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+
+                        let submessages = vec![info_dst, into_timestamp, data_frag];
+
+                        transport.write(
+                            &RtpsMessage::new(header, submessages),
+                            self.unicast_locator_list(),
+                        )
+                    }
+                } else {
+                    submessages.push(info_timestamp_submessage(timestamp));
+                    submessages.push(RtpsSubmessageKind::Data(
+                        change.cache_change().as_data_submessage(reader_id),
+                    ))
+                }
+            } else {
+                let gap_submessage: GapSubmessage =
+                    change.as_gap_message(self.remote_reader_guid().entity_id());
+                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+            }
+        }
+
+        // Send messages only if more than INFO_DST is added
+        if submessages.len() > 1 {
+            transport.write(
+                &RtpsMessage::new(header, submessages),
+                self.unicast_locator_list(),
+            )
+        }
+    }
+
+    pub fn send_message_reliable(
+        &mut self,
+        writer_cache: &WriterHistoryCache,
+        writer_id: EntityId,
+        data_max_size_serialized: usize,
+        heartbeat_period: Duration,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
+        let time_for_heartbeat = self.heartbeat_timer.elapsed()
+            >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
+                + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64);
+        if time_for_heartbeat {
+            self.heartbeat_timer.reset();
+            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+        }
+        let reader_id = self.remote_reader_guid().entity_id();
+
+        let info_dst = info_destination_submessage(self.remote_reader_guid().prefix());
+
+        let mut submessages = vec![info_dst];
+
+        // Top part of the state machine - Figure 8.19 RTPS standard
+        if !self.unsent_changes().is_empty() {
+            // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+            // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+
+            while !self.unsent_changes().is_empty() {
+                let change = self.next_unsent_change(writer_cache);
+                // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+                // it's not done here to avoid the change being a mutable reference
+                // Also the post-condition:
+                // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+                // should be full-filled by next_unsent_change()
+                if change.is_relevant() {
+                    let timestamp = change.timestamp();
+
+                    if change.data_value().len() > data_max_size_serialized {
+                        let data_frag_submessage_list = change
+                            .cache_change()
+                            .as_data_frag_submessages(data_max_size_serialized, reader_id);
+                        let total_number_of_fragments = data_frag_submessage_list.len();
+                        for (index, data_frag_submessage) in
+                            data_frag_submessage_list.into_iter().enumerate()
+                        {
+                            let info_dst =
+                                info_destination_submessage(self.remote_reader_guid().prefix());
+                            let writer_sn = data_frag_submessage.writer_sn;
+                            let into_timestamp = info_timestamp_submessage(timestamp);
+                            let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+                            let hearbeat = if index + 1 == total_number_of_fragments {
+                                self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+                                heartbeat_submessage(
+                                    reader_id,
+                                    writer_id,
+                                    writer_cache,
+                                    self.heartbeat_count,
+                                )
+                            } else {
+                                self.heartbeat_frag_count =
+                                    self.heartbeat_frag_count.wrapping_add(1);
+                                heartbeat_frag(
+                                    reader_id,
+                                    writer_id,
+                                    writer_sn,
+                                    FragmentNumber::new((index + 1) as u32),
+                                    self.heartbeat_frag_count,
+                                )
+                            };
+
+                            let submessages = vec![info_dst, into_timestamp, data_frag, hearbeat];
+
+                            transport.write(
+                                &RtpsMessage::new(header, submessages),
+                                self.unicast_locator_list(),
+                            )
+                        }
+                    } else {
+                        submessages.push(info_timestamp_submessage(timestamp));
+                        submessages.push(RtpsSubmessageKind::Data(
+                            change.cache_change().as_data_submessage(reader_id),
+                        ))
+                    }
+                } else {
+                    let gap_submessage: GapSubmessage = change.as_gap_message(reader_id);
+
+                    submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                }
+            }
+
+            self.heartbeat_timer.reset();
+            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+            let heartbeat =
+                heartbeat_submessage(reader_id, writer_id, writer_cache, self.heartbeat_count);
+            submessages.push(heartbeat);
+        } else if self.unacked_changes().is_empty() {
+            // Idle
+        } else if time_for_heartbeat {
+            let heartbeat =
+                heartbeat_submessage(reader_id, writer_id, writer_cache, self.heartbeat_count);
+            submessages.push(heartbeat);
+        }
+
+        // Middle-part of the state-machine - Figure 8.19 RTPS standard
+        if !self.requested_changes().is_empty() {
+            let reader_id = self.remote_reader_guid().entity_id();
+
+            while !self.requested_changes().is_empty() {
+                let change_for_reader = self.next_requested_change(writer_cache);
+                // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+                // it's not done here to avoid the change being a mutable reference
+                // Also the post-condition:
+                // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
+                // should be full-filled by next_requested_change()
+                if change_for_reader.is_relevant() {
+                    let timestamp = change_for_reader.timestamp();
+                    if change_for_reader.data_value().len() > data_max_size_serialized {
+                        let data_frag_submessage_list = change_for_reader
+                            .cache_change()
+                            .as_data_frag_submessages(data_max_size_serialized, reader_id);
+                        let total_number_of_fragments = data_frag_submessage_list.len();
+                        for (index, data_frag_submessage) in
+                            data_frag_submessage_list.into_iter().enumerate()
+                        {
+                            let info_dst =
+                                info_destination_submessage(self.remote_reader_guid().prefix());
+                            let writer_sn = data_frag_submessage.writer_sn;
+                            let into_timestamp = info_timestamp_submessage(timestamp);
+                            let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+
+                            let hearbeat = if index + 1 == total_number_of_fragments {
+                                self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+                                heartbeat_submessage(
+                                    reader_id,
+                                    writer_id,
+                                    writer_cache,
+                                    self.heartbeat_count,
+                                )
+                            } else {
+                                self.heartbeat_frag_count =
+                                    self.heartbeat_frag_count.wrapping_add(1);
+                                heartbeat_frag(
+                                    reader_id,
+                                    writer_id,
+                                    writer_sn,
+                                    FragmentNumber::new((index + 1) as u32),
+                                    self.heartbeat_frag_count,
+                                )
+                            };
+
+                            let submessages = vec![info_dst, into_timestamp, data_frag, hearbeat];
+
+                            transport.write(
+                                &RtpsMessage::new(header, submessages),
+                                self.unicast_locator_list(),
+                            )
+                        }
+                    } else {
+                        let info_ts_submessage = info_timestamp_submessage(timestamp);
+                        let data_submessage = RtpsSubmessageKind::Data(
+                            change_for_reader
+                                .cache_change()
+                                .as_data_submessage(reader_id),
+                        );
+                        submessages.push(info_ts_submessage);
+                        submessages.push(data_submessage);
+                    }
+                } else {
+                    let gap_submessage: GapSubmessage = change_for_reader.as_gap_message(reader_id);
+
+                    submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                }
+            }
+            self.heartbeat_timer.reset();
+            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
+            let heartbeat =
+                heartbeat_submessage(reader_id, writer_id, writer_cache, self.heartbeat_count);
+            submessages.push(heartbeat);
+        }
+        // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
+        if submessages.len() >= 2 {
+            transport.write(
+                &RtpsMessage::new(header, submessages),
+                self.unicast_locator_list(),
+            )
+        }
+    }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct RtpsChangeForReader {
+    status: ChangeForReaderStatusKind,
+    is_relevant: bool,
+    sequence_number: SequenceNumber,
+}
+
+impl RtpsChangeForReader {
+    pub fn new(
+        status: ChangeForReaderStatusKind,
+        is_relevant: bool,
+        sequence_number: SequenceNumber,
+    ) -> Self {
+        Self {
+            status,
+            is_relevant,
+            sequence_number,
+        }
+    }
+
+    pub fn status(&self) -> ChangeForReaderStatusKind {
+        self.status
+    }
+
+    pub fn is_relevant(&self) -> bool {
+        self.is_relevant
+    }
+
+    pub fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
+    }
+}
+
+pub struct RtpsChangeForReaderCacheChange<'a> {
+    change_for_reader: RtpsChangeForReader,
+    cache_change: &'a RtpsWriterCacheChange,
+}
+
+impl<'a> RtpsChangeForReaderCacheChange<'a> {
+    pub fn new(
+        change_for_reader: RtpsChangeForReader,
+        writer_cache: &'a WriterHistoryCache,
+    ) -> Self {
+        let cache_change = writer_cache
+            .changes()
+            .iter()
+            .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
+            .unwrap();
+        RtpsChangeForReaderCacheChange {
+            change_for_reader,
+            cache_change,
+        }
+    }
+
+    pub fn cache_change(self) -> &'a RtpsWriterCacheChange {
+        self.cache_change
+    }
+
+    pub fn status(&self) -> ChangeForReaderStatusKind {
+        self.change_for_reader.status
+    }
+
+    pub fn is_relevant(&self) -> bool {
+        self.change_for_reader.is_relevant
+    }
+
+    pub fn kind(&self) -> ChangeKind {
+        self.cache_change.kind()
+    }
+
+    pub fn writer_guid(&self) -> Guid {
+        self.cache_change.writer_guid()
+    }
+
+    pub fn instance_handle(&self) -> InstanceHandle {
+        self.cache_change.instance_handle()
+    }
+
+    pub fn sequence_number(&self) -> SequenceNumber {
+        self.cache_change.sequence_number()
+    }
+
+    pub fn data_value(&self) -> &[u8] {
+        self.cache_change.data_value()
+    }
+
+    pub fn inline_qos(&self) -> &[RtpsParameter] {
+        self.cache_change.inline_qos()
+    }
+
+    pub fn timestamp(&self) -> Time {
+        self.cache_change.timestamp()
+    }
+
+    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessage {
+        GapSubmessage {
+            endianness_flag: true,
+            reader_id,
+            writer_id: self.cache_change.writer_guid().entity_id(),
+            gap_start: self.cache_change.sequence_number(),
+            gap_list: SequenceNumberSet {
+                base: self.cache_change.sequence_number(),
+                set: vec![],
+            },
+        }
+    }
+}
+
+impl RtpsReaderProxy {}
 
 #[cfg(test)]
 mod tests {

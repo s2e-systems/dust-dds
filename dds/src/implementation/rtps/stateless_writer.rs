@@ -7,11 +7,8 @@ use crate::{
 };
 
 use super::{
-    history_cache::RtpsWriterCacheChange,
-    messages::RtpsSubmessageKind,
-    reader_locator::RtpsReaderLocator,
-    types::{Count, Guid},
-    writer::RtpsWriter,
+    history_cache::RtpsWriterCacheChange, messages::overall_structure::RtpsMessageHeader,
+    reader_locator::RtpsReaderLocator, transport::TransportWrite, types::Count, writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
@@ -27,10 +24,6 @@ impl RtpsStatelessWriter {
             reader_locators: Vec::new(),
             _heartbeat_count: Count::new(0),
         }
-    }
-
-    pub fn guid(&self) -> Guid {
-        self.writer.guid()
     }
 
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
@@ -68,36 +61,19 @@ impl RtpsStatelessWriter {
         Ok(())
     }
 
-    pub fn produce_submessages(&mut self) -> Vec<(&RtpsReaderLocator, Vec<RtpsSubmessageKind>)> {
-        let mut destined_submessages = Vec::new();
-        let reliability_kind = &self.writer.get_qos().reliability.kind;
-        let writer_cache = self.writer.writer_cache();
-        match reliability_kind {
+    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => {
                 for rl in self.reader_locators.iter_mut() {
-                    let mut submessages = Vec::new();
-                    while !rl.unsent_changes().is_empty() {
-                        let change = rl.next_unsent_change(writer_cache);
-                        // The post-condition:
-                        // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
-                        // should be full-filled by next_unsent_change()
-                        if change.is_in_cache() {
-                            let (info_ts_submessage, data_submessage) = change.into();
-                            submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
-                            submessages.push(RtpsSubmessageKind::Data(data_submessage));
-                        } else {
-                            let gap_submessage = change.into();
-                            submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
-                        }
-                    }
-                    if !submessages.is_empty() {
-                        destined_submessages.push((&*rl, submessages));
-                    }
+                    rl.send_message(
+                        self.writer.writer_cache(),
+                        self.writer.guid().entity_id(),
+                        header,
+                        transport,
+                    );
                 }
             }
-            ReliabilityQosPolicyKind::Reliable => todo!(),
+            ReliabilityQosPolicyKind::Reliable => unimplemented!(),
         }
-
-        destined_submessages
     }
 }

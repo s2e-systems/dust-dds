@@ -12,8 +12,12 @@ use crate::{
         },
         rtps::{
             group::RtpsGroupImpl,
-            messages::submessages::{
-                DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{
+                    DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                    HeartbeatSubmessage,
+                },
             },
             transport::TransportWrite,
             types::{EntityId, EntityKey, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
@@ -187,12 +191,13 @@ impl DdsShared<BuiltInSubscriber> {
         self.rtps_group.guid().into()
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.sedp_builtin_topics_reader.send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.sedp_builtin_topics_reader
+            .send_message(header, transport);
         self.sedp_builtin_publications_reader
-            .send_message(transport);
+            .send_message(header, transport);
         self.sedp_builtin_subscriptions_reader
-            .send_message(transport);
+            .send_message(header, transport);
     }
 }
 

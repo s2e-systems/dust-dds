@@ -95,9 +95,9 @@ impl MessageReceiver {
         message: &RtpsMessage<'_>,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid_prefix;
-        self.source_version = message.header.version;
-        self.source_vendor_id = message.header.vendor_id;
-        self.source_guid_prefix = message.header.guid_prefix;
+        self.source_version = message.header().version;
+        self.source_vendor_id = message.header().vendor_id;
+        self.source_guid_prefix = message.header().guid_prefix;
         self.unicast_reply_locator_list.push(Locator::new(
             source_locator.kind(),
             LOCATOR_PORT_INVALID,
@@ -109,7 +109,7 @@ impl MessageReceiver {
             LOCATOR_ADDRESS_INVALID,
         ));
 
-        for submessage in &message.submessages {
+        for submessage in message.submessages() {
             match submessage {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {

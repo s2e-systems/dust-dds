@@ -57,9 +57,9 @@ impl MappingWriteByteOrderInfoInData for RtpsMessage<'_> {
     fn mapping_write_byte_order_info_in_data<W: Write>(&self, mut writer: W) -> Result<(), Error> {
         // The byteorder is determined by each submessage individually. Hence
         // decide here for a byteorder for the header
-        self.header
+        self.header()
             .mapping_write_byte_ordered::<_, LittleEndian>(&mut writer)?;
-        for submessage in &self.submessages {
+        for submessage in self.submessages() {
             submessage.mapping_write_byte_order_info_in_data(&mut writer)?;
         }
         Ok(())
@@ -125,10 +125,7 @@ impl<'a, 'de: 'a> MappingReadByteOrderInfoInData<'de> for RtpsMessage<'a> {
             };
             submessages.push(submessage);
         }
-        Ok(RtpsMessage {
-            header,
-            submessages,
-        })
+        Ok(RtpsMessage::new(header, submessages))
     }
 }
 
@@ -161,10 +158,7 @@ mod tests {
             vendor_id: VendorId::new([9, 8]),
             guid_prefix: GuidPrefix::new([3; 12]),
         };
-        let value = RtpsMessage {
-            header,
-            submessages: Vec::new(),
-        };
+        let value = RtpsMessage::new(header, Vec::new());
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -218,10 +212,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let value = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        let value = RtpsMessage::new(header, vec![submessage]);
         #[rustfmt::skip]
         assert_eq!(to_bytes(&value).unwrap(), vec![
             b'R', b'T', b'P', b'S', // Protocol
@@ -252,10 +243,7 @@ mod tests {
             guid_prefix: GuidPrefix::new([3; 12]),
         };
 
-        let expected = RtpsMessage {
-            header,
-            submessages: Vec::new(),
-        };
+        let expected = RtpsMessage::new(header, Vec::new());
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -310,10 +298,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        let expected = RtpsMessage::new(header, vec![submessage]);
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -379,10 +364,7 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage {
-            header,
-            submessages: vec![submessage],
-        };
+        let expected = RtpsMessage::new(header, vec![submessage]);
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol

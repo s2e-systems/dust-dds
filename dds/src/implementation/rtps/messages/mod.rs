@@ -15,8 +15,25 @@ pub mod types;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RtpsMessage<'a> {
-    pub header: RtpsMessageHeader,
-    pub submessages: Vec<RtpsSubmessageKind<'a>>,
+    header: RtpsMessageHeader,
+    submessages: Vec<RtpsSubmessageKind<'a>>,
+}
+
+impl<'a> RtpsMessage<'a> {
+    pub fn new(header: RtpsMessageHeader, submessages: Vec<RtpsSubmessageKind<'a>>) -> Self {
+        Self {
+            header,
+            submessages,
+        }
+    }
+
+    pub fn header(&self) -> RtpsMessageHeader {
+        self.header
+    }
+
+    pub fn submessages(&self) -> &[RtpsSubmessageKind] {
+        self.submessages.as_ref()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

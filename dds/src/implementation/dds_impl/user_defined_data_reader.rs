@@ -8,8 +8,12 @@ use crate::{
             discovered_writer_data::DiscoveredWriterData,
         },
         rtps::{
-            messages::submessages::{
-                DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{
+                    DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                    HeartbeatSubmessage,
+                },
             },
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
             transport::TransportWrite,
@@ -745,8 +749,10 @@ impl DdsShared<UserDefinedDataReader> {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.rtps_reader.write_lock().send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.rtps_reader
+            .write_lock()
+            .send_message(header, transport);
     }
 
     pub fn update_communication_status(&self, now: Time) {

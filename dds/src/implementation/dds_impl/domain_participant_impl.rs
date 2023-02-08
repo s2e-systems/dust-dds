@@ -24,7 +24,7 @@ use crate::{
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             group::RtpsGroupImpl,
-            messages::RtpsMessage,
+            messages::{overall_structure::RtpsMessageHeader, types::ProtocolId, RtpsMessage},
             participant::RtpsParticipant,
             transport::TransportWrite,
             types::{
@@ -895,8 +895,15 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
-        self.builtin_publisher.send_message(transport);
-        self.builtin_subscriber.send_message(transport);
+        let header = RtpsMessageHeader {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version: self.rtps_participant.protocol_version(),
+            vendor_id: self.rtps_participant.vendor_id(),
+            guid_prefix: self.rtps_participant.guid().prefix(),
+        };
+
+        self.builtin_publisher.send_message(header, transport);
+        self.builtin_subscriber.send_message(header, transport);
     }
 
     pub fn receive_built_in_data(
@@ -921,12 +928,19 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
+        let header = RtpsMessageHeader {
+            protocol: ProtocolId::PROTOCOL_RTPS,
+            version: self.rtps_participant.protocol_version(),
+            vendor_id: self.rtps_participant.vendor_id(),
+            guid_prefix: self.rtps_participant.guid().prefix(),
+        };
+
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.send_message(transport)
+            publisher.send_message(header, transport)
         }
 
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            subscriber.send_message(transport)
+            subscriber.send_message(header, transport)
         }
     }
 

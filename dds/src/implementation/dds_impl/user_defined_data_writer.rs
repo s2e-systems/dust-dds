@@ -8,12 +8,14 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
-            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{AckNackSubmessage, NackFragSubmessage},
+            },
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
-            utils::clock::StdTimer,
         },
         utils::{
             condvar::DdsCondvar,
@@ -135,7 +137,7 @@ impl OfferedIncompatibleQosStatus {
 }
 
 pub struct UserDefinedDataWriter {
-    rtps_writer: DdsRwLock<RtpsStatefulWriter<StdTimer>>,
+    rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
@@ -152,7 +154,7 @@ pub struct UserDefinedDataWriter {
 
 impl UserDefinedDataWriter {
     pub fn new(
-        rtps_writer: RtpsStatefulWriter<StdTimer>,
+        rtps_writer: RtpsStatefulWriter,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,
@@ -641,8 +643,10 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn send_message(&self, transport: &mut impl TransportWrite) {
-        self.rtps_writer.write_lock().send_message(transport);
+    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+        self.rtps_writer
+            .write_lock()
+            .send_message(header, transport);
     }
 
     fn on_publication_matched(&self, instance_handle: InstanceHandle) {
@@ -716,7 +720,7 @@ mod test {
         Transport{}
 
         impl TransportWrite for Transport {
-            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator: Locator);
+            fn write<'a>(&'a mut self, message: &RtpsMessage<'a>, destination_locator_list: &[Locator]);
         }
     }
 

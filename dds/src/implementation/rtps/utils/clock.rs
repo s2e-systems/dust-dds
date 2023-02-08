@@ -7,6 +7,7 @@ pub trait Timer {
     fn elapsed(&self) -> std::time::Duration;
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct StdTimer(std::time::Instant);
 
 impl TimerConstructor for StdTimer {
