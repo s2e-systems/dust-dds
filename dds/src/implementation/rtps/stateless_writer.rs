@@ -65,7 +65,12 @@ impl RtpsStatelessWriter {
         match self.writer.get_qos().reliability.kind {
             ReliabilityQosPolicyKind::BestEffort => {
                 for rl in self.reader_locators.iter_mut() {
-                    rl.send_message(self.writer.writer_cache(), header, transport);
+                    rl.send_message(
+                        self.writer.writer_cache(),
+                        self.writer.guid().entity_id(),
+                        header,
+                        transport,
+                    );
                 }
             }
             ReliabilityQosPolicyKind::Reliable => unimplemented!(),

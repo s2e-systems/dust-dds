@@ -1,19 +1,45 @@
+use crate::infrastructure::time::Time;
+
 use super::{
     history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessages::{DataSubmessage, GapSubmessage, InfoTimestampSubmessage},
-        types::Time,
+        submessage_elements::SequenceNumberSet,
+        submessages::{GapSubmessage, InfoTimestampSubmessage},
         RtpsMessage, RtpsSubmessageKind,
     },
     transport::TransportWrite,
-    types::{Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
 };
 
 pub struct RtpsReaderLocator {
     unsent_changes: Vec<SequenceNumber>,
     locator: Locator,
     _expects_inline_qos: bool,
+}
+
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+        endianness_flag: true,
+        invalidate_flag: false,
+        timestamp: super::messages::types::Time::new(timestamp.sec(), timestamp.nanosec()),
+    })
+}
+
+fn gap_submessage<'a>(
+    writer_id: EntityId,
+    gap_sequence_number: SequenceNumber,
+) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::Gap(GapSubmessage {
+        endianness_flag: true,
+        reader_id: ENTITYID_UNKNOWN,
+        writer_id,
+        gap_start: gap_sequence_number,
+        gap_list: SequenceNumberSet {
+            base: gap_sequence_number,
+            set: vec![],
+        },
+    })
 }
 
 impl RtpsReaderLocator {
@@ -29,7 +55,7 @@ impl RtpsReaderLocator {
         &mut self.unsent_changes
     }
 
-    pub fn next_unsent_change<'a>(
+    fn next_unsent_change<'a>(
         &mut self,
         writer_cache: &'a WriterHistoryCache,
     ) -> RtpsReaderLocatorCacheChange<'a> {
@@ -50,32 +76,33 @@ impl RtpsReaderLocator {
             .iter()
             .find(|c| c.sequence_number() == next_seq_num);
 
-        RtpsReaderLocatorCacheChange { cache_change }
-    }
-
-    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
-        self.unsent_changes.clone()
+        RtpsReaderLocatorCacheChange {
+            sequence_number: next_seq_num,
+            cache_change,
+        }
     }
 
     pub fn send_message(
         &mut self,
         writer_cache: &WriterHistoryCache,
+        writer_id: EntityId,
         header: RtpsMessageHeader,
         transport: &mut impl TransportWrite,
     ) {
         let mut submessages = Vec::new();
-        while !self.unsent_changes().is_empty() {
+        while !self.unsent_changes.is_empty() {
             let change = self.next_unsent_change(writer_cache);
             // The post-condition:
             // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
-            if change.is_in_cache() {
-                let (info_ts_submessage, data_submessage) = change.into();
-                submessages.push(RtpsSubmessageKind::InfoTimestamp(info_ts_submessage));
+            if let Some(cache_change) = change.cache_change {
+                let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
+                let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
+                submessages.push(info_ts_submessage);
                 submessages.push(RtpsSubmessageKind::Data(data_submessage));
             } else {
-                let gap_submessage = change.into();
-                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+                let gap_submessage = gap_submessage(writer_id, change.sequence_number);
+                submessages.push(gap_submessage);
             }
         }
         if !submessages.is_empty() {
@@ -84,38 +111,9 @@ impl RtpsReaderLocator {
     }
 }
 
-pub struct RtpsReaderLocatorCacheChange<'a> {
+struct RtpsReaderLocatorCacheChange<'a> {
+    sequence_number: SequenceNumber,
     cache_change: Option<&'a RtpsWriterCacheChange>,
-}
-
-impl RtpsReaderLocatorCacheChange<'_> {
-    pub fn is_in_cache(&self) -> bool {
-        self.cache_change.is_some()
-    }
-}
-
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for GapSubmessage {
-    fn from(_val: RtpsReaderLocatorCacheChange<'a>) -> Self {
-        todo!()
-    }
-}
-
-impl<'a> From<RtpsReaderLocatorCacheChange<'a>> for (InfoTimestampSubmessage, DataSubmessage<'a>) {
-    fn from(val: RtpsReaderLocatorCacheChange<'a>) -> Self {
-        let cache_change = val
-            .cache_change
-            .expect("Can only convert to data if it exists in the writer cache");
-        let info_ts_submessage = InfoTimestampSubmessage {
-            endianness_flag: true,
-            invalidate_flag: false,
-            timestamp: Time::new(
-                cache_change.timestamp().sec(),
-                cache_change.timestamp().nanosec(),
-            ),
-        };
-        let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
-        (info_ts_submessage, data_submessage)
-    }
 }
 
 #[cfg(test)]
