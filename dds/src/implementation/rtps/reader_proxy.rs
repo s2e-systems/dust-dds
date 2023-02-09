@@ -421,7 +421,12 @@ impl RtpsReaderProxy {
 
                         while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
                             let writer_sn = data_frag_submessage.writer_sn;
-                            let last_fragment_num = data_frag_submessage.fragment_starting_num;
+                            let last_fragment_num = FragmentNumber::new(
+                                u32::from(data_frag_submessage.fragment_starting_num)
+                                    + u16::from(data_frag_submessage.fragments_in_submessage)
+                                        as u32
+                                    - 1,
+                            );
 
                             let info_dst =
                                 info_destination_submessage(self.remote_reader_guid().prefix());
@@ -463,7 +468,10 @@ impl RtpsReaderProxy {
             submessages.push(heartbeat);
         } else if self.unacked_changes().is_empty() {
             // Idle
-        } else if self.heartbeat_machine.is_time_for_heartbeat(heartbeat_period) {
+        } else if self
+            .heartbeat_machine
+            .is_time_for_heartbeat(heartbeat_period)
+        {
             let heartbeat = self.heartbeat_machine.submessage(writer_id, writer_cache);
             submessages.push(heartbeat);
         }
@@ -492,7 +500,12 @@ impl RtpsReaderProxy {
 
                         while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
                             let writer_sn = data_frag_submessage.writer_sn;
-                            let last_fragment_num = data_frag_submessage.fragment_starting_num;
+                            let last_fragment_num = FragmentNumber::new(
+                                u32::from(data_frag_submessage.fragment_starting_num)
+                                    + u16::from(data_frag_submessage.fragments_in_submessage)
+                                        as u32
+                                    - 1,
+                            );
 
                             let info_dst =
                                 info_destination_submessage(self.remote_reader_guid().prefix());
