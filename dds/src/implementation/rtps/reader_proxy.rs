@@ -1,5 +1,3 @@
-use serde_json::map::Entry;
-
 use crate::infrastructure::{
     instance::InstanceHandle,
     time::{Duration, Time},
@@ -47,10 +45,14 @@ impl HeartbeatMachine {
         HeartbeatMachine {
             count: Count::new(0),
             reader_id,
-            timer: StdTimer::new()
+            timer: StdTimer::new(),
         }
     }
-
+    fn is_time_for_heartbeat(&self, heartbeat_period: Duration) -> bool {
+        self.timer.elapsed()
+            >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
+                + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64)
+    }
     fn submessage<'a>(
         &mut self,
         writer_id: EntityId,
@@ -74,7 +76,6 @@ impl HeartbeatMachine {
         })
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq)]
 struct HeartbeatFragMachine {
@@ -106,7 +107,6 @@ impl HeartbeatFragMachine {
     }
 }
 
-
 /// ChangeForReaderStatusKind
 /// Enumeration used to indicate the status of a ChangeForReader. It can take the values:
 /// UNSENT, UNACKNOWLEDGED, REQUESTED, ACKNOWLEDGED, UNDERWAY
@@ -130,9 +130,6 @@ pub struct RtpsReaderProxy {
     is_active: bool,
     last_received_acknack_count: Count,
     last_received_nack_frag_count: Count,
-    heartbeat_count: Count,
-    heartbeat_frag_count: Count,
-    heartbeat_timer: StdTimer,
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
 }
@@ -158,11 +155,8 @@ impl RtpsReaderProxy {
             is_active,
             last_received_acknack_count: Count::new(0),
             last_received_nack_frag_count: Count::new(0),
-            heartbeat_count: Count::new(0),
-            heartbeat_frag_count: Count::new(0),
-            heartbeat_timer: StdTimer::new(),
             heartbeat_machine,
-            heartbeat_frag_machine
+            heartbeat_frag_machine,
         }
     }
 
@@ -397,13 +391,6 @@ impl RtpsReaderProxy {
         header: RtpsMessageHeader,
         transport: &mut impl TransportWrite,
     ) {
-        let time_for_heartbeat = self.heartbeat_timer.elapsed()
-            >= std::time::Duration::from_secs(heartbeat_period.sec() as u64)
-                + std::time::Duration::from_nanos(heartbeat_period.nanosec() as u64);
-        if time_for_heartbeat {
-            self.heartbeat_timer.reset();
-            self.heartbeat_count = self.heartbeat_count.wrapping_add(1);
-        }
         let reader_id = self.remote_reader_guid().entity_id();
 
         let info_dst = info_destination_submessage(self.remote_reader_guid().prefix());
@@ -450,10 +437,8 @@ impl RtpsReaderProxy {
                                 );
                                 vec![info_dst, into_timestamp, data_frag, heartbeat_frag]
                             } else {
-                                let heartbeat = self.heartbeat_machine.submessage(
-                                    writer_id,
-                                    writer_cache,
-                                );
+                                let heartbeat =
+                                    self.heartbeat_machine.submessage(writer_id, writer_cache);
                                 vec![info_dst, into_timestamp, data_frag, heartbeat]
                             };
                             transport.write(
@@ -478,7 +463,7 @@ impl RtpsReaderProxy {
             submessages.push(heartbeat);
         } else if self.unacked_changes().is_empty() {
             // Idle
-        } else if time_for_heartbeat {
+        } else if self.heartbeat_machine.is_time_for_heartbeat(heartbeat_period) {
             let heartbeat = self.heartbeat_machine.submessage(writer_id, writer_cache);
             submessages.push(heartbeat);
         }
@@ -523,10 +508,8 @@ impl RtpsReaderProxy {
                                 );
                                 vec![info_dst, into_timestamp, data_frag, heartbeat_frag]
                             } else {
-                                let heartbeat = self.heartbeat_machine.submessage(
-                                    writer_id,
-                                    writer_cache,
-                                );
+                                let heartbeat =
+                                    self.heartbeat_machine.submessage(writer_id, writer_cache);
                                 vec![info_dst, into_timestamp, data_frag, heartbeat]
                             };
                             transport.write(
