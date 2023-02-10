@@ -6,10 +6,8 @@ use std::{
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        dds_impl::{
-            configuration::DustDdsConfiguration, dcps_service::DcpsService,
-            domain_participant_impl::DomainParticipantImpl,
-        },
+        configuration::DustDdsConfiguration,
+        dds_impl::{dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl},
         rtps::{
             participant::RtpsParticipant,
             types::{
@@ -142,7 +140,7 @@ impl DomainParticipantFactory {
         {
             DustDdsConfiguration::try_from_str(configuration_json.as_str())?
         } else {
-            Default::default()
+            DustDdsConfiguration::try_from_str("{}")?
         };
 
         let domain_participant_qos = match qos {
