@@ -5,8 +5,8 @@ use crate::{
 
 use super::{
     messages::{
-        submessage_elements::{Parameter, ParameterList},
-        submessages::{DataFragSubmessage, DataSubmessage},
+        submessage_elements::{Parameter, ParameterList, SequenceNumberSet},
+        submessages::{DataFragSubmessage, DataSubmessage, GapSubmessage},
         types::{ParameterId, SerializedPayload},
     },
     types::{ChangeKind, EntityId, Guid, SequenceNumber},
@@ -46,6 +46,19 @@ pub struct RtpsWriterCacheChange {
 }
 
 impl RtpsWriterCacheChange {
+    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessage {
+        GapSubmessage {
+            endianness_flag: true,
+            reader_id,
+            writer_id: self.writer_guid.entity_id(),
+            gap_start: self.sequence_number,
+            gap_list: SequenceNumberSet {
+                base: self.sequence_number,
+                set: vec![],
+            },
+        }
+    }
+
     pub fn as_data_submessage(&self, reader_id: EntityId) -> DataSubmessage {
         let (data_flag, key_flag) = match self.kind() {
             ChangeKind::Alive => (true, false),
