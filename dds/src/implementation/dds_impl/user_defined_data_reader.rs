@@ -1,4 +1,8 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    thread::JoinHandle,
+};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -187,6 +191,7 @@ pub struct UserDefinedDataReader {
     user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
+    timer_factory: TimerFactory,
 }
 
 impl UserDefinedDataReader {
@@ -220,7 +225,59 @@ impl UserDefinedDataReader {
             user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
+            timer_factory: TimerFactory::new(),
         })
+    }
+}
+
+struct Timer {
+    func: Box<dyn Fn() + Send>,
+    duration: std::time::Duration,
+    instant: std::time::Instant,
+}
+
+impl Timer {
+    pub fn new(duration: std::time::Duration, func: impl Fn() + 'static + Send) -> Self {
+        Self {
+            func: Box::new(func),
+            duration,
+            instant: std::time::Instant::now(),
+        }
+    }
+}
+struct TimerFactory {
+    instance_timers: Arc<Mutex<HashMap<InstanceHandle, Timer>>>,
+    thread_handle: JoinHandle<()>,
+}
+
+impl TimerFactory {
+    fn new() -> Self {
+        let instance_timers = Arc::new(Mutex::new(HashMap::<InstanceHandle, Timer>::new()));
+        let t = instance_timers.clone();
+        let thread_handle = std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            for (_k, v) in t.lock().unwrap().iter() {
+                if std::time::Instant::now() - v.instant > v.duration {
+                    (v.func)()
+                }
+            }
+        });
+        Self {
+            instance_timers,
+            thread_handle,
+        }
+    }
+
+    pub fn start_timer(
+        &self,
+        duration: std::time::Duration,
+        id: InstanceHandle,
+        func: impl Fn() + 'static + Send,
+    ) {
+        self.instance_timers
+            .lock()
+            .unwrap()
+            .insert(id, Timer::new(duration, func));
     }
 }
 
@@ -243,10 +300,24 @@ impl DdsShared<UserDefinedDataReader> {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
-                self.instance_reception_time
-                    .write_lock()
-                    .insert(instance_handle, message_receiver.reception_timestamp());
+                // self.instance_reception_time
+                //     .write_lock()
+                //     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
+
+                let duration = self
+                    .rtps_reader
+                    .read_lock()
+                    .reader()
+                    .get_qos()
+                    .deadline
+                    .period;
+                let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
+                let me = self.clone();
+                self.timer_factory
+                    .start_timer(duration, instance_handle, move || {
+                        me.on_requested_deadline_missed(instance_handle)
+                    });
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
