@@ -7,7 +7,6 @@ use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
-        submessage_elements::SequenceNumberSet,
         submessages::{
             AckNackSubmessage, GapSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage,
             InfoDestinationSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
