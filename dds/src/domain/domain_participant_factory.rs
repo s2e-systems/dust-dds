@@ -241,6 +241,7 @@ impl DomainParticipantFactory {
             announcer_condvar,
             sedp_condvar,
             user_defined_data_send_condvar,
+            configuration.fragment_size,
         );
 
         let dcps_service = DcpsService::new(

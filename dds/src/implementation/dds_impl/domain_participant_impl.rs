@@ -121,6 +121,7 @@ pub struct DomainParticipantImpl {
     sedp_condvar: DdsCondvar,
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
+    data_max_size_serialized: usize,
 }
 
 impl DomainParticipantImpl {
@@ -136,6 +137,7 @@ impl DomainParticipantImpl {
         announcer_condvar: DdsCondvar,
         sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
+        data_max_size_serialized: usize,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -234,6 +236,7 @@ impl DomainParticipantImpl {
             sedp_condvar,
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
+            data_max_size_serialized,
         })
     }
 }
@@ -286,6 +289,7 @@ impl DdsShared<DomainParticipantImpl> {
             mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
+            self.data_max_size_serialized,
         );
         if *self.enabled.read_lock()
             && self

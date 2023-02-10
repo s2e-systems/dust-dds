@@ -15,12 +15,18 @@ fn default_interface_name() -> Option<String> {
     None
 }
 
+fn default_fragment_size() -> usize {
+    1344
+}
+
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 pub struct DustDdsConfiguration {
     #[serde(default = "default_domain_tag")]
     pub domain_tag: String,
     #[serde(default = "default_interface_name")]
     pub interface_name: Option<String>,
+    #[serde(default = "default_fragment_size")]
+    pub fragment_size: usize,
 }
 
 impl Default for DustDdsConfiguration {
@@ -28,6 +34,7 @@ impl Default for DustDdsConfiguration {
         Self {
             domain_tag: default_domain_tag(),
             interface_name: default_interface_name(),
+            fragment_size: default_fragment_size(),
         }
     }
 }
@@ -82,6 +89,7 @@ mod tests {
             DustDdsConfiguration {
                 domain_tag: "from_configuration_json".to_string(),
                 interface_name: Some("Wi-Fi".to_string()),
+                fragment_size: 1344
             }
         );
     }
