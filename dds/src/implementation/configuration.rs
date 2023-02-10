@@ -3,38 +3,32 @@ use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use std::str::FromStr;
 
-
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-fn default_domain_tag() -> String {
-    "".to_string()
-}
-
-fn default_interface_name() -> Option<String> {
-    None
-}
-
-fn default_fragment_size() -> usize {
-    1344
-}
-
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
+#[serde(default)]
 pub struct DustDdsConfiguration {
     /// # Domain tag
     /// Domain tag to use for the participant
-    #[serde(default = "default_domain_tag")]
     pub domain_tag: String,
     /// # Interface name
     /// Network interface name to use for discovery
-    #[serde(default = "default_interface_name")]
     pub interface_name: Option<String>,
     /// # Fragment size
     /// Data is fragmented into max size of this
-    #[serde(default = "default_fragment_size")]
     #[schemars(range(min = 8))]
     pub fragment_size: usize,
 }
 
+impl Default for DustDdsConfiguration {
+    fn default() -> Self {
+        Self {
+            domain_tag: "".to_string(),
+            interface_name: None,
+            fragment_size: 1344,
+        }
+    }
+}
 
 impl DustDdsConfiguration {
     pub fn try_from_str(configuration_json: &str) -> DdsResult<Self> {
@@ -56,11 +50,9 @@ impl DustDdsConfiguration {
     }
 }
 
-
 pub fn generate_dust_dds_configuration_schema() -> Result<String, std::io::Error> {
     let root_schema = schema_for!(DustDdsConfiguration);
-    let json_schema_str_pretty = serde_json::to_string_pretty(&root_schema).unwrap();
-    Ok(json_schema_str_pretty)
+    Ok(serde_json::to_string_pretty(&root_schema)?)
 }
 
 #[cfg(test)]

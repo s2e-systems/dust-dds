@@ -140,7 +140,7 @@ impl DomainParticipantFactory {
         {
             DustDdsConfiguration::try_from_str(configuration_json.as_str())?
         } else {
-            DustDdsConfiguration::try_from_str("{}")?
+            DustDdsConfiguration::default()
         };
 
         let domain_participant_qos = match qos {
