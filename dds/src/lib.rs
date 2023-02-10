@@ -29,3 +29,5 @@ pub mod subscription;
 pub mod topic_definition;
 
 mod implementation;
+
+pub use implementation::configuration::generate_dust_dds_configuration_schema;

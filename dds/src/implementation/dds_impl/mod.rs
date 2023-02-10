@@ -7,7 +7,6 @@ pub mod builtin_stateful_writer;
 pub mod builtin_stateless_reader;
 pub mod builtin_stateless_writer;
 pub mod builtin_subscriber;
-pub mod configuration;
 pub mod dcps_service;
 pub mod domain_participant_impl;
 pub mod message_receiver;

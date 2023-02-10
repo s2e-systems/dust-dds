@@ -3,31 +3,29 @@ use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use std::str::FromStr;
 
-use std::io::prelude::*;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
 
-fn default_domain_tag() -> String {
-    "".to_string()
-}
-
-fn default_interface_name() -> Option<String> {
-    None
-}
-
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
+#[serde(default)]
 pub struct DustDdsConfiguration {
-    #[serde(default = "default_domain_tag")]
+    /// # Domain tag
+    /// Domain tag to use for the participant
     pub domain_tag: String,
-    #[serde(default = "default_interface_name")]
+    /// # Interface name
+    /// Network interface name to use for discovery
     pub interface_name: Option<String>,
+    /// # Fragment size
+    /// Data is fragmented into max size of this
+    #[schemars(range(min = 8))]
+    pub fragment_size: usize,
 }
 
 impl Default for DustDdsConfiguration {
     fn default() -> Self {
         Self {
-            domain_tag: default_domain_tag(),
-            interface_name: default_interface_name(),
+            domain_tag: "".to_string(),
+            interface_name: None,
+            fragment_size: 1344,
         }
     }
 }
@@ -50,26 +48,16 @@ impl DustDdsConfiguration {
         })?;
         serde_json::from_value(instance).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
     }
+}
 
-    pub fn _write_schema_file() -> DdsResult<()> {
-        let root_schema = schema_for!(DustDdsConfiguration);
-        let json_schema_str_pretty = serde_json::to_string_pretty(&root_schema).unwrap();
-
-        let mut file = std::fs::File::create("schema.json").unwrap();
-        file.write_all(json_schema_str_pretty.as_bytes()).unwrap();
-        Ok(())
-    }
+pub fn generate_dust_dds_configuration_schema() -> Result<String, std::io::Error> {
+    let root_schema = schema_for!(DustDdsConfiguration);
+    Ok(serde_json::to_string_pretty(&root_schema)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn from_empty_configuration_json() {
-        let configuration = DustDdsConfiguration::try_from_str("{}").unwrap();
-        assert_eq!(configuration, DustDdsConfiguration::default())
-    }
 
     #[test]
     fn from_configuration_json() {
@@ -82,6 +70,7 @@ mod tests {
             DustDdsConfiguration {
                 domain_tag: "from_configuration_json".to_string(),
                 interface_name: Some("Wi-Fi".to_string()),
+                fragment_size: 1344
             }
         );
     }

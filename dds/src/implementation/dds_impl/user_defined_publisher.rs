@@ -54,6 +54,7 @@ pub struct UserDefinedPublisher {
     parent_participant: DdsWeak<DomainParticipantImpl>,
     listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    data_max_size_serialized: usize,
 }
 
 impl UserDefinedPublisher {
@@ -64,6 +65,7 @@ impl UserDefinedPublisher {
         mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
+        data_max_size_serialized: usize,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
@@ -76,6 +78,7 @@ impl UserDefinedPublisher {
             parent_participant,
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            data_max_size_serialized,
         })
     }
 }
@@ -149,7 +152,7 @@ impl DdsShared<UserDefinedPublisher> {
                 Duration::new(0, 200_000_000),
                 DURATION_ZERO,
                 DURATION_ZERO,
-                1344,
+                self.data_max_size_serialized,
                 qos,
             ));
 
