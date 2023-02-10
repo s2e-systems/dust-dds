@@ -367,8 +367,9 @@ impl RtpsReaderProxy {
                     ))
                 }
             } else {
-                let gap_submessage: GapSubmessage =
-                    change.as_gap_message(self.remote_reader_guid().entity_id());
+                let gap_submessage: GapSubmessage = change
+                    .cache_change()
+                    .as_gap_message(self.remote_reader_guid().entity_id());
                 submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
             }
         }
@@ -427,7 +428,8 @@ impl RtpsReaderProxy {
                         ))
                     }
                 } else {
-                    let gap_submessage: GapSubmessage = change.as_gap_message(reader_id);
+                    let gap_submessage: GapSubmessage =
+                        change.cache_change().as_gap_message(reader_id);
 
                     submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                 }
@@ -476,7 +478,8 @@ impl RtpsReaderProxy {
                         ))
                     }
                 } else {
-                    let gap_submessage: GapSubmessage = change_for_reader.as_gap_message(reader_id);
+                    let gap_submessage: GapSubmessage =
+                        change_for_reader.cache_change().as_gap_message(reader_id);
 
                     submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
                 }
@@ -631,19 +634,6 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
 
     pub fn timestamp(&self) -> Time {
         self.cache_change.timestamp()
-    }
-
-    pub fn as_gap_message(&self, reader_id: EntityId) -> GapSubmessage {
-        GapSubmessage {
-            endianness_flag: true,
-            reader_id,
-            writer_id: self.cache_change.writer_guid().entity_id(),
-            gap_start: self.cache_change.sequence_number(),
-            gap_list: SequenceNumberSet {
-                base: self.cache_change.sequence_number(),
-                set: vec![],
-            },
-        }
     }
 }
 
