@@ -229,7 +229,8 @@ impl UserDefinedDataReader {
 
 impl DdsShared<UserDefinedDataReader> {
     pub fn cancel_timers(&self) {
-        self.timer_factory.cancel_timers()
+        todo!()
+        // self.timer_factory.cancel_timers()
     }
 
     pub fn on_data_submessage_received(
@@ -263,11 +264,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .deadline
                     .period;
                 let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
-                let me = self.clone();
-                self.timer_factory
-                    .start_timer(duration, instance_handle, move || {
-                        me.on_requested_deadline_missed(instance_handle)
-                    });
+                // let me = self.clone();
+                // self.timer_factory
+                //     .start_timer(duration, instance_handle, move || {
+                //         me.on_requested_deadline_missed(instance_handle)
+                //     });
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
