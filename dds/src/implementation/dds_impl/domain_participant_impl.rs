@@ -36,6 +36,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            timer_factory::TimerFactory,
         },
     },
     infrastructure::{
@@ -122,6 +123,7 @@ pub struct DomainParticipantImpl {
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
+    timer_factory: TimerFactory,
 }
 
 impl DomainParticipantImpl {
@@ -237,6 +239,7 @@ impl DomainParticipantImpl {
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
+            timer_factory: TimerFactory::new(),
         })
     }
 }
@@ -1312,5 +1315,9 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn announcer_condvar(&self) -> &DdsCondvar {
         &self.announcer_condvar
+    }
+
+    pub fn timer_factory(&self) -> &TimerFactory {
+        &self.timer_factory
     }
 }

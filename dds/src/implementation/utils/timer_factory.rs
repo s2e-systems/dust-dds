@@ -1,15 +1,12 @@
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+    sync::atomic::{AtomicBool, Ordering},
     thread::JoinHandle,
 };
 
 use crate::infrastructure::instance::InstanceHandle;
 
-use super::shared_object::DdsRwLock;
+use super::shared_object::{DdsRwLock, DdsShared};
 
 struct Timer {
     func: Box<dyn Fn() + Send + Sync>,
@@ -61,16 +58,17 @@ impl TimerProvider {
 }
 
 pub struct TimerFactory {
-    timer_provider_list: Arc<DdsRwLock<Vec<Arc<DdsRwLock<TimerProvider>>>>>,
+    timer_provider_list: DdsShared<DdsRwLock<Vec<DdsShared<DdsRwLock<TimerProvider>>>>>,
     thread_handle: Option<JoinHandle<()>>,
-    should_stop: Arc<std::sync::atomic::AtomicBool>,
+    should_stop: DdsShared<std::sync::atomic::AtomicBool>,
 }
 
 impl TimerFactory {
     pub fn new() -> Self {
-        let timer_provider_list =
-            Arc::new(DdsRwLock::new(Vec::<Arc<DdsRwLock<TimerProvider>>>::new()));
-        let should_stop = Arc::new(AtomicBool::new(false));
+        let timer_provider_list = DdsShared::new(DdsRwLock::new(Vec::<
+            DdsShared<DdsRwLock<TimerProvider>>,
+        >::new()));
+        let should_stop = DdsShared::new(AtomicBool::new(false));
 
         let timer_provider_list_clone = timer_provider_list.clone();
         let should_stop_clone = should_stop.clone();
@@ -96,8 +94,8 @@ impl TimerFactory {
         }
     }
 
-    pub fn create_timer_provider(&self) -> Arc<DdsRwLock<TimerProvider>> {
-        let timer_provider = Arc::new(DdsRwLock::new(TimerProvider::new()));
+    pub fn create_timer_provider(&self) -> DdsShared<DdsRwLock<TimerProvider>> {
+        let timer_provider = DdsShared::new(DdsRwLock::new(TimerProvider::new()));
 
         self.timer_provider_list
             .write_lock()
@@ -106,10 +104,10 @@ impl TimerFactory {
         timer_provider
     }
 
-    pub fn delete_timer_provider(&mut self, timer_provider: &Arc<DdsRwLock<TimerProvider>>) {
+    pub fn delete_timer_provider(&self, timer_provider: &DdsShared<DdsRwLock<TimerProvider>>) {
         self.timer_provider_list
             .write_lock()
-            .retain(|x| !Arc::ptr_eq(x, timer_provider));
+            .retain(|x| x != timer_provider);
     }
 }
 
@@ -215,7 +213,7 @@ mod tests {
 
     #[test]
     fn deleted_timer_provider() {
-        let mut timer_factory = TimerFactory::new();
+        let timer_factory = TimerFactory::new();
         let tp1 = timer_factory.create_timer_provider();
         let tp2 = timer_factory.create_timer_provider();
 
