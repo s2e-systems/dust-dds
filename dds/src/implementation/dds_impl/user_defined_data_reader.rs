@@ -308,6 +308,11 @@ impl Drop for TimerFactory {
 }
 
 impl DdsShared<UserDefinedDataReader> {
+
+    pub fn cancel_timers(&self) {
+        self.timer_factory.cancel_timers()
+    }
+
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
