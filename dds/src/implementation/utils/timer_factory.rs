@@ -63,6 +63,12 @@ pub struct TimerFactory {
     should_stop: DdsShared<std::sync::atomic::AtomicBool>,
 }
 
+impl Default for TimerFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimerFactory {
     pub fn new() -> Self {
         let timer_provider_list = DdsShared::new(DdsRwLock::new(Vec::<
@@ -78,7 +84,7 @@ impl TimerFactory {
             } else {
                 std::thread::sleep(std::time::Duration::from_millis(1));
                 for timer_provider in timer_provider_list_clone.read_lock().iter() {
-                    for (_k, v) in &mut timer_provider.write_lock().instance_timers {
+                    for v in timer_provider.write_lock().instance_timers.values_mut() {
                         if v.is_elapsed() {
                             v.reset();
                             (v.func)()
@@ -248,7 +254,7 @@ mod tests {
         mock_task2.expect_run().times(0).return_const(());
 
         {
-            let mut timer_factory = TimerFactory::new();
+            let timer_factory = TimerFactory::new();
             let tp1 = timer_factory.create_timer_provider();
             let tp2 = timer_factory.create_timer_provider();
 
