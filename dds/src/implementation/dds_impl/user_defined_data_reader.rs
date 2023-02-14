@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, RwLock,
+        Arc,
     },
     thread::JoinHandle,
 };
@@ -252,14 +252,14 @@ impl Timer {
     }
 }
 struct TimerFactory {
-    instance_timers: Arc<RwLock<HashMap<InstanceHandle, Timer>>>,
+    instance_timers: Arc<DdsRwLock<HashMap<InstanceHandle, Timer>>>,
     thread_handle: Option<JoinHandle<()>>,
     should_stop: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl TimerFactory {
     fn new() -> Self {
-        let instance_timers = Arc::new(RwLock::new(HashMap::<InstanceHandle, Timer>::new()));
+        let instance_timers = Arc::new(DdsRwLock::new(HashMap::<InstanceHandle, Timer>::new()));
         let t = instance_timers.clone();
         let should_stop = Arc::new(AtomicBool::new(false));
         let should_stop_clone = should_stop.clone();
@@ -268,7 +268,7 @@ impl TimerFactory {
                 break;
             } else {
                 std::thread::sleep(std::time::Duration::from_millis(1));
-                for (_k, v) in t.read().unwrap().iter() {
+                for (_k, v) in t.read_lock().iter() {
                     if v.is_elapsed() {
                         (v.func)()
                     }
@@ -289,13 +289,12 @@ impl TimerFactory {
         func: impl Fn() + 'static + Send + Sync,
     ) {
         self.instance_timers
-            .write()
-            .unwrap()
+            .write_lock()
             .insert(id, Timer::new(duration, func));
     }
 
     fn cancel_timers(&self) {
-        self.instance_timers.write().unwrap().clear();
+        self.instance_timers.write_lock().clear();
     }
 }
 
@@ -303,12 +302,13 @@ impl Drop for TimerFactory {
     fn drop(&mut self) {
         self.cancel_timers();
         self.should_stop.store(true, Ordering::Relaxed);
-        self.thread_handle.take().unwrap().join().unwrap();
+        if let Some(t) = self.thread_handle.take() {
+            t.join().ok();
+        }
     }
 }
 
 impl DdsShared<UserDefinedDataReader> {
-
     pub fn cancel_timers(&self) {
         self.timer_factory.cancel_timers()
     }
