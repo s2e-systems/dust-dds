@@ -21,7 +21,6 @@ pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
     quit: Arc<AtomicBool>,
     threads: Vec<JoinHandle<()>>,
-    announcer_condvar: DdsCondvar,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     sender_socket: UdpSocket,
@@ -146,37 +145,14 @@ impl DcpsService {
             }));
         }
 
-        {
-            // //////////// Announce participant
-            let domain_participant = participant.clone();
-            let task_quit = quit.clone();
-            let announcer_condvar_clone = domain_participant.announcer_condvar().clone();
-            threads.push(std::thread::spawn(move || {
-                // TODO: Temporary solution to ensure tests pass by announcing as soon as possible
-                domain_participant.announce_participant().ok();
-                loop {
-                    if task_quit.load(atomic::Ordering::SeqCst) {
-                        break;
-                    }
-
-                    let _r = announcer_condvar_clone.wait_timeout(Duration::new(5, 0));
-
-                    match domain_participant.announce_participant() {
-                        Ok(_) => (),
-                        Err(e) => println!("participant announcement failed: {:?}", e),
-                    }
-                }
-            }));
-        }
         let sender_socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
-        let announcer_condvar = participant.announcer_condvar().clone();
+
         let sedp_condvar = participant.sedp_condvar().clone();
         let user_defined_data_send_condvar = participant.user_defined_data_send_condvar().clone();
         Ok(DcpsService {
             participant,
             quit,
             threads,
-            announcer_condvar,
             sedp_condvar,
             user_defined_data_send_condvar,
             sender_socket,
@@ -189,7 +165,7 @@ impl DcpsService {
 
     pub fn shutdown_tasks(&mut self) {
         self.quit.store(true, atomic::Ordering::SeqCst);
-        self.announcer_condvar.notify_all();
+
         self.sedp_condvar.notify_all();
         self.user_defined_data_send_condvar.notify_all();
 

@@ -225,7 +225,6 @@ impl DomainParticipantFactory {
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
-        let announcer_condvar = DdsCondvar::new();
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let participant = DomainParticipantImpl::new(
@@ -236,7 +235,6 @@ impl DomainParticipantFactory {
             a_listener,
             mask,
             &spdp_discovery_locator_list,
-            announcer_condvar,
             sedp_condvar,
             user_defined_data_send_condvar,
             configuration.fragment_size,
