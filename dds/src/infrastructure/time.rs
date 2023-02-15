@@ -22,6 +22,18 @@ impl Duration {
     }
 }
 
+impl From<std::time::Duration> for Duration {
+    fn from(x: std::time::Duration) -> Self {
+        Self::new(x.as_secs() as i32, x.subsec_nanos())
+    }
+}
+
+impl From<Duration> for std::time::Duration {
+    fn from(x: Duration) -> Self {
+        std::time::Duration::new(x.sec as u64, x.nanosec)
+    }
+}
+
 #[derive(Clone, PartialEq, Debug, Copy, PartialOrd, Eq, Ord)]
 pub struct Time {
     sec: i32,
@@ -29,7 +41,9 @@ pub struct Time {
 }
 
 impl Time {
-    pub const fn new(sec: i32, nanosec: u32) -> Self { Self { sec, nanosec } }
+    pub const fn new(sec: i32, nanosec: u32) -> Self {
+        Self { sec, nanosec }
+    }
 
     pub const fn sec(&self) -> i32 {
         self.sec
@@ -44,7 +58,6 @@ impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, rhs: Time) -> Self::Output {
-
         if rhs.nanosec > self.nanosec {
             Duration {
                 sec: self.sec - rhs.sec - 1,
@@ -56,11 +69,8 @@ impl Sub<Time> for Time {
                 nanosec: self.nanosec - rhs.nanosec,
             }
         }
-
-
     }
 }
-
 
 /// Special constant value representing an infinite duration
 pub const DURATION_INFINITE: Duration = Duration {
@@ -82,9 +92,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn time_subtraction()
-    {
-        let duration = Time{sec: 2, nanosec: 0} - Time{sec: 1, nanosec: 900_000_000};
-        assert_eq!(duration, Duration{ sec: 0, nanosec: 100_000_000 });
+    fn time_subtraction() {
+        let duration = Time { sec: 2, nanosec: 0 }
+            - Time {
+                sec: 1,
+                nanosec: 900_000_000,
+            };
+        assert_eq!(
+            duration,
+            Duration {
+                sec: 0,
+                nanosec: 100_000_000
+            }
+        );
     }
 }

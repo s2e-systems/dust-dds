@@ -40,4 +40,17 @@ impl DdsCondvar {
             }
         }
     }
+
+    pub fn wait(&self) -> DdsResult<()> {
+        let cvar = &self.0 .0;
+        loop {
+            let started = self.0 .1.lock().unwrap();
+            let mut started = cvar.wait(started).unwrap();
+            if *started {
+                // Put the value back to false for the next round
+                *started = false;
+                return Ok(());
+            }
+        }
+    }
 }

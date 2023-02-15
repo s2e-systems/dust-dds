@@ -6,12 +6,15 @@ use std::{
 
 use crate::infrastructure::instance::InstanceHandle;
 
-use super::shared_object::{DdsRwLock, DdsShared};
+use super::{
+    condvar::DdsCondvar,
+    shared_object::{DdsRwLock, DdsShared},
+};
 
 struct Timer {
     func: Box<dyn Fn() + Send + Sync>,
     duration: std::time::Duration,
-    instant: std::time::Instant,
+    start_instant: std::time::Instant,
 }
 
 impl Timer {
@@ -19,27 +22,33 @@ impl Timer {
         Self {
             func: Box::new(func),
             duration,
-            instant: std::time::Instant::now(),
+            start_instant: std::time::Instant::now(),
         }
     }
 
     fn is_elapsed(&self) -> bool {
-        std::time::Instant::now() - self.instant > self.duration
+        std::time::Instant::now() - self.start_instant > self.duration
     }
 
     fn reset(&mut self) {
-        self.instant = std::time::Instant::now();
+        self.start_instant = std::time::Instant::now();
+    }
+
+    fn remaining_duration(&self) -> std::time::Duration {
+        self.duration - (std::time::Instant::now() - self.start_instant)
     }
 }
 
 pub struct TimerProvider {
     instance_timers: HashMap<InstanceHandle, Timer>,
+    timer_condvar: DdsCondvar,
 }
 
 impl TimerProvider {
-    fn new() -> Self {
+    fn new(timer_condvar: DdsCondvar) -> Self {
         Self {
             instance_timers: HashMap::new(),
+            timer_condvar,
         }
     }
 
@@ -50,6 +59,7 @@ impl TimerProvider {
         func: impl Fn() + 'static + Send + Sync,
     ) {
         self.instance_timers.insert(id, Timer::new(duration, func));
+        self.timer_condvar.notify_all();
     }
 
     pub fn cancel_timers(&mut self) {
@@ -59,6 +69,7 @@ impl TimerProvider {
 
 pub struct TimerFactory {
     timer_provider_list: DdsShared<DdsRwLock<Vec<DdsShared<DdsRwLock<TimerProvider>>>>>,
+    timer_condvar: DdsCondvar,
     thread_handle: Option<JoinHandle<()>>,
     should_stop: DdsShared<std::sync::atomic::AtomicBool>,
 }
@@ -75,33 +86,57 @@ impl TimerFactory {
             DdsShared<DdsRwLock<TimerProvider>>,
         >::new()));
         let should_stop = DdsShared::new(AtomicBool::new(false));
+        let timer_condvar = DdsCondvar::new();
 
         let timer_provider_list_clone = timer_provider_list.clone();
         let should_stop_clone = should_stop.clone();
+        let timer_condvar_clone = timer_condvar.clone();
+
         let thread_handle = std::thread::spawn(move || loop {
             if should_stop_clone.load(Ordering::Relaxed) {
                 break;
-            } else {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-                for timer_provider in timer_provider_list_clone.read_lock().iter() {
-                    for v in timer_provider.write_lock().instance_timers.values_mut() {
-                        if v.is_elapsed() {
-                            v.reset();
-                            (v.func)()
-                        }
+            }
+
+            for timer_provider in timer_provider_list_clone.read_lock().iter() {
+                for v in timer_provider.write_lock().instance_timers.values_mut() {
+                    if v.is_elapsed() {
+                        v.reset();
+                        (v.func)()
                     }
                 }
             }
+
+            let min_remaining_duration = timer_provider_list_clone
+                .read_lock()
+                .iter()
+                .map(|x| {
+                    x.read_lock()
+                        .instance_timers
+                        .values()
+                        .map(|x| x.remaining_duration())
+                        .min()
+                })
+                .min();
+
+            if let Some(Some(d)) = min_remaining_duration {
+                timer_condvar_clone.wait_timeout(d.into()).ok();
+            } else {
+                timer_condvar_clone.wait().ok();
+            }
         });
+
         Self {
             timer_provider_list,
+            timer_condvar,
             thread_handle: Some(thread_handle),
             should_stop,
         }
     }
 
     pub fn create_timer_provider(&self) -> DdsShared<DdsRwLock<TimerProvider>> {
-        let timer_provider = DdsShared::new(DdsRwLock::new(TimerProvider::new()));
+        let timer_provider = DdsShared::new(DdsRwLock::new(TimerProvider::new(
+            self.timer_condvar.clone(),
+        )));
 
         self.timer_provider_list
             .write_lock()
@@ -119,8 +154,9 @@ impl TimerFactory {
 
 impl Drop for TimerFactory {
     fn drop(&mut self) {
-        self.timer_provider_list.write_lock().clear();
         self.should_stop.store(true, Ordering::Relaxed);
+        self.timer_provider_list.write_lock().clear();
+        self.timer_condvar.notify_all();
         if let Some(t) = self.thread_handle.take() {
             t.join().ok();
         }
