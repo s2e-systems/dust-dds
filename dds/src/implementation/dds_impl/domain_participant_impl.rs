@@ -1328,4 +1328,8 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn timer_factory(&self) -> &TimerFactory {
         &self.timer_factory
     }
+
+    pub fn cancel_timers(&self) {
+        self.timer.write_lock().cancel_timers()
+    }
 }

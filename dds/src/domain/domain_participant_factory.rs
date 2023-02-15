@@ -275,6 +275,7 @@ impl DomainParticipantFactory {
             .ok_or(DdsError::AlreadyDeleted)?;
 
         if participant_list[index].participant().is_empty() {
+            participant_list[index].participant().cancel_timers();
             participant_list[index].shutdown_tasks();
             participant_list.remove(index);
 
