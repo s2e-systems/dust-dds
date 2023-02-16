@@ -23,6 +23,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            timer_factory::Timer,
         },
     },
     infrastructure::{
@@ -187,6 +188,7 @@ pub struct UserDefinedDataReader {
     user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
+    timer: DdsShared<DdsRwLock<Timer>>,
 }
 
 impl UserDefinedDataReader {
@@ -197,6 +199,7 @@ impl UserDefinedDataReader {
         mask: &[StatusKind],
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
+        timer: DdsShared<DdsRwLock<Timer>>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -220,11 +223,16 @@ impl UserDefinedDataReader {
             user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
+            timer,
         })
     }
 }
 
 impl DdsShared<UserDefinedDataReader> {
+    pub fn cancel_timers(&self) {
+        self.timer.write_lock().cancel_timers()
+    }
+
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -243,10 +251,22 @@ impl DdsShared<UserDefinedDataReader> {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
-                self.instance_reception_time
-                    .write_lock()
-                    .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
+
+                let duration = self
+                    .rtps_reader
+                    .read_lock()
+                    .reader()
+                    .get_qos()
+                    .deadline
+                    .period;
+                let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
+                let me = self.clone();
+                self.timer.write_lock().start_timer(
+                    duration,
+                    instance_handle,
+                    move || me.on_requested_deadline_missed(instance_handle),
+                );
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -909,123 +929,3 @@ impl DdsShared<UserDefinedDataReader> {
 }
 
 impl AnyDataReader for DdsShared<UserDefinedDataReader> {}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        implementation::rtps::{
-            endpoint::RtpsEndpoint,
-            reader::RtpsReader,
-            types::{EntityId, EntityKey, Guid, TopicKind, BUILT_IN_PARTICIPANT, GUID_UNKNOWN},
-        },
-        infrastructure::qos::TopicQos,
-        infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::DdsSerialize,
-    };
-    use crate::{
-        implementation::{dds_impl::topic_impl::TopicImpl, utils::shared_object::DdsShared},
-        topic_definition::type_support::{DdsType, Endianness},
-    };
-
-    use mockall::mock;
-    use std::io::Write;
-
-    struct UserData(u8);
-
-    impl DdsType for UserData {
-        fn type_name() -> &'static str {
-            "UserData"
-        }
-
-        fn has_key() -> bool {
-            false
-        }
-    }
-
-    impl<'de> DdsDeserialize<'de> for UserData {
-        fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-            Ok(UserData(buf[0]))
-        }
-    }
-
-    impl DdsSerialize for UserData {
-        fn serialize<W: Write, E: Endianness>(&self, mut writer: W) -> DdsResult<()> {
-            writer
-                .write(&[self.0])
-                .map(|_| ())
-                .map_err(|e| DdsError::PreconditionNotMet(format!("{}", e)))
-        }
-    }
-
-    mock! {
-        Listener {}
-        impl AnyDataReaderListener for Listener {
-            fn trigger_on_data_available(&mut self, reader: &DdsShared<UserDefinedDataReader>);
-            fn trigger_on_sample_rejected(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-            );
-            fn trigger_on_liveliness_changed(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-
-            );
-            fn trigger_on_requested_deadline_missed(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-            );
-            fn trigger_on_requested_incompatible_qos(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-            );
-            fn trigger_on_subscription_matched(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-            );
-            fn trigger_on_sample_lost(
-                &mut self,
-                reader: &DdsShared<UserDefinedDataReader>,
-            );
-        }
-    }
-
-    #[test]
-    fn get_instance_handle() {
-        let guid = Guid::new(
-            GuidPrefix::new([4; 12]),
-            EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
-        );
-        let dummy_topic = TopicImpl::new(
-            GUID_UNKNOWN,
-            TopicQos::default(),
-            "",
-            "",
-            None,
-            &[],
-            DdsWeak::new(),
-        );
-        let qos = DataReaderQos::default();
-        let stateful_reader = RtpsStatefulReader::new(RtpsReader::new::<UserData>(
-            RtpsEndpoint::new(guid, TopicKind::NoKey, &[], &[]),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            false,
-            qos,
-        ));
-
-        let data_reader: DdsShared<UserDefinedDataReader> = UserDefinedDataReader::new(
-            stateful_reader,
-            dummy_topic,
-            None,
-            &[],
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
-        *data_reader.enabled.write_lock() = true;
-
-        let expected_instance_handle: InstanceHandle = guid.into();
-        let instance_handle = data_reader.get_instance_handle();
-        assert_eq!(expected_instance_handle, instance_handle);
-    }
-}

@@ -36,6 +36,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            timer_factory::{TimerFactory, Timer},
         },
     },
     infrastructure::{
@@ -115,13 +116,14 @@ pub struct DomainParticipantImpl {
     enabled: DdsRwLock<bool>,
     listener: DdsRwLock<Option<Box<dyn DomainParticipantListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
-    announcer_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
     sedp_condvar: DdsCondvar,
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
+    timer_factory: TimerFactory,
+    timer: DdsShared<DdsRwLock<Timer>>,
 }
 
 impl DomainParticipantImpl {
@@ -134,7 +136,6 @@ impl DomainParticipantImpl {
         listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
         spdp_discovery_locator_list: &[Locator],
-        announcer_condvar: DdsCondvar,
         sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
@@ -207,6 +208,9 @@ impl DomainParticipantImpl {
             sedp_condvar.clone(),
         );
 
+        let timer_factory = TimerFactory::new();
+        let timer = timer_factory.create_timer();
+
         DdsShared::new(DomainParticipantImpl {
             rtps_participant,
             domain_id,
@@ -228,7 +232,6 @@ impl DomainParticipantImpl {
             discovered_participant_list: DdsRwLock::new(HashMap::new()),
             discovered_topic_list: DdsShared::new(DdsRwLock::new(HashMap::new())),
             enabled: DdsRwLock::new(false),
-            announcer_condvar,
             user_defined_data_send_condvar,
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
@@ -237,6 +240,8 @@ impl DomainParticipantImpl {
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
+            timer_factory,
+            timer,
         })
     }
 }
@@ -746,7 +751,7 @@ impl DdsShared<DomainParticipantImpl> {
             QosKind::Default => DomainParticipantQos::default(),
             QosKind::Specific(q) => q,
         };
-        self.announcer_condvar.notify_all();
+        self.announce_participant().ok();
 
         Ok(())
     }
@@ -799,7 +804,17 @@ impl DdsShared<DomainParticipantImpl> {
                     topic.enable()?;
                 }
             }
-            self.announcer_condvar.notify_all();
+
+            self.announce_participant().ok();
+
+            let this = self.clone();
+            self.timer.write_lock().start_timer(
+                std::time::Duration::from_secs(5),
+                InstanceHandle::new([0; 16]),
+                move || {
+                    this.announce_participant().ok();
+                },
+            );
         }
         Ok(())
     }
@@ -1310,7 +1325,11 @@ impl DdsShared<DomainParticipantImpl> {
         &self.user_defined_data_send_condvar
     }
 
-    pub fn announcer_condvar(&self) -> &DdsCondvar {
-        &self.announcer_condvar
+    pub fn timer_factory(&self) -> &TimerFactory {
+        &self.timer_factory
+    }
+
+    pub fn cancel_timers(&self) {
+        self.timer.write_lock().cancel_timers()
     }
 }

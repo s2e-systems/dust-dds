@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// Type for the instance handle representing an Entity
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, derive_more::Constructor)]
 pub struct InstanceHandle([u8; 16]);
 
 impl Default for InstanceHandle {

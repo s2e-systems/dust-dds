@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/rust:1.61.0
+      - image: cimg/rust:1.62.0
     resource_class: large
     steps:
       - checkout

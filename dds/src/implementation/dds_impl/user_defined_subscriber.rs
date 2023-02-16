@@ -164,6 +164,11 @@ impl DdsShared<UserDefinedSubscriber> {
                 qos,
             ));
 
+            let timer = self
+                .get_participant()
+                .timer_factory()
+                .create_timer();
+
             let data_reader_shared = UserDefinedDataReader::new(
                 rtps_reader,
                 a_topic.clone(),
@@ -171,6 +176,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 mask,
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),
+                timer,
             );
 
             self.data_reader_list
@@ -203,7 +209,9 @@ impl DdsShared<UserDefinedSubscriber> {
                     "Data reader can only be deleted from its parent subscriber".to_string(),
                 )
             })?;
+
         let data_reader = data_reader_list.remove(data_reader_list_position);
+        data_reader.cancel_timers();
 
         if data_reader.is_enabled() {
             self.get_participant()
