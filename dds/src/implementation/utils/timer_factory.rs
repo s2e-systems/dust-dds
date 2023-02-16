@@ -11,13 +11,13 @@ use super::{
     shared_object::{DdsRwLock, DdsShared},
 };
 
-struct Timer {
+struct PeriodicTask {
     func: Box<dyn Fn() + Send + Sync>,
     duration: std::time::Duration,
     start_instant: std::time::Instant,
 }
 
-impl Timer {
+impl PeriodicTask {
     fn new(duration: std::time::Duration, func: impl Fn() + 'static + Send + Sync) -> Self {
         Self {
             func: Box::new(func),
@@ -39,15 +39,15 @@ impl Timer {
     }
 }
 
-pub struct TimerProvider {
-    instance_timers: HashMap<InstanceHandle, Timer>,
+pub struct Timer {
+    instance_task_list: HashMap<InstanceHandle, PeriodicTask>,
     timer_condvar: DdsCondvar,
 }
 
-impl TimerProvider {
+impl Timer {
     fn new(timer_condvar: DdsCondvar) -> Self {
         Self {
-            instance_timers: HashMap::new(),
+            instance_task_list: HashMap::new(),
             timer_condvar,
         }
     }
@@ -58,17 +58,18 @@ impl TimerProvider {
         id: InstanceHandle,
         func: impl Fn() + 'static + Send + Sync,
     ) {
-        self.instance_timers.insert(id, Timer::new(duration, func));
+        self.instance_task_list
+            .insert(id, PeriodicTask::new(duration, func));
         self.timer_condvar.notify_all();
     }
 
     pub fn cancel_timers(&mut self) {
-        self.instance_timers.clear();
+        self.instance_task_list.clear();
     }
 }
 
 pub struct TimerFactory {
-    timer_provider_list: DdsShared<DdsRwLock<Vec<DdsShared<DdsRwLock<TimerProvider>>>>>,
+    timer_list: DdsShared<DdsRwLock<Vec<DdsShared<DdsRwLock<Timer>>>>>,
     timer_condvar: DdsCondvar,
     thread_handle: Option<JoinHandle<()>>,
     should_stop: DdsShared<std::sync::atomic::AtomicBool>,
@@ -82,13 +83,11 @@ impl Default for TimerFactory {
 
 impl TimerFactory {
     pub fn new() -> Self {
-        let timer_provider_list = DdsShared::new(DdsRwLock::new(Vec::<
-            DdsShared<DdsRwLock<TimerProvider>>,
-        >::new()));
+        let timer_list = DdsShared::new(DdsRwLock::new(Vec::<DdsShared<DdsRwLock<Timer>>>::new()));
         let should_stop = DdsShared::new(AtomicBool::new(false));
         let timer_condvar = DdsCondvar::new();
 
-        let timer_provider_list_clone = timer_provider_list.clone();
+        let timer_list_clone = timer_list.clone();
         let should_stop_clone = should_stop.clone();
         let timer_condvar_clone = timer_condvar.clone();
 
@@ -97,8 +96,8 @@ impl TimerFactory {
                 break;
             }
 
-            for timer_provider in timer_provider_list_clone.read_lock().iter() {
-                for v in timer_provider.write_lock().instance_timers.values_mut() {
+            for timer in timer_list_clone.read_lock().iter() {
+                for v in timer.write_lock().instance_task_list.values_mut() {
                     if v.is_elapsed() {
                         v.reset();
                         (v.func)()
@@ -106,12 +105,12 @@ impl TimerFactory {
                 }
             }
 
-            let min_remaining_duration = timer_provider_list_clone
+            let min_remaining_duration = timer_list_clone
                 .read_lock()
                 .iter()
                 .map(|x| {
                     x.read_lock()
-                        .instance_timers
+                        .instance_task_list
                         .values()
                         .map(|x| x.remaining_duration())
                         .min()
@@ -126,36 +125,30 @@ impl TimerFactory {
         });
 
         Self {
-            timer_provider_list,
+            timer_list,
             timer_condvar,
             thread_handle: Some(thread_handle),
             should_stop,
         }
     }
 
-    pub fn create_timer_provider(&self) -> DdsShared<DdsRwLock<TimerProvider>> {
-        let timer_provider = DdsShared::new(DdsRwLock::new(TimerProvider::new(
-            self.timer_condvar.clone(),
-        )));
+    pub fn create_timer(&self) -> DdsShared<DdsRwLock<Timer>> {
+        let timer = DdsShared::new(DdsRwLock::new(Timer::new(self.timer_condvar.clone())));
 
-        self.timer_provider_list
-            .write_lock()
-            .push(timer_provider.clone());
+        self.timer_list.write_lock().push(timer.clone());
 
-        timer_provider
+        timer
     }
 
-    pub fn delete_timer_provider(&self, timer_provider: &DdsShared<DdsRwLock<TimerProvider>>) {
-        self.timer_provider_list
-            .write_lock()
-            .retain(|x| x != timer_provider);
+    pub fn delete_timer(&self, timer: &DdsShared<DdsRwLock<Timer>>) {
+        self.timer_list.write_lock().retain(|x| x != timer);
     }
 }
 
 impl Drop for TimerFactory {
     fn drop(&mut self) {
         self.should_stop.store(true, Ordering::Relaxed);
-        self.timer_provider_list.write_lock().clear();
+        self.timer_list.write_lock().clear();
         self.timer_condvar.notify_all();
         if let Some(t) = self.thread_handle.take() {
             t.join().ok();
@@ -178,7 +171,7 @@ mod tests {
     #[test]
     fn task_executed_right_number_of_times() {
         let timer_factory = TimerFactory::new();
-        let tp1 = timer_factory.create_timer_provider();
+        let tp1 = timer_factory.create_timer();
 
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(2).return_const(());
@@ -203,7 +196,7 @@ mod tests {
     #[test]
     fn rewritten_timer_gets_updated() {
         let timer_factory = TimerFactory::new();
-        let tp1 = timer_factory.create_timer_provider();
+        let tp1 = timer_factory.create_timer();
 
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(0).return_const(());
@@ -228,10 +221,10 @@ mod tests {
     }
 
     #[test]
-    fn two_timer_providers() {
+    fn two_timers() {
         let timer_factory = TimerFactory::new();
-        let tp1 = timer_factory.create_timer_provider();
-        let tp2 = timer_factory.create_timer_provider();
+        let tp1 = timer_factory.create_timer();
+        let tp2 = timer_factory.create_timer();
 
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(2).return_const(());
@@ -254,10 +247,10 @@ mod tests {
     }
 
     #[test]
-    fn deleted_timer_provider() {
+    fn deleted_timer() {
         let timer_factory = TimerFactory::new();
-        let tp1 = timer_factory.create_timer_provider();
-        let tp2 = timer_factory.create_timer_provider();
+        let tp1 = timer_factory.create_timer();
+        let tp2 = timer_factory.create_timer();
 
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(2).return_const(());
@@ -276,13 +269,13 @@ mod tests {
             move || mock_task2.run(),
         );
 
-        timer_factory.delete_timer_provider(&tp2);
+        timer_factory.delete_timer(&tp2);
 
         std::thread::sleep(std::time::Duration::from_millis(2500));
     }
 
     #[test]
-    fn dropped_timer_provider() {
+    fn dropped_timer() {
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(0).return_const(());
 
@@ -291,8 +284,8 @@ mod tests {
 
         {
             let timer_factory = TimerFactory::new();
-            let tp1 = timer_factory.create_timer_provider();
-            let tp2 = timer_factory.create_timer_provider();
+            let tp1 = timer_factory.create_timer();
+            let tp2 = timer_factory.create_timer();
 
             tp1.write_lock().start_timer(
                 std::time::Duration::from_secs(1),
@@ -306,7 +299,7 @@ mod tests {
                 move || mock_task2.run(),
             );
 
-            timer_factory.delete_timer_provider(&tp2);
+            timer_factory.delete_timer(&tp2);
         }
         std::thread::sleep(std::time::Duration::from_millis(2500));
     }

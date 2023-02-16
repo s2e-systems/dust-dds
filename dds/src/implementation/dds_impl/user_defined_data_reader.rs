@@ -23,7 +23,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer_factory::TimerProvider,
+            timer_factory::Timer,
         },
     },
     infrastructure::{
@@ -188,7 +188,7 @@ pub struct UserDefinedDataReader {
     user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
-    timer_provider: DdsShared<DdsRwLock<TimerProvider>>,
+    timer: DdsShared<DdsRwLock<Timer>>,
 }
 
 impl UserDefinedDataReader {
@@ -199,7 +199,7 @@ impl UserDefinedDataReader {
         mask: &[StatusKind],
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
-        timer_provider: DdsShared<DdsRwLock<TimerProvider>>,
+        timer: DdsShared<DdsRwLock<Timer>>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -223,14 +223,14 @@ impl UserDefinedDataReader {
             user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
-            timer_provider,
+            timer,
         })
     }
 }
 
 impl DdsShared<UserDefinedDataReader> {
     pub fn cancel_timers(&self) {
-        self.timer_provider.write_lock().cancel_timers()
+        self.timer.write_lock().cancel_timers()
     }
 
     pub fn on_data_submessage_received(
@@ -262,7 +262,7 @@ impl DdsShared<UserDefinedDataReader> {
                     .period;
                 let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
                 let me = self.clone();
-                self.timer_provider.write_lock().start_timer(
+                self.timer.write_lock().start_timer(
                     duration,
                     instance_handle,
                     move || me.on_requested_deadline_missed(instance_handle),

@@ -36,7 +36,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer_factory::{TimerFactory, TimerProvider},
+            timer_factory::{TimerFactory, Timer},
         },
     },
     infrastructure::{
@@ -123,7 +123,7 @@ pub struct DomainParticipantImpl {
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
     timer_factory: TimerFactory,
-    timer: DdsShared<DdsRwLock<TimerProvider>>,
+    timer: DdsShared<DdsRwLock<Timer>>,
 }
 
 impl DomainParticipantImpl {
@@ -209,7 +209,7 @@ impl DomainParticipantImpl {
         );
 
         let timer_factory = TimerFactory::new();
-        let timer = timer_factory.create_timer_provider();
+        let timer = timer_factory.create_timer();
 
         DdsShared::new(DomainParticipantImpl {
             rtps_participant,

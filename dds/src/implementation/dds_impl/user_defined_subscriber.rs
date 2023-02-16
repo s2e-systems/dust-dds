@@ -164,10 +164,10 @@ impl DdsShared<UserDefinedSubscriber> {
                 qos,
             ));
 
-            let timer_provider = self
+            let timer = self
                 .get_participant()
                 .timer_factory()
-                .create_timer_provider();
+                .create_timer();
 
             let data_reader_shared = UserDefinedDataReader::new(
                 rtps_reader,
@@ -176,7 +176,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 mask,
                 self.downgrade(),
                 self.user_defined_data_send_condvar.clone(),
-                timer_provider,
+                timer,
             );
 
             self.data_reader_list
