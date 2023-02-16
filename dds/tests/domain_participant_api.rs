@@ -784,3 +784,25 @@ fn ignore_subscription() {
         .unwrap();
     assert!(wait_set.wait(Duration::new(2, 0)).is_err());
 }
+
+#[test]
+fn ignore_participant() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    participant1
+        .ignore_participant(participant2.get_instance_handle().unwrap())
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    // Participant should only discover itself
+    assert_eq!(participant1.get_discovered_participants().unwrap().len(), 1);
+}

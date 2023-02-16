@@ -119,6 +119,7 @@ pub struct DomainParticipantImpl {
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
     sedp_condvar: DdsCondvar,
+    ignored_participants: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
@@ -237,6 +238,7 @@ impl DomainParticipantImpl {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             topic_find_condvar: DdsCondvar::new(),
             sedp_condvar,
+            ignored_participants: DdsRwLock::new(HashSet::new()),
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
@@ -557,12 +559,15 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(self.builtin_subscriber.clone())
     }
 
-    pub fn ignore_participant(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        todo!()
+        self.ignored_participants.write_lock().insert(handle);
+        self.remove_discovered_participant(handle);
+
+        Ok(())
     }
 
     pub fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
@@ -882,44 +887,52 @@ impl DdsShared<DomainParticipantImpl> {
             self.domain_id as i32,
             &self.domain_tag,
         ) {
-            self.builtin_publisher
-                .sedp_builtin_publications_writer()
-                .add_matched_participant(&participant_discovery);
+            if !self
+                .ignored_participants
+                .read_lock()
+                .contains(&discovered_participant_data.get_serialized_key().into())
+            {
+                self.builtin_publisher
+                    .sedp_builtin_publications_writer()
+                    .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_publication_reader_shared =
-                self.builtin_subscriber.sedp_builtin_publications_reader();
-            sedp_builtin_publication_reader_shared.add_matched_participant(&participant_discovery);
+                let sedp_builtin_publication_reader_shared =
+                    self.builtin_subscriber.sedp_builtin_publications_reader();
+                sedp_builtin_publication_reader_shared
+                    .add_matched_participant(&participant_discovery);
 
-            self.builtin_publisher
-                .sedp_builtin_subscriptions_writer()
-                .add_matched_participant(&participant_discovery);
+                self.builtin_publisher
+                    .sedp_builtin_subscriptions_writer()
+                    .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_subscription_reader_shared =
-                self.builtin_subscriber.sedp_builtin_subscriptions_reader();
-            sedp_builtin_subscription_reader_shared.add_matched_participant(&participant_discovery);
+                let sedp_builtin_subscription_reader_shared =
+                    self.builtin_subscriber.sedp_builtin_subscriptions_reader();
+                sedp_builtin_subscription_reader_shared
+                    .add_matched_participant(&participant_discovery);
 
-            self.builtin_publisher
-                .sedp_builtin_topics_writer()
-                .add_matched_participant(&participant_discovery);
+                self.builtin_publisher
+                    .sedp_builtin_topics_writer()
+                    .add_matched_participant(&participant_discovery);
 
-            let sedp_builtin_topic_reader_shared =
-                self.builtin_subscriber.sedp_builtin_topics_reader();
-            sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
+                let sedp_builtin_topic_reader_shared =
+                    self.builtin_subscriber.sedp_builtin_topics_reader();
+                sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
 
-            let this = self.clone();
+                let this = self.clone();
 
-            let lease_duration = Duration::from(discovered_participant_data.lease_duration);
-            let handle = discovered_participant_data.get_serialized_key().into();
-            self.timer.write_lock().start_timer(
-                lease_duration.into(),
-                discovered_participant_data.get_serialized_key().into(),
-                move || this.remove_discovered_participant(handle),
-            );
+                let lease_duration = Duration::from(discovered_participant_data.lease_duration);
+                let handle = discovered_participant_data.get_serialized_key().into();
+                self.timer.write_lock().start_timer(
+                    lease_duration.into(),
+                    discovered_participant_data.get_serialized_key().into(),
+                    move || this.remove_discovered_participant(handle),
+                );
 
-            self.discovered_participant_list.write_lock().insert(
-                discovered_participant_data.get_serialized_key().into(),
-                discovered_participant_data,
-            );
+                self.discovered_participant_list.write_lock().insert(
+                    discovered_participant_data.get_serialized_key().into(),
+                    discovered_participant_data,
+                );
+            }
         }
     }
 
