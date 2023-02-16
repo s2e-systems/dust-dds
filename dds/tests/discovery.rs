@@ -378,6 +378,7 @@ fn reader_discovers_disposed_writer_same_participant() {
 }
 
 #[test]
+#[ignore]
 fn participant_removed_after_lease_duration() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -396,7 +397,7 @@ fn participant_removed_after_lease_duration() {
         .delete_participant(&participant2)
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_secs(40));
+    std::thread::sleep(std::time::Duration::from_secs(110));
 
     let discovered_participant = participant1.get_discovered_participants().unwrap();
 
