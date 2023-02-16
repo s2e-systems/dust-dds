@@ -376,3 +376,29 @@ fn reader_discovers_disposed_writer_same_participant() {
 
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
 }
+
+#[test]
+fn participant_removed_after_lease_duration() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant1 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let participant2 = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    domain_participant_factory
+        .delete_participant(&participant2)
+        .unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(40));
+
+    let discovered_participant = participant1.get_discovered_participants().unwrap();
+
+    assert_eq!(discovered_participant.len(), 1);
+}

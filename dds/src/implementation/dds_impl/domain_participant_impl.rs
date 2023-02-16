@@ -36,7 +36,7 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer_factory::{TimerFactory, Timer},
+            timer_factory::{Timer, TimerFactory},
         },
     },
     infrastructure::{
@@ -906,10 +906,48 @@ impl DdsShared<DomainParticipantImpl> {
                 self.builtin_subscriber.sedp_builtin_topics_reader();
             sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
 
+            let this = self.clone();
+
+            let lease_duration = Duration::from(discovered_participant_data.lease_duration);
+            let handle = discovered_participant_data.get_serialized_key().into();
+            self.timer.write_lock().start_timer(
+                lease_duration.into(),
+                discovered_participant_data.get_serialized_key().into(),
+                move || this.remove_discovered_participant(handle),
+            );
+
             self.discovered_participant_list.write_lock().insert(
                 discovered_participant_data.get_serialized_key().into(),
                 discovered_participant_data,
             );
+        }
+    }
+
+    pub fn remove_discovered_participant(&self, handle: InstanceHandle) {
+        if let Some(discovered_participant_data) = self
+            .discovered_participant_list
+            .write_lock()
+            .remove(&handle)
+        {
+            let participant_guid_prefix = discovered_participant_data.guid_prefix();
+            self.builtin_subscriber
+                .sedp_builtin_publications_reader()
+                .remove_matched_participant(participant_guid_prefix);
+            self.builtin_subscriber
+                .sedp_builtin_subscriptions_reader()
+                .remove_matched_participant(participant_guid_prefix);
+            self.builtin_subscriber
+                .sedp_builtin_topics_reader()
+                .remove_matched_participant(participant_guid_prefix);
+            self.builtin_publisher
+                .sedp_builtin_publications_writer()
+                .remove_matched_participant(participant_guid_prefix);
+            self.builtin_publisher
+                .sedp_builtin_subscriptions_writer()
+                .remove_matched_participant(participant_guid_prefix);
+            self.builtin_publisher
+                .sedp_builtin_topics_writer()
+                .remove_matched_participant(participant_guid_prefix);
         }
     }
 

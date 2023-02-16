@@ -13,7 +13,7 @@ use crate::{
                 DEFAULT_NACK_SUPPRESSION_DURATION,
             },
             transport::TransportWrite,
-            types::{Guid, TopicKind},
+            types::{Guid, GuidPrefix, TopicKind},
             writer::RtpsWriter,
         },
         utils::{
@@ -32,7 +32,12 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    domain_participant_impl::{
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    },
+    message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery,
     topic_impl::TopicImpl,
 };
 
@@ -79,23 +84,6 @@ impl BuiltinStatefulWriter {
             sedp_condvar,
         })
     }
-
-    /// NOTE: This function is only useful for the SEDP writers so we probably need a separate
-    /// type for those.
-    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
-        let mut rtps_writer_lock = self.rtps_writer.write_lock();
-        let type_name = self.topic.get_type_name();
-        if type_name == DiscoveredWriterData::type_name() {
-            participant_discovery
-                .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
-        } else if type_name == DiscoveredReaderData::type_name() {
-            participant_discovery
-                .discovered_participant_add_subscriptions_writer(&mut rtps_writer_lock);
-        } else if type_name == DiscoveredTopicData::type_name() {
-            participant_discovery.discovered_participant_add_topics_writer(&mut rtps_writer_lock);
-        }
-        self.sedp_condvar.notify_all();
-    }
 }
 
 impl DdsShared<BuiltinStatefulWriter> {
@@ -110,6 +98,47 @@ impl DdsShared<BuiltinStatefulWriter> {
                 acknack_submessage,
                 message_receiver.source_guid_prefix(),
             );
+        }
+    }
+
+    pub fn add_matched_participant(&self, participant_discovery: &ParticipantDiscovery) {
+        let mut rtps_writer_lock = self.rtps_writer.write_lock();
+        let type_name = self.topic.get_type_name();
+        if type_name == DiscoveredWriterData::type_name() {
+            participant_discovery
+                .discovered_participant_add_publications_writer(&mut rtps_writer_lock);
+        } else if type_name == DiscoveredReaderData::type_name() {
+            participant_discovery
+                .discovered_participant_add_subscriptions_writer(&mut rtps_writer_lock);
+        } else if type_name == DiscoveredTopicData::type_name() {
+            participant_discovery.discovered_participant_add_topics_writer(&mut rtps_writer_lock);
+        }
+        self.sedp_condvar.notify_all();
+    }
+
+    pub fn remove_matched_participant(&self, participant_guid_prefix: GuidPrefix) {
+        let type_name = self.topic.get_type_name();
+        if type_name == DiscoveredWriterData::type_name() {
+            self.rtps_writer
+                .write_lock()
+                .matched_reader_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ));
+        } else if type_name == DiscoveredReaderData::type_name() {
+            self.rtps_writer
+                .write_lock()
+                .matched_reader_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ));
+        } else if type_name == DiscoveredTopicData::type_name() {
+            self.rtps_writer
+                .write_lock()
+                .matched_reader_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+                ));
         }
     }
 }
