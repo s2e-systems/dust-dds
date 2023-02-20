@@ -43,8 +43,14 @@ use crate::{
 };
 
 use super::{
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    domain_participant_impl::{
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+    },
+    message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery,
+    status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -118,6 +124,32 @@ impl DdsShared<BuiltinStatefulReader> {
                 .discovered_participant_add_subscriptions_reader(&mut rtps_reader_lock);
         } else if type_name == DiscoveredTopicData::type_name() {
             participant_discovery.discovered_participant_add_topics_reader(&mut rtps_reader_lock);
+        }
+    }
+
+    pub fn remove_matched_participant(&self, participant_guid_prefix: GuidPrefix) {
+        let type_name = self.topic.get_type_name();
+        if type_name == DiscoveredWriterData::type_name() {
+            self.rtps_reader
+                .write_lock()
+                .matched_writer_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ));
+        } else if type_name == DiscoveredReaderData::type_name() {
+            self.rtps_reader
+                .write_lock()
+                .matched_writer_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ));
+        } else if type_name == DiscoveredTopicData::type_name() {
+            self.rtps_reader
+                .write_lock()
+                .matched_writer_remove(Guid::new(
+                    participant_guid_prefix,
+                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+                ));
         }
     }
 
