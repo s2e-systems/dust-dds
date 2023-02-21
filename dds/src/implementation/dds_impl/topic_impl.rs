@@ -174,25 +174,24 @@ impl DdsShared<TopicImpl> {
     pub fn process_discovered_topic(&self, discovered_topic_data: &DiscoveredTopicData) {
         if discovered_topic_data.topic_builtin_topic_data.type_name == self.type_name
             && discovered_topic_data.topic_builtin_topic_data.name == self.topic_name
+            && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
         {
-            if !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data) {
-                self.inconsistent_topic_status.write_lock().increment();
-                if self
-                    .listener_status_mask
-                    .read_lock()
-                    .contains(&StatusKind::InconsistentTopic)
-                {
-                    if let Some(listener) = self.listener.write_lock().as_mut() {
-                        listener.trigger_on_inconsistent_topic(
-                            self,
-                            self.inconsistent_topic_status.write_lock().read_and_reset(),
-                        )
-                    }
+            self.inconsistent_topic_status.write_lock().increment();
+            if self
+                .listener_status_mask
+                .read_lock()
+                .contains(&StatusKind::InconsistentTopic)
+            {
+                if let Some(listener) = self.listener.write_lock().as_mut() {
+                    listener.trigger_on_inconsistent_topic(
+                        self,
+                        self.inconsistent_topic_status.write_lock().read_and_reset(),
+                    )
                 }
-                self.status_condition
-                    .write_lock()
-                    .add_communication_state(StatusKind::InconsistentTopic);
             }
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::InconsistentTopic);
         }
     }
 }
@@ -201,7 +200,7 @@ fn is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     discovered_topic_data: &DiscoveredTopicData,
 ) -> bool {
-    if topic_qos.topic_data == discovered_topic_data.topic_builtin_topic_data.topic_data
+    topic_qos.topic_data == discovered_topic_data.topic_builtin_topic_data.topic_data
         && topic_qos.durability == discovered_topic_data.topic_builtin_topic_data.durability
         && topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data.deadline
         && topic_qos.latency_budget
@@ -225,11 +224,6 @@ fn is_discovered_topic_consistent(
                 .transport_priority
         && topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data.lifespan
         && topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership
-    {
-        true
-    } else {
-        false
-    }
 }
 
 #[cfg(test)]
