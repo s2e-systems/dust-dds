@@ -262,11 +262,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .period;
                 let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
                 let me = self.clone();
-                self.timer.write_lock().start_timer(
-                    duration,
-                    instance_handle,
-                    move || me.on_requested_deadline_missed(instance_handle),
-                );
+                self.timer
+                    .write_lock()
+                    .start_timer(duration, instance_handle, move || {
+                        me.on_requested_deadline_missed(instance_handle)
+                    });
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
@@ -704,7 +704,7 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.write_lock().get_enabled_statuses()
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn is_enabled(&self) -> bool {

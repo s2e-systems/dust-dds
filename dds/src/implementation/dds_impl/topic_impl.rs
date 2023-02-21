@@ -125,7 +125,7 @@ impl DdsShared<TopicImpl> {
     }
 
     pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_enabled_statuses()
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {

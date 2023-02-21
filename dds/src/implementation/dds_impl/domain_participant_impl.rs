@@ -63,8 +63,8 @@ use crate::{
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_data_reader::UserDefinedDataReader,
     user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -125,6 +125,7 @@ pub struct DomainParticipantImpl {
     data_max_size_serialized: usize,
     timer_factory: TimerFactory,
     timer: DdsShared<DdsRwLock<Timer>>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl DomainParticipantImpl {
@@ -244,6 +245,7 @@ impl DomainParticipantImpl {
             data_max_size_serialized,
             timer_factory,
             timer,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -774,14 +776,12 @@ impl DdsShared<DomainParticipantImpl> {
         *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_statuscondition(
-        &self,
-    ) -> DdsResult<crate::infrastructure::condition::StatusCondition> {
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {
