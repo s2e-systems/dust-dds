@@ -71,6 +71,9 @@ impl TopicImpl {
 
 impl DdsShared<TopicImpl> {
     pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::InconsistentTopic);
         self.inconsistent_topic_status.write_lock().read_and_reset()
     }
 
@@ -121,9 +124,8 @@ impl DdsShared<TopicImpl> {
         self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_enabled_statuses()
     }
 
     pub fn enable(&self) -> DdsResult<()> {
@@ -187,7 +189,9 @@ impl DdsShared<TopicImpl> {
                         )
                     }
                 }
-                self.status_condition.write_lock().add_communication_state(StatusKind::InconsistentTopic);
+                self.status_condition
+                    .write_lock()
+                    .add_communication_state(StatusKind::InconsistentTopic);
             }
         }
     }
