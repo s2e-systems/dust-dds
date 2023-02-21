@@ -114,7 +114,9 @@ where
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.0.upgrade()?.get_statuscondition()
+        Ok(StatusCondition::new(
+            self.0.upgrade()?.get_statuscondition(),
+        ))
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose

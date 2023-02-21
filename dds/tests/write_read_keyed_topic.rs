@@ -1191,7 +1191,7 @@ fn write_read_sample_view_state() {
 }
 
 #[test]
-fn inconsistent_topic_notification() {
+fn inconsistent_topic_status_condition() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let participant_factory = DomainParticipantFactory::get_instance();
 
@@ -1208,7 +1208,7 @@ fn inconsistent_topic_notification() {
     };
     let topic_best_effort = participant
         .create_topic::<KeyedData>(
-            "OtherTopic",
+            "Topic",
             QosKind::Specific(best_effort_topic_qos),
             None,
             NO_STATUS,
@@ -1220,25 +1220,25 @@ fn inconsistent_topic_notification() {
         .set_enabled_statuses(&[StatusKind::InconsistentTopic])
         .unwrap();
 
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond))
+        .unwrap();
+
     let reliable_topic_qos = TopicQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::BestEffort,
+            kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
         },
         ..Default::default()
     };
     let _topic_reliable = participant
         .create_topic::<KeyedData>(
-            "OtherTopic",
+            "Topic",
             QosKind::Specific(reliable_topic_qos),
             None,
             NO_STATUS,
         )
-        .unwrap();
-
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(status_cond))
         .unwrap();
 
     wait_set.wait(Duration::new(2, 0)).unwrap();
