@@ -16,6 +16,19 @@ use crate::{
 
 use super::{any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl};
 
+impl InconsistentTopicStatus {
+    fn increment(&mut self) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+        self.total_count_change = 0;
+        status
+    }
+}
+
 pub struct TopicImpl {
     guid: Guid,
     qos: DdsRwLock<TopicQos>,
@@ -25,6 +38,7 @@ pub struct TopicImpl {
     enabled: DdsRwLock<bool>,
     listener: DdsRwLock<Option<Box<dyn AnyTopicListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
 }
 
 impl TopicImpl {
@@ -46,14 +60,14 @@ impl TopicImpl {
             enabled: DdsRwLock::new(false),
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
         })
     }
 }
 
 impl DdsShared<TopicImpl> {
-    pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
-        todo!()
+    pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
+        self.inconsistent_topic_status.write_lock().read_and_reset()
     }
 
     pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
@@ -150,6 +164,21 @@ impl DdsShared<TopicImpl> {
                 topic_data: qos.topic_data.clone(),
             },
         }
+    }
+
+    pub fn process_discovered_topic(&self, discovered_topic_data: &DiscoveredTopicData) {
+        if discovered_topic_data.topic_builtin_topic_data.type_name == self.type_name
+            && discovered_topic_data.topic_builtin_topic_data.name == self.topic_name
+        {
+            if !self.is_discovered_topic_consistent(discovered_topic_data) {
+                self.inconsistent_topic_status.write_lock().increment();
+                todo!("Trigger listener if enabled")
+            }
+        }
+    }
+
+    fn is_discovered_topic_consistent(&self, discovered_topic_data: &DiscoveredTopicData) -> bool {
+        todo!()
     }
 }
 

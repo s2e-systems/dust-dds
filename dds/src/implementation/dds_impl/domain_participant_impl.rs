@@ -1189,10 +1189,15 @@ impl DdsShared<DomainParticipantImpl> {
         ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
+                    for topic in self.topic_list.read_lock().iter() {
+                        topic.process_discovered_topic(&topic_data);
+                    }
+
                     self.discovered_topic_list.write_lock().insert(
                         topic_data.get_serialized_key().into(),
                         topic_data.topic_builtin_topic_data.clone(),
                     );
+
                     self.topic_find_condvar.notify_all();
                 }
             }

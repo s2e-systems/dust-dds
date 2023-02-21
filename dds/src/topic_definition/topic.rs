@@ -41,7 +41,7 @@ impl<Foo> Drop for Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.0.upgrade()?.get_inconsistent_topic_status()
+        Ok(self.0.upgrade()?.get_inconsistent_topic_status())
     }
 }
 
