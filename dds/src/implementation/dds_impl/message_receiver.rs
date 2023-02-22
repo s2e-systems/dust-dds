@@ -191,38 +191,8 @@ impl MessageReceiver {
         self.dest_guid_prefix = info_destination.guid_prefix;
     }
 
-    #[allow(dead_code)]
-    pub fn source_version(&self) -> ProtocolVersion {
-        self.source_version
-    }
-
-    #[allow(dead_code)]
-    pub fn source_vendor_id(&self) -> VendorId {
-        self.source_vendor_id
-    }
-
     pub fn source_guid_prefix(&self) -> GuidPrefix {
         self.source_guid_prefix
-    }
-
-    #[allow(dead_code)]
-    pub fn dest_guid_prefix(&self) -> GuidPrefix {
-        self.dest_guid_prefix
-    }
-
-    #[allow(dead_code)]
-    pub fn unicast_reply_locator_list(&self) -> &[Locator] {
-        self.unicast_reply_locator_list.as_ref()
-    }
-
-    #[allow(dead_code)]
-    pub fn multicast_reply_locator_list(&self) -> &[Locator] {
-        self.multicast_reply_locator_list.as_ref()
-    }
-
-    #[allow(dead_code)]
-    pub fn have_timestamp(&self) -> bool {
-        self.have_timestamp
     }
 
     pub fn timestamp(&self) -> Time {
