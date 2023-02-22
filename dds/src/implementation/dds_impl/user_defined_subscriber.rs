@@ -358,12 +358,19 @@ impl DdsShared<UserDefinedSubscriber> {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.add_matched_writer(
-                discovered_writer_data,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-            )
+        if discovered_writer_data
+            .publication_builtin_topic_data
+            .partition
+            .name
+            == self.qos.read_lock().partition.name
+        {
+            for data_reader in self.data_reader_list.read_lock().iter() {
+                data_reader.add_matched_writer(
+                    discovered_writer_data,
+                    default_unicast_locator_list,
+                    default_multicast_locator_list,
+                )
+            }
         }
     }
 
