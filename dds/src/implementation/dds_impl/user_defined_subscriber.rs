@@ -1,3 +1,5 @@
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
@@ -358,11 +360,38 @@ impl DdsShared<UserDefinedSubscriber> {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
-        if discovered_writer_data
+        let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
+            &discovered_writer_data
+                .publication_builtin_topic_data
+                .partition
+                .name,
+        ) {
+            d.is_match(&self.qos.read_lock().partition.name)
+        } else {
+            false
+        };
+
+        let is_subscriber_regex_matched_to_discovered_writer =
+            if let Ok(d) = glob_to_regex(&self.qos.read_lock().partition.name) {
+                d.is_match(
+                    &discovered_writer_data
+                        .publication_builtin_topic_data
+                        .partition
+                        .name,
+                )
+            } else {
+                false
+            };
+
+        let is_partition_string_matched = discovered_writer_data
             .publication_builtin_topic_data
             .partition
             .name
-            == self.qos.read_lock().partition.name
+            == self.qos.read_lock().partition.name;
+
+        if is_discovered_writer_regex_matched_to_subscriber
+            || is_subscriber_regex_matched_to_discovered_writer
+            || is_partition_string_matched
         {
             for data_reader in self.data_reader_list.read_lock().iter() {
                 data_reader.add_matched_writer(

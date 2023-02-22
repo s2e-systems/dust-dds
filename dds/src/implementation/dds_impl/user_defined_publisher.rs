@@ -1,5 +1,7 @@
 use std::sync::atomic::{self, AtomicU8};
 
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
@@ -384,11 +386,38 @@ impl DdsShared<UserDefinedPublisher> {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
     ) {
-        if discovered_reader_data
+        let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
+            &discovered_reader_data
+                .subscription_builtin_topic_data
+                .partition
+                .name,
+        ) {
+            d.is_match(&self.qos.read_lock().partition.name)
+        } else {
+            false
+        };
+
+        let is_publisher_regex_matched_to_discovered_reader =
+            if let Ok(d) = glob_to_regex(&self.qos.read_lock().partition.name) {
+                d.is_match(
+                    &discovered_reader_data
+                        .subscription_builtin_topic_data
+                        .partition
+                        .name,
+                )
+            } else {
+                false
+            };
+
+        let is_partition_string_matched = discovered_reader_data
             .subscription_builtin_topic_data
             .partition
             .name
-            == self.qos.read_lock().partition.name
+            == self.qos.read_lock().partition.name;
+
+        if is_discovered_reader_regex_matched_to_publisher
+            || is_publisher_regex_matched_to_discovered_reader
+            || is_partition_string_matched
         {
             for data_writer in self.data_writer_list.read_lock().iter() {
                 data_writer.add_matched_reader(
