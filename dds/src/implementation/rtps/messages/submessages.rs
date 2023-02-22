@@ -119,4 +119,6 @@ pub struct NackFragSubmessage {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct PadSubmessage {}
+pub struct PadSubmessage {
+    pub endianness_flag: SubmessageFlag,
+}
