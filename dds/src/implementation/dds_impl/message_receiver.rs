@@ -3,8 +3,8 @@ use crate::{
         messages::{
             submessages::{
                 AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
-                HeartbeatSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage,
-                NackFragSubmessage,
+                HeartbeatSubmessage, InfoDestinationSubmessage, InfoSourceSubmessage,
+                InfoTimestampSubmessage, NackFragSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -146,8 +146,10 @@ impl MessageReceiver {
                 RtpsSubmessageKind::InfoDestination(info_dst) => {
                     self.process_info_destination_submessage(info_dst)
                 }
-                RtpsSubmessageKind::InfoReply(_) => todo!(),
-                RtpsSubmessageKind::InfoSource(_) => todo!(),
+                RtpsSubmessageKind::InfoReply(_) => (),
+                RtpsSubmessageKind::InfoSource(info_source) => {
+                    self.process_info_source_submessage(info_source)
+                }
                 RtpsSubmessageKind::InfoTimestamp(info_timestamp) => {
                     self.process_info_timestamp_submessage(info_timestamp)
                 }
@@ -161,6 +163,12 @@ impl MessageReceiver {
         }
 
         Ok(())
+    }
+
+    fn process_info_source_submessage(&mut self, info_source: &InfoSourceSubmessage) {
+        self.source_vendor_id = info_source.vendor_id;
+        self.source_version = info_source.protocol_version;
+        self.source_vendor_id = info_source.vendor_id;
     }
 
     fn process_info_timestamp_submessage(&mut self, info_timestamp: &InfoTimestampSubmessage) {
