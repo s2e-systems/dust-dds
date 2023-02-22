@@ -120,5 +120,4 @@ workflows:
   version: 2
   all:
     jobs:
-      - build
-      - interoperability_tests
+      - build_extented
