@@ -41,7 +41,7 @@ impl<Foo> Drop for Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        self.0.upgrade()?.get_inconsistent_topic_status()
+        Ok(self.0.upgrade()?.get_inconsistent_topic_status())
     }
 }
 
@@ -114,7 +114,9 @@ where
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.0.upgrade()?.get_statuscondition()
+        Ok(StatusCondition::new(
+            self.0.upgrade()?.get_statuscondition(),
+        ))
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -124,7 +126,7 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.0.upgrade()?.get_status_changes()
+        Ok(self.0.upgrade()?.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of

@@ -164,10 +164,7 @@ impl DdsShared<UserDefinedSubscriber> {
                 qos,
             ));
 
-            let timer = self
-                .get_participant()
-                .timer_factory()
-                .create_timer();
+            let timer = self.get_participant().timer_factory().create_timer();
 
             let data_reader_shared = UserDefinedDataReader::new(
                 rtps_reader,
@@ -324,8 +321,8 @@ impl DdsShared<UserDefinedSubscriber> {
         self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {

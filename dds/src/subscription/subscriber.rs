@@ -301,7 +301,7 @@ impl Subscriber {
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
             SubscriberKind::BuiltIn(s) => s.upgrade()?.get_status_changes(),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.get_status_changes(),
+            SubscriberKind::UserDefined(s) => Ok(s.upgrade()?.get_status_changes()),
         }
     }
 

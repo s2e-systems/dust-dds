@@ -576,8 +576,8 @@ impl DdsShared<UserDefinedDataWriter> {
         self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {

@@ -4,7 +4,7 @@ use crate::infrastructure::{error::DdsResult, status::StatusKind};
 
 pub struct StatusConditionImpl {
     enabled_statuses: Vec<StatusKind>,
-    communication_status: Vec<StatusKind>,
+    status_changes: Vec<StatusKind>,
     cvar_list: Vec<Arc<Condvar>>,
 }
 
@@ -26,7 +26,7 @@ impl Default for StatusConditionImpl {
                 StatusKind::PublicationMatched,
                 StatusKind::SubscriptionMatched,
             ],
-            communication_status: Vec::new(),
+            status_changes: Vec::new(),
             cvar_list: Vec::new(),
         }
     }
@@ -43,7 +43,7 @@ impl StatusConditionImpl {
     }
 
     pub fn get_trigger_value(&self) -> bool {
-        for status in &self.communication_status {
+        for status in &self.status_changes {
             if self.enabled_statuses.contains(status) {
                 return true;
             }
@@ -52,7 +52,7 @@ impl StatusConditionImpl {
     }
 
     pub fn add_communication_state(&mut self, state: StatusKind) {
-        self.communication_status.push(state);
+        self.status_changes.push(state);
 
         if self.get_trigger_value() {
             for cvar in self.cvar_list.iter() {
@@ -62,10 +62,14 @@ impl StatusConditionImpl {
     }
 
     pub fn remove_communication_state(&mut self, state: StatusKind) {
-        self.communication_status.retain(|x| x != &state);
+        self.status_changes.retain(|x| x != &state);
     }
 
     pub fn push_cvar(&mut self, cvar: Arc<Condvar>) {
         self.cvar_list.push(cvar)
+    }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_changes.clone()
     }
 }

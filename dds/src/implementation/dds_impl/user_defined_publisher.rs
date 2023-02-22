@@ -24,7 +24,6 @@ use crate::{
         },
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
@@ -39,6 +38,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
+    status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
     user_defined_data_writer::UserDefinedDataWriter,
 };
@@ -55,6 +55,7 @@ pub struct UserDefinedPublisher {
     listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     data_max_size_serialized: usize,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl UserDefinedPublisher {
@@ -79,6 +80,7 @@ impl UserDefinedPublisher {
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             data_max_size_serialized,
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
@@ -341,12 +343,12 @@ impl DdsShared<UserDefinedPublisher> {
         *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {

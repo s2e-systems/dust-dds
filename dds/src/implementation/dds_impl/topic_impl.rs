@@ -6,7 +6,6 @@ use crate::{
         utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
     infrastructure::{
-        condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
@@ -14,7 +13,23 @@ use crate::{
     },
 };
 
-use super::{any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl};
+use super::{
+    any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+    status_condition_impl::StatusConditionImpl,
+};
+
+impl InconsistentTopicStatus {
+    fn increment(&mut self) {
+        self.total_count += 1;
+        self.total_count_change += 1;
+    }
+
+    fn read_and_reset(&mut self) -> Self {
+        let status = self.clone();
+        self.total_count_change = 0;
+        status
+    }
+}
 
 pub struct TopicImpl {
     guid: Guid,
@@ -25,6 +40,8 @@ pub struct TopicImpl {
     enabled: DdsRwLock<bool>,
     listener: DdsRwLock<Option<Box<dyn AnyTopicListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
+    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
 }
 
 impl TopicImpl {
@@ -46,14 +63,18 @@ impl TopicImpl {
             enabled: DdsRwLock::new(false),
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
+            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
         })
     }
 }
 
 impl DdsShared<TopicImpl> {
-    pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_inconsistent_topic_status()
-        todo!()
+    pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::InconsistentTopic);
+        self.inconsistent_topic_status.write_lock().read_and_reset()
     }
 
     pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
@@ -99,14 +120,12 @@ impl DdsShared<TopicImpl> {
         *self.listener_status_mask.write_lock() = mask.to_vec();
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_statuscondition()
-        todo!()
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        // rtps_shared_read_lock(&rtps_weak_upgrade(&self.topic_impl)?).get_status_changes()
-        todo!()
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn enable(&self) -> DdsResult<()> {
@@ -151,6 +170,60 @@ impl DdsShared<TopicImpl> {
             },
         }
     }
+
+    pub fn process_discovered_topic(&self, discovered_topic_data: &DiscoveredTopicData) {
+        if discovered_topic_data.topic_builtin_topic_data.type_name == self.type_name
+            && discovered_topic_data.topic_builtin_topic_data.name == self.topic_name
+            && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
+        {
+            self.inconsistent_topic_status.write_lock().increment();
+            if self
+                .listener_status_mask
+                .read_lock()
+                .contains(&StatusKind::InconsistentTopic)
+            {
+                if let Some(listener) = self.listener.write_lock().as_mut() {
+                    listener.trigger_on_inconsistent_topic(
+                        self,
+                        self.inconsistent_topic_status.write_lock().read_and_reset(),
+                    )
+                }
+            }
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::InconsistentTopic);
+        }
+    }
+}
+
+fn is_discovered_topic_consistent(
+    topic_qos: &TopicQos,
+    discovered_topic_data: &DiscoveredTopicData,
+) -> bool {
+    topic_qos.topic_data == discovered_topic_data.topic_builtin_topic_data.topic_data
+        && topic_qos.durability == discovered_topic_data.topic_builtin_topic_data.durability
+        && topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data.deadline
+        && topic_qos.latency_budget
+            == discovered_topic_data
+                .topic_builtin_topic_data
+                .latency_budget
+        && topic_qos.liveliness == discovered_topic_data.topic_builtin_topic_data.liveliness
+        && topic_qos.reliability == discovered_topic_data.topic_builtin_topic_data.reliability
+        && topic_qos.destination_order
+            == discovered_topic_data
+                .topic_builtin_topic_data
+                .destination_order
+        && topic_qos.history == discovered_topic_data.topic_builtin_topic_data.history
+        && topic_qos.resource_limits
+            == discovered_topic_data
+                .topic_builtin_topic_data
+                .resource_limits
+        && topic_qos.transport_priority
+            == discovered_topic_data
+                .topic_builtin_topic_data
+                .transport_priority
+        && topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data.lifespan
+        && topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership
 }
 
 #[cfg(test)]

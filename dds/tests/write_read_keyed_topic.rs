@@ -2,7 +2,7 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         error::DdsError,
-        qos::{DataReaderQos, DataWriterQos, QosKind},
+        qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
@@ -96,9 +96,9 @@ fn large_data_should_be_fragmented() {
         .unwrap();
     let mut reader_wait_set = WaitSet::new();
     reader_wait_set
-            .attach_condition(Condition::StatusCondition(cond))
-            .unwrap();
-            reader_wait_set.wait(Duration::new(5, 0)).unwrap();
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    reader_wait_set.wait(Duration::new(5, 0)).unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -165,7 +165,9 @@ fn large_data_should_be_fragmented_reliable() {
 
     writer.write(&data, None).unwrap();
 
-    writer.wait_for_acknowledgments(Duration::new(5, 0)).unwrap();
+    writer
+        .wait_for_acknowledgments(Duration::new(5, 0))
+        .unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -174,8 +176,6 @@ fn large_data_should_be_fragmented_reliable() {
     assert_eq!(samples.len(), 1);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data);
 }
-
-
 
 #[test]
 fn samples_are_taken() {
@@ -1188,4 +1188,66 @@ fn write_read_sample_view_state() {
     assert_eq!(samples.len(), 2);
     assert_eq!(samples[0].sample_info.view_state, ViewStateKind::NotNew);
     assert_eq!(samples[1].sample_info.view_state, ViewStateKind::New);
+}
+
+#[test]
+fn inconsistent_topic_status_condition() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let best_effort_topic_qos = TopicQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let topic_best_effort = participant
+        .create_topic::<KeyedData>(
+            "Topic",
+            QosKind::Specific(best_effort_topic_qos),
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    let status_cond = topic_best_effort.get_statuscondition().unwrap();
+    status_cond
+        .set_enabled_statuses(&[StatusKind::InconsistentTopic])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(status_cond))
+        .unwrap();
+
+    let reliable_topic_qos = TopicQos {
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let _topic_reliable = participant
+        .create_topic::<KeyedData>(
+            "Topic",
+            QosKind::Specific(reliable_topic_qos),
+            None,
+            NO_STATUS,
+        )
+        .unwrap();
+
+    wait_set.wait(Duration::new(2, 0)).unwrap();
+
+    assert_eq!(
+        topic_best_effort
+            .get_inconsistent_topic_status()
+            .unwrap()
+            .total_count,
+        1
+    );
 }
