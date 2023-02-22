@@ -4,7 +4,9 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::submessage_elements::LocatorList,
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
+    rtps_udp_psm::mapping_traits::{
+        MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
+    },
 };
 
 impl MappingWriteByteOrdered for LocatorList {
