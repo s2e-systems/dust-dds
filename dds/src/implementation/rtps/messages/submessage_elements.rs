@@ -36,4 +36,3 @@ pub struct ParameterList<'a> {
 pub struct LocatorList {
     pub value: Vec<Locator>,
 }
-
