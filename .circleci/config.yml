@@ -17,7 +17,7 @@ jobs:
       - run:
             name: "Run hello_world_subscriber"
             command: |
-              docker run --detach --name hello_world_subscriber_1 --volume ./target/debug/examples:/tmp  cimg/rust:1.62.0  /tmp/hello_world_subscriber
+              docker run --detach --name hello_world_subscriber_1 --volume `pwd`/target/debug/examples:/tmp  cimg/rust:1.62.0  /tmp/hello_world_subscriber
   build:
     docker:
       - image: cimg/rust:1.62.0
