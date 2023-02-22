@@ -17,9 +17,9 @@ jobs:
       - run:
             name: "Run hello_world_subscriber"
             command: |
-              pwd
-              cd `pwd`
-              docker run --detach --name hello_world_subscriber_1 --volume `pwd`:/tmp --workdir /tmp  cimg/rust:1.62.0  cargo run --example hello_world_subscriber
+              docker run --detach --name hello_world_subscriber_1 --volume `pwd`:/tmp --workdir /tmp  cimg/rust:1.62.0  cargo run --example hello_world_subscriber > log_1.txt
+              docker run --detach --name hello_world_publisher --volume `pwd`:/tmp --workdir /tmp  cimg/rust:1.62.0  cargo run --example hello_world_publisher > log.txt
+              cat log.txt
   build:
     docker:
       - image: cimg/rust:1.62.0
