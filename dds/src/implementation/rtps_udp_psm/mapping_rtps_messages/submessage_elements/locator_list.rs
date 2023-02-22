@@ -4,7 +4,7 @@ use byteorder::ByteOrder;
 
 use crate::implementation::{
     rtps::messages::submessage_elements::LocatorList,
-    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered},
+    rtps_udp_psm::mapping_traits::{MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes},
 };
 
 impl MappingWriteByteOrdered for LocatorList {
@@ -31,6 +31,17 @@ impl<'de> MappingReadByteOrdered<'de> for LocatorList {
         Ok(Self {
             value: locator_list,
         })
+    }
+}
+
+impl NumberOfBytes for LocatorList {
+    fn number_of_bytes(&self) -> usize {
+        let num_locators_byte_size = 4;
+        if self.value.is_empty() {
+            num_locators_byte_size
+        } else {
+            self.value.len() * self.value[0].number_of_bytes() + num_locators_byte_size
+        }
     }
 }
 
