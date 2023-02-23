@@ -60,9 +60,17 @@ fn main() {
     wait_set
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
-    let number_of_subscribers_to_find = 2;
-    for _ in 0..number_of_subscribers_to_find {
+    // let number_of_subscribers_to_find = 2;
+    // for _ in 0..number_of_subscribers_to_find {
+    //     wait_set.wait(Duration::new(60, 0)).unwrap();
+    // }
+
+    loop {
         wait_set.wait(Duration::new(60, 0)).unwrap();
+        let conditions = writer.get_matched_subscriptions().unwrap();
+        if conditions.len() == 2 {
+            break;
+        }
     }
 
     let hello_world = HelloWorldType {
