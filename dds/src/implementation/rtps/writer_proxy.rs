@@ -328,6 +328,10 @@ impl RtpsWriterProxy {
             );
         }
     }
+
+    pub fn is_historical_data_received(&self) -> bool {
+        false
+    }
 }
 
 #[cfg(test)]

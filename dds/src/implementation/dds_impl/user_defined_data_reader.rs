@@ -31,9 +31,9 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind},
         qos_policy::{
-            QosPolicyId, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
-            DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
-            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
@@ -189,6 +189,7 @@ pub struct UserDefinedDataReader {
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
     timer: DdsShared<DdsRwLock<Timer>>,
+    wait_for_historical_data_condvar: DdsCondvar,
 }
 
 impl UserDefinedDataReader {
@@ -224,6 +225,7 @@ impl UserDefinedDataReader {
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             timer,
+            wait_for_historical_data_condvar: DdsCondvar::new(),
         })
     }
 }
@@ -242,7 +244,7 @@ impl DdsShared<UserDefinedDataReader> {
             .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-
+        self.wait_for_historical_data_condvar.notify_all();
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
@@ -296,6 +298,7 @@ impl DdsShared<UserDefinedDataReader> {
             .rtps_reader
             .write_lock()
             .on_data_frag_submessage_received(data_frag_submessage, message_receiver);
+        self.wait_for_historical_data_condvar.notify_all();
 
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
@@ -337,6 +340,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
+        self.wait_for_historical_data_condvar.notify_all();
         self.user_defined_data_send_condvar.notify_all();
     }
 
@@ -630,12 +634,37 @@ impl DdsShared<UserDefinedDataReader> {
             .expect("Parent subscriber of data reader must exist")
     }
 
-    pub fn wait_for_historical_data(&self, _max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
+            Err(DdsError::NotEnabled)
+        } else {
+            Ok(())
+        }?;
 
-        todo!()
+        match self
+            .rtps_reader
+            .read_lock()
+            .reader()
+            .get_qos()
+            .durability
+            .kind
+        {
+            DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
+            DurabilityQosPolicyKind::TransientLocal => Ok(()),
+        }?;
+
+        let start_time = std::time::Instant::now();
+        let timeout: std::time::Duration = max_wait.into();
+        while std::time::Instant::now() - start_time < timeout {
+            if self.rtps_reader.read_lock().is_historical_data_received() {
+                return Ok(())
+            }
+
+            self.wait_for_historical_data_condvar
+                .wait_timeout((std::time::Instant::now() - start_time).into())
+                .ok();
+        }
+        Err(DdsError::Timeout)
     }
 
     pub fn get_matched_publication_data(
