@@ -1,8 +1,8 @@
 use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
-        qos::{DataReaderQos, DataWriterQos, QosKind},
-        qos_policy::UserDataQosPolicy,
+        qos::{DataReaderQos, DataWriterQos, PublisherQos, QosKind, SubscriberQos},
+        qos_policy::{PartitionQosPolicy, UserDataQosPolicy},
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
@@ -375,6 +375,227 @@ fn reader_discovers_disposed_writer_same_participant() {
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 0);
+}
+
+#[test]
+fn publisher_and_subscriber_different_partition_not_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher_qos = PublisherQos {
+        partition: PartitionQosPolicy {
+            name: "A".to_string(),
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), None, NO_STATUS)
+        .unwrap();
+    let _data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        partition: PartitionQosPolicy {
+            name: "B".to_string(),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+
+    assert!(wait_set.wait(Duration::new(5, 0)).is_err());
+}
+
+#[test]
+fn publisher_and_subscriber_regex_partition_is_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher_qos = PublisherQos {
+        partition: PartitionQosPolicy {
+            name: "ABC".to_string(),
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    cond_data_writer
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        partition: PartitionQosPolicy {
+            name: "A[B-C]+".to_string(),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    cond_data_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set_data_reader = WaitSet::new();
+    wait_set_data_reader
+        .attach_condition(Condition::StatusCondition(cond_data_reader))
+        .unwrap();
+
+    let mut wait_set_data_writer = WaitSet::new();
+    wait_set_data_writer
+        .attach_condition(Condition::StatusCondition(cond_data_writer))
+        .unwrap();
+
+    assert!(wait_set_data_reader.wait(Duration::new(5, 0)).is_ok());
+    assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
+}
+
+#[test]
+fn publisher_regex_and_subscriber_partition_is_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher_qos = PublisherQos {
+        partition: PartitionQosPolicy {
+            name: "A[1-2]+".to_string(),
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    cond_data_writer
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        partition: PartitionQosPolicy {
+            name: "A12".to_string(),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    cond_data_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set_data_reader = WaitSet::new();
+    wait_set_data_reader
+        .attach_condition(Condition::StatusCondition(cond_data_reader))
+        .unwrap();
+
+    let mut wait_set_data_writer = WaitSet::new();
+    wait_set_data_writer
+        .attach_condition(Condition::StatusCondition(cond_data_writer))
+        .unwrap();
+
+    assert!(wait_set_data_reader.wait(Duration::new(5, 0)).is_ok());
+    assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
+}
+
+#[test]
+fn publisher_regex_and_subscriber_regex_partition_is_matched() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher_qos = PublisherQos {
+        partition: PartitionQosPolicy {
+            name: "A[1-2]+".to_string(),
+        },
+        ..Default::default()
+    };
+    let publisher = dp
+        .create_publisher(QosKind::Specific(publisher_qos), None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_writer = data_writer.get_statuscondition().unwrap();
+    cond_data_writer
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let subscriber_qos = SubscriberQos {
+        partition: PartitionQosPolicy {
+            name: "A[1-2]+".to_string(),
+        },
+        ..Default::default()
+    };
+    let subscriber = dp
+        .create_subscriber(QosKind::Specific(subscriber_qos), None, NO_STATUS)
+        .unwrap();
+    let data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond_data_reader = data_reader.get_statuscondition().unwrap();
+    cond_data_reader
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+
+    let mut wait_set_data_reader = WaitSet::new();
+    wait_set_data_reader
+        .attach_condition(Condition::StatusCondition(cond_data_reader))
+        .unwrap();
+
+    let mut wait_set_data_writer = WaitSet::new();
+    wait_set_data_writer
+        .attach_condition(Condition::StatusCondition(cond_data_writer))
+        .unwrap();
+
+    assert!(wait_set_data_reader.wait(Duration::new(5, 0)).is_ok());
+    assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
 }
 
 #[test]
