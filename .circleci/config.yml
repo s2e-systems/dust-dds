@@ -11,21 +11,22 @@ jobs:
       - run:
           name: Hello world example
           command: |
-            cargo build --example hello_world_subscriber
-            cargo build --example hello_world_publisher
+            cargo build --bin subscriber
+            cargo build --bin publisher
       - run:
-            name: "Run hello_world"
-            command: |
-              # create docker volume (since direct mapping is not possible)
-              docker create -v /var --name storage alpine:3.4 /bin/true
-              docker cp ./target/debug/examples/hello_world_subscriber storage:/var
-              docker cp ./target/debug/examples/hello_world_publisher storage:/var
-              docker run --detach --name hello_world_subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_subscriber
-              docker run --detach --name hello_world_subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_subscriber
-              docker run --rm --name hello_world_publisher --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_publisher
-              docker logs hello_world_subscriber_1
-              docker logs hello_world_subscriber_2
-  build:
+          name: "Run two subscribers on two machines"
+          command: |
+            # create docker volume (since direct mapping is not possible)
+            docker create -v /var --name storage alpine:3.4 /bin/true
+            docker cp ./target/debug/subscriber storage:/var
+            docker cp ./target/debug/publisher storage:/var
+            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/subscriber
+            docker run --rm --name hello_world_publisher --volumes-from storage  cimg/rust:1.62.0  /var/publisher
+            docker logs subscriber_1 | tee subscriber_1.out
+            docker logs subscriber_2 | tee subscriber_2.out
+            cmp subscriber_1.out subscriber_2.out
+build:
     docker:
       - image: cimg/rust:1.62.0
     resource_class: large
