@@ -1269,6 +1269,10 @@ fn reader_with_minimum_time_separation_qos() {
         .create_publisher(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
@@ -1283,6 +1287,10 @@ fn reader_with_minimum_time_separation_qos() {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
     let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
             max_blocking_time: Duration::new(1, 0),
@@ -1306,26 +1314,30 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
     wait_set.wait(Duration::new(5, 0)).unwrap();
 
-    let data1 = KeyedData { id: 1, value: 0 };
-    let data2 = KeyedData { id: 1, value: 10 };
-    let data3 = KeyedData { id: 1, value: 20 };
-    let data4 = KeyedData { id: 1, value: 30 };
-    let data5 = KeyedData { id: 1, value: 40 };
+    let data1_1 = KeyedData { id: 1, value: 1 };
+    let data1_2 = KeyedData { id: 1, value: 2 };
+    let data1_3 = KeyedData { id: 1, value: 3 };
+    let data2_1 = KeyedData { id: 2, value: 10 };
+    let data2_2 = KeyedData { id: 2, value: 20 };
+    let data2_3 = KeyedData { id: 2, value: 30 };
 
     writer
-        .write_w_timestamp(&data1, None, Time::new(1, 0))
+        .write_w_timestamp(&data1_1, None, Time::new(1, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data2, None, Time::new(2, 0))
+        .write_w_timestamp(&data1_2, None, Time::new(2, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data3, None, Time::new(3, 0))
+        .write_w_timestamp(&data1_3, None, Time::new(3, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data4, None, Time::new(4, 0))
+        .write_w_timestamp(&data2_1, None, Time::new(4, 0))
         .unwrap();
     writer
-        .write_w_timestamp(&data5, None, Time::new(5, 0))
+        .write_w_timestamp(&data2_2, None, Time::new(5, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data2_3, None, Time::new(6, 0))
         .unwrap();
 
     writer
@@ -1336,8 +1348,9 @@ fn reader_with_minimum_time_separation_qos() {
         .read(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
-    assert_eq!(samples.len(), 3);
-    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
-    assert_eq!(samples[1].data.as_ref().unwrap(), &data3);
-    assert_eq!(samples[2].data.as_ref().unwrap(), &data5);
+    assert_eq!(samples.len(), 4);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_1);
+    assert_eq!(samples[1].data.as_ref().unwrap(), &data1_3);
+    assert_eq!(samples[2].data.as_ref().unwrap(), &data2_1);
+    assert_eq!(samples[2].data.as_ref().unwrap(), &data2_3);
 }
