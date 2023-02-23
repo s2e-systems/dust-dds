@@ -41,3 +41,11 @@ path = "src/implementation/configuration_schema_generator.rs"
 
 [dev-dependencies]
 mockall = { version = "0.11" }
+
+[[bin]]
+name = "subscriber"
+path = "tests/executables/subscriber.rs"
+
+[[bin]]
+name = "publisher"
+path = "tests/executables/publisher.rs"
