@@ -21,7 +21,10 @@ jobs:
               docker cp ./target/debug/examples/hello_world_subscriber storage:/var
               docker cp ./target/debug/examples/hello_world_publisher storage:/var
               docker run --detach --name hello_world_subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_subscriber
-              docker run --name hello_world_publisher --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_publisher
+              docker run --detach --name hello_world_subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_subscriber
+              docker run --rm --name hello_world_publisher --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_publisher
+              docker logs hello_world_subscriber_1
+              docker logs hello_world_subscriber_2
   build:
     docker:
       - image: cimg/rust:1.62.0
