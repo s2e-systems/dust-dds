@@ -6,8 +6,12 @@ use crate::{
     infrastructure::qos::DataReaderQos,
     infrastructure::{
         instance::InstanceHandle,
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind},
-        time::DURATION_ZERO, status::StatusKind,
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
+        status::StatusKind,
+        time::DURATION_ZERO,
     },
     subscription::data_reader::Sample,
     topic_definition::type_support::DdsType,
@@ -50,7 +54,20 @@ impl BuiltinStatelessReader {
     {
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
-
+        let qos = DataReaderQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast,
+                depth: 1,
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DURATION_ZERO,
+            },
+            ..Default::default()
+        };
         let reader = RtpsReader::new::<Foo>(
             RtpsEndpoint::new(
                 guid,
@@ -61,13 +78,7 @@ impl BuiltinStatelessReader {
             DURATION_ZERO,
             DURATION_ZERO,
             false,
-            DataReaderQos {
-                history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepAll,
-                    depth: 0,
-                },
-                ..Default::default()
-            },
+            qos,
         );
         let rtps_reader = RtpsStatelessReader::new(reader);
 
@@ -173,6 +184,8 @@ impl DdsShared<BuiltinStatelessReader> {
     }
 
     pub fn on_data_available(&self) {
-        self.status_condition.write_lock().add_communication_state(StatusKind::DataAvailable);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::DataAvailable);
     }
 }

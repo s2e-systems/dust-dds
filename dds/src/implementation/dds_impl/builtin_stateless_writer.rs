@@ -1,4 +1,7 @@
 use crate::implementation::rtps::stateless_writer::RtpsStatelessWriter;
+use crate::infrastructure::qos_policy::{
+    DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+};
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
@@ -32,7 +35,20 @@ impl BuiltinStatelessWriter {
     pub fn new(guid: Guid, spdp_discovery_locator_list: &[Locator]) -> DdsShared<Self> {
         let unicast_locator_list = &[];
         let multicast_locator_list = &[];
-
+        let qos = DataWriterQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast,
+                depth: 1,
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::BestEffort,
+                max_blocking_time: DURATION_ZERO,
+            },
+            ..Default::default()
+        };
         let mut spdp_builtin_participant_rtps_writer = RtpsStatelessWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(
                 guid,
@@ -45,13 +61,7 @@ impl BuiltinStatelessWriter {
             DURATION_ZERO,
             DURATION_ZERO,
             usize::MAX,
-            DataWriterQos {
-                reliability: ReliabilityQosPolicy {
-                    kind: ReliabilityQosPolicyKind::BestEffort,
-                    max_blocking_time: DURATION_ZERO,
-                },
-                ..Default::default()
-            },
+            qos,
         ));
 
         let spdp_reader_locators: Vec<RtpsReaderLocator> = spdp_discovery_locator_list

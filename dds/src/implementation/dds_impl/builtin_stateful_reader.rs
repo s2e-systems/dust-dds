@@ -9,7 +9,10 @@ use crate::{
     },
     infrastructure::qos::DataReaderQos,
     infrastructure::{
-        qos_policy::{HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy},
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy,
+        },
         status::StatusKind,
         time::DURATION_ZERO,
     },
@@ -72,9 +75,12 @@ impl BuiltinStatefulReader {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         let qos = DataReaderQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepAll,
-                depth: 0,
+                kind: HistoryQosPolicyKind::KeepLast,
+                depth: 1,
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
