@@ -1345,12 +1345,12 @@ fn reader_with_minimum_time_separation_qos() {
         .unwrap();
 
     let samples = reader
-        .read(5, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
         .unwrap();
 
     assert_eq!(samples.len(), 4);
     assert_eq!(samples[0].data.as_ref().unwrap(), &data1_1);
     assert_eq!(samples[1].data.as_ref().unwrap(), &data1_3);
     assert_eq!(samples[2].data.as_ref().unwrap(), &data2_1);
-    assert_eq!(samples[2].data.as_ref().unwrap(), &data2_3);
+    assert_eq!(samples[3].data.as_ref().unwrap(), &data2_3);
 }
