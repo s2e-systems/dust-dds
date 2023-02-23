@@ -150,6 +150,7 @@ pub struct UserDefinedDataWriter {
     listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
+    acked_by_all_condvar: DdsCondvar,
 }
 
 impl UserDefinedDataWriter {
@@ -175,6 +176,7 @@ impl UserDefinedDataWriter {
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             user_defined_data_send_condvar,
+            acked_by_all_condvar: DdsCondvar::new(),
         })
     }
 }
@@ -198,6 +200,7 @@ impl DdsShared<UserDefinedDataWriter> {
                     acknack_submessage,
                     message_receiver.source_guid_prefix(),
                 );
+            self.acked_by_all_condvar.notify_all();
         }
     }
 
@@ -215,6 +218,7 @@ impl DdsShared<UserDefinedDataWriter> {
                     nackfrag_submessage,
                     message_receiver.source_guid_prefix(),
                 );
+            self.acked_by_all_condvar.notify_all();
         }
     }
 
@@ -441,9 +445,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
         let start_time = Instant::now();
 
-        let max_wait_time_std = std::time::Duration::new(max_wait.sec() as u64, max_wait.nanosec());
-
-        while start_time.elapsed() < max_wait_time_std {
+        while start_time.elapsed() < std::time::Duration::from(max_wait) {
             {
                 // This is done in an inner scope such that the lock can be dropped and new acknowledgements
                 // can be processed when received
@@ -459,7 +461,10 @@ impl DdsShared<UserDefinedDataWriter> {
                 }
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(20));
+            let duration_until_timeout = Duration::from(start_time.elapsed()) - max_wait;
+            self.acked_by_all_condvar
+                .wait_timeout(duration_until_timeout)
+                .ok();
         }
         Err(DdsError::Timeout)
     }

@@ -654,14 +654,14 @@ impl DdsShared<UserDefinedDataReader> {
         }?;
 
         let start_time = std::time::Instant::now();
-        let timeout: std::time::Duration = max_wait.into();
-        while std::time::Instant::now() - start_time < timeout {
-            if self.rtps_reader.read_lock().is_historical_data_received() {
-                return Ok(())
-            }
 
+        while start_time.elapsed() < std::time::Duration::from(max_wait) {
+            if self.rtps_reader.read_lock().is_historical_data_received() {
+                return Ok(());
+            }
+            let duration_until_timeout = Duration::from(start_time.elapsed()) - max_wait;
             self.wait_for_historical_data_condvar
-                .wait_timeout((std::time::Instant::now() - start_time).into())
+                .wait_timeout(duration_until_timeout)
                 .ok();
         }
         Err(DdsError::Timeout)
