@@ -368,11 +368,7 @@ impl RtpsReader {
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
             if let Some(sample_source_time) = change.source_timestamp {
                 let sample_separation = sample_source_time - t;
-                if sample_separation >= self.qos.time_based_filter.minimum_separation {
-                    true
-                } else {
-                    false
-                }
+                sample_separation >= self.qos.time_based_filter.minimum_separation
             } else {
                 true
             }
