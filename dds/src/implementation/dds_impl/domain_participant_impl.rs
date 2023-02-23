@@ -533,8 +533,7 @@ impl DdsShared<DomainParticipantImpl> {
                 );
             }
             // Block until timeout unless new topic is found or created
-            let duration_until_timeout =
-                Duration::from(self.get_current_time()? - start_time) - timeout;
+            let duration_until_timeout = (self.get_current_time()? - start_time) - timeout;
             self.topic_find_condvar
                 .wait_timeout(duration_until_timeout)
                 .ok();
