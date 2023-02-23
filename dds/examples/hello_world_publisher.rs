@@ -55,12 +55,19 @@ fn main() {
     writer_cond
         .set_enabled_statuses(&[StatusKind::PublicationMatched])
         .unwrap();
+
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(writer_cond))
-        .unwrap();
+        .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
-    wait_set.wait(Duration::new(60, 0)).unwrap();
+
+    loop {
+        wait_set.wait(Duration::new(60, 0)).unwrap();
+        let conditions = writer.get_matched_subscriptions().unwrap();
+        if conditions.len() == 2 {
+            break;
+        }
+    }
 
     let hello_world = HelloWorldType {
         id: 8,
