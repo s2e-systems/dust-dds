@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build_extented:
     docker:
-        - image: cimg/rust:1.62.0
+      - image: cimg/rust:1.62.0
     resource_class: large
     steps:
       - checkout
@@ -14,7 +14,7 @@ jobs:
             cargo build --bin subscriber
             cargo build --bin publisher
       - run:
-          name: "Run two subscribers on two machines"
+          name: Run two subscribers on two machines
           command: |
             # create docker volume (since direct mapping is not possible)
             docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
@@ -75,7 +75,7 @@ build:
       - store_artifacts:
           path: /tmp/coverage
 
-  interoperability_tests:
+interoperability_tests:
     docker:
       - image: s2esystems/dust_dds_interoperability
     resource_class: large
