@@ -13,16 +13,15 @@ jobs:
           command: |
             cargo build --example hello_world_subscriber
             cargo build --example hello_world_publisher
-            # target\debug\examples\hello_world_subscriber.exe
       - run:
-            name: "Run hello_world_subscriber"
+            name: "Run hello_world"
             command: |
-              echo mytest > test.txt
-              docker run --detach --name hello_world_subscriber_1 --volume `pwd`:/tmp --workdir /tmp  cimg/rust:1.62.0  cargo run --example hello_world_subscriber > log_1.txt
-              docker run --detach --name hello_world_publisher --volume `pwd`:/tmp --workdir /tmp  cimg/rust:1.62.0  cargo run --example hello_world_publisher > log.txt
-              cat test.txt
-              cat log_1.txt
-              cat log.txt
+              # create docker volume (since direct mapping is not possible)
+              docker create -v /var --name storage alpine:3.4 /bin/true
+              docker cp ./target/debug/examples/hello_world_subscriber storage:/var
+              docker cp ./target/debug/examples/hello_world_publisher storage:/var
+              docker run --detach --name hello_world_subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_subscriber
+              docker run --name hello_world_publisher --volumes-from storage  cimg/rust:1.62.0  /var/hello_world_publisher
   build:
     docker:
       - image: cimg/rust:1.62.0
