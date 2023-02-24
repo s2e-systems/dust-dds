@@ -26,7 +26,7 @@ jobs:
             docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/publisher
             docker logs subscriber_1 | tee subscriber_1.out
             docker logs subscriber_2 | tee subscriber_2.out
-            cmp echo "Received: id: 8, msg: Hello world" | subscriber_1.out
+            echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
             cmp subscriber_1.out subscriber_2.out
 build:
     docker:
