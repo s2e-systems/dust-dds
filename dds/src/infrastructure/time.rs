@@ -22,6 +22,22 @@ impl Duration {
     }
 }
 
+impl std::ops::Sub<Duration> for Duration {
+    type Output = Duration;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        let mut sec = self.sec - rhs.sec;
+        let nanosec_diff = (self.nanosec as i64) - (rhs.nanosec as i64);
+        let nanosec = if nanosec_diff < 0 {
+            sec -= 1;
+            (1_000_000_000 + nanosec_diff) as u32
+        } else {
+            self.nanosec - rhs.nanosec
+        };
+        Self { sec, nanosec }
+    }
+}
+
 impl From<std::time::Duration> for Duration {
     fn from(x: std::time::Duration) -> Self {
         Self::new(x.as_secs() as i32, x.subsec_nanos())

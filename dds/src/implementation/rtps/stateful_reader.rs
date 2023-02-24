@@ -324,4 +324,11 @@ impl RtpsStatefulReader {
             writer_proxy.send_message(&self.reader.guid(), header, transport)
         }
     }
+
+    pub fn is_historical_data_received(&self) -> bool {
+        !self
+            .matched_writers
+            .iter()
+            .any(|p| !p.is_historical_data_received())
+    }
 }
