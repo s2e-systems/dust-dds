@@ -53,7 +53,6 @@ jobs:
   interoperability_tests:
     docker:
       - image: s2esystems/dust_dds_interoperability
-    resource_class: large
     steps:
       - checkout
       - run:
@@ -103,7 +102,6 @@ jobs:
   multi_machine_tests:
     docker:
       - image: cimg/rust:1.62.0
-    resource_class: large
     steps:
       - checkout
       - setup_remote_docker
