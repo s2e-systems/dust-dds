@@ -328,6 +328,11 @@ impl RtpsWriterProxy {
             );
         }
     }
+
+    pub fn is_historical_data_received(&self) -> bool {
+        let at_least_one_heartbeat_received = self.last_received_heartbeat_count > Count::new(0);
+        at_least_one_heartbeat_received && self.missing_changes().is_empty()
+    }
 }
 
 #[cfg(test)]

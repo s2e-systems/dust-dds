@@ -25,8 +25,11 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
-        qos_policy::ReliabilityQosPolicyKind,
-        time::Time,
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
+        time::{Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
@@ -62,6 +65,20 @@ impl BuiltinStatefulWriter {
         let nack_response_delay = DEFAULT_NACK_RESPONSE_DELAY;
         let nack_suppression_duration = DEFAULT_NACK_SUPPRESSION_DURATION;
         let data_max_size_serialized = usize::MAX;
+        let qos = DataWriterQos {
+            durability: DurabilityQosPolicy {
+                kind: DurabilityQosPolicyKind::TransientLocal,
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast,
+                depth: 1,
+            },
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: DURATION_ZERO,
+            },
+            ..Default::default()
+        };
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(
                 guid,
@@ -74,7 +91,7 @@ impl BuiltinStatefulWriter {
             nack_response_delay,
             nack_suppression_duration,
             data_max_size_serialized,
-            DataWriterQos::default(),
+            qos,
         ));
 
         DdsShared::new(BuiltinStatefulWriter {

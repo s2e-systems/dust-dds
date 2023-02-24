@@ -35,6 +35,8 @@ jsonschema = {version = "=0.16", default-features = false}
 serde_json = "=1.0.87"
 schemars = "=0.8.11"
 
+fnmatch-regex = "=0.2.0"
+
 [[bin]]
 name = "configuration_schema_generator"
 path = "src/implementation/configuration_schema_generator.rs"

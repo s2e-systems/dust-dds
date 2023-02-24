@@ -1,26 +1,30 @@
-use crate::implementation::rtps::messages::overall_structure::RtpsMessageHeader;
-use crate::implementation::rtps::messages::submessages::AckNackSubmessage;
-use crate::implementation::rtps::transport::TransportWrite;
-use crate::implementation::rtps::types::{
-    EntityId, EntityKey, Guid, GuidPrefix, Locator, BUILT_IN_WRITER_GROUP,
+use crate::{
+    implementation::{
+        rtps::{
+            group::RtpsGroupImpl,
+            messages::{overall_structure::RtpsMessageHeader, submessages::AckNackSubmessage},
+            transport::TransportWrite,
+            types::{EntityId, EntityKey, Guid, GuidPrefix, Locator, BUILT_IN_WRITER_GROUP},
+        },
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared},
+        },
+    },
+    infrastructure::{error::DdsResult, qos::PublisherQos},
 };
 
-use crate::implementation::rtps::group::RtpsGroupImpl;
-
-use crate::implementation::utils::condvar::DdsCondvar;
-use crate::infrastructure::error::DdsResult;
-use crate::infrastructure::qos::PublisherQos;
-
-use crate::implementation::utils::shared_object::{DdsRwLock, DdsShared};
-
-use super::builtin_stateful_writer::BuiltinStatefulWriter;
-use super::builtin_stateless_writer::BuiltinStatelessWriter;
-use super::domain_participant_impl::{
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+use super::{
+    builtin_stateful_writer::BuiltinStatefulWriter,
+    builtin_stateless_writer::BuiltinStatelessWriter,
+    domain_participant_impl::{
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    },
+    message_receiver::{MessageReceiver, PublisherMessageReceiver},
+    topic_impl::TopicImpl,
 };
-use super::message_receiver::{MessageReceiver, PublisherMessageReceiver};
-use super::topic_impl::TopicImpl;
 
 pub struct BuiltinPublisher {
     _qos: DdsRwLock<PublisherQos>,
@@ -121,7 +125,8 @@ impl DdsShared<BuiltinPublisher> {
 
 impl DdsShared<BuiltinPublisher> {
     pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
-        self.spdp_builtin_participant_writer.send_message(header, transport);
+        self.spdp_builtin_participant_writer
+            .send_message(header, transport);
         self.sedp_builtin_publications_writer
             .send_message(header, transport);
         self.sedp_builtin_subscriptions_writer

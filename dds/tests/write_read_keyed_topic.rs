@@ -4,10 +4,11 @@ use dust_dds::{
         error::DdsError,
         qos::{DataReaderQos, DataWriterQos, QosKind, TopicQos},
         qos_policy::{
-            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind, TimeBasedFilterQosPolicy,
         },
         status::{StatusKind, NO_STATUS},
-        time::Duration,
+        time::{Duration, Time},
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{
@@ -1250,4 +1251,190 @@ fn inconsistent_topic_status_condition() {
             .total_count,
         1
     );
+}
+
+#[test]
+fn reader_with_minimum_time_separation_qos() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        time_based_filter: TimeBasedFilterQosPolicy {
+            minimum_separation: Duration::new(2, 0),
+        },
+        ..Default::default()
+    };
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data1_1 = KeyedData { id: 1, value: 1 };
+    let data1_2 = KeyedData { id: 1, value: 2 };
+    let data1_3 = KeyedData { id: 1, value: 3 };
+    let data2_1 = KeyedData { id: 2, value: 10 };
+    let data2_2 = KeyedData { id: 2, value: 20 };
+    let data2_3 = KeyedData { id: 2, value: 30 };
+
+    writer
+        .write_w_timestamp(&data1_1, None, Time::new(1, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data1_2, None, Time::new(2, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data1_3, None, Time::new(3, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data2_1, None, Time::new(4, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data2_2, None, Time::new(5, 0))
+        .unwrap();
+    writer
+        .write_w_timestamp(&data2_3, None, Time::new(6, 0))
+        .unwrap();
+
+    writer
+        .wait_for_acknowledgments(Duration::new(1, 0))
+        .unwrap();
+
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 4);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1_1);
+    assert_eq!(samples[1].data.as_ref().unwrap(), &data1_3);
+    assert_eq!(samples[2].data.as_ref().unwrap(), &data2_1);
+    assert_eq!(samples[3].data.as_ref().unwrap(), &data2_3);
+}
+
+#[test]
+fn transient_local_writer_reader_wait_for_historical_data() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_qos = DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        ..Default::default()
+    };
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+        .unwrap();
+    let data1 = KeyedData { id: 1, value: 1 };
+    let data2 = KeyedData { id: 2, value: 2 };
+    writer.write(&data1, None).unwrap();
+    writer.write(&data2, None).unwrap();
+
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader_qos = DataReaderQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepAll,
+            depth: 1,
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: Duration::new(1, 0),
+        },
+        time_based_filter: TimeBasedFilterQosPolicy {
+            minimum_separation: Duration::new(2, 0),
+        },
+        ..Default::default()
+    };
+
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    reader
+        .wait_for_historical_data(Duration::new(2, 0))
+        .unwrap();
+    let samples = reader
+        .read(10, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+        .unwrap();
+
+    assert_eq!(samples.len(), 2);
+    assert_eq!(samples[0].data.as_ref().unwrap(), &data1);
+    assert_eq!(samples[1].data.as_ref().unwrap(), &data2);
 }

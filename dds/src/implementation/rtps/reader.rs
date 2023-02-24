@@ -346,6 +346,37 @@ impl RtpsReader {
         total_samples_of_instance == self.qos.resource_limits.max_samples_per_instance
     }
 
+    fn is_sample_of_interest_based_on_time(
+        &self,
+        change: &RtpsReaderCacheChange,
+        change_instance_handle: &InstanceHandle,
+    ) -> bool {
+        let closest_timestamp_before_received_sample = self
+            .changes
+            .iter()
+            .filter(|cc| {
+                &self
+                    .instance_handle_builder
+                    .build_instance_handle(cc.kind, &cc.data)
+                    .expect("Change in cache must have valid instance handle")
+                    == change_instance_handle
+            })
+            .filter(|cc| cc.source_timestamp <= change.source_timestamp)
+            .map(|cc| cc.source_timestamp)
+            .max();
+
+        if let Some(Some(t)) = closest_timestamp_before_received_sample {
+            if let Some(sample_source_time) = change.source_timestamp {
+                let sample_separation = sample_source_time - t;
+                sample_separation >= self.qos.time_based_filter.minimum_separation
+            } else {
+                true
+            }
+        } else {
+            true
+        }
+    }
+
     pub fn add_change(
         &mut self,
         mut change: RtpsReaderCacheChange,
@@ -353,82 +384,86 @@ impl RtpsReader {
         let change_instance_handle = self
             .instance_handle_builder
             .build_instance_handle(change.kind, &change.data)?;
-
-        if self.is_max_samples_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::Rejected(
-                change_instance_handle,
-                SampleRejectedStatusKind::RejectedBySamplesLimit,
-            ))
-        } else if self.is_max_instances_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::Rejected(
-                change_instance_handle,
-                SampleRejectedStatusKind::RejectedByInstancesLimit,
-            ))
-        } else if self.is_max_samples_per_instance_limit_reached(&change_instance_handle) {
-            Err(RtpsReaderError::Rejected(
-                change_instance_handle,
-                SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
-            ))
-        } else {
-            let num_alive_samples_of_instance = self
-                .changes
-                .iter()
-                .filter(|cc| {
-                    self.instance_handle_builder
-                        .build_instance_handle(cc.kind, cc.data.as_slice())
-                        .unwrap()
-                        == change_instance_handle
-                        && cc.kind == ChangeKind::Alive
-                })
-                .count() as i32;
-
-            if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
-                && self.qos.history.depth == num_alive_samples_of_instance
-            {
-                let index_sample_to_remove = self
+        if self.is_sample_of_interest_based_on_time(&change, &change_instance_handle) {
+            if self.is_max_samples_limit_reached(&change_instance_handle) {
+                Err(RtpsReaderError::Rejected(
+                    change_instance_handle,
+                    SampleRejectedStatusKind::RejectedBySamplesLimit,
+                ))
+            } else if self.is_max_instances_limit_reached(&change_instance_handle) {
+                Err(RtpsReaderError::Rejected(
+                    change_instance_handle,
+                    SampleRejectedStatusKind::RejectedByInstancesLimit,
+                ))
+            } else if self.is_max_samples_per_instance_limit_reached(&change_instance_handle) {
+                Err(RtpsReaderError::Rejected(
+                    change_instance_handle,
+                    SampleRejectedStatusKind::RejectedBySamplesPerInstanceLimit,
+                ))
+            } else {
+                let num_alive_samples_of_instance = self
                     .changes
                     .iter()
-                    .position(|cc| {
+                    .filter(|cc| {
                         self.instance_handle_builder
                             .build_instance_handle(cc.kind, cc.data.as_slice())
                             .unwrap()
                             == change_instance_handle
                             && cc.kind == ChangeKind::Alive
                     })
-                    .expect("Samples must exist");
-                self.changes.remove(index_sample_to_remove);
-            }
+                    .count() as i32;
 
-            let instance_entry = self
-                .instances
-                .entry(change_instance_handle)
-                .or_insert_with(Instance::new);
-
-            instance_entry.update_state(change.kind);
-
-            change.disposed_generation_count = instance_entry.most_recent_disposed_generation_count;
-            change.no_writers_generation_count =
-                instance_entry.most_recent_no_writers_generation_count;
-            self.changes.push(change);
-
-            match self.qos.destination_order.kind {
-                DestinationOrderQosPolicyKind::BySourceTimestamp => {
-                    self.changes.sort_by(|a, b| {
-                        a.source_timestamp
-                            .as_ref()
-                            .expect("Missing source timestamp")
-                            .cmp(
-                                b.source_timestamp
-                                    .as_ref()
-                                    .expect("Missing source timestamp"),
-                            )
-                    });
+                if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
+                    && self.qos.history.depth == num_alive_samples_of_instance
+                {
+                    let index_sample_to_remove = self
+                        .changes
+                        .iter()
+                        .position(|cc| {
+                            self.instance_handle_builder
+                                .build_instance_handle(cc.kind, cc.data.as_slice())
+                                .unwrap()
+                                == change_instance_handle
+                                && cc.kind == ChangeKind::Alive
+                        })
+                        .expect("Samples must exist");
+                    self.changes.remove(index_sample_to_remove);
                 }
-                DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
-                    .changes
-                    .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
-            }
 
+                let instance_entry = self
+                    .instances
+                    .entry(change_instance_handle)
+                    .or_insert_with(Instance::new);
+
+                instance_entry.update_state(change.kind);
+
+                change.disposed_generation_count =
+                    instance_entry.most_recent_disposed_generation_count;
+                change.no_writers_generation_count =
+                    instance_entry.most_recent_no_writers_generation_count;
+                self.changes.push(change);
+
+                match self.qos.destination_order.kind {
+                    DestinationOrderQosPolicyKind::BySourceTimestamp => {
+                        self.changes.sort_by(|a, b| {
+                            a.source_timestamp
+                                .as_ref()
+                                .expect("Missing source timestamp")
+                                .cmp(
+                                    b.source_timestamp
+                                        .as_ref()
+                                        .expect("Missing source timestamp"),
+                                )
+                        });
+                    }
+                    DestinationOrderQosPolicyKind::ByReceptionTimestamp => self
+                        .changes
+                        .sort_by(|a, b| a.reception_timestamp.cmp(&b.reception_timestamp)),
+                }
+
+                Ok(change_instance_handle)
+            }
+        } else {
             Ok(change_instance_handle)
         }
     }
