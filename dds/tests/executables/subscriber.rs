@@ -71,5 +71,5 @@ fn main() {
         .unwrap();
 
     let hello_world = samples[0].data.as_ref().unwrap();
-    println!("Received: {:?}", hello_world);
+    println!("Received: id: {}, msg: {}", hello_world.id, hello_world.msg);
 }

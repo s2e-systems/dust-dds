@@ -61,17 +61,16 @@ fn main() {
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
     let number_of_subscribers_to_find = 2;
-    for _ in 0..number_of_subscribers_to_find {
+    loop {
         wait_set.wait(Duration::new(60, 0)).unwrap();
-
+        if writer.get_publication_matched_status().unwrap().current_count == number_of_subscribers_to_find {
+            break
+        }
     }
-
-    let number_of_matched_readers = writer.get_publication_matched_status().unwrap().current_count;
-    assert_eq!(number_of_subscribers_to_find, number_of_matched_readers);
 
     let hello_world = HelloWorldType {
         id: 8,
-        msg: "Hello world!".to_string(),
+        msg: "Hello world".to_string(),
     };
     writer.write(&hello_world, None).unwrap();
 
