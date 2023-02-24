@@ -60,18 +60,14 @@ fn main() {
     wait_set
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
-    // let number_of_subscribers_to_find = 2;
-    // for _ in 0..number_of_subscribers_to_find {
-    //     wait_set.wait(Duration::new(60, 0)).unwrap();
-    // }
-
-    loop {
+    let number_of_subscribers_to_find = 2;
+    for _ in 0..number_of_subscribers_to_find {
         wait_set.wait(Duration::new(60, 0)).unwrap();
-        let conditions = writer.get_matched_subscriptions().unwrap();
-        if conditions.len() == 2 {
-            break;
-        }
+
     }
+
+    let number_of_matched_readers = writer.get_publication_matched_status().unwrap().current_count;
+    assert_eq!(number_of_subscribers_to_find, number_of_matched_readers);
 
     let hello_world = HelloWorldType {
         id: 8,
