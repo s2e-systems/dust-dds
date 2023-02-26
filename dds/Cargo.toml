@@ -45,9 +45,9 @@ path = "src/implementation/configuration_schema_generator.rs"
 mockall = { version = "0.11" }
 
 [[bin]]
-name = "subscriber"
+name = "multiple_subscriber_test_subscriber"
 path = "tests/executables/subscriber.rs"
 
 [[bin]]
-name = "publisher"
+name = "multiple_subscriber_test_publisher"
 path = "tests/executables/publisher.rs"

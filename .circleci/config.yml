@@ -108,19 +108,19 @@ jobs:
       - run:
           name: Build executables
           command: |
-            cargo build --bin subscriber
-            cargo build --bin publisher
+            cargo build --bin multiple_subscriber_test_subscriber
+            cargo build --bin multiple_subscriber_test_publisher
       - run:
           name: Run 2 subscribers with different IPs
           no_output_timeout: 60s
           command: |
             # create docker volume (since direct mapping is not possible)
             docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
-            docker cp ./target/debug/subscriber storage:/var
-            docker cp ./target/debug/publisher storage:/var
-            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/subscriber
-            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/subscriber
-            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/publisher
+            docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
+            docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
+            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
+            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_publisher
             docker logs subscriber_1 | tee subscriber_1.out
             docker logs subscriber_2 | tee subscriber_2.out
             echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
