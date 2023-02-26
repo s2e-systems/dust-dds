@@ -53,7 +53,6 @@ jobs:
   interoperability_tests:
     docker:
       - image: s2esystems/dust_dds_interoperability
-    resource_class: large
     steps:
       - checkout
       - run:
@@ -100,9 +99,37 @@ jobs:
             cargo run --bin dust_dds_big_data_subscriber
             wait $pid
 
+  multi_machine_tests:
+    docker:
+      - image: cimg/rust:1.62.0
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build executables
+          command: |
+            cargo build --bin multiple_subscriber_test_subscriber
+            cargo build --bin multiple_subscriber_test_publisher
+      - run:
+          name: Run 2 subscribers with different IPs
+          no_output_timeout: 60s
+          command: |
+            # create docker volume (since direct mapping is not possible)
+            docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
+            docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
+            docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
+            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
+            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_publisher
+            docker logs subscriber_1 | tee subscriber_1.out
+            docker logs subscriber_2 | tee subscriber_2.out
+            echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
+            cmp subscriber_1.out subscriber_2.out
+
 workflows:
   version: 2
   all:
     jobs:
       - build
       - interoperability_tests
+      - multi_machine_tests

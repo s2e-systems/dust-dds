@@ -54,7 +54,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
                 }
 
                 fn set_key_fields_from_serialized_key(&mut self, key: &dust_dds::topic_definition::type_support::DdsSerializedKey) -> dust_dds::infrastructure::error::DdsResult<()> {
-                    *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&mut key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
+                    *self = cdr::de::deserialize_data::<_, cdr::LittleEndian>(&key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
                     Ok(())
                 }
             }
@@ -155,7 +155,7 @@ fn struct_set_key(struct_data: &DataStruct) -> TokenStream2 {
     }
 
     let mut token_stream = quote! {
-        let (#identifier_list_ts) = cdr::de::deserialize_data::<_,cdr::LittleEndian>(&mut key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
+        let (#identifier_list_ts) = cdr::de::deserialize_data::<_,cdr::LittleEndian>(&key.as_ref()).map_err(|e| dust_dds::infrastructure::error::DdsError::PreconditionNotMet(e.to_string()))?;
     };
 
     for (&(i, field), ident) in indexed_key_fields.iter().zip(identifiers.iter()) {
