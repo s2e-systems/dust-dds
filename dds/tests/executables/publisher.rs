@@ -60,13 +60,13 @@ fn main() {
     wait_set
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
+    println!("wait for wait_set");
     let number_of_subscribers_to_find = 2;
-    for i in 0..number_of_subscribers_to_find {
-        println!("wait for wait_set {}", i);
+    for _ in 0..number_of_subscribers_to_find {
         wait_set.wait(Duration::new(60, 0)).unwrap();
-        println!("get_publication_matched_status {}", i);
         writer.get_publication_matched_status().unwrap();
     }
+    println!("done wait for wait_set");
 
     let hello_world = HelloWorldType {
         id: 8,
