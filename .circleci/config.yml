@@ -112,7 +112,6 @@ jobs:
             cargo build --bin multiple_subscriber_test_publisher
       - run:
           name: Run 2 subscribers with different IPs
-          no_output_timeout: 60s
           command: |
             # create docker volume (since direct mapping is not possible)
             docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
