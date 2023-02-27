@@ -61,11 +61,9 @@ fn main() {
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
     let number_of_subscribers_to_find = 2;
-    loop {
+    for _ in 0..number_of_subscribers_to_find {
         wait_set.wait(Duration::new(60, 0)).unwrap();
-        if writer.get_publication_matched_status().unwrap().current_count == number_of_subscribers_to_find {
-            break
-        }
+        writer.get_publication_matched_status().unwrap();
     }
 
     let hello_world = HelloWorldType {
