@@ -61,8 +61,10 @@ fn main() {
         .attach_condition(Condition::StatusCondition(writer_cond)).unwrap();
 
     let number_of_subscribers_to_find = 2;
-    for _ in 0..number_of_subscribers_to_find {
+    for i in 0..number_of_subscribers_to_find {
+        println!("wait for wait_set {}", i);
         wait_set.wait(Duration::new(60, 0)).unwrap();
+        println!("get_publication_matched_status {}", i);
         writer.get_publication_matched_status().unwrap();
     }
 
@@ -72,7 +74,9 @@ fn main() {
     };
     writer.write(&hello_world, None).unwrap();
 
+    println!("wait_for_acknowledgments");
     writer
         .wait_for_acknowledgments(Duration::new(30, 0))
         .unwrap();
+    println!("done");
 }
