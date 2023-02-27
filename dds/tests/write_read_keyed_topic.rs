@@ -1417,8 +1417,8 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         .create_datareader(&topic, QosKind::Specific(reader_qos), None, NO_STATUS)
         .unwrap();
 
-    let cond = writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+    let cond = reader.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::SubscriptionMatched])
         .unwrap();
 
     let mut wait_set = WaitSet::new();
