@@ -54,13 +54,13 @@ impl WriterFactory {
         default_multicast_locator_list: &[Locator],
         data_max_size_serialized: usize,
     ) -> DdsResult<RtpsStatefulWriter> {
-        let guid = self.create_unique_writer_guid(rtps_group, has_key);
-
         let qos = match qos {
             QosKind::Default => self.default_datawriter_qos.clone(),
             QosKind::Specific(q) => q,
         };
         qos.is_consistent()?;
+
+        let guid = self.create_unique_writer_guid(rtps_group, has_key);
 
         let topic_kind = match has_key {
             true => TopicKind::WithKey,
@@ -89,21 +89,17 @@ impl WriterFactory {
             false => USER_DEFINED_WRITER_NO_KEY,
         };
 
-        let guid = Guid::new(
-            rtps_group.guid().prefix(),
-            EntityId::new(
-                EntityKey::new([
-                    <[u8; 3]>::from(rtps_group.guid().entity_id().entity_key())[0],
-                    self.user_defined_data_writer_counter,
-                    0,
-                ]),
-                entity_kind,
-            ),
-        );
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(rtps_group.guid().entity_id().entity_key())[0],
+            self.user_defined_data_writer_counter,
+            0,
+        ]);
 
         self.user_defined_data_writer_counter += 1;
 
-        guid
+        let entity_id = EntityId::new(entity_key, entity_kind);
+
+        Guid::new(rtps_group.guid().prefix(), entity_id)
     }
 }
 

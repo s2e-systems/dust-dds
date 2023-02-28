@@ -4,19 +4,13 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
-            endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage},
             },
-            reader::RtpsReader,
-            stateful_reader::RtpsStatefulReader,
             transport::TransportWrite,
-            types::{
-                EntityId, EntityKey, Guid, GuidPrefix, Locator, TopicKind,
-                USER_DEFINED_READER_NO_KEY, USER_DEFINED_READER_WITH_KEY,
-            },
+            types::{GuidPrefix, Locator},
         },
         utils::{
             condvar::DdsCondvar,
@@ -28,7 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         status::{SampleLostStatus, StatusKind},
-        time::{Time, DURATION_ZERO},
+        time::Time,
     },
     subscription::{
         subscriber::{Subscriber, SubscriberKind},
@@ -41,6 +35,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
     user_defined_data_reader::{
@@ -52,8 +47,7 @@ pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroupImpl,
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
-    user_defined_data_reader_counter: u8,
-    default_data_reader_qos: DdsRwLock<DataReaderQos>,
+    reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -76,8 +70,7 @@ impl UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_reader_counter: 0,
-            default_data_reader_qos: DdsRwLock::new(DataReaderQos::default()),
+            reader_factory: DdsRwLock::new(ReaderFactory::new()),
             enabled: DdsRwLock::new(false),
             parent_participant,
             user_defined_data_send_condvar,
@@ -121,69 +114,29 @@ impl DdsShared<UserDefinedSubscriber> {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        // /////// Build the GUID
-        let entity_id = {
-            let entity_kind = match Foo::has_key() {
-                true => USER_DEFINED_READER_WITH_KEY,
-                false => USER_DEFINED_READER_NO_KEY,
-            };
+        let rtps_reader = self.reader_factory.write_lock().create_reader::<Foo>(
+            &self.rtps_group,
+            Foo::has_key(),
+            qos,
+            self.get_participant().default_unicast_locator_list(),
+            self.get_participant().default_multicast_locator_list(),
+        )?;
 
-            EntityId::new(
-                EntityKey::new([
-                    <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
-                    self.user_defined_data_reader_counter,
-                    0,
-                ]),
-                entity_kind,
-            )
-        };
+        let timer = self.get_participant().timer_factory().create_timer();
 
-        let guid = Guid::new(self.rtps_group.guid().prefix(), entity_id);
+        let data_reader_shared = UserDefinedDataReader::new(
+            rtps_reader,
+            a_topic.clone(),
+            a_listener,
+            mask,
+            self.downgrade(),
+            self.user_defined_data_send_condvar.clone(),
+            timer,
+        );
 
-        // /////// Create data reader
-        let data_reader_shared = {
-            let qos = match qos {
-                QosKind::Default => self.default_data_reader_qos.read_lock().clone(),
-                QosKind::Specific(q) => q,
-            };
-            qos.is_consistent()?;
-
-            let topic_kind = match Foo::has_key() {
-                true => TopicKind::WithKey,
-                false => TopicKind::NoKey,
-            };
-
-            let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    self.get_participant().default_unicast_locator_list(),
-                    self.get_participant().default_multicast_locator_list(),
-                ),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                false,
-                qos,
-            ));
-
-            let timer = self.get_participant().timer_factory().create_timer();
-
-            let data_reader_shared = UserDefinedDataReader::new(
-                rtps_reader,
-                a_topic.clone(),
-                a_listener,
-                mask,
-                self.downgrade(),
-                self.user_defined_data_send_condvar.clone(),
-                timer,
-            );
-
-            self.data_reader_list
-                .write_lock()
-                .push(data_reader_shared.clone());
-
-            data_reader_shared
-        };
+        self.data_reader_list
+            .write_lock()
+            .push(data_reader_shared.clone());
 
         if *self.enabled.read_lock()
             && self
@@ -269,20 +222,16 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => {
-                *self.default_data_reader_qos.write_lock() = DataReaderQos::default()
-            }
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                *self.default_data_reader_qos.write_lock() = q;
-            }
-        }
-        Ok(())
+        self.reader_factory
+            .write_lock()
+            .set_default_datareader_qos(qos)
     }
 
     pub fn get_default_datareader_qos(&self) -> DataReaderQos {
-        self.default_data_reader_qos.read_lock().clone()
+        self.reader_factory
+            .read_lock()
+            .get_default_datareader_qos()
+            .clone()
     }
 
     pub fn update_communication_status(&self, now: Time) {
