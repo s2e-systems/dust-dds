@@ -17,3 +17,4 @@ pub mod user_defined_data_reader;
 pub mod user_defined_data_writer;
 pub mod user_defined_publisher;
 pub mod user_defined_subscriber;
+pub mod data_writer_factory;
