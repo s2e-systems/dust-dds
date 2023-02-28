@@ -16,12 +16,12 @@ use crate::{
     },
 };
 
-pub struct DataWriterFactory {
+pub struct WriterFactory {
     user_defined_data_writer_counter: u8,
     default_datawriter_qos: DataWriterQos,
 }
 
-impl DataWriterFactory {
+impl WriterFactory {
     pub fn new() -> Self {
         Self {
             user_defined_data_writer_counter: 0,
@@ -45,7 +45,7 @@ impl DataWriterFactory {
         Ok(())
     }
 
-    pub fn create_datawriter(
+    pub fn create_writer(
         &mut self,
         rtps_group: &RtpsGroupImpl,
         has_key: bool,
@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn each_created_writer_has_different_guid() {
-        let mut factory = DataWriterFactory::new();
+        let mut factory = WriterFactory::new();
         let rtps_group = RtpsGroupImpl::new(Guid::new(
             GuidPrefix::new([1; 12]),
             EntityId::new(EntityKey::new([1; 3]), USER_DEFINED_WRITER_GROUP),
@@ -126,7 +126,7 @@ mod tests {
         let data_max_size_serialized = 5000;
 
         let dw1 = factory
-            .create_datawriter(
+            .create_writer(
                 &rtps_group,
                 has_key,
                 QosKind::Default,
@@ -137,7 +137,7 @@ mod tests {
             .unwrap();
 
         let dw2 = factory
-            .create_datawriter(
+            .create_writer(
                 &rtps_group,
                 has_key,
                 QosKind::Default,

@@ -30,7 +30,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    data_writer_factory::DataWriterFactory,
+    writer_factory::WriterFactory,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
@@ -42,7 +42,7 @@ pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroupImpl,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
-    data_writer_factory: DdsRwLock<DataWriterFactory>,
+    data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
@@ -66,7 +66,7 @@ impl UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
-            data_writer_factory: DdsRwLock::new(DataWriterFactory::new()),
+            data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
@@ -97,7 +97,7 @@ impl DdsShared<UserDefinedPublisher> {
     where
         Foo: DdsType,
     {
-        let rtps_writer_impl = self.data_writer_factory.write_lock().create_datawriter(
+        let rtps_writer_impl = self.data_writer_factory.write_lock().create_writer(
             &self.rtps_group,
             Foo::has_key(),
             qos,
