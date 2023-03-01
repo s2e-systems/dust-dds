@@ -12,6 +12,7 @@ use crate::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
             },
+            reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
@@ -23,8 +24,12 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::QosKind,
-        qos_policy::{QosPolicyId, ReliabilityQosPolicyKind},
+        qos::{PublisherQos, QosKind},
+        qos_policy::{
+            QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+        },
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -232,12 +237,15 @@ impl DdsShared<UserDefinedDataWriter> {
             == self.topic.get_type_name();
 
         if is_matched_topic_name && is_matched_type_name {
-            match self.rtps_writer.write_lock().try_add_discovered_reader(
+            let add_matched_reader_result = add_discovered_reader(
+                &mut *self.rtps_writer.write_lock(),
                 discovered_reader_data,
                 &self.get_publisher().get_qos(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
-            ) {
+            );
+
+            match add_matched_reader_result {
                 Ok(_) => {
                     let instance_handle = discovered_reader_data.get_serialized_key().into();
                     self.matched_subscription_list.write_lock().insert(
@@ -631,6 +639,98 @@ impl DdsShared<UserDefinedDataWriter> {
 }
 
 impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer: &mut RtpsStatefulWriter,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if writer.get_qos().durability < discovered_reader_data.durability {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation.access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation.coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation.ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if writer.get_qos().deadline < discovered_reader_data.deadline {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if writer.get_qos().latency_budget < discovered_reader_data.latency_budget {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if writer.get_qos().liveliness < discovered_reader_data.liveliness {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer.get_qos().reliability.kind < discovered_reader_data.reliability.kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if writer.get_qos().destination_order < discovered_reader_data.destination_order {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    incompatible_qos_policy_list
+}
+
+fn add_discovered_reader(
+    writer: &mut RtpsStatefulWriter,
+    discovered_reader_data: &DiscoveredReaderData,
+    publisher_qos: &PublisherQos,
+    default_unicast_locator_list: &[Locator],
+    default_multicast_locator_list: &[Locator],
+) -> Result<(), Vec<QosPolicyId>> {
+    let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+        writer,
+        &discovered_reader_data.subscription_builtin_topic_data,
+        publisher_qos,
+    );
+
+    if incompatible_qos_policy_list.is_empty() {
+        let unicast_locator_list = if discovered_reader_data
+            .reader_proxy
+            .unicast_locator_list
+            .is_empty()
+        {
+            default_unicast_locator_list
+        } else {
+            discovered_reader_data
+                .reader_proxy
+                .unicast_locator_list
+                .as_ref()
+        };
+
+        let multicast_locator_list = if discovered_reader_data
+            .reader_proxy
+            .multicast_locator_list
+            .is_empty()
+        {
+            default_multicast_locator_list
+        } else {
+            discovered_reader_data
+                .reader_proxy
+                .multicast_locator_list
+                .as_ref()
+        };
+
+        let reader_proxy = RtpsReaderProxy::new(
+            discovered_reader_data.reader_proxy.remote_reader_guid,
+            discovered_reader_data.reader_proxy.remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            discovered_reader_data.reader_proxy.expects_inline_qos,
+            true,
+        );
+
+        writer.matched_reader_add(reader_proxy);
+
+        Ok(())
+    } else {
+        Err(incompatible_qos_policy_list)
+    }
+}
 
 #[cfg(test)]
 mod test {
