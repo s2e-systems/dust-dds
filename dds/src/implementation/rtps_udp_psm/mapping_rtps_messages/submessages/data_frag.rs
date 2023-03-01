@@ -116,7 +116,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataFragSubmessage<'a> {
 
         let serialized_payload_length =
             header.submessage_length as usize - octets_to_inline_qos as usize - 4 - inline_qos_len;
-        let (data, following) = buf.split_at(serialized_payload_length as usize);
+        let (data, following) = buf.split_at(serialized_payload_length);
         *buf = following;
         let serialized_payload = SerializedPayload::new(data);
 
