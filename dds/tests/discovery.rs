@@ -646,6 +646,53 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
 }
 
 #[test]
+fn reader_matched_to_already_existing_writer_with_matched_reader() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let dp = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = dp
+        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = dp
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let data_writer = publisher
+        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = dp
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let _data_reader = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let cond = data_writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(5, 0)).unwrap();
+
+    let data_reader2 = subscriber
+        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let dr2_cond = data_reader2.get_statuscondition().unwrap();
+    dr2_cond
+        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .unwrap();
+    let mut wait_set2 = WaitSet::new();
+    wait_set2
+        .attach_condition(Condition::StatusCondition(dr2_cond))
+        .unwrap();
+
+    assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
+}
+
+#[test]
 #[ignore]
 fn participant_removed_after_lease_duration() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
