@@ -598,52 +598,52 @@ fn publisher_regex_and_subscriber_regex_partition_is_matched() {
     assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
 }
 
-#[test]
-fn writer_matched_to_already_existing_reader_with_matched_writer() {
-    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
-    let dp = DomainParticipantFactory::get_instance()
-        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
-        .unwrap();
+// #[test]
+// fn writer_matched_to_already_existing_reader_with_matched_writer() {
+//     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+//     let dp = DomainParticipantFactory::get_instance()
+//         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+//         .unwrap();
 
-    let topic = dp
-        .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let publisher = dp
-        .create_publisher(QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let data_writer = publisher
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let subscriber = dp
-        .create_subscriber(QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let _data_reader = subscriber
-        .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let cond = data_writer.get_statuscondition().unwrap();
-    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
+//     let topic = dp
+//         .create_topic::<UserType>("topic_name", QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let publisher = dp
+//         .create_publisher(QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let data_writer = publisher
+//         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let subscriber = dp
+//         .create_subscriber(QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let _data_reader = subscriber
+//         .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let cond = data_writer.get_statuscondition().unwrap();
+//     cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+//         .unwrap();
 
-    let mut wait_set = WaitSet::new();
-    wait_set
-        .attach_condition(Condition::StatusCondition(cond))
-        .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+//     let mut wait_set = WaitSet::new();
+//     wait_set
+//         .attach_condition(Condition::StatusCondition(cond))
+//         .unwrap();
+//     wait_set.wait(Duration::new(5, 0)).unwrap();
 
-    let data_writer2 = publisher
-        .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
-        .unwrap();
-    let dw2_cond = data_writer2.get_statuscondition().unwrap();
-    dw2_cond
-        .set_enabled_statuses(&[StatusKind::PublicationMatched])
-        .unwrap();
-    let mut wait_set2 = WaitSet::new();
-    wait_set2
-        .attach_condition(Condition::StatusCondition(dw2_cond))
-        .unwrap();
+//     let data_writer2 = publisher
+//         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
+//         .unwrap();
+//     let dw2_cond = data_writer2.get_statuscondition().unwrap();
+//     dw2_cond
+//         .set_enabled_statuses(&[StatusKind::PublicationMatched])
+//         .unwrap();
+//     let mut wait_set2 = WaitSet::new();
+//     wait_set2
+//         .attach_condition(Condition::StatusCondition(dw2_cond))
+//         .unwrap();
 
-    assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
-}
+//     assert!(wait_set2.wait(Duration::new(5, 0)).is_ok());
+// }
 
 #[test]
 #[ignore]

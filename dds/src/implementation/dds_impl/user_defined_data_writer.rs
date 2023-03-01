@@ -248,14 +248,21 @@ impl DdsShared<UserDefinedDataWriter> {
             match add_matched_reader_result {
                 Ok(_) => {
                     let instance_handle = discovered_reader_data.get_serialized_key().into();
-                    self.matched_subscription_list.write_lock().insert(
+                    let insert_result = self.matched_subscription_list.write_lock().insert(
                         instance_handle,
                         discovered_reader_data
                             .subscription_builtin_topic_data
                             .clone(),
                     );
-
-                    self.on_publication_matched(instance_handle);
+                    match insert_result {
+                        Some(value)
+                            if value != discovered_reader_data.subscription_builtin_topic_data =>
+                        {
+                            self.on_publication_matched(instance_handle)
+                        }
+                        None => self.on_publication_matched(instance_handle),
+                        _ => (),
+                    }
                 }
                 Err(incompatible_qos_policy_list) => {
                     self.on_offered_incompatible_qos(incompatible_qos_policy_list)
