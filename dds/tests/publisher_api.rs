@@ -73,3 +73,41 @@ fn default_data_writer_qos() {
     );
     assert_eq!(&writer.get_qos().unwrap().user_data.value, &user_data);
 }
+
+#[test]
+fn different_writers_have_different_instance_handles() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher1 = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let publisher2 = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let writer1_1 = publisher1
+        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let writer1_2 = publisher1
+        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let writer2_1 = publisher2
+        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let writer2_2 = publisher2
+        .create_datawriter(&topic, QosKind::Default, None, &[])
+        .unwrap();
+
+    assert_ne!(writer1_1.get_instance_handle(), writer1_2.get_instance_handle());
+    assert_ne!(writer1_2.get_instance_handle(), writer2_1.get_instance_handle());
+    assert_ne!(writer2_1.get_instance_handle(), writer2_2.get_instance_handle());
+}

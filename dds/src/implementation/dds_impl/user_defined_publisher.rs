@@ -1,24 +1,16 @@
-use std::sync::atomic::{self, AtomicU8};
-
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
-            endpoint::RtpsEndpoint,
             group::RtpsGroupImpl,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
             },
-            stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
-            types::{
-                EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
+            types::Locator,
         },
         utils::{
             condvar::DdsCondvar,
@@ -30,7 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
-        time::{Duration, DURATION_ZERO},
+        time::Duration,
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -38,6 +30,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
+    writer_factory::WriterFactory,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
@@ -49,8 +42,7 @@ pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroupImpl,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
-    user_defined_data_writer_counter: AtomicU8,
-    default_datawriter_qos: DdsRwLock<DataWriterQos>,
+    data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
@@ -74,8 +66,7 @@ impl UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
-            user_defined_data_writer_counter: AtomicU8::new(0),
-            default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
+            data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
@@ -106,75 +97,27 @@ impl DdsShared<UserDefinedPublisher> {
     where
         Foo: DdsType,
     {
-        let topic_shared = a_topic;
+        let rtps_writer_impl = self.data_writer_factory.write_lock().create_writer(
+            &self.rtps_group,
+            Foo::has_key(),
+            qos,
+            self.get_participant().default_unicast_locator_list(),
+            self.get_participant().default_multicast_locator_list(),
+            self.data_max_size_serialized,
+        )?;
 
-        // /////// Build the GUID
-        let guid = {
-            let user_defined_data_writer_counter = self
-                .user_defined_data_writer_counter
-                .fetch_add(1, atomic::Ordering::SeqCst);
+        let data_writer_shared = UserDefinedDataWriter::new(
+            rtps_writer_impl,
+            a_listener,
+            mask,
+            a_topic.clone(),
+            self.downgrade(),
+            self.user_defined_data_send_condvar.clone(),
+        );
 
-            let entity_kind = match Foo::has_key() {
-                true => USER_DEFINED_WRITER_WITH_KEY,
-                false => USER_DEFINED_WRITER_NO_KEY,
-            };
-
-            Guid::new(
-                self.rtps_group.guid().prefix(),
-                EntityId::new(
-                    EntityKey::new([
-                        <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
-                        user_defined_data_writer_counter,
-                        0,
-                    ]),
-                    entity_kind,
-                ),
-            )
-        };
-
-        // /////// Create data writer
-        let data_writer_shared = {
-            let qos = match qos {
-                QosKind::Default => self.default_datawriter_qos.read_lock().clone(),
-                QosKind::Specific(q) => q,
-            };
-            qos.is_consistent()?;
-
-            let topic_kind = match Foo::has_key() {
-                true => TopicKind::WithKey,
-                false => TopicKind::NoKey,
-            };
-
-            let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
-                RtpsEndpoint::new(
-                    guid,
-                    topic_kind,
-                    self.get_participant().default_unicast_locator_list(),
-                    self.get_participant().default_multicast_locator_list(),
-                ),
-                true,
-                Duration::new(0, 200_000_000),
-                DURATION_ZERO,
-                DURATION_ZERO,
-                self.data_max_size_serialized,
-                qos,
-            ));
-
-            let data_writer_shared = UserDefinedDataWriter::new(
-                rtps_writer_impl,
-                a_listener,
-                mask,
-                topic_shared.clone(),
-                self.downgrade(),
-                self.user_defined_data_send_condvar.clone(),
-            );
-
-            self.data_writer_list
-                .write_lock()
-                .push(data_writer_shared.clone());
-
-            data_writer_shared
-        };
+        self.data_writer_list
+            .write_lock()
+            .push(data_writer_shared.clone());
 
         if *self.enabled.read_lock()
             && self
@@ -286,21 +229,16 @@ impl DdsShared<UserDefinedPublisher> {
     }
 
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => {
-                *self.default_datawriter_qos.write_lock() = DataWriterQos::default()
-            }
-            QosKind::Specific(q) => {
-                q.is_consistent()?;
-                *self.default_datawriter_qos.write_lock() = q;
-            }
-        }
-
-        Ok(())
+        self.data_writer_factory
+            .write_lock()
+            .set_default_datawriter_qos(qos)
     }
 
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
-        self.default_datawriter_qos.read_lock().clone()
+        self.data_writer_factory
+            .read_lock()
+            .get_default_datawriter_qos()
+            .clone()
     }
 
     pub fn copy_from_topic_qos(

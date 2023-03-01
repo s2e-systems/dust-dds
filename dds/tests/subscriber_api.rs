@@ -73,3 +73,50 @@ fn default_data_reader_qos() {
     );
     assert_eq!(&reader.get_qos().unwrap().user_data.value, &user_data);
 }
+
+#[test]
+fn different_readers_have_different_instance_handles() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let topic = participant
+        .create_topic::<UserType>("default_data_writer_qos", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let subscriber1 = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let subscriber2 = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let reader1_1 = subscriber1
+        .create_datareader(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let reader1_2 = subscriber1
+        .create_datareader(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let reader2_1 = subscriber2
+        .create_datareader(&topic, QosKind::Default, None, &[])
+        .unwrap();
+    let reader2_2 = subscriber2
+        .create_datareader(&topic, QosKind::Default, None, &[])
+        .unwrap();
+
+    assert_ne!(
+        reader1_1.get_instance_handle(),
+        reader1_2.get_instance_handle()
+    );
+    assert_ne!(
+        reader1_2.get_instance_handle(),
+        reader2_1.get_instance_handle()
+    );
+    assert_ne!(
+        reader2_1.get_instance_handle(),
+        reader2_2.get_instance_handle()
+    );
+}
