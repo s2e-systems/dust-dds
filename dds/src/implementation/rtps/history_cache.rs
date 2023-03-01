@@ -222,15 +222,11 @@ impl WriterHistoryCache {
             changes: Vec::new(),
         }
     }
-}
 
-impl WriterHistoryCache {
     pub fn changes(&self) -> &[RtpsWriterCacheChange] {
         &self.changes
     }
-}
 
-impl WriterHistoryCache {
     pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
         self.changes.push(change);
     }

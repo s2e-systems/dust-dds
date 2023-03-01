@@ -1,9 +1,10 @@
 use crate::{
+    implementation::data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
     infrastructure::{
         error::DdsResult,
         instance::InstanceHandle,
-        qos::DataWriterQos,
-        qos_policy::ReliabilityQosPolicyKind,
+        qos::{DataWriterQos, PublisherQos},
+        qos_policy::{QosPolicyId, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
@@ -252,6 +253,64 @@ impl RtpsStatefulWriter {
             {
                 reader_proxy.reliable_receive_nack_frag(nackfrag_submessage);
             }
+        }
+    }
+
+    pub fn try_add_discovered_reader(
+        &mut self,
+        discovered_reader_data: &DiscoveredReaderData,
+        publisher_qos: &PublisherQos,
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
+    ) -> Result<(), Vec<QosPolicyId>> {
+        let incompatible_qos_policy_list = self
+            .writer
+            .get_discovered_reader_incompatible_qos_policy_list(
+                &discovered_reader_data.subscription_builtin_topic_data,
+                publisher_qos,
+            );
+
+        if incompatible_qos_policy_list.is_empty() {
+            let unicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .unicast_locator_list
+                .is_empty()
+            {
+                default_unicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .unicast_locator_list
+                    .as_ref()
+            };
+
+            let multicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .multicast_locator_list
+                .is_empty()
+            {
+                default_multicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .multicast_locator_list
+                    .as_ref()
+            };
+
+            let reader_proxy = RtpsReaderProxy::new(
+                discovered_reader_data.reader_proxy.remote_reader_guid,
+                discovered_reader_data.reader_proxy.remote_group_entity_id,
+                unicast_locator_list,
+                multicast_locator_list,
+                discovered_reader_data.reader_proxy.expects_inline_qos,
+                true,
+            );
+
+            self.matched_reader_add(reader_proxy);
+
+            Ok(())
+        } else {
+            Err(incompatible_qos_policy_list)
         }
     }
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
     implementation::data_representation_inline_qos::{
         parameter_id_values::PID_STATUS_INFO,
         types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
@@ -10,7 +11,12 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::DataWriterQos,
+        qos::{DataWriterQos, PublisherQos},
+        qos_policy::{
+            QosPolicyId, DEADLINE_QOS_POLICY_ID, DESTINATIONORDER_QOS_POLICY_ID,
+            DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID, LIVELINESS_QOS_POLICY_ID,
+            PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+        },
         time::{Duration, Time},
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
@@ -321,5 +327,41 @@ impl RtpsWriter {
 
     pub fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
+    }
+
+    pub fn get_discovered_reader_incompatible_qos_policy_list(
+        &self,
+        discovered_reader_data: &SubscriptionBuiltinTopicData,
+        publisher_qos: &PublisherQos,
+    ) -> Vec<QosPolicyId> {
+        let mut incompatible_qos_policy_list = Vec::new();
+        if self.qos.durability < discovered_reader_data.durability {
+            incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+        }
+        if publisher_qos.presentation.access_scope
+            < discovered_reader_data.presentation.access_scope
+            || publisher_qos.presentation.coherent_access
+                != discovered_reader_data.presentation.coherent_access
+            || publisher_qos.presentation.ordered_access
+                != discovered_reader_data.presentation.ordered_access
+        {
+            incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+        }
+        if self.qos.deadline < discovered_reader_data.deadline {
+            incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+        }
+        if self.qos.latency_budget < discovered_reader_data.latency_budget {
+            incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+        }
+        if self.qos.liveliness < discovered_reader_data.liveliness {
+            incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+        }
+        if self.qos.reliability.kind < discovered_reader_data.reliability.kind {
+            incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+        }
+        if self.qos.destination_order < discovered_reader_data.destination_order {
+            incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+        }
+        incompatible_qos_policy_list
     }
 }
