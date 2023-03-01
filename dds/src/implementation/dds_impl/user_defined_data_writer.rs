@@ -640,6 +640,8 @@ impl DdsShared<UserDefinedDataWriter> {
 
 impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
 
+//// Helper functions
+
 fn get_discovered_reader_incompatible_qos_policy_list(
     writer: &mut RtpsStatefulWriter,
     discovered_reader_data: &SubscriptionBuiltinTopicData,
