@@ -19,7 +19,7 @@ dust_dds = { path = "../dds" }
 dust_dds_derive = { path = "../dds_derive", version = "0.1" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-cdr = "0.2.4"
+cdr = "=0.2.4"
 
 [build-dependencies]
 dust_idlgen = {path = "../idlgen" }
