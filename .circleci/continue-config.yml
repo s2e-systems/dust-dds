@@ -8,7 +8,7 @@ parameters:
 jobs:
   build_and_push_docker_image:
     docker:
-      - image: cimg/base
+      - image: cimg/base:current
     steps:
       - checkout
       - setup_remote_docker
