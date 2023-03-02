@@ -14,7 +14,12 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Docker image
-          command: docker build --tag s2esystems/dust_dds_interoperability:1.62 .
+          command: docker build --tag s2esystems/dust_dds_interoperability:1.62.0 .
+      - run:
+          name: Push image to DockerHub
+          command: |
+            echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
+            docker push s2esystems/dust_dds_interoperability:1.62.0
   build:
     docker:
       - image: cimg/rust:1.62.0
@@ -134,11 +139,16 @@ jobs:
             cmp subscriber_1.out subscriber_2.out
 
 workflows:
-  build_docker_image:
+  build_docker_image_and_run_tests:
     when: << pipeline.parameters.build_docker_image >>
     jobs:
       - build_and_push_docker_image
-  tests:
+      - build
+      - interoperability_tests:
+        - requires:
+          - build_and_push_docker_image
+      - multi_machine_tests
+  run_tests:
     jobs:
       - build
       - interoperability_tests
