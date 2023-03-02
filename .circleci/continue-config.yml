@@ -135,7 +135,7 @@ jobs:
 
 workflows:
   build_docker_image:
-    when: << pipeline.parameters.project-one >>
+    when: << pipeline.parameters.build_docker_image >>
     jobs:
       - build_and_push_docker_image
   tests:

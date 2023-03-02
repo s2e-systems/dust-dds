@@ -9,7 +9,6 @@ workflows:
   setup-workflow:
     jobs:
       - path-filtering/filter:
-          base-revision: main
           config-path: .circleci/continue-config.yml
           mapping: |
             .circleci/Dockerfile build_docker_image true
