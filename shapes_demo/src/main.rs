@@ -22,7 +22,7 @@ use eframe::{
     Theme,
 };
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(500.0, 500.0)),
         default_theme: Theme::Light,
@@ -33,7 +33,7 @@ fn main() {
         "Dust DDS Shapes Demo",
         options,
         Box::new(|_cc| Box::new(MyApp::new())),
-    );
+    )
 }
 
 struct MyApp {

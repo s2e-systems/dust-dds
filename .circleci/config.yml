@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/rust:1.62.0
+      - image: cimg/rust:1.65.0
     resource_class: large
     steps:
       - checkout
@@ -95,7 +95,7 @@ jobs:
 
   multi_machine_tests:
     docker:
-      - image: cimg/rust:1.62.0
+      - image: cimg/rust:1.65.0
     steps:
       - checkout
       - setup_remote_docker
@@ -108,12 +108,12 @@ jobs:
           name: Run 2 subscribers with different IPs
           command: |
             # create docker volume (since direct mapping is not possible)
-            docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
+            docker create -v /var --name storage cimg/rust:1.65.0 /bin/true
             docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
             docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
-            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
-            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
-            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_publisher
+            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.65.0  /var/multiple_subscriber_test_subscriber
+            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.65.0  /var/multiple_subscriber_test_subscriber
+            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.65.0  /var/multiple_subscriber_test_publisher
             docker logs subscriber_1 | tee subscriber_1.out
             docker logs subscriber_2 | tee subscriber_2.out
             echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
