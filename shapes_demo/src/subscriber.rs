@@ -2,15 +2,12 @@ use dust_dds::{
     domain::domain_participant_factory::DomainParticipantFactory,
     infrastructure::{
         qos::{DataReaderQos, QosKind},
-        qos_policy::{
-            DurabilityQosPolicy, DurabilityQosPolicyKind, ReliabilityQosPolicy,
-            ReliabilityQosPolicyKind,
-        },
+        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
         time::Duration,
         wait_set::{Condition, WaitSet},
     },
-    subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
+    subscription::sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
 };
 
 mod shapes_type;
@@ -24,12 +21,7 @@ fn main() {
         .unwrap();
 
     let topic = participant
-        .create_topic::<shapes_type::ShapeType>(
-            "Circle",
-            QosKind::Default,
-            None,
-            NO_STATUS,
-        )
+        .create_topic::<shapes_type::ShapeType>("Circle", QosKind::Default, None, NO_STATUS)
         .unwrap();
 
     let subscriber = participant
@@ -38,11 +30,8 @@ fn main() {
 
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
-            kind: ReliabilityQosPolicyKind::Reliable,
+            kind: ReliabilityQosPolicyKind::BestEffort,
             max_blocking_time: Duration::new(1, 0),
-        },
-        durability: DurabilityQosPolicy {
-            kind: DurabilityQosPolicyKind::TransientLocal,
         },
         ..Default::default()
     };
@@ -52,24 +41,23 @@ fn main() {
 
     let reader_cond = reader.get_statuscondition().unwrap();
     reader_cond
-        .set_enabled_statuses(&[StatusKind::SubscriptionMatched])
+        .set_enabled_statuses(&[StatusKind::DataAvailable])
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
         .attach_condition(Condition::StatusCondition(reader_cond.clone()))
         .unwrap();
 
-    wait_set.wait(Duration::new(60, 0)).unwrap();
-
-    reader_cond
-        .set_enabled_statuses(&[StatusKind::DataAvailable])
-        .unwrap();
-    wait_set.wait(Duration::new(30, 0)).unwrap();
-
-    let samples = reader
-        .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-        .unwrap();
-
-    let sample = samples[0].data.as_ref().unwrap();
-    println!("Received: {:?}", sample);
+    loop {
+        wait_set.wait(Duration::new(30, 0)).ok();
+        if let Ok(samples) = reader.read(
+            1,
+            &[SampleStateKind::NotRead],
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            let sample = samples[0].data.as_ref().unwrap();
+            println!("Received: {:?}", sample);
+        }
+    }
 }

@@ -16,7 +16,7 @@ categories = ["api-bindings", "network-programming"]
 [dependencies]
 dust_dds = { path = "../dds" }
 dust_dds_derive = { path = "../dds_derive", version = "0.1" }
-
+eframe = "0.21.3"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "0.2.4"
 
