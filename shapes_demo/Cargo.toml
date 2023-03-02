@@ -1,0 +1,34 @@
+[package]
+name = "dust_dds_shapes_demo"
+version = "0.1.0"
+authors = [
+	"Joao Rebelo <jrebelo@s2e-systems.com>",
+	"Stefan Kimmer <skimmer@s2e-systems.com>",
+]
+license = "Apache-2.0"
+edition = "2021"
+description = "Dust DDS Shapes Demo"
+homepage = "https://s2e-systems.com/products/dust-dds"
+repository = "https://github.com/s2e-systems/dust-dds"
+keywords = ["dds", "rtps", "middleware", "network", "udp"]
+categories = ["api-bindings", "network-programming"]
+
+[dependencies]
+dust_dds = { path = "../dds" }
+dust_dds_derive = { path = "../dds_derive", version = "0.1" }
+
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+cdr = "0.2.4"
+
+[build-dependencies]
+dust_idlgen = {path = "../idlgen" }
+pest = "=2.5.3"
+pest_derive = "=2.5.3"
+
+[[bin]]
+name = "dust_dds_shapes_demo"
+path = "src/main.rs"
+
+[[bin]]
+name = "subscriber"
+path = "src/subscriber.rs"

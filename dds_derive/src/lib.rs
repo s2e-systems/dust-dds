@@ -40,7 +40,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
 
     if is_key {
         quote! {
-            impl #impl_generics DdsType for #ident #type_generics #where_clause {
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
                 fn type_name() -> &'static str {
                     #type_name
                 }
@@ -70,7 +70,7 @@ pub fn derive_dds_type(input: TokenStream) -> TokenStream {
         let set_key = struct_set_key(&struct_data);
 
         quote! {
-            impl #impl_generics DdsType for #ident #type_generics #where_clause {
+            impl #impl_generics dust_dds::topic_definition::type_support::DdsType for #ident #type_generics #where_clause {
                 fn type_name() -> &'static str {
                     #type_name
                 }
@@ -129,7 +129,7 @@ fn struct_build_key(struct_data: &DataStruct) -> TokenStream2 {
             .map(|field| field.into_token_stream())
             .unwrap_or_else(|| syn::Index::from(i).into_token_stream());
 
-        field_list_ts.extend(quote! {self.#field_ident,});
+        field_list_ts.extend(quote! {&self.#field_ident,});
     }
 
     quote! {

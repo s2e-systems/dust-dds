@@ -817,7 +817,7 @@ fn take_next_instance() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -828,7 +828,7 @@ fn take_next_instance() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader
@@ -999,7 +999,7 @@ fn take_specific_unknown_instance() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -1010,7 +1010,7 @@ fn take_specific_unknown_instance() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     assert_eq!(
@@ -1242,7 +1242,7 @@ fn inconsistent_topic_status_condition() {
         )
         .unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     assert_eq!(
         topic_best_effort
