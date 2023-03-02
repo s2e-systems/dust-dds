@@ -5,9 +5,9 @@ use byteorder::ByteOrder;
 use crate::implementation::{
     rtps::messages::{
         overall_structure::RtpsSubmessageHeader,
-        submessage_elements::{ParameterList, },
+        submessage_elements::ParameterList,
         submessages::DataSubmessage,
-        types::{SubmessageKind, SerializedPayload},
+        types::{SerializedPayload, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
