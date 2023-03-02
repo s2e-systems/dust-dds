@@ -145,7 +145,7 @@ workflows:
       - build_and_push_docker_image
       - build
       - interoperability_tests:
-          - requires:
+          requires:
             - build_and_push_docker_image
       - multi_machine_tests
   run_tests:
