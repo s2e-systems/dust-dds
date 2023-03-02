@@ -1,128 +1,15 @@
 version: 2.1
 
-jobs:
-  build:
-    docker:
-      - image: cimg/rust:1.62.0
-    resource_class: large
-    steps:
-      - checkout
-      - run: rustup component add llvm-tools-preview
-      - run: cargo --version
-      - run:
-          name: Run clippy
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo clippy -- -D warnings
-      - run:
-          name: Run Tests
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --jobs 4
-      - run:
-          name: Hello world example
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo run --example hello_world_publisher &
-            pid=$!
-            cargo run --example hello_world_subscriber
-            wait $pid
-      - run:
-          name: BestEffort example
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo run --example best_effort_subscriber &
-            pid=$!
-            cargo run --example best_effort_publisher
-            wait $pid
-      - run:
-          name: Gather coverage data
-          command: |
-            curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
-            ./grcov . -s . --binary-path ./target/debug/ -t html --ignore-not-existing -o /tmp/coverage
+setup: true
 
-      - store_artifacts:
-          path: /tmp/coverage
-
-  interoperability_tests:
-    docker:
-      - image: s2esystems/dust_dds_interoperability
-    steps:
-      - checkout
-      - run:
-          name: Build CycloneDDS Interoperability tests
-          command: |
-            mkdir build
-            cd build
-            cmake ../interoperability_tests
-            cmake --build .
-      - run:
-          name: Build dust binaries
-          command: |
-            cargo build
-      - run:
-          name: Hello world subscriber interoperability test
-          command: |
-            cargo run --bin dust_dds_subscriber &
-            pid=$!
-            build/CycloneDdsPublisher
-            wait $pid
-      - run:
-          name: Hello world publisher interoperability test
-          command: |
-            build/CycloneDdsSubscriber &
-            pid=$!
-            cargo run --bin dust_dds_publisher
-            wait $pid
-      - run:
-          name: Big data publisher interoperability test
-          command: |
-            build/CycloneDdsBigDataSubscriber &
-            pid=$!
-            cargo run --bin dust_dds_big_data_publisher
-            wait $pid
-      - run:
-          name: Big data subscriber interoperability test
-          command: |
-            build/CycloneDdsBigDataPublisher &
-            pid=$!
-            cargo run --bin dust_dds_big_data_subscriber
-            wait $pid
-
-  multi_machine_tests:
-    docker:
-      - image: cimg/rust:1.62.0
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Build executables
-          command: |
-            cargo build --bin multiple_subscriber_test_subscriber
-            cargo build --bin multiple_subscriber_test_publisher
-      - run:
-          name: Run 2 subscribers with different IPs
-          command: |
-            # create docker volume (since direct mapping is not possible)
-            docker create -v /var --name storage cimg/rust:1.62.0 /bin/true
-            docker cp ./target/debug/multiple_subscriber_test_subscriber storage:/var
-            docker cp ./target/debug/multiple_subscriber_test_publisher storage:/var
-            docker run --detach --name subscriber_1 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
-            docker run --detach --name subscriber_2 --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_subscriber
-            docker run --rm --name publisher --volumes-from storage  cimg/rust:1.62.0  /var/multiple_subscriber_test_publisher
-            docker logs subscriber_1 | tee subscriber_1.out
-            docker logs subscriber_2 | tee subscriber_2.out
-            echo "Received: id: 8, msg: Hello world" | cmp subscriber_1.out
-            cmp subscriber_1.out subscriber_2.out
+orbs:
+  path-filtering: circleci/path-filtering@0.1.3
 
 workflows:
-  version: 2
-  all:
+  setup-workflow:
     jobs:
-      - build
-      - interoperability_tests
-      - multi_machine_tests
+      - path-filtering/filter:
+          base-revision: main
+          config-path: .circleci/continue-config.yml
+          mapping: |
+            .circleci/Dockerfile build_docker_image true
