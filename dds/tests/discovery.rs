@@ -131,6 +131,7 @@ fn updated_readers_are_announced_to_writer() {
         user_data: user_data_qos_policy.clone(),
         ..Default::default()
     };
+
     data_reader.set_qos(QosKind::Specific(qos)).unwrap();
 
     wait_set.wait(Duration::new(5, 0)).unwrap();

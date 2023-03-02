@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -190,6 +190,7 @@ pub struct UserDefinedDataReader {
     data_available_status_changed_flag: DdsRwLock<bool>,
     timer: DdsShared<DdsRwLock<Timer>>,
     wait_for_historical_data_condvar: DdsCondvar,
+    incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
 }
 
 impl UserDefinedDataReader {
@@ -226,6 +227,7 @@ impl UserDefinedDataReader {
             data_available_status_changed_flag: DdsRwLock::new(false),
             timer,
             wait_for_historical_data_condvar: DdsCondvar::new(),
+            incompatible_writer_list: DdsRwLock::new(HashSet::new()),
         })
     }
 }
@@ -364,6 +366,7 @@ impl DdsShared<UserDefinedDataReader> {
         if publication_builtin_topic_data.topic_name == self.topic.get_name()
             && publication_builtin_topic_data.type_name == self.topic.get_type_name()
         {
+            let instance_handle = discovered_writer_data.get_serialized_key().into();
             let incompatible_qos_policy_list =
                 self.get_discovered_writer_incompatible_qos_policy_list(discovered_writer_data);
             if incompatible_qos_policy_list.is_empty() {
@@ -404,14 +407,25 @@ impl DdsShared<UserDefinedDataReader> {
                 self.rtps_reader
                     .write_lock()
                     .matched_writer_add(writer_proxy);
-                let instance_handle = discovered_writer_data.get_serialized_key().into();
-                self.matched_publication_list
+                let insert_matched_publication_result = self
+                    .matched_publication_list
                     .write_lock()
                     .insert(instance_handle, publication_builtin_topic_data.clone());
-
-                self.on_subscription_matched(instance_handle);
+                match insert_matched_publication_result {
+                    Some(value) if &value != publication_builtin_topic_data => {
+                        self.on_subscription_matched(instance_handle)
+                    }
+                    None => self.on_subscription_matched(instance_handle),
+                    _ => (),
+                }
             } else {
-                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
+                if self
+                    .incompatible_writer_list
+                    .write_lock()
+                    .insert(instance_handle)
+                {
+                    self.on_requested_incompatible_qos(incompatible_qos_policy_list);
+                }
             }
         }
     }

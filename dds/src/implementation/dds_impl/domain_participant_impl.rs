@@ -1054,62 +1054,61 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     fn discover_matched_writers(&self) -> DdsResult<()> {
-        while let Ok(samples) = self
+        let samples = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
             .read::<DiscoveredWriterData>(
-            1,
-            &[SampleStateKind::NotRead],
+            i32::MAX,
+            ANY_SAMPLE_STATE,
             ANY_VIEW_STATE,
             ANY_INSTANCE_STATE,
             None,
-        ) {
-            for discovered_writer_data_sample in samples.into_iter() {
-                match discovered_writer_data_sample.sample_info.instance_state {
-                    InstanceStateKind::Alive => {
-                        if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                            if !self.ignored_publications.read_lock().contains(
-                                &discovered_writer_data
-                                    .writer_proxy
-                                    .remote_writer_guid
-                                    .into(),
-                            ) {
-                                let remote_writer_guid_prefix = discovered_writer_data
-                                    .writer_proxy
-                                    .remote_writer_guid
-                                    .prefix();
-                                let writer_parent_participant_guid =
-                                    Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+        )?;
 
-                                if let Some(discovered_participant_data) = self
-                                    .discovered_participant_list
-                                    .read_lock()
-                                    .get(&writer_parent_participant_guid.into())
+        for discovered_writer_data_sample in samples.into_iter() {
+            match discovered_writer_data_sample.sample_info.instance_state {
+                InstanceStateKind::Alive => {
+                    if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+                        if !self.ignored_publications.read_lock().contains(
+                            &discovered_writer_data
+                                .writer_proxy
+                                .remote_writer_guid
+                                .into(),
+                        ) {
+                            let remote_writer_guid_prefix = discovered_writer_data
+                                .writer_proxy
+                                .remote_writer_guid
+                                .prefix();
+                            let writer_parent_participant_guid =
+                                Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                            if let Some(discovered_participant_data) = self
+                                .discovered_participant_list
+                                .read_lock()
+                                .get(&writer_parent_participant_guid.into())
+                            {
+                                for subscriber in
+                                    self.user_defined_subscriber_list.read_lock().iter()
                                 {
-                                    for subscriber in
-                                        self.user_defined_subscriber_list.read_lock().iter()
-                                    {
-                                        subscriber.add_matched_writer(
-                                            &discovered_writer_data,
-                                            discovered_participant_data
-                                                .default_unicast_locator_list(),
-                                            discovered_participant_data
-                                                .default_multicast_locator_list(),
-                                        );
-                                    }
+                                    subscriber.add_matched_writer(
+                                        &discovered_writer_data,
+                                        discovered_participant_data.default_unicast_locator_list(),
+                                        discovered_participant_data
+                                            .default_multicast_locator_list(),
+                                    );
                                 }
                             }
                         }
                     }
-                    InstanceStateKind::NotAliveDisposed => {
-                        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                            subscriber.remove_matched_writer(
-                                discovered_writer_data_sample.sample_info.instance_handle,
-                            );
-                        }
-                    }
-                    InstanceStateKind::NotAliveNoWriters => todo!(),
                 }
+                InstanceStateKind::NotAliveDisposed => {
+                    for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                        subscriber.remove_matched_writer(
+                            discovered_writer_data_sample.sample_info.instance_handle,
+                        );
+                    }
+                }
+                InstanceStateKind::NotAliveNoWriters => todo!(),
             }
         }
 
