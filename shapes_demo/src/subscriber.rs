@@ -45,7 +45,7 @@ fn main() {
         .unwrap();
     let mut wait_set = WaitSet::new();
     wait_set
-        .attach_condition(Condition::StatusCondition(reader_cond.clone()))
+        .attach_condition(Condition::StatusCondition(reader_cond))
         .unwrap();
 
     loop {
