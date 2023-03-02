@@ -8,7 +8,7 @@ parameters:
 jobs:
   build_and_push_docker_image:
     docker:
-      - image: circleci/buildpack-deps:stretch
+      - image: cimg/base
     steps:
       - checkout
       - setup_remote_docker
@@ -69,7 +69,7 @@ jobs:
 
   interoperability_tests:
     docker:
-      - image: s2esystems/dust_dds_interoperability
+      - image: s2esystems/dust_dds_interoperability:1.65.0
     steps:
       - checkout
       - run:
