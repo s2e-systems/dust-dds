@@ -3,7 +3,7 @@ use crate::{
         error::DdsResult,
         instance::InstanceHandle,
         qos::DataWriterQos,
-        qos_policy::ReliabilityQosPolicyKind,
+        qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
@@ -115,7 +115,16 @@ impl RtpsStatefulWriter {
 
     fn add_change(&mut self, change: RtpsWriterCacheChange) {
         let sequence_number = change.sequence_number();
-        self.writer.writer_cache_mut().add_change(change);
+        match self.writer.get_qos().durability.kind {
+            DurabilityQosPolicyKind::Volatile => {
+                if !self.matched_readers.is_empty() {
+                    self.writer.writer_cache_mut().add_change(change);
+                }
+            }
+            DurabilityQosPolicyKind::TransientLocal => {
+                self.writer.writer_cache_mut().add_change(change)
+            }
+        }
 
         for reader_proxy in &mut self.matched_readers {
             let status = if self.writer.push_mode() {
