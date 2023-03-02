@@ -888,7 +888,7 @@ impl DdsShared<DomainParticipantImpl> {
     ) {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
             &discovered_participant_data,
-            self.domain_id as i32,
+            self.domain_id,
             &self.domain_tag,
         ) {
             if !self

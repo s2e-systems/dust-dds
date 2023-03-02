@@ -418,14 +418,12 @@ impl DdsShared<UserDefinedDataReader> {
                     None => self.on_subscription_matched(instance_handle),
                     _ => (),
                 }
-            } else {
-                if self
-                    .incompatible_writer_list
-                    .write_lock()
-                    .insert(instance_handle)
-                {
-                    self.on_requested_incompatible_qos(incompatible_qos_policy_list);
-                }
+            } else if self
+                .incompatible_writer_list
+                .write_lock()
+                .insert(instance_handle)
+            {
+                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
             }
         }
     }

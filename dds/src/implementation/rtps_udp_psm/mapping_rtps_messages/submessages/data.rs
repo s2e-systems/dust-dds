@@ -5,9 +5,9 @@ use byteorder::ByteOrder;
 use crate::implementation::{
     rtps::messages::{
         overall_structure::RtpsSubmessageHeader,
-        submessage_elements::{ParameterList, },
+        submessage_elements::ParameterList,
         submessages::DataSubmessage,
-        types::{SubmessageKind, SerializedPayload},
+        types::{SerializedPayload, SubmessageKind},
     },
     rtps_udp_psm::mapping_traits::{
         MappingReadByteOrdered, MappingWriteByteOrdered, NumberOfBytes,
@@ -105,7 +105,7 @@ impl<'de: 'a, 'a> MappingReadSubmessage<'de> for DataSubmessage<'a> {
                 - octets_to_inline_qos as usize
                 - 4
                 - inline_qos_len;
-            let (data, following) = buf.split_at(serialized_payload_length as usize);
+            let (data, following) = buf.split_at(serialized_payload_length);
             *buf = following;
             SerializedPayload::new(data)
         } else {

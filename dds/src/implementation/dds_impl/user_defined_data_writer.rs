@@ -238,7 +238,7 @@ impl DdsShared<UserDefinedDataWriter> {
 
         if is_matched_topic_name && is_matched_type_name {
             let add_matched_reader_result = add_discovered_reader(
-                &mut *self.rtps_writer.write_lock(),
+                &mut self.rtps_writer.write_lock(),
                 discovered_reader_data,
                 &self.get_publisher().get_qos(),
                 default_unicast_locator_list,
