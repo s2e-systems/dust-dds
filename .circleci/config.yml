@@ -50,7 +50,7 @@ jobs:
 
   interoperability_tests:
     docker:
-      - image: s2esystems/dust_dds_interoperability
+      - image: s2esystems/dust_dds_interoperability:1.65.0
     steps:
       - checkout
       - run:
