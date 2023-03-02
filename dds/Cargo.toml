@@ -17,8 +17,7 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds_derive = { path = "../dds_derive", version = "0.1" }
-
-serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde = { version = "=1.0", default-features = false, features = ["derive"] }
 cdr = "=0.2.4"
 
 derive_more = "=0.99.16"
