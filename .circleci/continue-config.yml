@@ -139,7 +139,6 @@ workflows:
     jobs:
       - build_and_push_docker_image
   tests:
-    when:
     jobs:
       - build
       - interoperability_tests
