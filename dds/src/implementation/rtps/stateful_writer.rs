@@ -233,7 +233,7 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.reliable_receive_acknack(acknack_submessage);
+                reader_proxy.receive_acknack(acknack_submessage);
             }
         }
     }
@@ -251,7 +251,7 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.reliable_receive_nack_frag(nackfrag_submessage);
+                reader_proxy.receive_nack_frag(nackfrag_submessage);
             }
         }
     }

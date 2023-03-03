@@ -180,19 +180,29 @@ impl RtpsReaderProxy {
         &mut self.changes_for_reader
     }
 
-    pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
-        if acknack_submessage.count > self.last_received_acknack_count {
-            self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
-            self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
+    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if acknack_submessage.count > self.last_received_acknack_count {
+                    self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
+                    self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
 
-            self.last_received_acknack_count = acknack_submessage.count;
+                    self.last_received_acknack_count = acknack_submessage.count;
+                }
+            }
         }
     }
 
-    pub fn reliable_receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
-        if nack_frag_submessage.count > self.last_received_nack_frag_count {
-            self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
-            self.last_received_nack_frag_count = nack_frag_submessage.count;
+    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if nack_frag_submessage.count > self.last_received_nack_frag_count {
+                    self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
+                    self.last_received_nack_frag_count = nack_frag_submessage.count;
+                }
+            }
         }
     }
 
