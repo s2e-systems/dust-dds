@@ -230,15 +230,6 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         message_receiver: &MessageReceiver,
     ) {
         if self
-            .spdp_builtin_participant_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
-            == BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
-        {
-            self.spdp_builtin_participant_reader.on_data_available();
-            return;
-        }
-
-        if self
             .sedp_builtin_topics_reader
             .on_data_submessage_received(data_submessage, message_receiver)
             == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
@@ -262,6 +253,15 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
             == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
         {
             self.sedp_builtin_subscriptions_reader.on_data_available();
+            return;
+        }
+
+        if self
+            .spdp_builtin_participant_reader
+            .on_data_submessage_received(data_submessage, message_receiver)
+            == BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
+        {
+            self.spdp_builtin_participant_reader.on_data_available();
         }
     }
 
