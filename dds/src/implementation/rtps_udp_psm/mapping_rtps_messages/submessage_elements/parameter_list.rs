@@ -38,7 +38,7 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterList<'a> {
             let parameter_i: Parameter =
                 MappingReadByteOrdered::mapping_read_byte_ordered::<B>(buf)?;
 
-            if parameter_i == SENTINEL {
+            if parameter_i.parameter_id == PID_SENTINEL {
                 break;
             } else {
                 parameter.push(parameter_i);

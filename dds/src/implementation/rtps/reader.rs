@@ -1,9 +1,12 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryInto,
+};
 
 use crate::{
     implementation::{
         data_representation_inline_qos::{
-            parameter_id_values::PID_STATUS_INFO,
+            parameter_id_values::{PID_KEY_HASH, PID_STATUS_INFO},
             types::{
                 StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
                 STATUS_INFO_UNREGISTERED,
@@ -391,9 +394,16 @@ impl RtpsReader {
         &mut self,
         mut change: RtpsReaderCacheChange,
     ) -> RtpsReaderResult<InstanceHandle> {
-        let change_instance_handle = self
-            .instance_handle_builder
-            .build_instance_handle(change.kind, &change.data)?;
+        let change_instance_handle = match change
+            .inline_qos
+            .iter()
+            .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
+        {
+            Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
+            None => self
+                .instance_handle_builder
+                .build_instance_handle(change.kind, &change.data)?,
+        };
         if self.is_sample_of_interest_based_on_time(&change, &change_instance_handle) {
             if self.is_max_samples_limit_reached(&change_instance_handle) {
                 Err(RtpsReaderError::Rejected(
