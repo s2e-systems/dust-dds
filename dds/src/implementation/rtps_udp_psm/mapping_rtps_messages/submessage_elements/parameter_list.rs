@@ -51,14 +51,16 @@ impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for ParameterList<'a> {
 impl<'de: 'a, 'a> MappingReadByteOrdered<'de> for Parameter<'a> {
     fn mapping_read_byte_ordered<B: ByteOrder>(buf: &mut &'de [u8]) -> Result<Self, Error> {
         let parameter_id = buf.read_u16::<B>()?;
-        let length = if parameter_id == PID_SENTINEL {
-            0
+        let length = buf.read_i16::<B>()?;
+
+        let value = if parameter_id == PID_SENTINEL {
+            &[]
         } else {
-            buf.read_i16::<B>()?
+            let (value, following) = buf.split_at(length as usize);
+            *buf = following;
+            value
         };
 
-        let (value, following) = buf.split_at(length as usize);
-        *buf = following;
         Ok(Self {
             parameter_id,
             length,
