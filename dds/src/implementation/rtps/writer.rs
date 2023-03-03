@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::{
     implementation::data_representation_inline_qos::{
         parameter_id_values::PID_STATUS_INFO,
-        types::{STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+        types::{STATUS_INFO_DISPOSED, STATUS_INFO_UNREGISTERED},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -157,7 +157,7 @@ impl RtpsWriter {
             let mut serialized_status_info = Vec::new();
             let mut serializer =
                 cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_DISPOSED_FLAG
+            STATUS_INFO_DISPOSED
                 .serialize(&mut serializer)
                 .unwrap();
 
@@ -222,7 +222,7 @@ impl RtpsWriter {
             let mut serialized_status_info = Vec::new();
             let mut serializer =
                 cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_UNREGISTERED_FLAG
+            STATUS_INFO_UNREGISTERED
                 .serialize(&mut serializer)
                 .unwrap();
 

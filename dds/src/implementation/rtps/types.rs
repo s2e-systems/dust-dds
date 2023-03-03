@@ -280,6 +280,7 @@ pub enum ChangeKind {
     AliveFiltered,
     NotAliveDisposed,
     NotAliveUnregistered,
+    NotAliveDisposedUnregistered,
 }
 
 /// ProtocolVersion_t

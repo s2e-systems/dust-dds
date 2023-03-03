@@ -112,30 +112,34 @@ impl RtpsStatefulReader {
             match self.reader.get_qos().reliability.kind {
                 ReliabilityQosPolicyKind::BestEffort => {
                     if sequence_number >= expected_seq_num {
-                        if let Ok(change) = self.reader.convert_data_to_cache_change(
+                        let change_result = self.reader.convert_data_to_cache_change(
                             data_submessage,
                             Some(message_receiver.timestamp()),
                             message_receiver.source_guid_prefix(),
                             message_receiver.reception_timestamp(),
-                        ) {
-                            let add_change_result = self.reader.add_change(change);
+                        );
+                        match change_result {
+                            Ok(change) => {
+                                let add_change_result = self.reader.add_change(change);
 
-                            match add_change_result {
-                                Ok(instance_handle) => {
-                                    writer_proxy.received_change_set(sequence_number);
-                                    if sequence_number > expected_seq_num {
-                                        writer_proxy.lost_changes_update(sequence_number);
-                                        StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle)
-                                    } else {
-                                        StatefulReaderDataReceivedResult::NewSampleAdded(
-                                            instance_handle,
-                                        )
+                                match add_change_result {
+                                    Ok(instance_handle) => {
+                                        writer_proxy.received_change_set(sequence_number);
+                                        if sequence_number > expected_seq_num {
+                                            writer_proxy.lost_changes_update(sequence_number);
+                                            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle)
+                                        } else {
+                                            StatefulReaderDataReceivedResult::NewSampleAdded(
+                                                instance_handle,
+                                            )
+                                        }
                                     }
+                                    Err(err) => err.into(),
                                 }
-                                Err(err) => err.into(),
                             }
-                        } else {
-                            todo!()
+                            Err(_) => StatefulReaderDataReceivedResult::InvalidData(
+                                "Invalid data submessage",
+                            ),
                         }
                     } else {
                         StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
@@ -143,25 +147,29 @@ impl RtpsStatefulReader {
                 }
                 ReliabilityQosPolicyKind::Reliable => {
                     if sequence_number == expected_seq_num {
-                        if let Ok(change) = self.reader.convert_data_to_cache_change(
+                        let change_result = self.reader.convert_data_to_cache_change(
                             data_submessage,
                             Some(message_receiver.timestamp()),
                             message_receiver.source_guid_prefix(),
                             message_receiver.reception_timestamp(),
-                        ) {
-                            let add_change_result = self.reader.add_change(change);
+                        );
+                        match change_result {
+                            Ok(change) => {
+                                let add_change_result = self.reader.add_change(change);
 
-                            match add_change_result {
-                                Ok(instance_handle) => {
-                                    writer_proxy.received_change_set(data_submessage.writer_sn);
-                                    StatefulReaderDataReceivedResult::NewSampleAdded(
-                                        instance_handle,
-                                    )
+                                match add_change_result {
+                                    Ok(instance_handle) => {
+                                        writer_proxy.received_change_set(data_submessage.writer_sn);
+                                        StatefulReaderDataReceivedResult::NewSampleAdded(
+                                            instance_handle,
+                                        )
+                                    }
+                                    Err(err) => err.into(),
                                 }
-                                Err(err) => err.into(),
                             }
-                        } else {
-                            todo!()
+                            Err(_) => StatefulReaderDataReceivedResult::InvalidData(
+                                "Invalid data submessage",
+                            ),
                         }
                     } else {
                         StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber
@@ -195,30 +203,34 @@ impl RtpsStatefulReader {
                     if sequence_number >= expected_seq_num {
                         writer_proxy.push_data_frag(data_frag_submessage);
                         if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-                            if let Ok(change) = convert_data_frag_to_cache_change(
+                            let change_results = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,
                                 Some(message_receiver.timestamp()),
                                 message_receiver.source_guid_prefix(),
                                 message_receiver.reception_timestamp(),
-                            ) {
-                                let add_change_result = self.reader.add_change(change);
-                                match add_change_result {
-                                    Ok(instance_handle) => {
-                                        writer_proxy.received_change_set(sequence_number);
-                                        if sequence_number > expected_seq_num {
-                                            writer_proxy.lost_changes_update(sequence_number);
-                                            StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle)
-                                        } else {
-                                            StatefulReaderDataReceivedResult::NewSampleAdded(
-                                                instance_handle,
-                                            )
+                            );
+                            match change_results {
+                                Ok(change) => {
+                                    let add_change_result = self.reader.add_change(change);
+                                    match add_change_result {
+                                        Ok(instance_handle) => {
+                                            writer_proxy.received_change_set(sequence_number);
+                                            if sequence_number > expected_seq_num {
+                                                writer_proxy.lost_changes_update(sequence_number);
+                                                StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle)
+                                            } else {
+                                                StatefulReaderDataReceivedResult::NewSampleAdded(
+                                                    instance_handle,
+                                                )
+                                            }
                                         }
+                                        Err(err) => err.into(),
                                     }
-                                    Err(err) => err.into(),
                                 }
-                            } else {
-                                todo!()
+                                Err(_) => StatefulReaderDataReceivedResult::InvalidData(
+                                    "Invalid data submessage",
+                                ),
                             }
                         } else {
                             StatefulReaderDataReceivedResult::NoMatchedWriterProxy
@@ -231,25 +243,30 @@ impl RtpsStatefulReader {
                     if sequence_number == expected_seq_num {
                         writer_proxy.push_data_frag(data_frag_submessage);
                         if let Some(data) = writer_proxy.extract_frag(sequence_number) {
-                            if let Ok(change) = convert_data_frag_to_cache_change(
+                            let change_result = convert_data_frag_to_cache_change(
                                 data_frag_submessage,
                                 data,
                                 Some(message_receiver.timestamp()),
                                 message_receiver.source_guid_prefix(),
                                 message_receiver.reception_timestamp(),
-                            ) {
-                                let add_change_result = self.reader.add_change(change);
-                                match add_change_result {
-                                    Ok(instance_handle) => {
-                                        writer_proxy.received_change_set(sequence_number);
-                                        StatefulReaderDataReceivedResult::NewSampleAdded(
-                                            instance_handle,
-                                        )
+                            );
+
+                            match change_result {
+                                Ok(change) => {
+                                    let add_change_result = self.reader.add_change(change);
+                                    match add_change_result {
+                                        Ok(instance_handle) => {
+                                            writer_proxy.received_change_set(sequence_number);
+                                            StatefulReaderDataReceivedResult::NewSampleAdded(
+                                                instance_handle,
+                                            )
+                                        }
+                                        Err(err) => err.into(),
                                     }
-                                    Err(err) => err.into(),
                                 }
-                            } else {
-                                todo!()
+                                Err(_) => StatefulReaderDataReceivedResult::InvalidData(
+                                    "Invalid data submessage",
+                                ),
                             }
                         } else {
                             StatefulReaderDataReceivedResult::NoMatchedWriterProxy

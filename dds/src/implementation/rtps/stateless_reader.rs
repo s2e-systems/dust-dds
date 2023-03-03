@@ -46,27 +46,29 @@ impl RtpsStatelessReader {
         if data_submessage.reader_id == ENTITYID_UNKNOWN
             || data_submessage.reader_id == self.0.guid().entity_id()
         {
-            if let Ok(change) = self.0.convert_data_to_cache_change(
+            let change_result = self.0.convert_data_to_cache_change(
                 data_submessage,
                 Some(message_receiver.timestamp()),
                 message_receiver.source_guid_prefix(),
                 message_receiver.reception_timestamp(),
-            ) {
-                let add_change_result = self.0.add_change(change);
+            );
+            match change_result {
+                Ok(change) => {
+                    let add_change_result = self.0.add_change(change);
 
-                match add_change_result {
-                    Ok(h) => StatelessReaderDataReceivedResult::NewSampleAdded(h),
-                    Err(e) => match e {
-                        RtpsReaderError::InvalidData(s) => {
-                            StatelessReaderDataReceivedResult::InvalidData(s)
-                        }
-                        RtpsReaderError::Rejected(h, k) => {
-                            StatelessReaderDataReceivedResult::SampleRejected(h, k)
-                        }
-                    },
+                    match add_change_result {
+                        Ok(h) => StatelessReaderDataReceivedResult::NewSampleAdded(h),
+                        Err(e) => match e {
+                            RtpsReaderError::InvalidData(s) => {
+                                StatelessReaderDataReceivedResult::InvalidData(s)
+                            }
+                            RtpsReaderError::Rejected(h, k) => {
+                                StatelessReaderDataReceivedResult::SampleRejected(h, k)
+                            }
+                        },
+                    }
                 }
-            } else {
-                todo!()
+                Err(_) => StatelessReaderDataReceivedResult::InvalidData("Invalid data submessage"), // Change is ignored,
             }
         } else {
             StatelessReaderDataReceivedResult::NotForThisReader

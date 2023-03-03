@@ -431,7 +431,7 @@ mod tests {
             10, 11, 12, 13, // inlineQos: value_1[length_1]
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 0, 0, // inlineQos: Sentinel
+            1, 0, 1, 0, // inlineQos: Sentinel
         ]).unwrap();
         assert_eq!(expected, result);
     }
