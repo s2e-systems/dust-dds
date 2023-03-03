@@ -15,7 +15,9 @@ use super::{
         RtpsMessage, RtpsSubmessageKind,
     },
     transport::TransportWrite,
-    types::{ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber},
+    types::{
+        ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+    },
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 
@@ -131,6 +133,7 @@ pub struct RtpsReaderProxy {
     last_received_nack_frag_count: Count,
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
+    reliability: ReliabilityKind,
 }
 
 impl RtpsReaderProxy {
@@ -141,6 +144,7 @@ impl RtpsReaderProxy {
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
         is_active: bool,
+        reliability: ReliabilityKind,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -156,6 +160,7 @@ impl RtpsReaderProxy {
             last_received_nack_frag_count: Count::new(0),
             heartbeat_machine,
             heartbeat_frag_machine,
+            reliability,
         }
     }
 
@@ -175,19 +180,29 @@ impl RtpsReaderProxy {
         &mut self.changes_for_reader
     }
 
-    pub fn reliable_receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
-        if acknack_submessage.count > self.last_received_acknack_count {
-            self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
-            self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
+    pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if acknack_submessage.count > self.last_received_acknack_count {
+                    self.acked_changes_set(acknack_submessage.reader_sn_state.base - 1);
+                    self.requested_changes_set(acknack_submessage.reader_sn_state.set.as_ref());
 
-            self.last_received_acknack_count = acknack_submessage.count;
+                    self.last_received_acknack_count = acknack_submessage.count;
+                }
+            }
         }
     }
 
-    pub fn reliable_receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
-        if nack_frag_submessage.count > self.last_received_nack_frag_count {
-            self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
-            self.last_received_nack_frag_count = nack_frag_submessage.count;
+    pub fn receive_nack_frag(&mut self, nack_frag_submessage: &NackFragSubmessage) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => (),
+            ReliabilityKind::Reliable => {
+                if nack_frag_submessage.count > self.last_received_nack_frag_count {
+                    self.requested_changes_set(&[nack_frag_submessage.writer_sn]);
+                    self.last_received_nack_frag_count = nack_frag_submessage.count;
+                }
+            }
         }
     }
 
@@ -322,7 +337,34 @@ impl RtpsReaderProxy {
             .collect()
     }
 
-    pub fn send_message_best_effort(
+    pub fn send_message(
+        &mut self,
+        writer_cache: &WriterHistoryCache,
+        writer_id: EntityId,
+        data_max_size_serialized: usize,
+        heartbeat_period: Duration,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => self.send_message_best_effort(
+                writer_cache,
+                data_max_size_serialized,
+                header,
+                transport,
+            ),
+            ReliabilityKind::Reliable => self.send_message_reliable(
+                writer_cache,
+                writer_id,
+                data_max_size_serialized,
+                heartbeat_period,
+                header,
+                transport,
+            ),
+        }
+    }
+
+    fn send_message_best_effort(
         &mut self,
         writer_cache: &WriterHistoryCache,
         data_max_size_serialized: usize,
@@ -382,7 +424,7 @@ impl RtpsReaderProxy {
         }
     }
 
-    pub fn send_message_reliable(
+    fn send_message_reliable(
         &mut self,
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,
@@ -694,8 +736,15 @@ mod tests {
 
     #[test]
     fn next_requested_change() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
 
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(
@@ -736,8 +785,15 @@ mod tests {
 
     #[test]
     fn unsent_changes() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(3));
@@ -755,8 +811,15 @@ mod tests {
 
     #[test]
     fn next_unsent_change() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
@@ -779,8 +842,15 @@ mod tests {
 
     #[test]
     fn unacked_changes() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(
             &mut writer_cache,

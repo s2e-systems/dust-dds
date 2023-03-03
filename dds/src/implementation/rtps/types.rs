@@ -448,3 +448,9 @@ impl Locator {
         self.address
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
+}

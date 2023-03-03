@@ -209,22 +209,14 @@ impl RtpsStatefulWriter {
 
     pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            match self.writer.get_qos().reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => reader_proxy.send_message_best_effort(
-                    self.writer.writer_cache(),
-                    self.writer.data_max_size_serialized(),
-                    header,
-                    transport,
-                ),
-                ReliabilityQosPolicyKind::Reliable => reader_proxy.send_message_reliable(
-                    self.writer.writer_cache(),
-                    self.writer.guid().entity_id(),
-                    self.writer.data_max_size_serialized(),
-                    self.writer.heartbeat_period(),
-                    header,
-                    transport,
-                ),
-            }
+            reader_proxy.send_message(
+                self.writer.writer_cache(),
+                self.writer.guid().entity_id(),
+                self.writer.data_max_size_serialized(),
+                self.writer.heartbeat_period(),
+                header,
+                transport,
+            );
         }
     }
 
@@ -241,7 +233,7 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.reliable_receive_acknack(acknack_submessage);
+                reader_proxy.receive_acknack(acknack_submessage);
             }
         }
     }
@@ -259,7 +251,7 @@ impl RtpsStatefulWriter {
                 .iter_mut()
                 .find(|x| x.remote_reader_guid() == reader_guid)
             {
-                reader_proxy.reliable_receive_nack_frag(nackfrag_submessage);
+                reader_proxy.receive_nack_frag(nackfrag_submessage);
             }
         }
     }

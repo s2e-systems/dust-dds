@@ -15,7 +15,9 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
-            types::{EntityId, EntityKey, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN},
+            types::{
+                EntityId, EntityKey, Locator, ReliabilityKind, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+            },
         },
         utils::{
             condvar::DdsCondvar,
@@ -724,6 +726,15 @@ fn add_discovered_reader(
                 .as_ref()
         };
 
+        let proxy_reliability = match discovered_reader_data
+            .subscription_builtin_topic_data
+            .reliability
+            .kind
+        {
+            ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+        };
+
         let reader_proxy = RtpsReaderProxy::new(
             discovered_reader_data.reader_proxy.remote_reader_guid,
             discovered_reader_data.reader_proxy.remote_group_entity_id,
@@ -731,6 +742,7 @@ fn add_discovered_reader(
             multicast_locator_list,
             discovered_reader_data.reader_proxy.expects_inline_qos,
             true,
+            proxy_reliability,
         );
 
         writer.matched_reader_add(reader_proxy);
