@@ -4,7 +4,10 @@ use crate::{
     implementation::{
         data_representation_inline_qos::{
             parameter_id_values::PID_STATUS_INFO,
-            types::{StatusInfo, STATUS_INFO_DISPOSED_FLAG, STATUS_INFO_UNREGISTERED_FLAG},
+            types::{
+                StatusInfo, STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED,
+                STATUS_INFO_UNREGISTERED,
+            },
         },
         dds_impl::status_condition_impl::StatusConditionImpl,
     },
@@ -78,8 +81,9 @@ pub fn convert_data_frag_to_cache_change(
             let status_info: StatusInfo =
                 serde::Deserialize::deserialize(&mut deserializer).unwrap();
             match status_info {
-                STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
-                STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                STATUS_INFO_DISPOSED_UNREGISTERED => Ok(ChangeKind::NotAliveDisposedUnregistered),
                 _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
             }
         } else {
@@ -129,11 +133,11 @@ impl InstanceHandleBuilder {
     ) -> RtpsReaderResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                DdsSerializedKey::deserialize(&mut data)
-                    .map_err(|_| RtpsReaderError::InvalidData("Feiled to deserialize key"))?
-                    .into()
-            }
+            ChangeKind::NotAliveDisposed
+            | ChangeKind::NotAliveUnregistered
+            | ChangeKind::NotAliveDisposedUnregistered => DdsSerializedKey::deserialize(&mut data)
+                .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
+                .into(),
         })
     }
 }
@@ -266,8 +270,11 @@ impl RtpsReader {
                     let status_info: StatusInfo =
                         serde::Deserialize::deserialize(&mut deserializer).unwrap();
                     match status_info {
-                        STATUS_INFO_DISPOSED_FLAG => Ok(ChangeKind::NotAliveDisposed),
-                        STATUS_INFO_UNREGISTERED_FLAG => Ok(ChangeKind::NotAliveUnregistered),
+                        STATUS_INFO_DISPOSED => Ok(ChangeKind::NotAliveDisposed),
+                        STATUS_INFO_UNREGISTERED => Ok(ChangeKind::NotAliveUnregistered),
+                        STATUS_INFO_DISPOSED_UNREGISTERED => {
+                            Ok(ChangeKind::NotAliveDisposedUnregistered)
+                        }
                         _ => Err(RtpsReaderError::InvalidData("Unknown status info value")),
                     }
                 } else {
@@ -551,7 +558,9 @@ impl RtpsReader {
                     )?),
                     true,
                 ),
-                ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => (None, false),
+                ChangeKind::NotAliveDisposed
+                | ChangeKind::NotAliveUnregistered
+                | ChangeKind::NotAliveDisposedUnregistered => (None, false),
             };
 
             let sample_info = SampleInfo {
