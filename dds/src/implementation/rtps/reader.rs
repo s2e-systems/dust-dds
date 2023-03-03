@@ -135,14 +135,21 @@ impl InstanceHandleBuilder {
         &self,
         change_kind: ChangeKind,
         mut data: &[u8],
+        inline_qos: &[RtpsParameter],
     ) -> RtpsReaderResult<InstanceHandle> {
         Ok(match change_kind {
             ChangeKind::Alive | ChangeKind::AliveFiltered => (self.0)(&mut data)?.into(),
             ChangeKind::NotAliveDisposed
             | ChangeKind::NotAliveUnregistered
-            | ChangeKind::NotAliveDisposedUnregistered => DdsSerializedKey::deserialize(&mut data)
-                .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
-                .into(),
+            | ChangeKind::NotAliveDisposedUnregistered => match inline_qos
+                .iter()
+                .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
+            {
+                Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
+                None => DdsSerializedKey::deserialize(&mut data)
+                    .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
+                    .into(),
+            },
         })
     }
 }
@@ -265,7 +272,7 @@ impl RtpsReader {
 
         let change_kind = match (data_submessage.data_flag, data_submessage.key_flag) {
             (true, false) => Ok(ChangeKind::Alive),
-            (false, true) => {
+            (false, true) | (false, false) => {
                 if let Some(p) = inline_qos
                     .iter()
                     .find(|&x| x.parameter_id() == ParameterId(PID_STATUS_INFO))
@@ -288,7 +295,7 @@ impl RtpsReader {
                     ))
                 }
             }
-            _ => Err(RtpsReaderError::InvalidData(
+            (true, true) => Err(RtpsReaderError::InvalidData(
                 "Invalid data and key flag combination",
             )),
         }?;
@@ -313,7 +320,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data)
+                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -328,7 +335,7 @@ impl RtpsReader {
             .iter()
             .map(|cc| {
                 self.instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_slice())
+                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                     .expect("Change in cache must have valid instance handle")
             })
             .collect();
@@ -350,7 +357,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, cc.data.as_slice())
+                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -370,7 +377,7 @@ impl RtpsReader {
             .filter(|cc| {
                 &self
                     .instance_handle_builder
-                    .build_instance_handle(cc.kind, &cc.data)
+                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                     .expect("Change in cache must have valid instance handle")
                     == change_instance_handle
             })
@@ -394,16 +401,11 @@ impl RtpsReader {
         &mut self,
         mut change: RtpsReaderCacheChange,
     ) -> RtpsReaderResult<InstanceHandle> {
-        let change_instance_handle = match change
-            .inline_qos
-            .iter()
-            .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
-        {
-            Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-            None => self
-                .instance_handle_builder
-                .build_instance_handle(change.kind, &change.data)?,
-        };
+        let change_instance_handle = self.instance_handle_builder.build_instance_handle(
+            change.kind,
+            &change.data,
+            &change.inline_qos,
+        )?;
         if self.is_sample_of_interest_based_on_time(&change, &change_instance_handle) {
             if self.is_max_samples_limit_reached(&change_instance_handle) {
                 Err(RtpsReaderError::Rejected(
@@ -426,7 +428,7 @@ impl RtpsReader {
                     .iter()
                     .filter(|cc| {
                         self.instance_handle_builder
-                            .build_instance_handle(cc.kind, cc.data.as_slice())
+                            .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                             .unwrap()
                             == change_instance_handle
                             && cc.kind == ChangeKind::Alive
@@ -441,7 +443,7 @@ impl RtpsReader {
                         .iter()
                         .position(|cc| {
                             self.instance_handle_builder
-                                .build_instance_handle(cc.kind, cc.data.as_slice())
+                                .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                                 .unwrap()
                                 == change_instance_handle
                                 && cc.kind == ChangeKind::Alive
@@ -526,7 +528,7 @@ impl RtpsReader {
             .enumerate()
             .filter(|(_, cc)| {
                 let sample_instance_handle = instance_handle_build
-                    .build_instance_handle(cc.kind, cc.data.as_slice())
+                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
                     .unwrap();
 
                 sample_states.contains(&cc.sample_state)
@@ -542,7 +544,11 @@ impl RtpsReader {
         {
             let sample_instance_handle = self
                 .instance_handle_builder
-                .build_instance_handle(cache_change.kind, cache_change.data.as_slice())
+                .build_instance_handle(
+                    cache_change.kind,
+                    &cache_change.data,
+                    &cache_change.inline_qos,
+                )
                 .unwrap();
             instances_in_collection
                 .entry(sample_instance_handle)
