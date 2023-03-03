@@ -48,6 +48,7 @@ pub struct RtpsReaderCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     data: Vec<u8>,
+    inline_qos: Vec<RtpsParameter>,
     source_timestamp: Option<Time>,
     sample_state: SampleStateKind,
     disposed_generation_count: i32,
@@ -99,6 +100,7 @@ pub fn convert_data_frag_to_cache_change(
         kind: change_kind,
         writer_guid,
         data,
+        inline_qos,
         source_timestamp,
         sample_state: SampleStateKind::NotRead,
         disposed_generation_count: 0, // To be filled up only when getting stored
@@ -292,6 +294,7 @@ impl RtpsReader {
             kind: change_kind,
             writer_guid,
             data,
+            inline_qos,
             source_timestamp,
             sample_state: SampleStateKind::NotRead,
             disposed_generation_count: 0, // To be filled up only when getting stored
