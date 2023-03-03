@@ -327,7 +327,34 @@ impl RtpsReaderProxy {
             .collect()
     }
 
-    pub fn send_message_best_effort(
+    pub fn send_message(
+        &mut self,
+        writer_cache: &WriterHistoryCache,
+        writer_id: EntityId,
+        data_max_size_serialized: usize,
+        heartbeat_period: Duration,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+    ) {
+        match self.reliability {
+            ReliabilityKind::BestEffort => self.send_message_best_effort(
+                writer_cache,
+                data_max_size_serialized,
+                header,
+                transport,
+            ),
+            ReliabilityKind::Reliable => self.send_message_reliable(
+                writer_cache,
+                writer_id,
+                data_max_size_serialized,
+                heartbeat_period,
+                header,
+                transport,
+            ),
+        }
+    }
+
+    fn send_message_best_effort(
         &mut self,
         writer_cache: &WriterHistoryCache,
         data_max_size_serialized: usize,
@@ -387,7 +414,7 @@ impl RtpsReaderProxy {
         }
     }
 
-    pub fn send_message_reliable(
+    fn send_message_reliable(
         &mut self,
         writer_cache: &WriterHistoryCache,
         writer_id: EntityId,

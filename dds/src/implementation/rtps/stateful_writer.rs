@@ -209,22 +209,14 @@ impl RtpsStatefulWriter {
 
     pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         for reader_proxy in self.matched_readers.iter_mut() {
-            match self.writer.get_qos().reliability.kind {
-                ReliabilityQosPolicyKind::BestEffort => reader_proxy.send_message_best_effort(
-                    self.writer.writer_cache(),
-                    self.writer.data_max_size_serialized(),
-                    header,
-                    transport,
-                ),
-                ReliabilityQosPolicyKind::Reliable => reader_proxy.send_message_reliable(
-                    self.writer.writer_cache(),
-                    self.writer.guid().entity_id(),
-                    self.writer.data_max_size_serialized(),
-                    self.writer.heartbeat_period(),
-                    header,
-                    transport,
-                ),
-            }
+            reader_proxy.send_message(
+                self.writer.writer_cache(),
+                self.writer.guid().entity_id(),
+                self.writer.data_max_size_serialized(),
+                self.writer.heartbeat_period(),
+                header,
+                transport,
+            );
         }
     }
 
