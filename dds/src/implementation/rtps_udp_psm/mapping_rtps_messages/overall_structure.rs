@@ -137,11 +137,11 @@ mod tests {
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessage_elements::{Parameter, ParameterList},
-                submessages::DataSubmessage,
+                submessages::{DataSubmessage, HeartbeatSubmessage},
                 types::{ProtocolId, SerializedPayload},
             },
             types::{
-                EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
+                Count, EntityId, EntityKey, GuidPrefix, ProtocolVersion, SequenceNumber, VendorId,
                 USER_DEFINED_READER_GROUP, USER_DEFINED_READER_NO_KEY,
             },
         },
@@ -286,7 +286,7 @@ mod tests {
         };
         let serialized_payload = SerializedPayload::new(&[]);
 
-        let submessage = RtpsSubmessageKind::Data(DataSubmessage {
+        let data_submessage = RtpsSubmessageKind::Data(DataSubmessage {
             endianness_flag,
             inline_qos_flag,
             data_flag,
@@ -298,7 +298,25 @@ mod tests {
             inline_qos,
             serialized_payload,
         });
-        let expected = RtpsMessage::new(header, vec![submessage]);
+        let endianness_flag = true;
+        let final_flag = false;
+        let liveliness_flag = true;
+        let reader_id = EntityId::new(EntityKey::new([1, 2, 3]), USER_DEFINED_READER_NO_KEY);
+        let writer_id = EntityId::new(EntityKey::new([6, 7, 8]), USER_DEFINED_READER_GROUP);
+        let first_sn = SequenceNumber::new(5);
+        let last_sn = SequenceNumber::new(7);
+        let count = Count::new(2);
+        let heartbeat_submessage = RtpsSubmessageKind::Heartbeat(HeartbeatSubmessage {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
+        });
+        let expected = RtpsMessage::new(header, vec![data_submessage, heartbeat_submessage]);
         #[rustfmt::skip]
         let result: RtpsMessage = from_bytes(&[
             b'R', b'T', b'P', b'S', // Protocol
@@ -316,7 +334,15 @@ mod tests {
             10, 11, 12, 13, // inlineQos: value_1[length_1]
             7, 0, 4, 0, // inlineQos: parameterId_2, length_2
             20, 21, 22, 23, // inlineQos: value_2[length_2]
-            1, 0, 0, 0, // inlineQos: Sentinel
+            1, 0, 1, 0, // inlineQos: Sentinel
+            0x07, 0b_0000_0101, 28, 0, // Submessage header
+            1, 2, 3, 4, // readerId: value[4]
+            6, 7, 8, 9, // writerId: value[4]
+            0, 0, 0, 0, // firstSN: SequenceNumber: high
+            5, 0, 0, 0, // firstSN: SequenceNumber: low
+            0, 0, 0, 0, // lastSN: SequenceNumberSet: high
+            7, 0, 0, 0, // lastSN: SequenceNumberSet: low
+            2, 0, 0, 0, // count: Count: value (long)
         ]).unwrap();
         assert_eq!(result, expected);
     }
