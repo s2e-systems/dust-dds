@@ -7,7 +7,7 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
-            types::{Guid, ENTITYID_UNKNOWN},
+            types::{Guid, ReliabilityKind, ENTITYID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
     },
@@ -75,6 +75,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
                 true,
+                ReliabilityKind::Reliable,
             );
             writer.matched_reader_add(proxy);
         }
@@ -124,6 +125,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
                 true,
+                ReliabilityKind::Reliable,
             );
             writer.matched_reader_add(proxy);
         }
@@ -172,6 +174,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 self.participant_data.metatraffic_multicast_locator_list(),
                 expects_inline_qos,
                 true,
+                ReliabilityKind::Reliable,
             );
             writer.matched_reader_add(proxy);
         }

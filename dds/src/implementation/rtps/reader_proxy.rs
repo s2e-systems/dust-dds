@@ -15,7 +15,9 @@ use super::{
         RtpsMessage, RtpsSubmessageKind,
     },
     transport::TransportWrite,
-    types::{ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, SequenceNumber},
+    types::{
+        ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+    },
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
 
@@ -131,6 +133,7 @@ pub struct RtpsReaderProxy {
     last_received_nack_frag_count: Count,
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
+    reliability: ReliabilityKind,
 }
 
 impl RtpsReaderProxy {
@@ -141,6 +144,7 @@ impl RtpsReaderProxy {
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
         is_active: bool,
+        reliability: ReliabilityKind,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -156,6 +160,7 @@ impl RtpsReaderProxy {
             last_received_nack_frag_count: Count::new(0),
             heartbeat_machine,
             heartbeat_frag_machine,
+            reliability,
         }
     }
 
@@ -694,8 +699,15 @@ mod tests {
 
     #[test]
     fn next_requested_change() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
 
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(
@@ -736,8 +748,15 @@ mod tests {
 
     #[test]
     fn unsent_changes() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(3));
@@ -755,8 +774,15 @@ mod tests {
 
     #[test]
     fn next_unsent_change() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(2));
@@ -779,8 +805,15 @@ mod tests {
 
     #[test]
     fn unacked_changes() {
-        let mut reader_proxy =
-            RtpsReaderProxy::new(GUID_UNKNOWN, ENTITYID_UNKNOWN, &[], &[], false, true);
+        let mut reader_proxy = RtpsReaderProxy::new(
+            GUID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            &[],
+            &[],
+            false,
+            true,
+            ReliabilityKind::Reliable,
+        );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(
             &mut writer_cache,
