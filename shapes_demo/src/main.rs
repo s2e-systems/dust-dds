@@ -22,11 +22,20 @@ use eframe::{
     Theme,
 };
 
+
 fn main() -> Result<(), eframe::Error> {
+    const ICON: &[u8] = include_bytes!("logo.png");
+    let icon = image::load_from_memory_with_format(ICON, image::ImageFormat::Png).expect("Failed to open icon").to_rgba8();
+    let (icon_width, icon_height) = icon.dimensions();
+
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(500.0, 500.0)),
         default_theme: Theme::Light,
-
+        icon_data: Some(eframe::IconData {
+            rgba: icon.into_raw(),
+            width: icon_width,
+            height: icon_height,
+        }),
         ..Default::default()
     };
     eframe::run_native(
