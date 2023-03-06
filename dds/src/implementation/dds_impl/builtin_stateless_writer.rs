@@ -40,8 +40,7 @@ impl BuiltinStatelessWriter {
                 kind: DurabilityQosPolicyKind::TransientLocal,
             },
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast,
-                depth: 1,
+                kind: HistoryQosPolicyKind::KeepLast(1),
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,

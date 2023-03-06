@@ -783,7 +783,7 @@ impl Default for DestinationOrderQosPolicy {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HistoryQosPolicyKind {
-    KeepLast,
+    KeepLast(i32),
     KeepAll,
 }
 
@@ -804,7 +804,6 @@ pub enum HistoryQosPolicyKind {
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HistoryQosPolicy {
     pub kind: HistoryQosPolicyKind,
-    pub depth: i32,
 }
 
 impl QosPolicy for HistoryQosPolicy {
@@ -816,8 +815,7 @@ impl QosPolicy for HistoryQosPolicy {
 impl Default for HistoryQosPolicy {
     fn default() -> Self {
         Self {
-            kind: HistoryQosPolicyKind::KeepLast,
-            depth: 1,
+            kind: HistoryQosPolicyKind::KeepLast(1),
         }
     }
 }

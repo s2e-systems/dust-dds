@@ -102,13 +102,16 @@ impl DataWriterQos {
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && self.history.depth as usize > self.resource_limits.max_samples_per_instance
-        {
-            return Err(DdsError::InconsistentPolicy);
+        match self.history.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                if depth as usize > self.resource_limits.max_samples_per_instance {
+                    Err(DdsError::InconsistentPolicy)
+                } else {
+                    Ok(())
+                }
+            }
+            HistoryQosPolicyKind::KeepAll => Ok(()),
         }
-
-        Ok(())
     }
 
     pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
@@ -195,10 +198,13 @@ impl DataReaderQos {
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && self.history.depth as usize > self.resource_limits.max_samples_per_instance
-        {
-            return Err(DdsError::InconsistentPolicy);
+        match self.history.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                if depth as usize > self.resource_limits.max_samples_per_instance {
+                    return Err(DdsError::InconsistentPolicy);
+                }
+            }
+            HistoryQosPolicyKind::KeepAll => (),
         }
 
         // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
@@ -275,13 +281,16 @@ impl TopicQos {
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        if self.history.kind == HistoryQosPolicyKind::KeepLast
-            && self.history.depth as usize > self.resource_limits.max_samples_per_instance
-        {
-            return Err(DdsError::InconsistentPolicy);
+        match self.history.kind {
+            HistoryQosPolicyKind::KeepLast(depth) => {
+                if depth as usize > self.resource_limits.max_samples_per_instance {
+                    Err(DdsError::InconsistentPolicy)
+                } else {
+                    Ok(())
+                }
+            }
+            HistoryQosPolicyKind::KeepAll => Ok(()),
         }
-
-        Ok(())
     }
 
     pub fn check_immutability(&self, other: &Self) -> DdsResult<()> {
@@ -324,8 +333,7 @@ mod tests {
         assert_eq!(
             DataWriterQos {
                 history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast,
-                    depth: 3
+                    kind: HistoryQosPolicyKind::KeepLast(3),
                 },
                 resource_limits: ResourceLimitsQosPolicy {
                     max_samples_per_instance: Length::Limited(2),
@@ -356,8 +364,7 @@ mod tests {
         assert_eq!(
             DataReaderQos {
                 history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast,
-                    depth: 3
+                    kind: HistoryQosPolicyKind::KeepLast(3),
                 },
                 resource_limits: ResourceLimitsQosPolicy {
                     max_samples_per_instance: Length::Limited(2),
@@ -388,8 +395,7 @@ mod tests {
         assert_eq!(
             TopicQos {
                 history: HistoryQosPolicy {
-                    kind: HistoryQosPolicyKind::KeepLast,
-                    depth: 3
+                    kind: HistoryQosPolicyKind::KeepLast(3),
                 },
                 resource_limits: ResourceLimitsQosPolicy {
                     max_samples_per_instance: Length::Limited(2),
