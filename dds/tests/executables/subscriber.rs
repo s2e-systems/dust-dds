@@ -74,5 +74,6 @@ fn main() {
     println!("Received: id: {}, msg: {}", hello_world.id, hello_world.msg);
 
     // Wait for SubscriptionMatched status change (publisher finished)
+    // to allow sending acknowledgements
     wait_set.wait(Duration::new(30, 0)).unwrap();
 }

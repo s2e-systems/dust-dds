@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
 		data = (BigDataType *)samples[0];
 		printf("Received: BigDataType { msg.length: %d, msg[0]: \"%c\" }\n", data->msg._length, data->msg._buffer[0]);
 	}
+	// Wait to allow sending acknowledgements
 	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));
 	if (rc == 0)
 	{
