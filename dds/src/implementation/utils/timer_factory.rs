@@ -35,7 +35,8 @@ impl PeriodicTask {
     }
 
     fn remaining_duration(&self) -> std::time::Duration {
-        self.duration - (std::time::Instant::now() - self.start_instant)
+        self.duration
+            .saturating_sub(std::time::Instant::now() - self.start_instant)
     }
 }
 

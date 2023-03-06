@@ -157,9 +157,7 @@ impl DdsShared<BuiltinStatefulWriter> {
                 ));
         }
     }
-}
 
-impl DdsShared<BuiltinStatefulWriter> {
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
@@ -196,17 +194,13 @@ impl DdsShared<BuiltinStatefulWriter> {
         self.sedp_condvar.notify_all();
         Ok(())
     }
-}
 
-impl DdsShared<BuiltinStatefulWriter> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
         Ok(())
     }
-}
 
-impl DdsShared<BuiltinStatefulWriter> {
     pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
         self.rtps_writer
             .write_lock()
