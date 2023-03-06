@@ -8,14 +8,16 @@ use dust_dds::{
     },
     infrastructure::{
         qos::{DataReaderQos, DataWriterQos, QosKind},
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+        qos_policy::{
+            HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
         status::NO_STATUS,
         time::Duration,
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{
         data_reader::DataReader,
-        sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+        sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
         subscriber::Subscriber,
     },
 };
@@ -117,8 +119,12 @@ impl MyApp {
             .unwrap();
         let qos = DataReaderQos {
             reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
+                kind: ReliabilityQosPolicyKind::BestEffort,
                 max_blocking_time: Duration::new(1, 0),
+            },
+            history: HistoryQosPolicy {
+                kind: HistoryQosPolicyKind::KeepLast,
+                depth: 1,
             },
             ..Default::default()
         };
@@ -146,42 +152,47 @@ impl MyApp {
         }
     }
 
-    fn read_circle_data(&self, offset: &Pos2) -> Option<CircleShape> {
-        if let Some(reader) = self.readers.first() {
-            if let Ok(samples) = reader.read(
-                1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-            ) {
-                if let Some(sample) = samples.first() {
-                    if let Some(data) = &sample.data {
-                        println!("read {:?}", data);
-                        let fill = match data.color.as_str() {
-                            "PURPLE" => Color32::from_rgb(128, 0, 128),
-                            "BLUE" => Color32::BLUE,
-                            "RED" => Color32::RED,
-                            "GREEN" => Color32::GREEN,
-                            "YELLOW" => Color32::YELLOW,
-                            "CYAN" => Color32::from_rgb(0, 255, 255),
-                            "MAGENTA" => Color32::from_rgb(255, 0, 255),
-                            "ORANGE" => Color32::from_rgb(255, 165, 0),
-                            _ => return None,
-                        };
-                        let stroke = Stroke::new(3.0, Color32::RED);
-                        let center = Pos2 {
-                            x: data.x as f32 + offset.x,
-                            y: data.y as f32 + offset.y,
-                        };
+    fn read_circle_data(
+        &self,
+        reader: &DataReader<ShapeType>,
+        offset: &Pos2,
+    ) -> Option<CircleShape> {
+        let mut previous_handle = None;
+        while let Ok(samples) = reader.read_next_instance(
+            1,
+            previous_handle,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+        ) {
+            if let Some(sample) = samples.first() {
+                previous_handle = Some(sample.sample_info.instance_handle);
+                if let Some(data) = &sample.data {
+                    println!("read {:?}", data);
+                    let fill = match data.color.as_str() {
+                        "PURPLE" => Color32::from_rgb(128, 0, 128),
+                        "BLUE" => Color32::BLUE,
+                        "RED" => Color32::RED,
+                        "GREEN" => Color32::GREEN,
+                        "YELLOW" => Color32::YELLOW,
+                        "CYAN" => Color32::from_rgb(0, 255, 255),
+                        "MAGENTA" => Color32::from_rgb(255, 0, 255),
+                        "ORANGE" => Color32::from_rgb(255, 165, 0),
+                        _ => return None,
+                    };
+                    let stroke = Stroke::new(3.0, Color32::RED);
+                    let center = Pos2 {
+                        x: data.x as f32 + offset.x,
+                        y: data.y as f32 + offset.y,
+                    };
 
-                        let radius = data.shapesize as f32 / 2.0;
-                        return Some(CircleShape {
-                            center,
-                            fill,
-                            radius,
-                            stroke,
-                        });
-                    }
+                    let radius = data.shapesize as f32 / 2.0;
+                    return Some(CircleShape {
+                        center,
+                        fill,
+                        radius,
+                        stroke,
+                    });
                 }
             }
         }
@@ -213,8 +224,8 @@ impl eframe::App for MyApp {
                 self.write_circle_data(&self.moving_circle.circle, offset);
                 painter.add(self.moving_circle.clone());
             }
-            if let Some(_reader) = self.readers.first() {
-                if let Some(circle) = self.read_circle_data(offset) {
+            for reader in &self.readers {
+                if let Some(circle) = self.read_circle_data(reader, offset) {
                     painter.add(circle);
                 }
             }
