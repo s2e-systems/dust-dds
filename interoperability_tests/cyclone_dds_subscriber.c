@@ -86,4 +86,10 @@ int main(int argc, char *argv[])
 		msg = (HelloWorldType *)samples[0];
 		printf("Received: HelloWorldType { id: %d, msg: \"%c\" }\n", msg->id, msg->msg);
 	}
+
+	rc = dds_waitset_wait(waitset, wsresults, wsresultsize, DDS_SECS(30));
+	if (rc == 0)
+	{
+		DDS_FATAL("dds_waitset_wait: timeout: Probably subscription not un-matched");
+	}
 }
