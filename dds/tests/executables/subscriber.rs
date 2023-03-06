@@ -72,4 +72,7 @@ fn main() {
 
     let hello_world = samples[0].data.as_ref().unwrap();
     println!("Received: id: {}, msg: {}", hello_world.id, hello_world.msg);
+
+    // Wait for SubscriptionMatched status change (publisher finished)
+    wait_set.wait(Duration::new(30, 0)).unwrap();
 }
