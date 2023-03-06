@@ -7,12 +7,17 @@ use dust_dds::{
         domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
     },
     infrastructure::{
-        qos::{DataWriterQos, QosKind},
+        qos::{DataReaderQos, DataWriterQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::NO_STATUS,
         time::Duration,
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
+    subscription::{
+        data_reader::DataReader,
+        sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
+        subscriber::Subscriber,
+    },
 };
 use shapes_type::ShapeType;
 
@@ -22,10 +27,11 @@ use eframe::{
     Theme,
 };
 
-
 fn main() -> Result<(), eframe::Error> {
     const ICON: &[u8] = include_bytes!("logo.png");
-    let icon = image::load_from_memory_with_format(ICON, image::ImageFormat::Png).expect("Failed to open icon").to_rgba8();
+    let icon = image::load_from_memory_with_format(ICON, image::ImageFormat::Png)
+        .expect("Failed to open icon")
+        .to_rgba8();
     let (icon_width, icon_height) = icon.dimensions();
 
     let options = eframe::NativeOptions {
@@ -49,7 +55,9 @@ struct MyApp {
     moving_circle: MovingCircle,
     participant: DomainParticipant,
     publisher: Publisher,
+    subscriber: Subscriber,
     writers: Vec<DataWriter<ShapeType>>,
+    readers: Vec<DataReader<ShapeType>>,
 }
 
 impl MyApp {
@@ -62,19 +70,24 @@ impl MyApp {
         let publisher = participant
             .create_publisher(QosKind::Default, None, NO_STATUS)
             .unwrap();
+        let subscriber = participant
+            .create_subscriber(QosKind::Default, None, NO_STATUS)
+            .unwrap();
 
         let moving_circle = MovingCircle::new(CircleShape {
             center: pos2(360.0, 40.0),
             radius: 15.0,
             fill: Color32::BLUE,
-            stroke: Stroke::new(3.0, Color32::RED),
+            stroke: Stroke::NONE,
         });
 
         Self {
             moving_circle,
             participant,
             publisher,
+            subscriber,
             writers: vec![],
+            readers: vec![],
         }
     }
 
@@ -83,7 +96,7 @@ impl MyApp {
             .participant
             .create_topic::<ShapeType>(topic_name, QosKind::Default, None, NO_STATUS)
             .unwrap();
-        let writer_qos = DataWriterQos {
+        let qos = DataWriterQos {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
                 max_blocking_time: Duration::new(1, 0),
@@ -92,9 +105,28 @@ impl MyApp {
         };
         let writer = self
             .publisher
-            .create_datawriter(&topic, QosKind::Specific(writer_qos), None, NO_STATUS)
+            .create_datawriter(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
         self.writers.push(writer);
+    }
+
+    fn create_reader(&mut self, topic_name: &str) {
+        let topic = self
+            .participant
+            .create_topic::<ShapeType>(topic_name, QosKind::Default, None, NO_STATUS)
+            .unwrap();
+        let qos = DataReaderQos {
+            reliability: ReliabilityQosPolicy {
+                kind: ReliabilityQosPolicyKind::Reliable,
+                max_blocking_time: Duration::new(1, 0),
+            },
+            ..Default::default()
+        };
+        let reader = self
+            .subscriber
+            .create_datareader(&topic, QosKind::Specific(qos), None, NO_STATUS)
+            .unwrap();
+        self.readers.push(reader);
     }
 
     fn write_circle_data(&self, circle: &CircleShape, offset: &Pos2) {
@@ -113,6 +145,48 @@ impl MyApp {
             println!("written {:?}", data);
         }
     }
+
+    fn read_circle_data(&self, offset: &Pos2) -> Option<CircleShape> {
+        if let Some(reader) = self.readers.first() {
+            if let Ok(samples) = reader.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+            ) {
+                if let Some(sample) = samples.first() {
+                    if let Some(data) = &sample.data {
+                        println!("read {:?}", data);
+                        let fill = match data.color.as_str() {
+                            "PURPLE" => Color32::from_rgb(128, 0, 128),
+                            "BLUE" => Color32::BLUE,
+                            "RED" => Color32::RED,
+                            "GREEN" => Color32::GREEN,
+                            "YELLOW" => Color32::YELLOW,
+                            "CYAN" => Color32::from_rgb(0, 255, 255),
+                            "MAGENTA" => Color32::from_rgb(255, 0, 255),
+                            "ORANGE" => Color32::from_rgb(255, 165, 0),
+                            _ => return None,
+                        };
+                        let stroke = Stroke::new(3.0, Color32::RED);
+                        let center = Pos2 {
+                            x: data.x as f32 + offset.x,
+                            y: data.y as f32 + offset.y,
+                        };
+
+                        let radius = data.shapesize as f32 / 2.0;
+                        return Some(CircleShape {
+                            center,
+                            fill,
+                            radius,
+                            stroke,
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
 }
 
 impl eframe::App for MyApp {
@@ -125,7 +199,7 @@ impl eframe::App for MyApp {
             ui.separator();
             ui.heading("Subscribe");
             if ui.button("Circle").clicked() {
-                println!("Subscribe Circle clicked")
+                self.create_reader("Circle")
             };
         });
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -133,10 +207,16 @@ impl eframe::App for MyApp {
             let rect = Rect::from_center_size(ui.max_rect().center(), vec2(235.0, 265.0));
             painter.rect_filled(rect, Rounding::none(), Color32::WHITE);
 
+            let offset = &rect.left_top();
             if let Some(_writer) = self.writers.first() {
                 self.moving_circle.move_within_rect(rect);
-                self.write_circle_data(&self.moving_circle.circle, &rect.left_top());
+                self.write_circle_data(&self.moving_circle.circle, offset);
                 painter.add(self.moving_circle.clone());
+            }
+            if let Some(_reader) = self.readers.first() {
+                if let Some(circle) = self.read_circle_data(offset) {
+                    painter.add(circle);
+                }
             }
             ctx.request_repaint_after(std::time::Duration::from_millis(40));
         });
