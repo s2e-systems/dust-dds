@@ -202,8 +202,6 @@ impl DataReaderQos {
             HistoryQosPolicyKind::KeepLast(depth) => {
                 if depth as usize > self.resource_limits.max_samples_per_instance {
                     return Err(DdsError::InconsistentPolicy);
-                } else {
-                    ()
                 }
             }
             HistoryQosPolicyKind::KeepAll => (),
