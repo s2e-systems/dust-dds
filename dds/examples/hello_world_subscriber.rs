@@ -72,4 +72,7 @@ fn main() {
 
     let hello_world = samples[0].data.as_ref().unwrap();
     println!("Received: {:?}", hello_world);
+
+    // Sleep to allow sending acknowledgements
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }

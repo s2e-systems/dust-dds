@@ -39,7 +39,7 @@ jobs:
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo test --jobs 4
+            cargo test --package dust_dds --jobs 4
       - run:
           name: Hello world example
           command: |
@@ -82,7 +82,7 @@ jobs:
       - run:
           name: Build dust binaries
           command: |
-            cargo build
+            cargo build --package dust_dds_interoperability
       - run:
           name: Hello world subscriber interoperability test
           command: |

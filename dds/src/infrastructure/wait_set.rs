@@ -26,7 +26,6 @@ impl Condition {
 /// wait on [`Condition`] objects associated with different [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant) objects.
 pub struct WaitSet {
     conditions: Vec<Condition>,
-    enabled: Mutex<()>,
     cvar: Arc<Condvar>,
 }
 
@@ -34,7 +33,6 @@ impl Default for WaitSet {
     fn default() -> Self {
         Self {
             conditions: vec![],
-            enabled: Mutex::new(()),
             cvar: Arc::new(Condvar::new()),
         }
     }
@@ -55,12 +53,13 @@ impl WaitSet {
     /// It is not allowed for more than one application thread to be waiting on the same [`WaitSet`]. If the wait operation is invoked on a
     /// [`WaitSet`] that already has a thread blocking on it, the operation will return immediately with the value [`DdsError::PreconditionNotMet`].
     pub fn wait(&self, timeout: Duration) -> DdsResult<Vec<Condition>> {
-        let enabled = self.enabled.lock().unwrap();
-        let std_duration = std::time::Duration::new(timeout.sec() as u64, timeout.nanosec());
-
         // Wait only if the condition is not yet triggered
         if !self.conditions.iter().any(|x| x.get_trigger_value()) {
-            let result = self.cvar.wait_timeout(enabled, std_duration).unwrap();
+            let enabled = Mutex::new(());
+            let result = self
+                .cvar
+                .wait_timeout(enabled.lock().unwrap(), timeout.into())
+                .unwrap();
 
             if result.1.timed_out() {
                 return Err(DdsError::Timeout);

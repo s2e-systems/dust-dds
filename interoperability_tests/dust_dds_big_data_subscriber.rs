@@ -67,4 +67,7 @@ fn main() {
 
     let big_data = samples[0].data.as_ref().unwrap();
     println!("Received total msg length: {:?}", big_data.msg.len());
+
+    // Sleep to allow sending acknowledgements
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }

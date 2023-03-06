@@ -86,4 +86,6 @@ int main(int argc, char *argv[])
 		data = (BigDataType *)samples[0];
 		printf("Received: BigDataType { msg.length: %d, msg[0]: \"%c\" }\n", data->msg._length, data->msg._buffer[0]);
 	}
+	// Sleep to allow sending acknowledgements
+	dds_sleepfor(DDS_SECS(2));
 }

@@ -8,6 +8,8 @@ pub struct Duration {
 
 impl Duration {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
+        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
 
@@ -58,6 +60,8 @@ pub struct Time {
 
 impl Time {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
+        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
 
@@ -70,21 +74,14 @@ impl Time {
     }
 }
 
+
 impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, rhs: Time) -> Self::Output {
-        if rhs.nanosec > self.nanosec {
-            Duration {
-                sec: self.sec - rhs.sec - 1,
-                nanosec: 1_000_000_000 - rhs.nanosec,
-            }
-        } else {
-            Duration {
-                sec: self.sec - rhs.sec,
-                nanosec: self.nanosec - rhs.nanosec,
-            }
-        }
+        let lhs = Duration::new(self.sec, self.nanosec);
+        let rhs = Duration::new(rhs.sec, rhs.nanosec);
+        lhs - rhs
     }
 }
 
@@ -119,6 +116,42 @@ mod tests {
             Duration {
                 sec: 0,
                 nanosec: 100_000_000
+            }
+        );
+    }
+
+    #[test]
+    fn time_subtraction_nanosec_bigger_one_second() {
+        let duration = Time {
+            sec: 4,
+            nanosec: 700_000_000,
+        } - Time {
+            sec: 1,
+            nanosec: 2_900_000_000,
+        };
+        assert_eq!(
+            duration,
+            Duration {
+                sec: 0,
+                nanosec: 800_000_000
+            }
+        );
+    }
+
+    #[test]
+    fn time_subtraction_nanosec_bigger_one_second_lhs_and_rhs() {
+        let duration = Time {
+            sec: 0,
+            nanosec: 3_700_000_000,
+        } - Time {
+            sec: 0,
+            nanosec: 2_900_000_000,
+        };
+        assert_eq!(
+            duration,
+            Duration {
+                sec: 0,
+                nanosec: 800_000_000
             }
         );
     }

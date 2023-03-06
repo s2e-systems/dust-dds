@@ -86,4 +86,7 @@ int main(int argc, char *argv[])
 		msg = (HelloWorldType *)samples[0];
 		printf("Received: HelloWorldType { id: %d, msg: \"%c\" }\n", msg->id, msg->msg);
 	}
+
+	// Sleep to allow sending acknowledgements
+	dds_sleepfor(DDS_SECS(2));
 }
