@@ -92,4 +92,7 @@ int main(int argc, char *argv[])
 	{
 		DDS_FATAL("dds_waitset_wait: timeout: Probably subscription not un-matched");
 	}
+
+	// Sleep to allow sending acknowledgements
+	dds_sleepfor(DDS_SECS(2));
 }
