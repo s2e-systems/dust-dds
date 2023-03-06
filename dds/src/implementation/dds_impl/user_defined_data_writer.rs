@@ -409,7 +409,11 @@ impl DdsShared<UserDefinedDataWriter> {
                 }
             }
 
-            let duration_until_timeout = Duration::from(start_time.elapsed()) - max_wait;
+            let elapsed = Duration::from(start_time.elapsed());
+            if elapsed >= max_wait {
+                return Err(DdsError::Timeout);
+            }
+            let duration_until_timeout = max_wait - elapsed;
             self.acked_by_all_condvar
                 .wait_timeout(duration_until_timeout)
                 .ok();
