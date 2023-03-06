@@ -156,7 +156,8 @@ impl MyApp {
         &self,
         reader: &DataReader<ShapeType>,
         offset: &Pos2,
-    ) -> Option<CircleShape> {
+    ) -> Vec<CircleShape> {
+        let mut shapes = vec![];
         let mut previous_handle = None;
         while let Ok(samples) = reader.read_next_instance(
             1,
@@ -178,7 +179,7 @@ impl MyApp {
                         "CYAN" => Color32::from_rgb(0, 255, 255),
                         "MAGENTA" => Color32::from_rgb(255, 0, 255),
                         "ORANGE" => Color32::from_rgb(255, 165, 0),
-                        _ => return None,
+                        _ => Color32::TEMPORARY_COLOR,
                     };
                     let stroke = Stroke::new(3.0, Color32::RED);
                     let center = Pos2 {
@@ -187,7 +188,7 @@ impl MyApp {
                     };
 
                     let radius = data.shapesize as f32 / 2.0;
-                    return Some(CircleShape {
+                    shapes.push(CircleShape {
                         center,
                         fill,
                         radius,
@@ -196,7 +197,7 @@ impl MyApp {
                 }
             }
         }
-        None
+        shapes
     }
 }
 
@@ -225,7 +226,7 @@ impl eframe::App for MyApp {
                 painter.add(self.moving_circle.clone());
             }
             for reader in &self.readers {
-                if let Some(circle) = self.read_circle_data(reader, offset) {
+                for circle in self.read_circle_data(reader, offset) {
                     painter.add(circle);
                 }
             }
