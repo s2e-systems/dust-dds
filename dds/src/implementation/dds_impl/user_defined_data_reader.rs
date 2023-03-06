@@ -11,7 +11,7 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
-                    DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
                     HeartbeatSubmessage,
                 },
             },
@@ -856,6 +856,16 @@ impl DdsShared<UserDefinedDataReader> {
                 .write_lock()
                 .add_communication_state(StatusKind::DataAvailable);
         }
+    }
+
+    pub fn on_gap_submessage_received(
+        &self,
+        gap_submessage: &GapSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.rtps_reader
+            .write_lock()
+            .on_gap_submessage_received(gap_submessage, source_guid_prefix);
     }
 
     fn on_sample_lost(&self) {

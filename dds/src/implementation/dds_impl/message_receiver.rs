@@ -2,9 +2,9 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                AckNackSubmessage, DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
-                HeartbeatSubmessage, InfoDestinationSubmessage, InfoSourceSubmessage,
-                InfoTimestampSubmessage, NackFragSubmessage,
+                AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
+                HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+                InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -55,6 +55,12 @@ pub trait SubscriberSubmessageReceiver {
     fn on_data_frag_submessage_received(
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    );
+
+    fn on_gap_submessage_received(
+        &self,
+        gap_submessage: &GapSubmessage,
         message_receiver: &MessageReceiver,
     );
 }
@@ -126,7 +132,11 @@ impl MessageReceiver {
                         subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
                     }
                 }
-                RtpsSubmessageKind::Gap(_) => todo!(),
+                RtpsSubmessageKind::Gap(gap_submessage) => {
+                    for subscriber in subscriber_list {
+                        subscriber.on_gap_submessage_received(gap_submessage, self)
+                    }
+                }
                 RtpsSubmessageKind::Heartbeat(heartbeat_submessage) => {
                     for subscriber in subscriber_list {
                         subscriber.on_heartbeat_submessage_received(

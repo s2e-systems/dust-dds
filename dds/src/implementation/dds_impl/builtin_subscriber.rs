@@ -15,7 +15,7 @@ use crate::{
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
-                    DataFragSubmessage, DataSubmessage, HeartbeatFragSubmessage,
+                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
                     HeartbeatSubmessage,
                 },
             },
@@ -271,6 +271,15 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         _message_receiver: &MessageReceiver,
     ) {
         // Maybe necessary for user data
+        todo!()
+    }
+
+    fn on_gap_submessage_received(
+        &self,
+        _gap_submessage: &GapSubmessage,
+        _message_receiver: &MessageReceiver,
+    ) {
+        // Only for user data
         todo!()
     }
 }
