@@ -1048,7 +1048,6 @@ fn write_read_disposed_samples() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         ..Default::default()
     };
@@ -1066,7 +1065,6 @@ fn write_read_disposed_samples() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         ..Default::default()
     };
@@ -1271,7 +1269,6 @@ fn reader_with_minimum_time_separation_qos() {
     let writer_qos = DataWriterQos {
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1289,7 +1286,6 @@ fn reader_with_minimum_time_separation_qos() {
     let reader_qos = DataReaderQos {
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1376,7 +1372,6 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1401,7 +1396,6 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1460,7 +1454,6 @@ fn volatile_writer_reader_receives_only_new_samples() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
@@ -1484,7 +1477,6 @@ fn volatile_writer_reader_receives_only_new_samples() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,

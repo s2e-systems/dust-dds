@@ -435,21 +435,21 @@ impl RtpsReader {
                     })
                     .count() as i32;
 
-                if self.qos.history.kind == HistoryQosPolicyKind::KeepLast
-                    && self.qos.history.depth == num_alive_samples_of_instance
-                {
-                    let index_sample_to_remove = self
-                        .changes
-                        .iter()
-                        .position(|cc| {
-                            self.instance_handle_builder
-                                .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
-                                .unwrap()
-                                == change_instance_handle
-                                && cc.kind == ChangeKind::Alive
-                        })
-                        .expect("Samples must exist");
-                    self.changes.remove(index_sample_to_remove);
+                if let HistoryQosPolicyKind::KeepLast(depth) = self.qos.history.kind {
+                    if depth == num_alive_samples_of_instance {
+                        let index_sample_to_remove = self
+                            .changes
+                            .iter()
+                            .position(|cc| {
+                                self.instance_handle_builder
+                                    .build_instance_handle(cc.kind, &cc.data, &cc.inline_qos)
+                                    .unwrap()
+                                    == change_instance_handle
+                                    && cc.kind == ChangeKind::Alive
+                            })
+                            .expect("Samples must exist");
+                        self.changes.remove(index_sample_to_remove);
+                    }
                 }
 
                 let instance_entry = self

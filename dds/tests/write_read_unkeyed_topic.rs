@@ -221,7 +221,6 @@ fn data_reader_order_by_source_timestamp() {
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
-            depth: 1,
         },
         destination_order: DestinationOrderQosPolicy {
             kind: DestinationOrderQosPolicyKind::BySourceTimestamp,

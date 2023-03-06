@@ -123,8 +123,7 @@ impl MyApp {
                 max_blocking_time: Duration::new(1, 0),
             },
             history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast,
-                depth: 1,
+                kind: HistoryQosPolicyKind::KeepLast(1),
             },
             ..Default::default()
         };
@@ -152,11 +151,7 @@ impl MyApp {
         }
     }
 
-    fn read_circle_data(
-        &self,
-        reader: &DataReader<ShapeType>,
-        offset: &Pos2,
-    ) -> Vec<CircleShape> {
+    fn read_circle_data(&self, reader: &DataReader<ShapeType>, offset: &Pos2) -> Vec<CircleShape> {
         let mut shapes = vec![];
         let mut previous_handle = None;
         while let Ok(samples) = reader.read_next_instance(
