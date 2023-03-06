@@ -270,7 +270,7 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         _data_frag_submessage: &DataFragSubmessage<'_>,
         _message_receiver: &MessageReceiver,
     ) {
-        ()
+        // Not for builtin types
     }
 
     fn on_gap_submessage_received(
@@ -278,19 +278,11 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         gap_submessage: &GapSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        self.sedp_builtin_topics_reader.on_gap_submessage_received(
-            gap_submessage,
-            message_receiver.source_guid_prefix(),
-        );
+        self.sedp_builtin_topics_reader
+            .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
         self.sedp_builtin_publications_reader
-            .on_gap_submessage_received(
-                gap_submessage,
-                message_receiver.source_guid_prefix(),
-            );
+            .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
         self.sedp_builtin_subscriptions_reader
-            .on_gap_submessage_received(
-                gap_submessage,
-                message_receiver.source_guid_prefix(),
-            );
+            .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
     }
 }
