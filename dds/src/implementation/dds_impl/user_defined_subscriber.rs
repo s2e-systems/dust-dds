@@ -7,7 +7,10 @@ use crate::{
             group::RtpsGroupImpl,
             messages::{
                 overall_structure::RtpsMessageHeader,
-                submessages::{DataSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage},
+                submessages::{
+                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+                    HeartbeatSubmessage,
+                },
             },
             transport::TransportWrite,
             types::{GuidPrefix, Locator},
@@ -498,7 +501,7 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
 
     fn on_data_frag_submessage_received(
         &self,
-        data_frag_submessage: &crate::implementation::rtps::messages::submessages::DataFragSubmessage<'_>,
+        data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
     ) {
         for data_reader in self.data_reader_list.read_lock().iter() {
@@ -513,6 +516,17 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         }
         if *self.data_on_readers_status_changed_flag.read_lock() {
             self.on_data_on_readers();
+        }
+    }
+
+    fn on_gap_submessage_received(
+        &self,
+        gap_submessage: &GapSubmessage,
+        message_receiver: &MessageReceiver,
+    ) {
+        for data_reader in self.data_reader_list.read_lock().iter() {
+            data_reader
+                .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
         }
     }
 }

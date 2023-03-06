@@ -1,6 +1,6 @@
 use crate::{
     implementation::rtps::{
-        messages::overall_structure::RtpsMessageHeader,
+        messages::{overall_structure::RtpsMessageHeader, submessages::GapSubmessage},
         stateful_reader::{
             StatefulReaderDataReceivedResult, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
             DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
@@ -273,5 +273,15 @@ impl DdsShared<BuiltinStatefulReader> {
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::DataAvailable);
+    }
+
+    pub fn on_gap_submessage_received(
+        &self,
+        gap_submessage: &GapSubmessage,
+        source_guid_prefix: GuidPrefix,
+    ) {
+        self.rtps_reader
+            .write_lock()
+            .on_gap_submessage_received(gap_submessage, source_guid_prefix);
     }
 }

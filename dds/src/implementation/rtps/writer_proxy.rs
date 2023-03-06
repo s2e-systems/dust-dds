@@ -153,7 +153,7 @@ impl RtpsWriterProxy {
         }
     }
 
-    pub fn _irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
         // This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
         // SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader. Logical action in the virtual machine:
         // FIND change FROM this.changes_from_writer SUCH-THAT

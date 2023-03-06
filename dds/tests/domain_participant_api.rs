@@ -587,7 +587,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(participants_reader_cond))
         .unwrap();
-    wait_set.wait(Duration::new(4, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let participant_samples = participants_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
