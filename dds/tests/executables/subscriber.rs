@@ -75,5 +75,6 @@ fn main() {
 
     // Wait for SubscriptionMatched status change (publisher finished)
     // to allow sending acknowledgements
-    wait_set.wait(Duration::new(30, 0)).unwrap();
+    // wait_set.wait(Duration::new(30, 0)).unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(2));
 }
