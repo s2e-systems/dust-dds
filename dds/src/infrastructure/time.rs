@@ -74,15 +74,19 @@ impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, rhs: Time) -> Self::Output {
-        if rhs.nanosec > self.nanosec {
+        let rhs_sec = rhs.sec + (rhs.nanosec / 1_000_000_000)  as i32;
+        let rhs_nanosec = rhs.nanosec % 1_000_000_000;
+        let lhs_sec = self.sec + (self.nanosec / 1_000_000_000)  as i32;
+        let lhs_nanosec = self.nanosec % 1_000_000_000;
+        if rhs_nanosec > lhs_nanosec {
             Duration {
-                sec: self.sec - rhs.sec - 1,
-                nanosec: 1_000_000_000 - rhs.nanosec,
+                sec: lhs_sec - rhs_sec - 1,
+                nanosec: lhs_nanosec + 1_000_000_000 - rhs_nanosec,
             }
         } else {
             Duration {
-                sec: self.sec - rhs.sec,
-                nanosec: self.nanosec - rhs.nanosec,
+                sec: lhs_sec - rhs_sec,
+                nanosec: lhs_nanosec - rhs_nanosec,
             }
         }
     }
@@ -119,6 +123,42 @@ mod tests {
             Duration {
                 sec: 0,
                 nanosec: 100_000_000
+            }
+        );
+    }
+
+    #[test]
+    fn time_subtraction_nanosec_bigger_one_second() {
+        let duration = Time {
+            sec: 4,
+            nanosec: 700_000_000,
+        } - Time {
+            sec: 1,
+            nanosec: 2_900_000_000,
+        };
+        assert_eq!(
+            duration,
+            Duration {
+                sec: 0,
+                nanosec: 800_000_000
+            }
+        );
+    }
+
+    #[test]
+    fn time_subtraction_nanosec_bigger_one_second_lhs_and_rhs() {
+        let duration = Time {
+            sec: 0,
+            nanosec: 3_700_000_000,
+        } - Time {
+            sec: 0,
+            nanosec: 2_900_000_000,
+        };
+        assert_eq!(
+            duration,
+            Duration {
+                sec: 0,
+                nanosec: 800_000_000
             }
         );
     }
