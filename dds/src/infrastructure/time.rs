@@ -8,6 +8,8 @@ pub struct Duration {
 
 impl Duration {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
+        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
 
@@ -58,6 +60,8 @@ pub struct Time {
 
 impl Time {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
+        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
 
@@ -70,25 +74,14 @@ impl Time {
     }
 }
 
+
 impl Sub<Time> for Time {
     type Output = Duration;
 
     fn sub(self, rhs: Time) -> Self::Output {
-        let rhs_sec = rhs.sec + (rhs.nanosec / 1_000_000_000)  as i32;
-        let rhs_nanosec = rhs.nanosec % 1_000_000_000;
-        let lhs_sec = self.sec + (self.nanosec / 1_000_000_000)  as i32;
-        let lhs_nanosec = self.nanosec % 1_000_000_000;
-        if rhs_nanosec > lhs_nanosec {
-            Duration {
-                sec: lhs_sec - rhs_sec - 1,
-                nanosec: lhs_nanosec + 1_000_000_000 - rhs_nanosec,
-            }
-        } else {
-            Duration {
-                sec: lhs_sec - rhs_sec,
-                nanosec: lhs_nanosec - rhs_nanosec,
-            }
-        }
+        let lhs = Duration::new(self.sec, self.nanosec);
+        let rhs = Duration::new(rhs.sec, rhs.nanosec);
+        lhs - rhs
     }
 }
 
