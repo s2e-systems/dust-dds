@@ -455,3 +455,9 @@ pub enum ReliabilityKind {
     BestEffort,
     Reliable,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DurabilityKind {
+    Volatile,
+    TransientLocal,
+}
