@@ -25,7 +25,7 @@ use shapes_type::ShapeType;
 
 use eframe::{
     egui::{self, Rect},
-    epaint::{pos2, vec2, CircleShape, Color32, Pos2, Rounding, Shape, Stroke, Vec2},
+    epaint::{pos2, vec2, CircleShape, Color32, PathShape, Pos2, Rounding, Shape, Stroke, Vec2},
     Theme,
 };
 
@@ -55,6 +55,7 @@ fn main() -> Result<(), eframe::Error> {
 
 struct MyApp {
     moving_circle: MovingCircle,
+    moving_triangle: MovingTriangle,
     participant: DomainParticipant,
     publisher: Publisher,
     subscriber: Subscriber,
@@ -83,8 +84,16 @@ impl MyApp {
             stroke: Stroke::NONE,
         });
 
+        let moving_triangle = MovingTriangle::new(PathShape {
+            points: vec![pos2(15.0, 0.0), pos2(30.0, 30.0), pos2(0.0, 30.0)],
+            closed: true,
+            fill: Color32::BLUE,
+            stroke: Stroke::NONE,
+        });
+
         Self {
             moving_circle,
+            moving_triangle,
             participant,
             publisher,
             subscriber,
@@ -203,6 +212,9 @@ impl eframe::App for MyApp {
             if ui.button("Circle").clicked() {
                 self.create_writer("Circle");
             };
+            if ui.button("Triangle").clicked() {
+                self.create_writer("Triangle");
+            };
             ui.separator();
             ui.heading("Subscribe");
             if ui.button("Circle").clicked() {
@@ -213,12 +225,19 @@ impl eframe::App for MyApp {
             let painter = ui.painter();
             let rect = Rect::from_center_size(ui.max_rect().center(), vec2(235.0, 265.0));
             painter.rect_filled(rect, Rounding::none(), Color32::WHITE);
-
             let offset = &rect.left_top();
-            if let Some(_writer) = self.writers.first() {
-                self.moving_circle.move_within_rect(rect);
-                self.write_circle_data(&self.moving_circle.circle, offset);
-                painter.add(self.moving_circle.clone());
+            for writer in &self.writers {
+                match writer.get_topic().unwrap().get_name().unwrap().as_str() {
+                    "Circle" => {
+                        self.moving_circle.move_within_rect(rect);
+                        self.write_circle_data(&self.moving_circle.circle, offset);
+                        painter.add(self.moving_circle.clone());
+                    }
+                    "Triangle" => {
+                        painter.add(self.moving_triangle.clone());
+                    }
+                    _ => (),
+                }
             }
             for reader in &self.readers {
                 for circle in self.read_circle_data(reader, offset) {
@@ -227,6 +246,32 @@ impl eframe::App for MyApp {
             }
             ctx.request_repaint_after(std::time::Duration::from_millis(40));
         });
+    }
+}
+
+#[derive(Clone)]
+
+struct MovingTriangle {
+    velocity: Vec2,
+    triangle: PathShape,
+}
+
+impl MovingTriangle {
+    fn new(triangle: PathShape) -> Self {
+        let mut triangle = triangle;
+        for point in &mut triangle.points {
+            *point += vec2(360.0, 180.0);
+        }
+        Self {
+            velocity: vec2(2.0, 2.0),
+            triangle,
+        }
+    }
+}
+
+impl From<MovingTriangle> for Shape {
+    fn from(v: MovingTriangle) -> Self {
+        v.triangle.into()
     }
 }
 
