@@ -16,7 +16,8 @@ use super::{
     },
     transport::TransportWrite,
     types::{
-        ChangeKind, Count, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+        ChangeKind, Count, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
+        SequenceNumber,
     },
     utils::clock::{StdTimer, Timer, TimerConstructor},
 };
@@ -134,9 +135,11 @@ pub struct RtpsReaderProxy {
     heartbeat_machine: HeartbeatMachine,
     heartbeat_frag_machine: HeartbeatFragMachine,
     reliability: ReliabilityKind,
+    durability: DurabilityKind,
 }
 
 impl RtpsReaderProxy {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         remote_reader_guid: Guid,
         remote_group_entity_id: EntityId,
@@ -145,6 +148,7 @@ impl RtpsReaderProxy {
         expects_inline_qos: bool,
         is_active: bool,
         reliability: ReliabilityKind,
+        durability: DurabilityKind,
     ) -> Self {
         let heartbeat_machine = HeartbeatMachine::new(remote_reader_guid.entity_id());
         let heartbeat_frag_machine = HeartbeatFragMachine::new(remote_reader_guid.entity_id());
@@ -161,6 +165,7 @@ impl RtpsReaderProxy {
             heartbeat_machine,
             heartbeat_frag_machine,
             reliability,
+            durability,
         }
     }
 
@@ -744,6 +749,7 @@ mod tests {
             false,
             true,
             ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
         );
 
         let mut writer_cache = WriterHistoryCache::new();
@@ -793,6 +799,7 @@ mod tests {
             false,
             true,
             ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
         );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
@@ -819,6 +826,7 @@ mod tests {
             false,
             true,
             ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
         );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_true(&mut writer_cache, &mut reader_proxy, SequenceNumber::new(1));
@@ -850,6 +858,7 @@ mod tests {
             false,
             true,
             ReliabilityKind::Reliable,
+            DurabilityKind::TransientLocal,
         );
         let mut writer_cache = WriterHistoryCache::new();
         add_new_change_push_mode_false(
