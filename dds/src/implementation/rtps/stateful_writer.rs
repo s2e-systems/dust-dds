@@ -81,7 +81,7 @@ impl RtpsStatefulWriter {
                 .iter()
                 .find(|x| x.sequence_number() == a_change.sequence_number())
             {
-                if !(cc.is_relevant() || cc.status() == ChangeForReaderStatusKind::Acknowledged) {
+                if cc.is_relevant() && cc.status() != ChangeForReaderStatusKind::Acknowledged {
                     return false;
                 }
             } else {
