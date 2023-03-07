@@ -17,7 +17,7 @@ use super::{
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
-    types::{Guid, GuidPrefix, Locator},
+    types::{DurabilityKind, Guid, GuidPrefix, Locator},
     writer::RtpsWriter,
 };
 
@@ -49,12 +49,18 @@ impl RtpsStatefulWriter {
             } else {
                 ChangeForReaderStatusKind::Unacknowledged
             };
+
+            let is_relevant = match a_reader_proxy.durability() {
+                DurabilityKind::Volatile => false,
+                DurabilityKind::TransientLocal => true,
+            };
+
             for change in self.writer.writer_cache().changes() {
                 a_reader_proxy
                     .changes_for_reader_mut()
                     .push(RtpsChangeForReader::new(
                         status,
-                        true,
+                        is_relevant,
                         change.sequence_number(),
                     ));
             }
@@ -75,7 +81,7 @@ impl RtpsStatefulWriter {
                 .iter()
                 .find(|x| x.sequence_number() == a_change.sequence_number())
             {
-                if !(cc.is_relevant() && cc.status() == ChangeForReaderStatusKind::Acknowledged) {
+                if !(cc.is_relevant() || cc.status() == ChangeForReaderStatusKind::Acknowledged) {
                     return false;
                 }
             } else {

@@ -185,6 +185,10 @@ impl RtpsReaderProxy {
         &mut self.changes_for_reader
     }
 
+    pub fn durability(&self) -> DurabilityKind {
+        self.durability
+    }
+
     pub fn receive_acknack(&mut self, acknack_submessage: &AckNackSubmessage) {
         match self.reliability {
             ReliabilityKind::BestEffort => (),
