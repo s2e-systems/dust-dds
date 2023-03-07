@@ -90,7 +90,7 @@ impl MyApp {
             fill: Color32::BLUE,
             stroke: Stroke::NONE,
         });
-        moving_triangle.move_center_to(pos2(360.0, 180.0));
+        moving_triangle.move_to(pos2(360.0, 180.0));
 
         Self {
             moving_circle,
@@ -230,12 +230,12 @@ impl eframe::App for MyApp {
             for writer in &self.writers {
                 match writer.get_topic().unwrap().get_name().unwrap().as_str() {
                     "Circle" => {
-                        self.moving_circle.move_within_rect(rect);
+                        move_within_rect(&mut self.moving_circle, rect);
                         self.write_circle_data(&self.moving_circle.circle, offset);
                         painter.add(self.moving_circle.clone());
                     }
                     "Triangle" => {
-                        self.moving_triangle.move_within_rect(rect);
+                        move_within_rect(&mut self.moving_triangle, rect);
                         painter.add(self.moving_triangle.clone());
                     }
                     _ => (),
@@ -251,12 +251,85 @@ impl eframe::App for MyApp {
     }
 }
 
+
+fn move_within_rect<T>(object: &mut T, rect: Rect)
+where
+    T: BoundingBox + Move + Velocity,
+{
+    let normal = if object.bb().left() < rect.left() {
+        object.move_to(pos2(
+            rect.left() + object.bb().width() / 2.0,
+            object.bb().center().y,
+        ));
+        Some(vec2(1.0, 0.0))
+    } else if object.bb().right() > rect.right() {
+        object.move_to(pos2(
+            rect.right() - object.bb().width() / 2.0,
+            object.bb().center().y,
+        ));
+        Some(vec2(-1.0, 0.0))
+    } else if object.bb().top() < rect.top() {
+        object.move_to(pos2(
+            object.bb().center().x,
+            rect.top() + object.bb().height() / 2.0,
+        ));
+        Some(vec2(0.0, 1.0))
+    } else if object.bb().bottom() > rect.bottom() {
+        object.move_to(pos2(
+            object.bb().center().x,
+            rect.bottom() - object.bb().height() / 2.0,
+        ));
+        Some(vec2(0.0, -1.0))
+    } else {
+        None
+    };
+    if let Some(normal) = normal {
+        // reflect motion in respect to normal of surface
+        object.set_velocity(object.velocity() - 2.0 * (object.velocity() * normal) * normal);
+    }
+    object.move_by(object.velocity());
+}
+
+
+trait BoundingBox {
+    fn bb(&self) -> Rect;
+}
+
+trait Move {
+    fn move_to(&mut self, p: Pos2);
+    fn move_by(&mut self, v: Vec2);
+}
 #[derive(Clone)]
 
 struct MovingTriangle {
     velocity: Vec2,
     triangle: PathShape,
     size: f32,
+}
+
+impl BoundingBox for MovingTriangle {
+    fn bb(&self) -> Rect {
+        Rect {
+            min: pos2(self.triangle.points[1].x, self.triangle.points[0].y),
+            max: pos2(self.triangle.points[2].x, self.triangle.points[2].y),
+        }
+    }
+}
+
+impl Move for MovingTriangle {
+    fn move_to(&mut self, p: Pos2) {
+        self.triangle.points = vec![
+            p + vec2(0.0, -self.size / 2.0),
+            p + vec2(-self.size / 2.0, self.size / 2.0),
+            p + vec2(self.size / 2.0, self.size / 2.0),
+        ];
+    }
+
+    fn move_by(&mut self, v: Vec2) {
+        for point in &mut self.triangle.points {
+            *point += v;
+        }
+    }
 }
 
 impl MovingTriangle {
@@ -268,63 +341,6 @@ impl MovingTriangle {
             size,
         }
     }
-
-    fn move_by(&mut self, v: Vec2) {
-        for point in &mut self.triangle.points {
-            *point += v;
-        }
-    }
-
-    fn move_center_to(&mut self, p: Pos2) {
-        self.triangle.points = vec![
-            p + vec2(0.0, -self.size / 2.0),
-            p + vec2(-self.size / 2.0, self.size / 2.0),
-            p + vec2(self.size / 2.0, self.size / 2.0),
-        ];
-    }
-
-    fn bb(&self) -> Rect {
-        Rect {
-            min: pos2(self.triangle.points[1].x, self.triangle.points[0].y),
-            max: pos2(self.triangle.points[2].x, self.triangle.points[2].y),
-        }
-    }
-
-    fn move_within_rect(&mut self, rect: Rect) {
-        let normal = if self.bb().left() < rect.left() {
-            self.move_center_to(pos2(
-                rect.left() + self.bb().width() / 2.0,
-                self.bb().center().y,
-            ));
-            Some(vec2(1.0, 0.0))
-        } else if self.bb().right() > rect.right() {
-            self.move_center_to(pos2(
-                rect.right() - self.bb().width() / 2.0,
-                self.bb().center().y,
-            ));
-            Some(vec2(-1.0, 0.0))
-        } else if self.bb().top() < rect.top() {
-            self.move_center_to(pos2(
-                self.bb().center().x,
-                rect.top() + self.bb().height() / 2.0,
-            ));
-            Some(vec2(0.0, 1.0))
-        } else if self.bb().bottom() > rect.bottom() {
-            self.move_center_to(pos2(
-                self.bb().center().x,
-                rect.bottom() - self.bb().height() / 2.0,
-            ));
-            Some(vec2(0.0, -1.0))
-        } else {
-            None
-        };
-
-        if let Some(normal) = normal {
-            // reflect motion in respect to normal of surface
-            self.velocity = self.velocity - 2.0 * (self.velocity * normal) * normal;
-        }
-        self.move_by(self.velocity);
-    }
 }
 
 impl From<MovingTriangle> for Shape {
@@ -333,10 +349,53 @@ impl From<MovingTriangle> for Shape {
     }
 }
 
+trait Velocity {
+    fn velocity(&self) -> Vec2;
+    fn set_velocity(&mut self, v: Vec2);
+}
+
+impl Velocity for MovingTriangle {
+    fn velocity(&self) -> Vec2 {
+        self.velocity
+    }
+
+    fn set_velocity(&mut self, v: Vec2) {
+        self.velocity = v;
+    }
+}
+
 #[derive(Clone)]
 struct MovingCircle {
     velocity: Vec2,
     circle: CircleShape,
+}
+impl BoundingBox for MovingCircle {
+    fn bb(&self) -> Rect {
+        Rect {
+            min: self.circle.center - vec2(self.circle.radius, self.circle.radius),
+            max: self.circle.center + vec2(self.circle.radius, self.circle.radius),
+        }
+    }
+}
+
+impl Move for MovingCircle {
+    fn move_to(&mut self, p: Pos2) {
+        self.circle.center = p;
+    }
+
+    fn move_by(&mut self, v: Vec2) {
+        self.circle.center += v;
+    }
+}
+
+impl Velocity for MovingCircle {
+    fn velocity(&self) -> Vec2 {
+        self.velocity
+    }
+
+    fn set_velocity(&mut self, v: Vec2) {
+        self.velocity = v;
+    }
 }
 
 impl MovingCircle {
@@ -345,41 +404,6 @@ impl MovingCircle {
             circle,
             velocity: vec2(2.0, 2.0),
         }
-    }
-    fn left(&self) -> f32 {
-        self.circle.center.x - self.circle.radius
-    }
-    fn right(&self) -> f32 {
-        self.circle.center.x + self.circle.radius
-    }
-    fn top(&self) -> f32 {
-        self.circle.center.y - self.circle.radius
-    }
-    fn bottom(&self) -> f32 {
-        self.circle.center.y + self.circle.radius
-    }
-
-    fn move_within_rect(&mut self, rect: Rect) {
-        let normal = if self.left() < rect.left() {
-            self.circle.center.x = rect.left() + self.circle.radius;
-            Some(vec2(1.0, 0.0))
-        } else if self.right() > rect.right() {
-            self.circle.center.x = rect.right() - self.circle.radius;
-            Some(vec2(-1.0, 0.0))
-        } else if self.top() < rect.top() {
-            self.circle.center.y = rect.top() + self.circle.radius;
-            Some(vec2(0.0, 1.0))
-        } else if self.bottom() > rect.bottom() {
-            self.circle.center.y = rect.bottom() - self.circle.radius;
-            Some(vec2(0.0, -1.0))
-        } else {
-            None
-        };
-        if let Some(normal) = normal {
-            // reflect motion in respect to normal of surface
-            self.velocity = self.velocity - 2.0 * (self.velocity * normal) * normal;
-        }
-        self.circle.center += self.velocity;
     }
 }
 
