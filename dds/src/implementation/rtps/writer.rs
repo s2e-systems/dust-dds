@@ -5,7 +5,9 @@ use serde::Serialize;
 use crate::{
     implementation::data_representation_inline_qos::{
         parameter_id_values::PID_STATUS_INFO,
-        types::{STATUS_INFO_DISPOSED, STATUS_INFO_UNREGISTERED},
+        types::{
+            STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -157,9 +159,7 @@ impl RtpsWriter {
             let mut serialized_status_info = Vec::new();
             let mut serializer =
                 cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_DISPOSED
-                .serialize(&mut serializer)
-                .unwrap();
+            STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
             let inline_qos = vec![RtpsParameter::new(
                 ParameterId(PID_STATUS_INFO),
@@ -222,9 +222,17 @@ impl RtpsWriter {
             let mut serialized_status_info = Vec::new();
             let mut serializer =
                 cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_UNREGISTERED
-                .serialize(&mut serializer)
-                .unwrap();
+            if self
+                .qos
+                .writer_data_lifecycle
+                .autodispose_unregistered_instances
+            {
+                STATUS_INFO_DISPOSED_UNREGISTERED
+                    .serialize(&mut serializer)
+                    .unwrap();
+            } else {
+                STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+            }
 
             let inline_qos = vec![RtpsParameter::new(
                 ParameterId(PID_STATUS_INFO),
