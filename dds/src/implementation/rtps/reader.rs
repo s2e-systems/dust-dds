@@ -174,7 +174,9 @@ impl Instance {
     fn update_state(&mut self, change_kind: ChangeKind) {
         match self.instance_state {
             InstanceStateKind::Alive => {
-                if change_kind == ChangeKind::NotAliveDisposed {
+                if change_kind == ChangeKind::NotAliveDisposed
+                    || change_kind == ChangeKind::NotAliveDisposedUnregistered
+                {
                     self.instance_state = InstanceStateKind::NotAliveDisposed;
                 } else if change_kind == ChangeKind::NotAliveUnregistered {
                     self.instance_state = InstanceStateKind::NotAliveNoWriters;
