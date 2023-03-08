@@ -53,7 +53,7 @@ impl RtpsWriterCacheChange {
             writer_id: self.writer_guid.entity_id(),
             gap_start: self.sequence_number,
             gap_list: SequenceNumberSet {
-                base: self.sequence_number,
+                base: self.sequence_number + 1,
                 set: vec![],
             },
         }

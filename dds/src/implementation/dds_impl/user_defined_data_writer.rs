@@ -16,7 +16,8 @@ use crate::{
             stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
-                EntityId, EntityKey, Locator, ReliabilityKind, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+                DurabilityKind, EntityId, EntityKey, Locator, ReliabilityKind, GUID_UNKNOWN,
+                USER_DEFINED_UNKNOWN,
             },
         },
         utils::{
@@ -28,7 +29,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{PublisherQos, QosKind},
         qos_policy::{
-            QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
             LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
         },
@@ -739,6 +740,15 @@ fn add_discovered_reader(
             ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
         };
 
+        let proxy_durability = match discovered_reader_data
+            .subscription_builtin_topic_data
+            .durability
+            .kind
+        {
+            DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+            DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+        };
+
         let reader_proxy = RtpsReaderProxy::new(
             discovered_reader_data.reader_proxy.remote_reader_guid,
             discovered_reader_data.reader_proxy.remote_group_entity_id,
@@ -747,6 +757,7 @@ fn add_discovered_reader(
             discovered_reader_data.reader_proxy.expects_inline_qos,
             true,
             proxy_reliability,
+            proxy_durability,
         );
 
         writer.matched_reader_add(reader_proxy);

@@ -7,7 +7,7 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
-            types::{Guid, ReliabilityKind, ENTITYID_UNKNOWN},
+            types::{DurabilityKind, Guid, ReliabilityKind, ENTITYID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
     },
@@ -76,6 +76,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 expects_inline_qos,
                 true,
                 ReliabilityKind::Reliable,
+                DurabilityKind::TransientLocal,
             );
             writer.matched_reader_add(proxy);
         }
@@ -126,6 +127,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 expects_inline_qos,
                 true,
                 ReliabilityKind::Reliable,
+                DurabilityKind::TransientLocal,
             );
             writer.matched_reader_add(proxy);
         }
@@ -175,6 +177,7 @@ impl<'a> ParticipantDiscovery<'a> {
                 expects_inline_qos,
                 true,
                 ReliabilityKind::Reliable,
+                DurabilityKind::TransientLocal,
             );
             writer.matched_reader_add(proxy);
         }
