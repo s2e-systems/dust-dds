@@ -11,7 +11,7 @@ use crate::{
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::StatusKind,
-        time::DURATION_ZERO,
+        time::{DurationKind, DURATION_ZERO},
     },
     subscription::data_reader::Sample,
     topic_definition::type_support::DdsType,
@@ -63,7 +63,7 @@ impl BuiltinStatelessReader {
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DURATION_ZERO,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
             },
             ..Default::default()
         };

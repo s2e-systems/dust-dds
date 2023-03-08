@@ -3,14 +3,17 @@ use crate::infrastructure::{
     time::Duration,
 };
 
-use super::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
-    GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
-    LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
-    ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-    WriterDataLifecycleQosPolicy,
+use super::{
+    qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, EntityFactoryQosPolicy,
+        GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind, LatencyBudgetQosPolicy,
+        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
+        PresentationQosPolicy, ReaderDataLifecycleQosPolicy, ReliabilityQosPolicy,
+        ReliabilityQosPolicyKind, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
+        TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
+        WriterDataLifecycleQosPolicy,
+    },
+    time::DurationKind,
 };
 
 /// QoS policies applicable to the [`DomainParticipantFactory`](crate::domain::domain_participant_factory::DomainParticipantFactory)
@@ -74,7 +77,10 @@ impl Default for DataWriterQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
+                max_blocking_time: DurationKind::Finite(Duration::new(
+                    0,
+                    100_000_000, /*100ms*/
+                )),
             },
             durability: DurabilityQosPolicy::default(),
             deadline: DeadlineQosPolicy::default(),
@@ -171,7 +177,10 @@ impl Default for DataReaderQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
+                max_blocking_time: DurationKind::Finite(Duration::new(
+                    0,
+                    100_000_000, /*100ms*/
+                )),
             },
             durability: DurabilityQosPolicy::default(),
             deadline: DeadlineQosPolicy::default(),
@@ -254,7 +263,10 @@ impl Default for TopicQos {
         Self {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: Duration::new(0, 100_000_000 /*100ms*/),
+                max_blocking_time: DurationKind::Finite(Duration::new(
+                    0,
+                    100_000_000, /*100ms*/
+                )),
             },
             topic_data: TopicDataQosPolicy::default(),
             durability: DurabilityQosPolicy::default(),

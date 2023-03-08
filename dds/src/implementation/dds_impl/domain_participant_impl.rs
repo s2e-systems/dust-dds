@@ -43,6 +43,7 @@ use crate::{
         instance::InstanceHandle,
         qos::QosKind,
         status::{StatusKind, NO_STATUS},
+        time::DurationKind,
     },
     publication::publisher_listener::PublisherListener,
     subscription::{
@@ -818,7 +819,7 @@ impl DdsShared<DomainParticipantImpl> {
 
             let this = self.clone();
             self.timer.write_lock().start_timer(
-                std::time::Duration::from_secs(5),
+                DurationKind::Finite(Duration::new(5, 0)),
                 InstanceHandle::new([0; 16]),
                 move || {
                     this.announce_participant().ok();
@@ -927,7 +928,7 @@ impl DdsShared<DomainParticipantImpl> {
                 let lease_duration = Duration::from(discovered_participant_data.lease_duration);
                 let handle = discovered_participant_data.get_serialized_key().into();
                 self.timer.write_lock().start_timer(
-                    lease_duration.into(),
+                    DurationKind::Finite(lease_duration),
                     discovered_participant_data.get_serialized_key().into(),
                     move || this.remove_discovered_participant(handle),
                 );

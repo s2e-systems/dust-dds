@@ -10,7 +10,7 @@ use dust_dds::{
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, WriterDataLifecycleQosPolicy,
         },
         status::{StatusKind, NO_STATUS},
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{
@@ -58,7 +58,7 @@ fn large_data_should_be_fragmented() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -72,7 +72,7 @@ fn large_data_should_be_fragmented() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -132,7 +132,7 @@ fn large_data_should_be_fragmented_reliable() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -146,7 +146,7 @@ fn large_data_should_be_fragmented_reliable() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -201,7 +201,7 @@ fn samples_are_taken() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -215,7 +215,7 @@ fn samples_are_taken() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -285,7 +285,7 @@ fn read_only_unread_samples() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -299,7 +299,7 @@ fn read_only_unread_samples() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -388,7 +388,7 @@ fn read_next_sample() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -402,7 +402,7 @@ fn read_next_sample() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -456,7 +456,7 @@ fn take_next_sample() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -470,7 +470,7 @@ fn take_next_sample() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -524,7 +524,7 @@ fn each_key_sample_is_read() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -538,7 +538,7 @@ fn each_key_sample_is_read() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -610,7 +610,7 @@ fn read_specific_instance() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -624,7 +624,7 @@ fn read_specific_instance() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -686,7 +686,7 @@ fn read_next_instance() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -700,7 +700,7 @@ fn read_next_instance() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -792,7 +792,7 @@ fn take_next_instance() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -806,7 +806,7 @@ fn take_next_instance() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -898,7 +898,7 @@ fn take_specific_instance() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -912,7 +912,7 @@ fn take_specific_instance() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -974,7 +974,7 @@ fn take_specific_unknown_instance() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -988,7 +988,7 @@ fn take_specific_unknown_instance() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1049,7 +1049,7 @@ fn write_read_disposed_samples() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1066,7 +1066,7 @@ fn write_read_disposed_samples() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1131,7 +1131,7 @@ fn write_read_sample_view_state() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1145,7 +1145,7 @@ fn write_read_sample_view_state() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1206,7 +1206,7 @@ fn inconsistent_topic_status_condition() {
     let best_effort_topic_qos = TopicQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1232,7 +1232,7 @@ fn inconsistent_topic_status_condition() {
     let reliable_topic_qos = TopicQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1277,7 +1277,7 @@ fn reader_with_minimum_time_separation_qos() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1294,10 +1294,10 @@ fn reader_with_minimum_time_separation_qos() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         time_based_filter: TimeBasedFilterQosPolicy {
-            minimum_separation: Duration::new(2, 0),
+            minimum_separation: DurationKind::Finite(Duration::new(2, 0)),
         },
         ..Default::default()
     };
@@ -1380,7 +1380,7 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1404,10 +1404,10 @@ fn transient_local_writer_reader_wait_for_historical_data() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         time_based_filter: TimeBasedFilterQosPolicy {
-            minimum_separation: Duration::new(2, 0),
+            minimum_separation: DurationKind::Finite(Duration::new(2, 0)),
         },
         ..Default::default()
     };
@@ -1462,7 +1462,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1485,7 +1485,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1542,7 +1542,7 @@ fn write_read_unkeyed_topic() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1556,7 +1556,7 @@ fn write_read_unkeyed_topic() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1608,7 +1608,7 @@ fn data_reader_resource_limits() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1626,7 +1626,7 @@ fn data_reader_resource_limits() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1693,7 +1693,7 @@ fn data_reader_order_by_source_timestamp() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         destination_order: DestinationOrderQosPolicy {
             kind: DestinationOrderQosPolicyKind::BySourceTimestamp,
@@ -1714,7 +1714,7 @@ fn data_reader_order_by_source_timestamp() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1782,7 +1782,7 @@ fn data_reader_publication_handle_sample_info() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1797,7 +1797,7 @@ fn data_reader_publication_handle_sample_info() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1855,7 +1855,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1875,7 +1875,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1945,7 +1945,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1965,7 +1965,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -2035,10 +2035,10 @@ fn transient_local_writer_does_not_deliver_stale_data() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         lifespan: LifespanQosPolicy {
-            duration: Duration::new(1, 0),
+            duration: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -2066,10 +2066,10 @@ fn transient_local_writer_does_not_deliver_stale_data() {
         },
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         time_based_filter: TimeBasedFilterQosPolicy {
-            minimum_separation: Duration::new(2, 0),
+            minimum_separation: DurationKind::Finite(Duration::new(2, 0)),
         },
         ..Default::default()
     };

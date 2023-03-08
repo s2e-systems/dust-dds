@@ -1,5 +1,86 @@
 use std::ops::Sub;
 
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum DurationKind {
+    Finite(Duration),
+    Infinite,
+}
+
+const DURATION_INFINITE_SEC: i32 = 0x7fffffff;
+const DURATION_INFINITE_NSEC: u32 = 0x7fffffff;
+
+impl serde::Serialize for DurationKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(
+            &match self {
+                DurationKind::Finite(d) => &d,
+                DurationKind::Infinite => &Duration {
+                    sec: DURATION_INFINITE_SEC,
+                    nanosec: DURATION_INFINITE_NSEC,
+                },
+            },
+            serializer,
+        )
+    }
+}
+
+struct DurationKindVisitor;
+
+impl<'de> serde::de::Visitor<'de> for DurationKindVisitor {
+    type Value = DurationKind;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("DurationKind")
+    }
+
+    fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+    where
+        V: serde::de::SeqAccess<'de>,
+    {
+        let sec = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let nanosec = seq
+            .next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+
+        Ok(
+            if sec == DURATION_INFINITE_SEC && nanosec == DURATION_INFINITE_NSEC {
+                DurationKind::Infinite
+            } else {
+                DurationKind::Finite(Duration::new(sec, nanosec))
+            },
+        )
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for DurationKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_tuple(2, DurationKindVisitor)
+    }
+}
+
+impl PartialOrd<DurationKind> for DurationKind {
+    fn partial_cmp(&self, other: &DurationKind) -> Option<std::cmp::Ordering> {
+        match self {
+            DurationKind::Finite(this) => match other {
+                DurationKind::Finite(v) => Duration::partial_cmp(this, v),
+                DurationKind::Infinite => Some(std::cmp::Ordering::Less),
+            },
+            DurationKind::Infinite => match other {
+                DurationKind::Finite(_) => Some(std::cmp::Ordering::Greater),
+                DurationKind::Infinite => Some(std::cmp::Ordering::Equal),
+            },
+        }
+    }
+}
+
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct Duration {
     sec: i32,
@@ -8,7 +89,7 @@ pub struct Duration {
 
 impl Duration {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
@@ -60,7 +141,7 @@ pub struct Time {
 
 impl Time {
     pub const fn new(sec: i32, nanosec: u32) -> Self {
-        let sec = sec + (nanosec / 1_000_000_000)  as i32;
+        let sec = sec + (nanosec / 1_000_000_000) as i32;
         let nanosec = nanosec % 1_000_000_000;
         Self { sec, nanosec }
     }
@@ -74,7 +155,6 @@ impl Time {
     }
 }
 
-
 impl Sub<Time> for Time {
     type Output = Duration;
 
@@ -84,12 +164,6 @@ impl Sub<Time> for Time {
         lhs - rhs
     }
 }
-
-/// Special constant value representing an infinite duration
-pub const DURATION_INFINITE: Duration = Duration {
-    sec: 0x7fffffff,
-    nanosec: 0x7fffffff,
-};
 
 /// Special constant value representing a zero duration
 pub const DURATION_ZERO: Duration = Duration { sec: 0, nanosec: 0 };
@@ -153,6 +227,24 @@ mod tests {
                 sec: 0,
                 nanosec: 800_000_000
             }
+        );
+    }
+
+    #[test]
+    fn duration_kind_partial_ord() {
+        assert!(DurationKind::Infinite == DurationKind::Infinite);
+        assert!(DurationKind::Infinite > DurationKind::Finite(DURATION_ZERO));
+        assert!(DurationKind::Finite(DURATION_ZERO) < DurationKind::Infinite);
+    }
+
+    #[test]
+    fn duration_serialize_deserialize() {
+        let duration = DurationKind::Infinite;
+        let serialized = cdr::serialize::<_, _, cdr::CdrLe>(&duration, cdr::Infinite).unwrap();
+        println!("Data: {:?}", serialized);
+        assert_eq!(
+            cdr::deserialize::<DurationKind>(&serialized).unwrap(),
+            duration
         );
     }
 }
