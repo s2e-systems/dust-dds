@@ -24,7 +24,7 @@ use dust_dds::{
 use shapes_type::ShapeType;
 
 use eframe::{
-    egui::{self, Rect},
+    egui::{self, Rect, WidgetText},
     epaint::{pos2, vec2, CircleShape, Color32, PathShape, Pos2, Rounding, Shape, Stroke, Vec2},
     Theme,
 };
@@ -62,6 +62,8 @@ struct MyApp {
     writers: Vec<DataWriter<ShapeType>>,
     readers: Vec<DataReader<ShapeType>>,
 }
+
+
 
 impl MyApp {
     fn new() -> Self {
@@ -206,20 +208,36 @@ impl MyApp {
     }
 }
 
+enum ShapeKind {
+    Circle,
+    Triangle,
+    Square
+}
+impl ShapeKind {
+    fn as_str(&self) -> &'_ str {
+        match self {
+            ShapeKind::Circle => "Circle",
+            ShapeKind::Triangle => "Triangle",
+            ShapeKind::Square => "Square",
+        }
+    }
+}
+
+
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.heading("Publish");
-            if ui.button("Circle").clicked() {
-                self.create_writer("Circle");
+            if ui.button(ShapeKind::Circle.as_str()).clicked() {
+                self.create_writer(ShapeKind::Circle.as_str());
             };
-            if ui.button("Triangle").clicked() {
-                self.create_writer("Triangle");
+            if ui.button(ShapeKind::Triangle.as_str()).clicked() {
+                self.create_writer(ShapeKind::Triangle.as_str());
             };
             ui.separator();
             ui.heading("Subscribe");
-            if ui.button("Circle").clicked() {
-                self.create_reader("Circle")
+            if ui.button(ShapeKind::Circle.as_str()).clicked() {
+                self.create_reader(ShapeKind::Circle.as_str())
             };
         });
         egui::CentralPanel::default().show(ctx, |ui| {
