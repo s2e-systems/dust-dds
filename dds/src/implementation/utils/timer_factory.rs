@@ -160,151 +160,153 @@ impl Drop for TimerFactory {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use mockall::mock;
+#[cfg(test)]
+mod tests {
+    use mockall::mock;
 
-//     use super::*;
+    use crate::infrastructure::time::Duration;
 
-//     mock! {
-//         pub Task {
-//             fn run(&self);
-//         }
-//     }
+    use super::*;
 
-//     #[test]
-//     fn task_executed_right_number_of_times() {
-//         let timer_factory = TimerFactory::new();
-//         let tp1 = timer_factory.create_timer();
+    mock! {
+        pub Task {
+            fn run(&self);
+        }
+    }
 
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(2).return_const(());
+    #[test]
+    fn task_executed_right_number_of_times() {
+        let timer_factory = TimerFactory::new();
+        let tp1 = timer_factory.create_timer();
 
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_secs(1),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task1.run(),
-//         );
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(2).return_const(());
 
-//         let mut mock_task2 = MockTask::new();
-//         mock_task2.expect_run().times(4).return_const(());
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_millis(600),
-//             InstanceHandle::new([2u8; 16]),
-//             move || mock_task2.run(),
-//         );
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(1, 0)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task1.run(),
+        );
 
-//         std::thread::sleep(std::time::Duration::from_millis(2500));
-//     }
+        let mut mock_task2 = MockTask::new();
+        mock_task2.expect_run().times(4).return_const(());
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
+            InstanceHandle::new([2u8; 16]),
+            move || mock_task2.run(),
+        );
 
-//     #[test]
-//     fn rewritten_timer_gets_updated() {
-//         let timer_factory = TimerFactory::new();
-//         let tp1 = timer_factory.create_timer();
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+    }
 
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(0).return_const(());
+    #[test]
+    fn rewritten_timer_gets_updated() {
+        let timer_factory = TimerFactory::new();
+        let tp1 = timer_factory.create_timer();
 
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_secs(1),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task1.run(),
-//         );
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(0).return_const(());
 
-//         std::thread::sleep(std::time::Duration::from_millis(800));
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(1, 0)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task1.run(),
+        );
 
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(0).return_const(());
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_secs(1),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task1.run(),
-//         );
+        std::thread::sleep(std::time::Duration::from_millis(800));
 
-//         std::thread::sleep(std::time::Duration::from_millis(800));
-//     }
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(0).return_const(());
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(1, 0)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task1.run(),
+        );
 
-//     #[test]
-//     fn two_timers() {
-//         let timer_factory = TimerFactory::new();
-//         let tp1 = timer_factory.create_timer();
-//         let tp2 = timer_factory.create_timer();
+        std::thread::sleep(std::time::Duration::from_millis(800));
+    }
 
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(2).return_const(());
+    #[test]
+    fn two_timers() {
+        let timer_factory = TimerFactory::new();
+        let tp1 = timer_factory.create_timer();
+        let tp2 = timer_factory.create_timer();
 
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_secs(1),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task1.run(),
-//         );
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(2).return_const(());
 
-//         let mut mock_task2 = MockTask::new();
-//         mock_task2.expect_run().times(4).return_const(());
-//         tp2.write_lock().start_timer(
-//             std::time::Duration::from_millis(600),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task2.run(),
-//         );
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(1, 0)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task1.run(),
+        );
 
-//         std::thread::sleep(std::time::Duration::from_millis(2500));
-//     }
+        let mut mock_task2 = MockTask::new();
+        mock_task2.expect_run().times(4).return_const(());
+        tp2.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task2.run(),
+        );
 
-//     #[test]
-//     fn deleted_timer() {
-//         let timer_factory = TimerFactory::new();
-//         let tp1 = timer_factory.create_timer();
-//         let tp2 = timer_factory.create_timer();
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+    }
 
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(2).return_const(());
+    #[test]
+    fn deleted_timer() {
+        let timer_factory = TimerFactory::new();
+        let tp1 = timer_factory.create_timer();
+        let tp2 = timer_factory.create_timer();
 
-//         tp1.write_lock().start_timer(
-//             std::time::Duration::from_secs(1),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task1.run(),
-//         );
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(2).return_const(());
 
-//         let mut mock_task2 = MockTask::new();
-//         mock_task2.expect_run().times(0).return_const(());
-//         tp2.write_lock().start_timer(
-//             std::time::Duration::from_millis(600),
-//             InstanceHandle::new([1u8; 16]),
-//             move || mock_task2.run(),
-//         );
+        tp1.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(1, 0)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task1.run(),
+        );
 
-//         timer_factory.delete_timer(&tp2);
+        let mut mock_task2 = MockTask::new();
+        mock_task2.expect_run().times(0).return_const(());
+        tp2.write_lock().start_timer(
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
+            InstanceHandle::new([1u8; 16]),
+            move || mock_task2.run(),
+        );
 
-//         std::thread::sleep(std::time::Duration::from_millis(2500));
-//     }
+        timer_factory.delete_timer(&tp2);
 
-//     #[test]
-//     fn dropped_timer() {
-//         let mut mock_task1 = MockTask::new();
-//         mock_task1.expect_run().times(0).return_const(());
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+    }
 
-//         let mut mock_task2 = MockTask::new();
-//         mock_task2.expect_run().times(0).return_const(());
+    #[test]
+    fn dropped_timer() {
+        let mut mock_task1 = MockTask::new();
+        mock_task1.expect_run().times(0).return_const(());
 
-//         {
-//             let timer_factory = TimerFactory::new();
-//             let tp1 = timer_factory.create_timer();
-//             let tp2 = timer_factory.create_timer();
+        let mut mock_task2 = MockTask::new();
+        mock_task2.expect_run().times(0).return_const(());
 
-//             tp1.write_lock().start_timer(
-//                 std::time::Duration::from_secs(1),
-//                 InstanceHandle::new([1u8; 16]),
-//                 move || mock_task1.run(),
-//             );
+        {
+            let timer_factory = TimerFactory::new();
+            let tp1 = timer_factory.create_timer();
+            let tp2 = timer_factory.create_timer();
 
-//             tp2.write_lock().start_timer(
-//                 std::time::Duration::from_millis(600),
-//                 InstanceHandle::new([1u8; 16]),
-//                 move || mock_task2.run(),
-//             );
+            tp1.write_lock().start_timer(
+                DurationKind::Finite(Duration::new(1, 0)),
+                InstanceHandle::new([1u8; 16]),
+                move || mock_task1.run(),
+            );
 
-//             timer_factory.delete_timer(&tp2);
-//         }
-//         std::thread::sleep(std::time::Duration::from_millis(2500));
-//     }
-// }
+            tp2.write_lock().start_timer(
+                DurationKind::Finite(Duration::new(0, 600_000_000)),
+                InstanceHandle::new([1u8; 16]),
+                move || mock_task2.run(),
+            );
+
+            timer_factory.delete_timer(&tp2);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+    }
+}
