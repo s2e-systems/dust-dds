@@ -16,7 +16,7 @@ impl serde::Serialize for DurationKind {
     {
         serde::Serialize::serialize(
             &match self {
-                DurationKind::Finite(d) => &d,
+                DurationKind::Finite(d) => d,
                 DurationKind::Infinite => &Duration {
                     sec: DURATION_INFINITE_SEC,
                     nanosec: DURATION_INFINITE_NSEC,
