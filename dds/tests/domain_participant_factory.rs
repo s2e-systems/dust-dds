@@ -4,7 +4,7 @@ use dust_dds::{
         qos::{DataReaderQos, DataWriterQos, DomainParticipantQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind, UserDataQosPolicy},
         status::{StatusKind, NO_STATUS},
-        time::Duration,
+        time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE},
@@ -131,7 +131,7 @@ fn all_objects_are_dropped() {
         let writer_qos = DataWriterQos {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: Duration::new(1, 0),
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
             },
             ..Default::default()
         };
@@ -145,7 +145,7 @@ fn all_objects_are_dropped() {
         let reader_qos = DataReaderQos {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: Duration::new(1, 0),
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
             },
             ..Default::default()
         };

@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::infrastructure::time::{Duration, DURATION_INFINITE, DURATION_ZERO};
+use crate::infrastructure::time::{Duration, DurationKind, DURATION_ZERO};
 
 pub type QosPolicyId = i32;
 #[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -203,7 +203,7 @@ impl QosPolicy for TransportPriorityQosPolicy {
 /// computation of the ‘expiration time.’
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LifespanQosPolicy {
-    pub duration: Duration,
+    pub duration: DurationKind,
 }
 
 impl QosPolicy for LifespanQosPolicy {
@@ -215,7 +215,7 @@ impl QosPolicy for LifespanQosPolicy {
 impl Default for LifespanQosPolicy {
     fn default() -> Self {
         Self {
-            duration: DURATION_INFINITE,
+            duration: DurationKind::Infinite,
         }
     }
 }
@@ -369,7 +369,7 @@ impl Default for PresentationQosPolicy {
 /// to be consistent the settings must be such that *deadline period >= minimum_separation*.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DeadlineQosPolicy {
-    pub period: Duration,
+    pub period: DurationKind,
 }
 
 impl QosPolicy for DeadlineQosPolicy {
@@ -381,7 +381,7 @@ impl QosPolicy for DeadlineQosPolicy {
 impl Default for DeadlineQosPolicy {
     fn default() -> Self {
         Self {
-            period: DURATION_INFINITE,
+            period: DurationKind::Infinite,
         }
     }
 }
@@ -394,7 +394,7 @@ impl Default for DeadlineQosPolicy {
 /// requested duration* is true.
 #[derive(PartialOrd, PartialEq, Eq, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LatencyBudgetQosPolicy {
-    pub duration: Duration,
+    pub duration: DurationKind,
 }
 
 impl QosPolicy for LatencyBudgetQosPolicy {
@@ -406,7 +406,7 @@ impl QosPolicy for LatencyBudgetQosPolicy {
 impl Default for LatencyBudgetQosPolicy {
     fn default() -> Self {
         Self {
-            duration: DURATION_ZERO,
+            duration: DurationKind::Finite(DURATION_ZERO),
         }
     }
 }
@@ -501,7 +501,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LivelinessQosPolicy {
     pub kind: LivelinessQosPolicyKind,
-    pub lease_duration: Duration,
+    pub lease_duration: DurationKind,
 }
 
 impl QosPolicy for LivelinessQosPolicy {
@@ -514,7 +514,7 @@ impl Default for LivelinessQosPolicy {
     fn default() -> Self {
         Self {
             kind: LivelinessQosPolicyKind::Automatic,
-            lease_duration: DURATION_INFINITE,
+            lease_duration: DurationKind::Infinite,
         }
     }
 }
@@ -543,7 +543,7 @@ impl Default for LivelinessQosPolicy {
 /// two QoS policies to be consistent they must verify that *[`DeadlineQosPolicy::period`] >= [`TimeBasedFilterQosPolicy::minimum_separation`]*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TimeBasedFilterQosPolicy {
-    pub minimum_separation: Duration,
+    pub minimum_separation: DurationKind,
 }
 
 impl QosPolicy for TimeBasedFilterQosPolicy {
@@ -555,7 +555,7 @@ impl QosPolicy for TimeBasedFilterQosPolicy {
 impl Default for TimeBasedFilterQosPolicy {
     fn default() -> Self {
         Self {
-            minimum_separation: DURATION_ZERO,
+            minimum_separation: DurationKind::Finite(DURATION_ZERO),
         }
     }
 }
@@ -701,7 +701,7 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ReliabilityQosPolicy {
     pub kind: ReliabilityQosPolicyKind,
-    pub max_blocking_time: Duration,
+    pub max_blocking_time: DurationKind,
 }
 
 impl QosPolicy for ReliabilityQosPolicy {
@@ -722,11 +722,11 @@ const DEFAULT_MAX_BLOCKING_TIME: Duration = Duration::new(0, 100);
 pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS: ReliabilityQosPolicy =
     ReliabilityQosPolicy {
         kind: ReliabilityQosPolicyKind::BestEffort,
-        max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
+        max_blocking_time: DurationKind::Finite(DEFAULT_MAX_BLOCKING_TIME),
     };
 pub const DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER: ReliabilityQosPolicy = ReliabilityQosPolicy {
     kind: ReliabilityQosPolicyKind::Reliable,
-    max_blocking_time: DEFAULT_MAX_BLOCKING_TIME,
+    max_blocking_time: DurationKind::Finite(DEFAULT_MAX_BLOCKING_TIME),
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
@@ -950,8 +950,8 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// samples for the instance.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ReaderDataLifecycleQosPolicy {
-    pub autopurge_nowriter_samples_delay: Duration,
-    pub autopurge_disposed_samples_delay: Duration,
+    pub autopurge_nowriter_samples_delay: DurationKind,
+    pub autopurge_disposed_samples_delay: DurationKind,
 }
 
 impl QosPolicy for ReaderDataLifecycleQosPolicy {
@@ -963,8 +963,8 @@ impl QosPolicy for ReaderDataLifecycleQosPolicy {
 impl Default for ReaderDataLifecycleQosPolicy {
     fn default() -> Self {
         Self {
-            autopurge_nowriter_samples_delay: DURATION_INFINITE,
-            autopurge_disposed_samples_delay: DURATION_INFINITE,
+            autopurge_nowriter_samples_delay: DurationKind::Infinite,
+            autopurge_disposed_samples_delay: DurationKind::Infinite,
         }
     }
 }

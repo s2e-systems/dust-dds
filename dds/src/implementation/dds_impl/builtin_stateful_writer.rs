@@ -29,7 +29,7 @@ use crate::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
-        time::{Time, DURATION_ZERO},
+        time::{DurationKind, Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
@@ -74,7 +74,7 @@ impl BuiltinStatefulWriter {
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DURATION_ZERO,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
             },
             ..Default::default()
         };

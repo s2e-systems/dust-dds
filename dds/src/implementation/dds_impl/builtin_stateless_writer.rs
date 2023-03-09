@@ -2,6 +2,7 @@ use crate::implementation::rtps::stateless_writer::RtpsStatelessWriter;
 use crate::infrastructure::qos_policy::{
     DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
 };
+use crate::infrastructure::time::DurationKind;
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
@@ -44,7 +45,7 @@ impl BuiltinStatelessWriter {
             },
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DURATION_ZERO,
+                max_blocking_time: DurationKind::Finite(DURATION_ZERO),
             },
             ..Default::default()
         };

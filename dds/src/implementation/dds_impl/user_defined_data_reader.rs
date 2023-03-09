@@ -40,7 +40,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     subscription::{
         data_reader::{AnyDataReader, Sample},
@@ -264,7 +264,7 @@ impl DdsShared<UserDefinedDataReader> {
                     .get_qos()
                     .deadline
                     .period;
-                let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
+
                 let me = self.clone();
                 self.timer
                     .write_lock()
@@ -822,7 +822,7 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .iter()
             .partition(|&(_, received_time)| {
-                now - *received_time
+                DurationKind::Finite(now - *received_time)
                     > self
                         .rtps_reader
                         .read_lock()

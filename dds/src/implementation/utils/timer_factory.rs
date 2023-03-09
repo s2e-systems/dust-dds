@@ -4,7 +4,7 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::infrastructure::instance::InstanceHandle;
+use crate::infrastructure::{instance::InstanceHandle, time::DurationKind};
 
 use super::{
     condvar::DdsCondvar,
@@ -55,13 +55,16 @@ impl Timer {
 
     pub fn start_timer(
         &mut self,
-        duration: std::time::Duration,
+        duration: DurationKind,
         id: InstanceHandle,
         func: impl Fn() + 'static + Send + Sync,
     ) {
-        self.instance_task_list
-            .insert(id, PeriodicTask::new(duration, func));
-        self.timer_condvar.notify_all();
+        if let DurationKind::Finite(duration) = duration {
+            let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
+            self.instance_task_list
+                .insert(id, PeriodicTask::new(duration, func));
+            self.timer_condvar.notify_all();
+        }
     }
 
     pub fn cancel_timers(&mut self) {
@@ -161,6 +164,8 @@ impl Drop for TimerFactory {
 mod tests {
     use mockall::mock;
 
+    use crate::infrastructure::time::Duration;
+
     use super::*;
 
     mock! {
@@ -178,7 +183,7 @@ mod tests {
         mock_task1.expect_run().times(2).return_const(());
 
         tp1.write_lock().start_timer(
-            std::time::Duration::from_secs(1),
+            DurationKind::Finite(Duration::new(1, 0)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task1.run(),
         );
@@ -186,7 +191,7 @@ mod tests {
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(4).return_const(());
         tp1.write_lock().start_timer(
-            std::time::Duration::from_millis(600),
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
             InstanceHandle::new([2u8; 16]),
             move || mock_task2.run(),
         );
@@ -203,7 +208,7 @@ mod tests {
         mock_task1.expect_run().times(0).return_const(());
 
         tp1.write_lock().start_timer(
-            std::time::Duration::from_secs(1),
+            DurationKind::Finite(Duration::new(1, 0)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task1.run(),
         );
@@ -213,7 +218,7 @@ mod tests {
         let mut mock_task1 = MockTask::new();
         mock_task1.expect_run().times(0).return_const(());
         tp1.write_lock().start_timer(
-            std::time::Duration::from_secs(1),
+            DurationKind::Finite(Duration::new(1, 0)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task1.run(),
         );
@@ -231,7 +236,7 @@ mod tests {
         mock_task1.expect_run().times(2).return_const(());
 
         tp1.write_lock().start_timer(
-            std::time::Duration::from_secs(1),
+            DurationKind::Finite(Duration::new(1, 0)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task1.run(),
         );
@@ -239,7 +244,7 @@ mod tests {
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(4).return_const(());
         tp2.write_lock().start_timer(
-            std::time::Duration::from_millis(600),
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task2.run(),
         );
@@ -257,7 +262,7 @@ mod tests {
         mock_task1.expect_run().times(2).return_const(());
 
         tp1.write_lock().start_timer(
-            std::time::Duration::from_secs(1),
+            DurationKind::Finite(Duration::new(1, 0)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task1.run(),
         );
@@ -265,7 +270,7 @@ mod tests {
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(0).return_const(());
         tp2.write_lock().start_timer(
-            std::time::Duration::from_millis(600),
+            DurationKind::Finite(Duration::new(0, 600_000_000)),
             InstanceHandle::new([1u8; 16]),
             move || mock_task2.run(),
         );
@@ -289,13 +294,13 @@ mod tests {
             let tp2 = timer_factory.create_timer();
 
             tp1.write_lock().start_timer(
-                std::time::Duration::from_secs(1),
+                DurationKind::Finite(Duration::new(1, 0)),
                 InstanceHandle::new([1u8; 16]),
                 move || mock_task1.run(),
             );
 
             tp2.write_lock().start_timer(
-                std::time::Duration::from_millis(600),
+                DurationKind::Finite(Duration::new(0, 600_000_000)),
                 InstanceHandle::new([1u8; 16]),
                 move || mock_task2.run(),
             );

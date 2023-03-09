@@ -7,7 +7,7 @@ use dust_dds::{
             ReliabilityQosPolicyKind,
         },
         status::{StatusKind, NO_STATUS},
-        time::Duration,
+        time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
 };
@@ -33,7 +33,7 @@ fn main() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         durability: DurabilityQosPolicy {
             kind: DurabilityQosPolicyKind::TransientLocal,

@@ -14,7 +14,7 @@ use dust_dds::{
             RequestedIncompatibleQosStatus, SampleRejectedStatus, SampleRejectedStatusKind,
             StatusKind, SubscriptionMatchedStatus, NO_STATUS,
         },
-        time::Duration,
+        time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
     publication::{
@@ -84,7 +84,7 @@ fn deadline_missed_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -98,10 +98,10 @@ fn deadline_missed_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         deadline: DeadlineQosPolicy {
-            period: Duration::new(1, 0),
+            period: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -191,7 +191,7 @@ fn sample_rejected_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -209,7 +209,7 @@ fn sample_rejected_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -299,7 +299,7 @@ fn subscription_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -317,7 +317,7 @@ fn subscription_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -388,7 +388,7 @@ fn requested_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -406,7 +406,7 @@ fn requested_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -477,7 +477,7 @@ fn publication_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -497,7 +497,7 @@ fn publication_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -567,7 +567,7 @@ fn offered_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -587,7 +587,7 @@ fn offered_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -644,7 +644,7 @@ fn on_data_available_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -658,7 +658,7 @@ fn on_data_available_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -731,7 +731,7 @@ fn data_on_readers_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -754,7 +754,7 @@ fn data_on_readers_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -828,7 +828,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -851,7 +851,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -925,7 +925,7 @@ fn participant_deadline_missed_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -939,10 +939,10 @@ fn participant_deadline_missed_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         deadline: DeadlineQosPolicy {
-            period: Duration::new(1, 0),
+            period: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1030,7 +1030,7 @@ fn participant_sample_rejected_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1048,7 +1048,7 @@ fn participant_sample_rejected_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1144,7 +1144,7 @@ fn participant_subscription_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1162,7 +1162,7 @@ fn participant_subscription_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1235,7 +1235,7 @@ fn participant_requested_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1253,7 +1253,7 @@ fn participant_requested_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1324,7 +1324,7 @@ fn publisher_publication_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1354,7 +1354,7 @@ fn publisher_publication_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1413,7 +1413,7 @@ fn publisher_offered_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1443,7 +1443,7 @@ fn publisher_offered_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1499,7 +1499,7 @@ fn subscriber_deadline_missed_listener() {
     let writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1523,10 +1523,10 @@ fn subscriber_deadline_missed_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         deadline: DeadlineQosPolicy {
-            period: Duration::new(1, 0),
+            period: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };
@@ -1601,7 +1601,7 @@ fn subscriber_sample_rejected_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1633,7 +1633,7 @@ fn subscriber_sample_rejected_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1712,7 +1712,7 @@ fn subscriber_subscription_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1740,7 +1740,7 @@ fn subscriber_subscription_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1800,7 +1800,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1828,7 +1828,7 @@ fn subscriber_requested_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1890,7 +1890,7 @@ fn data_writer_publication_matched_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1910,7 +1910,7 @@ fn data_writer_publication_matched_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -1981,7 +1981,7 @@ fn data_writer_offered_incompatible_qos_listener() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::Reliable,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,
@@ -2001,7 +2001,7 @@ fn data_writer_offered_incompatible_qos_listener() {
     let data_writer_qos = DataWriterQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         history: HistoryQosPolicy {
             kind: HistoryQosPolicyKind::KeepAll,

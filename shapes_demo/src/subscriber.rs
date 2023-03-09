@@ -4,7 +4,7 @@ use dust_dds::{
         qos::{DataReaderQos, QosKind},
         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
         status::{StatusKind, NO_STATUS},
-        time::Duration,
+        time::{Duration, DurationKind},
         wait_set::{Condition, WaitSet},
     },
     subscription::sample_info::{SampleStateKind, ANY_INSTANCE_STATE, ANY_VIEW_STATE},
@@ -31,7 +31,7 @@ fn main() {
     let reader_qos = DataReaderQos {
         reliability: ReliabilityQosPolicy {
             kind: ReliabilityQosPolicyKind::BestEffort,
-            max_blocking_time: Duration::new(1, 0),
+            max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
         },
         ..Default::default()
     };

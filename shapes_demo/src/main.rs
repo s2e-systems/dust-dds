@@ -12,7 +12,7 @@ use dust_dds::{
             HistoryQosPolicy, HistoryQosPolicyKind, ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
         status::NO_STATUS,
-        time::Duration,
+        time::{Duration, DurationKind},
     },
     publication::{data_writer::DataWriter, publisher::Publisher},
     subscription::{
@@ -101,7 +101,7 @@ impl MyApp {
         let qos = DataWriterQos {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: Duration::new(1, 0),
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
             },
             ..Default::default()
         };
@@ -120,7 +120,7 @@ impl MyApp {
         let qos = DataReaderQos {
             reliability: ReliabilityQosPolicy {
                 kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: Duration::new(1, 0),
+                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
             },
             history: HistoryQosPolicy {
                 kind: HistoryQosPolicyKind::KeepLast(1),

@@ -20,7 +20,7 @@ use crate::{
         qos::DataReaderQos,
         qos_policy::{DestinationOrderQosPolicyKind, HistoryQosPolicyKind},
         status::{SampleRejectedStatusKind, StatusKind},
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     subscription::{
         data_reader::Sample,
@@ -390,7 +390,8 @@ impl RtpsReader {
         if let Some(Some(t)) = closest_timestamp_before_received_sample {
             if let Some(sample_source_time) = change.source_timestamp {
                 let sample_separation = sample_source_time - t;
-                sample_separation >= self.qos.time_based_filter.minimum_separation
+                DurationKind::Finite(sample_separation)
+                    >= self.qos.time_based_filter.minimum_separation
             } else {
                 true
             }
