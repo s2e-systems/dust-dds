@@ -104,7 +104,9 @@ impl DcpsService {
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
 
-                domain_participant.send_built_in_data(&mut metatraffic_unicast_transport_send);
+                domain_participant
+                    .send_built_in_data(&mut metatraffic_unicast_transport_send)
+                    .unwrap();
             }));
         }
 
@@ -141,7 +143,9 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                domain_participant.send_user_defined_data(&mut default_unicast_transport_send);
+                domain_participant
+                    .send_user_defined_data(&mut default_unicast_transport_send)
+                    .unwrap();
             }));
         }
 

@@ -22,7 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
-        time::Duration,
+        time::{Duration, Time},
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -30,12 +30,12 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    writer_factory::WriterFactory,
     domain_participant_impl::DomainParticipantImpl,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
     user_defined_data_writer::UserDefinedDataWriter,
+    writer_factory::WriterFactory,
 };
 
 pub struct UserDefinedPublisher {
@@ -373,9 +373,14 @@ impl DdsShared<UserDefinedPublisher> {
         }
     }
 
-    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+        now: Time,
+    ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.send_message(header, transport);
+            data_writer.send_message(header, transport, now);
         }
     }
 

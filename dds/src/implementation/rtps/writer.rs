@@ -13,7 +13,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
-        time::{Duration, Time},
+        time::{Duration, DurationKind, Time},
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
@@ -329,5 +329,11 @@ impl RtpsWriter {
 
     pub fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
+    }
+
+    pub fn remove_stale_changes(&mut self, now: Time) {
+        let timespan_duration = self.qos.lifespan.duration;
+        self.writer_cache
+            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration)
     }
 }

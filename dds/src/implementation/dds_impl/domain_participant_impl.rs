@@ -969,7 +969,7 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
-    pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) {
+    pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) -> DdsResult<()> {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: self.rtps_participant.protocol_version(),
@@ -977,8 +977,12 @@ impl DdsShared<DomainParticipantImpl> {
             guid_prefix: self.rtps_participant.guid().prefix(),
         };
 
-        self.builtin_publisher.send_message(header, transport);
+        let now = self.get_current_time()?;
+
+        self.builtin_publisher.send_message(header, transport, now);
         self.builtin_subscriber.send_message(header, transport);
+
+        Ok(())
     }
 
     pub fn receive_built_in_data(
@@ -1002,21 +1006,24 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) {
+    pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) -> DdsResult<()> {
         let header = RtpsMessageHeader {
             protocol: ProtocolId::PROTOCOL_RTPS,
             version: self.rtps_participant.protocol_version(),
             vendor_id: self.rtps_participant.vendor_id(),
             guid_prefix: self.rtps_participant.guid().prefix(),
         };
+        let now = self.get_current_time()?;
 
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.send_message(header, transport)
+            publisher.send_message(header, transport, now)
         }
 
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
             subscriber.send_message(header, transport)
         }
+
+        Ok(())
     }
 
     pub fn receive_user_defined_data(
