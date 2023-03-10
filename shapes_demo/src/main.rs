@@ -24,8 +24,10 @@ use dust_dds::{
 use shapes_type::ShapeType;
 
 use eframe::{
-    egui::{self, Rect, WidgetText},
-    epaint::{pos2, vec2, CircleShape, Color32, PathShape, Pos2, Rounding, Shape, Stroke, Vec2},
+    egui::{self, Rect},
+    epaint::{
+        pos2, vec2, CircleShape, Color32, PathShape, Pos2, RectShape, Rounding, Shape, Stroke, Vec2,
+    },
     Theme,
 };
 
@@ -61,9 +63,150 @@ struct MyApp {
     subscriber: Subscriber,
     writers: Vec<DataWriter<ShapeType>>,
     readers: Vec<DataReader<ShapeType>>,
+    shape_writer_list: Vec<ShapeWriter>,
 }
 
+trait IntoShapeType {
+    fn into_shape_type(&self) -> ShapeType;
+}
 
+impl IntoShapeType for MovingTriangle {
+    fn into_shape_type(&self) -> ShapeType {
+        let color = match self.triangle.fill {
+            Color32::RED => "RED",
+            Color32::BLUE => "BLUE",
+            Color32::GREEN => "GREEN",
+            _ => panic!("Color invalid"),
+        }
+        .to_string();
+        let center = self.bb().center();
+        ShapeType {
+            color,
+            x: center.x as i32,
+            y: center.y as i32,
+            shapesize: self.size as i32,
+        }
+    }
+}
+impl IntoShapeType for MovingCircle {
+    fn into_shape_type(&self) -> ShapeType {
+        let color = match self.circle.fill {
+            Color32::RED => "RED",
+            Color32::BLUE => "BLUE",
+            Color32::GREEN => "GREEN",
+            _ => panic!("Color invalid"),
+        }
+        .to_string();
+        let center = self.bb().center();
+        ShapeType {
+            color,
+            x: center.x as i32,
+            y: center.y as i32,
+            shapesize: self.bb().width() as i32,
+        }
+    }
+}
+
+enum ShapeKind {
+    Circle,
+    Triangle,
+    Square,
+}
+
+impl ShapeKind {
+    fn as_str(&self) -> &'_ str {
+        match self {
+            ShapeKind::Circle => "Circle",
+            ShapeKind::Triangle => "Triangle",
+            ShapeKind::Square => "Square",
+        }
+    }
+}
+
+enum MovingShapeKind {
+    Circle(MovingCircle),
+    Triangle(MovingTriangle),
+    Square(MovingSquare),
+}
+
+impl MovingShapeKind {
+    fn into_shape_type(&self) -> ShapeType {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.into_shape_type(),
+            MovingShapeKind::Triangle(shape) => shape.into_shape_type(),
+            MovingShapeKind::Square(shape) => shape.into_shape_type(),
+        }
+    }
+
+    fn moved_shape(&mut self) -> Shape {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.circle.into(),
+            MovingShapeKind::Triangle(shape) => shape.triangle.clone().into(),
+            MovingShapeKind::Square(shape) => shape.shape.into(),
+        }
+    }
+}
+
+impl BoundingBox for MovingShapeKind {
+    fn bb(&self) -> Rect {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.bb(),
+            MovingShapeKind::Triangle(shape) => shape.bb(),
+            MovingShapeKind::Square(shape) => shape.bb(),
+        }
+    }
+}
+
+impl Move for MovingShapeKind {
+    fn move_to(&mut self, p: Pos2) {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.move_to(p),
+            MovingShapeKind::Triangle(shape) => shape.move_to(p),
+            MovingShapeKind::Square(shape) => shape.move_to(p),
+        }
+    }
+
+    fn move_by(&mut self, v: Vec2) {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.move_by(v),
+            MovingShapeKind::Triangle(shape) => shape.move_by(v),
+            MovingShapeKind::Square(shape) => shape.move_by(v),
+        }
+    }
+}
+
+impl Velocity for MovingShapeKind {
+    fn velocity(&self) -> Vec2 {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.velocity(),
+            MovingShapeKind::Triangle(shape) => shape.velocity(),
+            MovingShapeKind::Square(shape) => shape.velocity(),
+        }
+    }
+
+    fn set_velocity(&mut self, v: Vec2) {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.set_velocity(v),
+            MovingShapeKind::Triangle(shape) => shape.set_velocity(v),
+            MovingShapeKind::Square(shape) => shape.set_velocity(v),
+        }
+    }
+}
+
+struct ShapeWriter {
+    writer: DataWriter<ShapeType>,
+    shape: MovingShapeKind,
+}
+impl ShapeWriter {
+    fn write(&self) {
+        let data = self.shape.into_shape_type();
+        self.writer.write(&data, None).expect("writing failed");
+        println!("written {:?}", data);
+    }
+    fn moved_shape(&mut self) -> Shape {
+        self.shape.moved_shape().into()
+    }
+}
 
 impl MyApp {
     fn new() -> Self {
@@ -86,12 +229,7 @@ impl MyApp {
             stroke: Stroke::NONE,
         });
 
-        let mut moving_triangle = MovingTriangle::new(PathShape {
-            points: vec![],
-            closed: true,
-            fill: Color32::BLUE,
-            stroke: Stroke::NONE,
-        });
+        let mut moving_triangle = MovingTriangle::new();
         moving_triangle.move_to(pos2(360.0, 180.0));
 
         Self {
@@ -102,10 +240,13 @@ impl MyApp {
             subscriber,
             writers: vec![],
             readers: vec![],
+            shape_writer_list: vec![],
         }
     }
 
-    fn create_writer(&mut self, topic_name: &str) {
+    fn create_writer(&mut self, shape_kind: ShapeKind) {
+        let topic_name = shape_kind.as_str();
+
         let topic = self
             .participant
             .create_topic::<ShapeType>(topic_name, QosKind::Default, None, NO_STATUS)
@@ -121,7 +262,25 @@ impl MyApp {
             .publisher
             .create_datawriter(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
-        self.writers.push(writer);
+
+        let shape = match shape_kind {
+            ShapeKind::Circle => MovingShapeKind::Circle(MovingCircle::new(CircleShape {
+                center: pos2(360.0, 180.0),
+                radius: 15.0,
+                fill: Color32::BLUE,
+                stroke: Stroke::NONE,
+            })),
+            ShapeKind::Triangle => MovingShapeKind::Triangle(MovingTriangle::new()),
+            ShapeKind::Square => MovingShapeKind::Square(MovingSquare::new(RectShape {
+                rect: Rect::from_center_size(pos2(360.0, 180.0), vec2(15.0, 15.0)),
+                rounding: Rounding::none(),
+                fill: Color32::BLUE,
+                stroke: Stroke::NONE,
+            })),
+        };
+
+        let shape_writer = ShapeWriter { writer, shape };
+        self.shape_writer_list.push(shape_writer);
     }
 
     fn create_reader(&mut self, topic_name: &str) {
@@ -144,23 +303,6 @@ impl MyApp {
             .create_datareader(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
         self.readers.push(reader);
-    }
-
-    fn write_circle_data(&self, circle: &CircleShape, offset: &Pos2) {
-        if let Some(writer) = self.writers.first() {
-            let color = "BLUE".to_string();
-            let x = (circle.center.x - offset.x) as i32;
-            let y = (circle.center.y - offset.y) as i32;
-            let shapesize = (circle.radius * 2.0) as i32;
-            let data = ShapeType {
-                color,
-                x,
-                y,
-                shapesize,
-            };
-            writer.write(&data, None).expect("writing failed");
-            println!("written {:?}", data);
-        }
     }
 
     fn read_circle_data(&self, reader: &DataReader<ShapeType>, offset: &Pos2) -> Vec<CircleShape> {
@@ -208,31 +350,18 @@ impl MyApp {
     }
 }
 
-enum ShapeKind {
-    Circle,
-    Triangle,
-    Square
-}
-impl ShapeKind {
-    fn as_str(&self) -> &'_ str {
-        match self {
-            ShapeKind::Circle => "Circle",
-            ShapeKind::Triangle => "Triangle",
-            ShapeKind::Square => "Square",
-        }
-    }
-}
-
-
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.heading("Publish");
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
-                self.create_writer(ShapeKind::Circle.as_str());
+                self.create_writer(ShapeKind::Circle);
             };
             if ui.button(ShapeKind::Triangle.as_str()).clicked() {
-                self.create_writer(ShapeKind::Triangle.as_str());
+                self.create_writer(ShapeKind::Triangle);
+            };
+            if ui.button(ShapeKind::Square.as_str()).clicked() {
+                self.create_writer(ShapeKind::Square);
             };
             ui.separator();
             ui.heading("Subscribe");
@@ -245,19 +374,10 @@ impl eframe::App for MyApp {
             let rect = Rect::from_center_size(ui.max_rect().center(), vec2(235.0, 265.0));
             painter.rect_filled(rect, Rounding::none(), Color32::WHITE);
             let offset = &rect.left_top();
-            for writer in &self.writers {
-                match writer.get_topic().unwrap().get_name().unwrap().as_str() {
-                    "Circle" => {
-                        move_within_rect(&mut self.moving_circle, rect);
-                        self.write_circle_data(&self.moving_circle.circle, offset);
-                        painter.add(self.moving_circle.clone());
-                    }
-                    "Triangle" => {
-                        move_within_rect(&mut self.moving_triangle, rect);
-                        painter.add(self.moving_triangle.clone());
-                    }
-                    _ => (),
-                }
+            for shape_writer in &mut self.shape_writer_list {
+                shape_writer.write();
+                move_within_rect(&mut shape_writer.shape, rect);
+                painter.add(shape_writer.moved_shape());
             }
             for reader in &self.readers {
                 for circle in self.read_circle_data(reader, offset) {
@@ -268,7 +388,6 @@ impl eframe::App for MyApp {
         });
     }
 }
-
 
 fn move_within_rect<T>(object: &mut T, rect: Rect)
 where
@@ -308,7 +427,6 @@ where
     object.move_by(object.velocity());
 }
 
-
 trait BoundingBox {
     fn bb(&self) -> Rect;
 }
@@ -317,6 +435,62 @@ trait Move {
     fn move_to(&mut self, p: Pos2);
     fn move_by(&mut self, v: Vec2);
 }
+
+struct MovingSquare {
+    velocity: Vec2,
+    shape: RectShape,
+}
+
+impl MovingSquare {
+    fn new(shape: RectShape) -> Self {
+        Self {
+            velocity: vec2(0.0, 0.0),
+            shape,
+        }
+    }
+}
+impl BoundingBox for MovingSquare {
+    fn bb(&self) -> Rect {
+        self.shape.rect
+    }
+}
+impl Move for MovingSquare {
+    fn move_to(&mut self, p: Pos2) {
+        self.shape.rect.set_center(p);
+    }
+
+    fn move_by(&mut self, v: Vec2) {
+        self.shape.rect.set_center(self.shape.rect.center() + v);
+    }
+}
+impl Velocity for MovingSquare {
+    fn velocity(&self) -> Vec2 {
+        self.velocity
+    }
+
+    fn set_velocity(&mut self, v: Vec2) {
+        self.velocity = v;
+    }
+}
+impl IntoShapeType for MovingSquare {
+    fn into_shape_type(&self) -> ShapeType {
+        let color = match self.shape.fill {
+            Color32::RED => "RED",
+            Color32::BLUE => "BLUE",
+            Color32::GREEN => "GREEN",
+            _ => panic!("Color invalid"),
+        }
+        .to_string();
+        let center = self.bb().center();
+        ShapeType {
+            color,
+            x: center.x as i32,
+            y: center.y as i32,
+            shapesize: self.bb().width() as i32,
+        }
+    }
+}
+
 #[derive(Clone)]
 
 struct MovingTriangle {
@@ -333,7 +507,6 @@ impl BoundingBox for MovingTriangle {
         }
     }
 }
-
 impl Move for MovingTriangle {
     fn move_to(&mut self, p: Pos2) {
         self.triangle.points = vec![
@@ -349,10 +522,15 @@ impl Move for MovingTriangle {
         }
     }
 }
-
 impl MovingTriangle {
-    fn new(triangle: PathShape) -> Self {
+    fn new() -> Self {
         let size = 30.0;
+        let triangle = PathShape { points: vec![
+            pos2(0.0, -size / 2.0),
+            pos2(-size / 2.0, size / 2.0),
+            pos2(size / 2.0, size / 2.0),
+        ], closed: true, fill: Color32::BLUE, stroke: Stroke::NONE };
+
         Self {
             velocity: vec2(4.0, 4.0),
             triangle,
