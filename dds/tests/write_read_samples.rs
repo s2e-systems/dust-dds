@@ -2012,7 +2012,6 @@ fn write_read_unregistered_samples_are_also_disposed() {
 }
 
 #[test]
-#[ignore]
 fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 

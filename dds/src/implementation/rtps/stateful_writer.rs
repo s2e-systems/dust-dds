@@ -213,7 +213,14 @@ impl RtpsStatefulWriter {
         self.writer.writer_cache()
     }
 
-    pub fn send_message(&mut self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &mut self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+        now: Time,
+    ) {
+        self.writer.remove_stale_changes(now);
+
         for reader_proxy in self.matched_readers.iter_mut() {
             reader_proxy.send_message(
                 self.writer.writer_cache(),

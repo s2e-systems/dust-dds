@@ -11,7 +11,7 @@ use crate::{
             shared_object::{DdsRwLock, DdsShared},
         },
     },
-    infrastructure::{error::DdsResult, qos::PublisherQos},
+    infrastructure::{error::DdsResult, qos::PublisherQos, time::Time},
 };
 
 use super::{
@@ -121,18 +121,21 @@ impl DdsShared<BuiltinPublisher> {
 
         Ok(())
     }
-}
 
-impl DdsShared<BuiltinPublisher> {
-    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+        now: Time,
+    ) {
         self.spdp_builtin_participant_writer
             .send_message(header, transport);
         self.sedp_builtin_publications_writer
-            .send_message(header, transport);
+            .send_message(header, transport, now);
         self.sedp_builtin_subscriptions_writer
-            .send_message(header, transport);
+            .send_message(header, transport, now);
         self.sedp_builtin_topics_writer
-            .send_message(header, transport);
+            .send_message(header, transport, now);
     }
 }
 

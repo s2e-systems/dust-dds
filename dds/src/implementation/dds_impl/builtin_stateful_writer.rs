@@ -201,9 +201,14 @@ impl DdsShared<BuiltinStatefulWriter> {
         Ok(())
     }
 
-    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
+    pub fn send_message(
+        &self,
+        header: RtpsMessageHeader,
+        transport: &mut impl TransportWrite,
+        now: Time,
+    ) {
         self.rtps_writer
             .write_lock()
-            .send_message(header, transport);
+            .send_message(header, transport, now);
     }
 }
