@@ -369,7 +369,6 @@ impl DdsShared<DomainParticipantImpl> {
             rtps_group,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
         if *self.enabled.read_lock()
@@ -379,7 +378,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber_shared.enable()?;
+            subscriber_shared.enable(self)?;
         }
 
         self.user_defined_subscriber_list
@@ -591,7 +590,7 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.ignored_publications.write_lock().insert(handle);
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            subscriber.remove_matched_writer(handle);
+            subscriber.remove_matched_writer(handle, self);
         }
 
         Ok(())
@@ -620,7 +619,7 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
-            user_defined_subscriber.delete_contained_entities()?;
+            user_defined_subscriber.delete_contained_entities(self)?;
         }
 
         self.topic_list.write_lock().clear();
@@ -806,7 +805,7 @@ impl DdsShared<DomainParticipantImpl> {
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                    subscriber.enable()?;
+                    subscriber.enable(self)?;
                 }
 
                 for topic in self.topic_list.read_lock().iter() {
@@ -990,6 +989,7 @@ impl DdsShared<DomainParticipantImpl> {
         message: RtpsMessage,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()?).process_message(
+            self,
             self.rtps_participant.guid().prefix(),
             core::slice::from_ref(&self.builtin_publisher),
             core::slice::from_ref(&self.builtin_subscriber),
@@ -1031,6 +1031,7 @@ impl DdsShared<DomainParticipantImpl> {
         message: RtpsMessage,
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()?).process_message(
+            self,
             self.rtps_participant.guid().prefix(),
             self.user_defined_publisher_list.read_lock().as_slice(),
             self.user_defined_subscriber_list.read_lock().as_slice(),
@@ -1102,6 +1103,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         discovered_participant_data.default_unicast_locator_list(),
                                         discovered_participant_data
                                             .default_multicast_locator_list(),
+                                        self,
                                     );
                                 }
                             }
@@ -1112,6 +1114,7 @@ impl DdsShared<DomainParticipantImpl> {
                     for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
                         subscriber.remove_matched_writer(
                             discovered_writer_data_sample.sample_info.instance_handle,
+                            self,
                         );
                     }
                 }
@@ -1271,7 +1274,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn update_communication_status(&self) -> DdsResult<()> {
         let now = self.get_current_time()?;
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            subscriber.update_communication_status(now);
+            subscriber.update_communication_status(now, self);
         }
 
         Ok(())

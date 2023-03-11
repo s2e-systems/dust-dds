@@ -50,7 +50,8 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
+    any_data_reader_listener::AnyDataReaderListener,
+    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -241,6 +242,7 @@ impl DdsShared<UserDefinedDataReader> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant: &DdsShared<DomainParticipantImpl>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -266,10 +268,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .period;
 
                 let me = self.clone();
+                let this_participant = participant.clone();
                 self.timer
                     .write_lock()
                     .start_timer(duration, instance_handle, move || {
-                        me.on_requested_deadline_missed(instance_handle)
+                        me.on_requested_deadline_missed(instance_handle, &this_participant)
                     });
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
@@ -278,11 +281,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                self.on_sample_lost();
+                self.on_sample_lost(participant);
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-                self.on_sample_rejected(instance_handle, rejected_reason);
+                self.on_sample_rejected(instance_handle, rejected_reason, participant);
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::InvalidData(_) => {
@@ -295,6 +298,7 @@ impl DdsShared<UserDefinedDataReader> {
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant: &DdsShared<DomainParticipantImpl>,
     ) -> UserDefinedReaderDataSubmessageReceivedResult {
         let data_submessage_received_result = self
             .rtps_reader
@@ -321,11 +325,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .write_lock()
                     .insert(instance_handle, message_receiver.reception_timestamp());
                 *self.data_available_status_changed_flag.write_lock() = true;
-                self.on_sample_lost();
+                self.on_sample_lost(participant);
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::SampleRejected(instance_handle, rejected_reason) => {
-                self.on_sample_rejected(instance_handle, rejected_reason);
+                self.on_sample_rejected(instance_handle, rejected_reason, participant);
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
             StatefulReaderDataReceivedResult::InvalidData(_) => {
@@ -361,6 +365,7 @@ impl DdsShared<UserDefinedDataReader> {
         discovered_writer_data: &DiscoveredWriterData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        participant: &DdsShared<DomainParticipantImpl>,
     ) {
         let publication_builtin_topic_data = &discovered_writer_data.publication_builtin_topic_data;
         if publication_builtin_topic_data.topic_name == self.topic.get_name()
@@ -413,9 +418,9 @@ impl DdsShared<UserDefinedDataReader> {
                     .insert(instance_handle, publication_builtin_topic_data.clone());
                 match insert_matched_publication_result {
                     Some(value) if &value != publication_builtin_topic_data => {
-                        self.on_subscription_matched(instance_handle)
+                        self.on_subscription_matched(instance_handle, participant)
                     }
-                    None => self.on_subscription_matched(instance_handle),
+                    None => self.on_subscription_matched(instance_handle, participant),
                     _ => (),
                 }
             } else if self
@@ -423,7 +428,7 @@ impl DdsShared<UserDefinedDataReader> {
                 .write_lock()
                 .insert(instance_handle)
             {
-                self.on_requested_incompatible_qos(incompatible_qos_policy_list);
+                self.on_requested_incompatible_qos(incompatible_qos_policy_list, participant);
             }
         }
     }
@@ -468,7 +473,11 @@ impl DdsShared<UserDefinedDataReader> {
         incompatible_qos_policy_list
     }
 
-    pub fn remove_matched_writer(&self, discovered_writer_handle: InstanceHandle) {
+    pub fn remove_matched_writer(
+        &self,
+        discovered_writer_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         let matched_publication = self
             .matched_publication_list
             .write_lock()
@@ -478,7 +487,7 @@ impl DdsShared<UserDefinedDataReader> {
                 .write_lock()
                 .matched_writer_remove(w.key.value.into());
 
-            self.on_subscription_matched(discovered_writer_handle)
+            self.on_subscription_matched(discovered_writer_handle, participant)
         }
     }
 
@@ -702,7 +711,11 @@ impl DdsShared<UserDefinedDataReader> {
             .collect()
     }
 
-    pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
+    pub fn set_qos(
+        &self,
+        qos: QosKind<DataReaderQos>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -719,9 +732,7 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.write_lock().reader_mut().set_qos(qos)?;
 
         if self.is_enabled() {
-            self.get_subscriber()
-                .get_participant()
-                .announce_created_datareader(self.as_discovered_reader_data());
+            participant.announce_created_datareader(self.as_discovered_reader_data());
         }
 
         Ok(())
@@ -752,16 +763,14 @@ impl DdsShared<UserDefinedDataReader> {
         *self.enabled.read_lock()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
         if !self.get_subscriber().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent subscriber disabled".to_string(),
             ));
         }
 
-        self.get_subscriber()
-            .get_participant()
-            .announce_created_datareader(self.as_discovered_reader_data());
+        participant.announce_created_datareader(self.as_discovered_reader_data());
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -816,7 +825,11 @@ impl DdsShared<UserDefinedDataReader> {
             .send_message(header, transport);
     }
 
-    pub fn update_communication_status(&self, now: Time) {
+    pub fn update_communication_status(
+        &self,
+        now: Time,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
             .write_lock()
@@ -835,11 +848,11 @@ impl DdsShared<UserDefinedDataReader> {
         *self.instance_reception_time.write_lock() = instance_reception_time;
 
         for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.on_requested_deadline_missed(missed_deadline_instance);
+            self.on_requested_deadline_missed(missed_deadline_instance, participant);
         }
     }
 
-    pub fn on_data_available(&self) {
+    pub fn on_data_available(&self, participant: &DdsShared<DomainParticipantImpl>) {
         if *self.data_available_status_changed_flag.read_lock() {
             if self
                 .listener_status_mask
@@ -848,7 +861,7 @@ impl DdsShared<UserDefinedDataReader> {
             {
                 if let Some(listener) = self.listener.write_lock().as_mut() {
                     *self.data_available_status_changed_flag.write_lock() = false;
-                    listener.trigger_on_data_available(self);
+                    listener.trigger_on_data_available(self, participant.downgrade());
                 }
             }
 
@@ -868,7 +881,7 @@ impl DdsShared<UserDefinedDataReader> {
             .on_gap_submessage_received(gap_submessage, source_guid_prefix);
     }
 
-    fn on_sample_lost(&self) {
+    fn on_sample_lost(&self, participant: &DdsShared<DomainParticipantImpl>) {
         self.sample_lost_status.write_lock().increment();
 
         if self
@@ -877,7 +890,7 @@ impl DdsShared<UserDefinedDataReader> {
             .contains(&StatusKind::SampleLost)
         {
             if let Some(listener) = self.listener.write_lock().as_mut() {
-                listener.trigger_on_sample_lost(self);
+                listener.trigger_on_sample_lost(self, participant.downgrade());
             }
         }
 
@@ -886,7 +899,11 @@ impl DdsShared<UserDefinedDataReader> {
             .add_communication_state(StatusKind::SampleLost);
     }
 
-    fn on_subscription_matched(&self, instance_handle: InstanceHandle) {
+    fn on_subscription_matched(
+        &self,
+        instance_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         self.subscription_matched_status
             .write_lock()
             .increment(instance_handle);
@@ -898,9 +915,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .read_lock()
                     .contains(&StatusKind::SubscriptionMatched) =>
             {
-                l.trigger_on_subscription_matched(self)
+                l.trigger_on_subscription_matched(self, participant.downgrade())
             }
-            _ => self.get_subscriber().on_subscription_matched(self),
+            _ => self
+                .get_subscriber()
+                .on_subscription_matched(self, participant),
         }
 
         self.status_condition
@@ -912,6 +931,7 @@ impl DdsShared<UserDefinedDataReader> {
         &self,
         instance_handle: InstanceHandle,
         rejected_reason: SampleRejectedStatusKind,
+        participant: &DdsShared<DomainParticipantImpl>,
     ) {
         self.sample_rejected_status
             .write_lock()
@@ -924,9 +944,9 @@ impl DdsShared<UserDefinedDataReader> {
                     .read_lock()
                     .contains(&StatusKind::SampleRejected) =>
             {
-                l.trigger_on_sample_rejected(self)
+                l.trigger_on_sample_rejected(self, participant.downgrade())
             }
-            _ => self.get_subscriber().on_sample_rejected(self),
+            _ => self.get_subscriber().on_sample_rejected(self, participant),
         }
 
         self.status_condition
@@ -934,7 +954,11 @@ impl DdsShared<UserDefinedDataReader> {
             .add_communication_state(StatusKind::SampleRejected);
     }
 
-    fn on_requested_deadline_missed(&self, instance_handle: InstanceHandle) {
+    fn on_requested_deadline_missed(
+        &self,
+        instance_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         self.requested_deadline_missed_status
             .write_lock()
             .increment(instance_handle);
@@ -946,9 +970,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .read_lock()
                     .contains(&StatusKind::RequestedDeadlineMissed) =>
             {
-                l.trigger_on_requested_deadline_missed(self)
+                l.trigger_on_requested_deadline_missed(self, participant.downgrade())
             }
-            _ => self.get_subscriber().on_requested_deadline_missed(self),
+            _ => self
+                .get_subscriber()
+                .on_requested_deadline_missed(self, participant),
         }
 
         self.status_condition
@@ -956,7 +982,11 @@ impl DdsShared<UserDefinedDataReader> {
             .add_communication_state(StatusKind::RequestedDeadlineMissed);
     }
 
-    fn on_requested_incompatible_qos(&self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+    fn on_requested_incompatible_qos(
+        &self,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         self.requested_incompatible_qos_status
             .write_lock()
             .increment(incompatible_qos_policy_list);
@@ -968,9 +998,11 @@ impl DdsShared<UserDefinedDataReader> {
                     .read_lock()
                     .contains(&StatusKind::RequestedIncompatibleQos) =>
             {
-                l.trigger_on_requested_incompatible_qos(self)
+                l.trigger_on_requested_incompatible_qos(self, participant.downgrade())
             }
-            _ => self.get_subscriber().on_requested_incompatible_qos(self),
+            _ => self
+                .get_subscriber()
+                .on_requested_incompatible_qos(self, participant),
         }
 
         self.status_condition

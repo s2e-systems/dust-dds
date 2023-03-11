@@ -118,7 +118,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_subscriber(qos, a_listener, mask)
-            .map(|x| Subscriber::new(SubscriberKind::UserDefined(x.downgrade())))
+            .map(|x| Subscriber::new(SubscriberKind::UserDefined(x.downgrade()), self.0.clone()))
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -225,7 +225,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .get_builtin_subscriber()
-            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(x.downgrade())))
+            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(x.downgrade()), self.0.clone()))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

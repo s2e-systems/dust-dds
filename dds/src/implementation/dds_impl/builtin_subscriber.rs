@@ -42,8 +42,9 @@ use super::{
         BuiltInStatelessReaderDataSubmessageReceivedResult, BuiltinStatelessReader,
     },
     domain_participant_impl::{
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+        DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     },
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     topic_impl::TopicImpl,
@@ -228,6 +229,7 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        _participant: &DdsShared<DomainParticipantImpl>,
     ) {
         if self
             .sedp_builtin_topics_reader
@@ -269,6 +271,7 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         &self,
         _data_frag_submessage: &DataFragSubmessage<'_>,
         _message_receiver: &MessageReceiver,
+        _participant: &DdsShared<DomainParticipantImpl>,
     ) {
         // Not for builtin types
     }

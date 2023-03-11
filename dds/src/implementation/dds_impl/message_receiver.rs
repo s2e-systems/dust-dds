@@ -1,23 +1,28 @@
 use crate::{
-    implementation::rtps::{
-        messages::{
-            submessages::{
-                AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
-                HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
-                InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+    implementation::{
+        rtps::{
+            messages::{
+                submessages::{
+                    AckNackSubmessage, DataFragSubmessage, DataSubmessage, GapSubmessage,
+                    HeartbeatFragSubmessage, HeartbeatSubmessage, InfoDestinationSubmessage,
+                    InfoSourceSubmessage, InfoTimestampSubmessage, NackFragSubmessage,
+                },
+                RtpsMessage, RtpsSubmessageKind,
             },
-            RtpsMessage, RtpsSubmessageKind,
+            types::{
+                GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+                LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+            },
         },
-        types::{
-            GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
-            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-        },
+        utils::shared_object::DdsShared,
     },
     infrastructure::{
         error::DdsResult,
         time::{Time, TIME_INVALID},
     },
 };
+
+use super::domain_participant_impl::DomainParticipantImpl;
 
 pub trait PublisherMessageReceiver {
     fn on_acknack_submessage_received(
@@ -50,12 +55,14 @@ pub trait SubscriberSubmessageReceiver {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant: &DdsShared<DomainParticipantImpl>,
     );
 
     fn on_data_frag_submessage_received(
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant: &DdsShared<DomainParticipantImpl>,
     );
 
     fn on_gap_submessage_received(
@@ -94,6 +101,7 @@ impl MessageReceiver {
 
     pub fn process_message(
         &mut self,
+        participant: &DdsShared<DomainParticipantImpl>,
         participant_guid_prefix: GuidPrefix,
         publisher_list: &[impl PublisherMessageReceiver],
         subscriber_list: &[impl SubscriberSubmessageReceiver],
@@ -124,12 +132,16 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageKind::Data(data_submessage) => {
                     for subscriber in subscriber_list {
-                        subscriber.on_data_submessage_received(data_submessage, self)
+                        subscriber.on_data_submessage_received(data_submessage, self, participant)
                     }
                 }
                 RtpsSubmessageKind::DataFrag(data_frag_submessage) => {
                     for subscriber in subscriber_list {
-                        subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
+                        subscriber.on_data_frag_submessage_received(
+                            data_frag_submessage,
+                            self,
+                            participant,
+                        )
                     }
                 }
                 RtpsSubmessageKind::Gap(gap_submessage) => {
