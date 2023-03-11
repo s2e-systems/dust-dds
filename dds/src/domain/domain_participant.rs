@@ -85,7 +85,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_publisher(qos, a_listener, mask)
-            .map(|x| Publisher::new(x.downgrade()))
+            .map(|x| Publisher::new(x.downgrade(), self.0.clone()))
     }
 
     /// This operation deletes an existing [`Publisher`].

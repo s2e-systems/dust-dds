@@ -51,7 +51,8 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, message_receiver::MessageReceiver,
+    any_data_writer_listener::AnyDataWriterListener,
+    domain_participant_impl::DomainParticipantImpl, message_receiver::MessageReceiver,
     status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
     user_defined_publisher::UserDefinedPublisher,
 };
@@ -229,6 +230,7 @@ impl DdsShared<UserDefinedDataWriter> {
         discovered_reader_data: &DiscoveredReaderData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        participant: &DdsShared<DomainParticipantImpl>,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
@@ -261,20 +263,24 @@ impl DdsShared<UserDefinedDataWriter> {
                         Some(value)
                             if value != discovered_reader_data.subscription_builtin_topic_data =>
                         {
-                            self.on_publication_matched(instance_handle)
+                            self.on_publication_matched(instance_handle, participant)
                         }
-                        None => self.on_publication_matched(instance_handle),
+                        None => self.on_publication_matched(instance_handle, participant),
                         _ => (),
                     }
                 }
                 Err(incompatible_qos_policy_list) => {
-                    self.on_offered_incompatible_qos(incompatible_qos_policy_list)
+                    self.on_offered_incompatible_qos(incompatible_qos_policy_list, participant)
                 }
             }
         }
     }
 
-    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         if let Some(r) = self
             .matched_subscription_list
             .write_lock()
@@ -284,7 +290,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 .write_lock()
                 .matched_reader_remove(r.key.value.into());
 
-            self.on_publication_matched(discovered_reader_handle)
+            self.on_publication_matched(discovered_reader_handle, participant)
         }
     }
 
@@ -493,7 +499,11 @@ impl DdsShared<UserDefinedDataWriter> {
             .collect())
     }
 
-    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_qos(
+        &self,
+        qos: QosKind<DataWriterQos>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
             QosKind::Specific(q) => q,
@@ -509,9 +519,7 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.write_lock().set_qos(qos)?;
 
         if self.is_enabled() {
-            self.get_publisher()
-                .get_participant()
-                .announce_created_datawriter(self.as_discovered_writer_data())?;
+            participant.announce_created_datawriter(self.as_discovered_writer_data())?;
         }
 
         Ok(())
@@ -538,16 +546,14 @@ impl DdsShared<UserDefinedDataWriter> {
         self.status_condition.read_lock().get_status_changes()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
         if !self.get_publisher().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent publisher disabled".to_string(),
             ));
         }
 
-        self.get_publisher()
-            .get_participant()
-            .announce_created_datawriter(self.as_discovered_writer_data())?;
+        participant.announce_created_datawriter(self.as_discovered_writer_data())?;
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -612,7 +618,11 @@ impl DdsShared<UserDefinedDataWriter> {
             .send_message(header, transport, now);
     }
 
-    fn on_publication_matched(&self, instance_handle: InstanceHandle) {
+    fn on_publication_matched(
+        &self,
+        instance_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         self.publication_matched_status
             .write_lock()
             .increment(instance_handle);
@@ -624,9 +634,11 @@ impl DdsShared<UserDefinedDataWriter> {
                     .read_lock()
                     .contains(&StatusKind::PublicationMatched) =>
             {
-                l.trigger_on_publication_matched(self)
+                l.trigger_on_publication_matched(self, participant.downgrade())
             }
-            _ => self.get_publisher().on_publication_matched(self),
+            _ => self
+                .get_publisher()
+                .on_publication_matched(self, participant),
         }
 
         self.status_condition
@@ -634,7 +646,11 @@ impl DdsShared<UserDefinedDataWriter> {
             .add_communication_state(StatusKind::PublicationMatched);
     }
 
-    fn on_offered_incompatible_qos(&self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
+    fn on_offered_incompatible_qos(
+        &self,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         self.offered_incompatible_qos_status
             .write_lock()
             .increment(incompatible_qos_policy_list);
@@ -646,9 +662,11 @@ impl DdsShared<UserDefinedDataWriter> {
                     .read_lock()
                     .contains(&StatusKind::OfferedIncompatibleQos) =>
             {
-                l.trigger_on_offered_incompatible_qos(self)
+                l.trigger_on_offered_incompatible_qos(self, participant.downgrade())
             }
-            _ => self.get_publisher().on_offered_incompatible_qos(self),
+            _ => self
+                .get_publisher()
+                .on_offered_incompatible_qos(self, participant),
         }
 
         self.status_condition

@@ -300,7 +300,6 @@ impl DdsShared<DomainParticipantImpl> {
             rtps_group,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.data_max_size_serialized,
         );
@@ -311,7 +310,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            publisher_impl_shared.enable()?;
+            publisher_impl_shared.enable(self)?;
         }
 
         self.user_defined_publisher_list
@@ -605,7 +604,7 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.remove_matched_reader(handle);
+            publisher.remove_matched_reader(handle, self);
         }
 
         Ok(())
@@ -617,7 +616,7 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.write_lock().drain(..) {
-            user_defined_publisher.delete_contained_entities()?;
+            user_defined_publisher.delete_contained_entities(self)?;
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
@@ -803,7 +802,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .autoenable_created_entities
             {
                 for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    publisher.enable()?;
+                    publisher.enable(self)?;
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
@@ -1164,6 +1163,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         discovered_participant_data.default_unicast_locator_list(),
                                         discovered_participant_data
                                             .default_multicast_locator_list(),
+                                        self,
                                     );
                                 }
                             }
@@ -1174,6 +1174,7 @@ impl DdsShared<DomainParticipantImpl> {
                     for publisher in self.user_defined_publisher_list.read_lock().iter() {
                         publisher.remove_matched_reader(
                             discovered_reader_data_sample.sample_info.instance_handle,
+                            self,
                         )
                     }
                 }

@@ -14,7 +14,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
@@ -45,7 +45,6 @@ pub struct UserDefinedPublisher {
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     data_max_size_serialized: usize,
@@ -58,7 +57,6 @@ impl UserDefinedPublisher {
         rtps_group: RtpsGroupImpl,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
     ) -> DdsShared<Self> {
@@ -69,7 +67,6 @@ impl UserDefinedPublisher {
             data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
-            parent_participant,
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             data_max_size_serialized,
@@ -93,6 +90,7 @@ impl DdsShared<UserDefinedPublisher> {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
+        participant: &DdsShared<DomainParticipantImpl>,
     ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
@@ -101,8 +99,8 @@ impl DdsShared<UserDefinedPublisher> {
             &self.rtps_group,
             Foo::has_key(),
             qos,
-            self.get_participant().default_unicast_locator_list(),
-            self.get_participant().default_multicast_locator_list(),
+            participant.default_unicast_locator_list(),
+            participant.default_multicast_locator_list(),
             self.data_max_size_serialized,
         )?;
 
@@ -126,12 +124,16 @@ impl DdsShared<UserDefinedPublisher> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_writer_shared.enable()?;
+            data_writer_shared.enable(participant)?;
         }
         Ok(data_writer_shared)
     }
 
-    pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_datawriter(
+        &self,
+        data_writer_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) -> DdsResult<()> {
         let data_writer_list = &mut self.data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
@@ -145,8 +147,7 @@ impl DdsShared<UserDefinedPublisher> {
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
-            self.get_participant()
-                .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+            participant.announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
         }
 
         Ok(())
@@ -216,12 +217,14 @@ impl DdsShared<UserDefinedPublisher> {
         todo!()
     }
 
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
+    pub fn delete_contained_entities(
+        &self,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) -> DdsResult<()> {
         for data_writer in self.data_writer_list.write_lock().drain(..) {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
-                self.get_participant()
-                    .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+                participant.announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
             }
         }
 
@@ -247,12 +250,6 @@ impl DdsShared<UserDefinedPublisher> {
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
-    }
-
-    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
-        self.parent_participant
-            .upgrade()
-            .expect("Parent participant of publisher must exist")
     }
 
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
@@ -291,8 +288,8 @@ impl DdsShared<UserDefinedPublisher> {
         self.status_condition.read_lock().get_status_changes()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_participant().is_enabled() {
+    pub fn enable(&self, participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
+        if !participant.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
@@ -307,7 +304,7 @@ impl DdsShared<UserDefinedPublisher> {
             .autoenable_created_entities
         {
             for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable()?;
+                data_writer.enable(participant)?;
             }
         }
 
@@ -323,6 +320,7 @@ impl DdsShared<UserDefinedPublisher> {
         discovered_reader_data: &DiscoveredReaderData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        participant: &DdsShared<DomainParticipantImpl>,
     ) {
         let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
             &discovered_reader_data
@@ -362,14 +360,19 @@ impl DdsShared<UserDefinedPublisher> {
                     discovered_reader_data,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    participant,
                 )
             }
         }
     }
 
-    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.remove_matched_reader(discovered_reader_handle)
+            data_writer.remove_matched_reader(discovered_reader_handle, participant)
         }
     }
 
@@ -384,7 +387,11 @@ impl DdsShared<UserDefinedPublisher> {
         }
     }
 
-    pub fn on_publication_matched(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+    pub fn on_publication_matched(
+        &self,
+        writer: &DdsShared<UserDefinedDataWriter>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         match self.listener.write_lock().as_mut() {
             Some(l)
                 if self
@@ -395,11 +402,15 @@ impl DdsShared<UserDefinedPublisher> {
                 let status = writer.get_publication_matched_status();
                 l.on_publication_matched(writer, status);
             }
-            _ => self.get_participant().on_publication_matched(writer),
+            _ => participant.on_publication_matched(writer),
         }
     }
 
-    pub fn on_offered_incompatible_qos(&self, writer: &DdsShared<UserDefinedDataWriter>) {
+    pub fn on_offered_incompatible_qos(
+        &self,
+        writer: &DdsShared<UserDefinedDataWriter>,
+        participant: &DdsShared<DomainParticipantImpl>,
+    ) {
         match self.listener.write_lock().as_mut() {
             Some(l)
                 if self
@@ -410,7 +421,7 @@ impl DdsShared<UserDefinedPublisher> {
                 let status = writer.get_offered_incompatible_qos_status();
                 l.on_offered_incompatible_qos(writer, status)
             }
-            _ => self.get_participant().on_offered_incompatible_qos(writer),
+            _ => participant.on_offered_incompatible_qos(writer),
         }
     }
 }
