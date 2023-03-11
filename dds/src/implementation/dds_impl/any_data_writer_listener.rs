@@ -5,7 +5,8 @@ use crate::{
 };
 
 use super::{
-    domain_participant_impl::DomainParticipantImpl, user_defined_data_writer::UserDefinedDataWriter,
+    domain_participant_impl::DomainParticipantImpl,
+    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
 };
 
 pub trait AnyDataWriterListener {
@@ -13,21 +14,25 @@ pub trait AnyDataWriterListener {
         &mut self,
         _the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     );
     fn trigger_on_offered_deadline_missed(
         &mut self,
         _the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     );
     fn trigger_on_offered_incompatible_qos(
         &mut self,
         _the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     );
     fn trigger_on_publication_matched(
         &mut self,
         _the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     );
 }
 
@@ -39,9 +44,10 @@ where
         &mut self,
         the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) {
         self.on_liveliness_lost(
-            &DataWriter::new(the_writer.downgrade(), participant),
+            &DataWriter::new(the_writer.downgrade(), participant, publisher),
             the_writer.get_liveliness_lost_status(),
         );
     }
@@ -50,9 +56,10 @@ where
         &mut self,
         the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) {
         self.on_offered_deadline_missed(
-            &DataWriter::new(the_writer.downgrade(), participant),
+            &DataWriter::new(the_writer.downgrade(), participant, publisher),
             the_writer.get_offered_deadline_missed_status(),
         );
     }
@@ -61,9 +68,10 @@ where
         &mut self,
         the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) {
         self.on_offered_incompatible_qos(
-            &DataWriter::new(the_writer.downgrade(), participant),
+            &DataWriter::new(the_writer.downgrade(), participant, publisher),
             the_writer.get_offered_incompatible_qos_status(),
         );
     }
@@ -72,9 +80,10 @@ where
         &mut self,
         the_writer: &DdsShared<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) {
         self.on_publication_matched(
-            &DataWriter::new(the_writer.downgrade(), participant),
+            &DataWriter::new(the_writer.downgrade(), participant, publisher),
             the_writer.get_publication_matched_status(),
         )
     }

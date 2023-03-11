@@ -93,7 +93,13 @@ impl Publisher {
                 mask,
                 &self.participant.upgrade()?,
             )
-            .map(|x| DataWriter::new(x.downgrade(), self.participant.clone()))
+            .map(|x| {
+                DataWriter::new(
+                    x.downgrade(),
+                    self.participant.clone(),
+                    self.publisher.clone(),
+                )
+            })
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -123,7 +129,13 @@ impl Publisher {
         self.publisher
             .upgrade()?
             .lookup_datawriter::<Foo>(&topic.0.upgrade()?)
-            .map(|x| Some(DataWriter::new(x.downgrade(), self.participant.clone())))
+            .map(|x| {
+                Some(DataWriter::new(
+                    x.downgrade(),
+                    self.participant.clone(),
+                    self.publisher.clone(),
+                ))
+            })
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects

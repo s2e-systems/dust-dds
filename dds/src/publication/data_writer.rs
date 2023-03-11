@@ -7,6 +7,7 @@ use crate::{
             any_data_writer_listener::AnyDataWriterListener,
             domain_participant_impl::DomainParticipantImpl,
             user_defined_data_writer::UserDefinedDataWriter,
+            user_defined_publisher::UserDefinedPublisher,
         },
         utils::shared_object::DdsWeak,
     },
@@ -35,6 +36,7 @@ where
     Foo: DdsType + DdsSerialize + 'static,
 {
     data_writer: DdsWeak<UserDefinedDataWriter>,
+    publisher: DdsWeak<UserDefinedPublisher>,
     participant: DdsWeak<DomainParticipantImpl>,
     phantom: PhantomData<Foo>,
 }
@@ -46,10 +48,12 @@ where
     pub(crate) fn new(
         data_writer: DdsWeak<UserDefinedDataWriter>,
         participant: DdsWeak<DomainParticipantImpl>,
+        publisher: DdsWeak<UserDefinedPublisher>,
     ) -> Self {
         Self {
             data_writer,
             participant,
+            publisher,
             phantom: PhantomData,
         }
     }
@@ -333,7 +337,7 @@ where
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         Ok(Publisher::new(
-            self.data_writer.upgrade()?.get_publisher().downgrade(),
+            self.publisher.clone(),
             self.participant.clone(),
         ))
     }
@@ -394,9 +398,11 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.data_writer
-            .upgrade()?
-            .set_qos(qos, &self.participant.upgrade()?)
+        self.data_writer.upgrade()?.set_qos(
+            qos,
+            &self.participant.upgrade()?,
+            &self.publisher.upgrade()?,
+        )
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
@@ -465,7 +471,7 @@ where
     pub fn enable(&self) -> DdsResult<()> {
         self.data_writer
             .upgrade()?
-            .enable(&self.participant.upgrade()?)
+            .enable(&self.participant.upgrade()?, &self.publisher.upgrade()?)
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.

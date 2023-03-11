@@ -22,7 +22,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
@@ -142,7 +142,6 @@ impl OfferedIncompatibleQosStatus {
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
-    publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
@@ -162,13 +161,11 @@ impl UserDefinedDataWriter {
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,
-        publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             topic,
-            publisher,
             publication_matched_status: DdsRwLock::new(PublicationMatchedStatus::default()),
             offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
             offered_incompatible_qos_status: DdsRwLock::new(OfferedIncompatibleQosStatus::default()),
@@ -231,6 +228,7 @@ impl DdsShared<UserDefinedDataWriter> {
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
         participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
@@ -245,7 +243,7 @@ impl DdsShared<UserDefinedDataWriter> {
             let add_matched_reader_result = add_discovered_reader(
                 &mut self.rtps_writer.write_lock(),
                 discovered_reader_data,
-                &self.get_publisher().get_qos(),
+                &publisher.get_qos(),
                 default_unicast_locator_list,
                 default_multicast_locator_list,
             );
@@ -263,15 +261,19 @@ impl DdsShared<UserDefinedDataWriter> {
                         Some(value)
                             if value != discovered_reader_data.subscription_builtin_topic_data =>
                         {
-                            self.on_publication_matched(instance_handle, participant)
+                            self.on_publication_matched(instance_handle, participant, publisher)
                         }
-                        None => self.on_publication_matched(instance_handle, participant),
+                        None => {
+                            self.on_publication_matched(instance_handle, participant, publisher)
+                        }
                         _ => (),
                     }
                 }
-                Err(incompatible_qos_policy_list) => {
-                    self.on_offered_incompatible_qos(incompatible_qos_policy_list, participant)
-                }
+                Err(incompatible_qos_policy_list) => self.on_offered_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    participant,
+                    publisher,
+                ),
             }
         }
     }
@@ -280,6 +282,7 @@ impl DdsShared<UserDefinedDataWriter> {
         &self,
         discovered_reader_handle: InstanceHandle,
         participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
     ) {
         if let Some(r) = self
             .matched_subscription_list
@@ -290,7 +293,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 .write_lock()
                 .matched_reader_remove(r.key.value.into());
 
-            self.on_publication_matched(discovered_reader_handle, participant)
+            self.on_publication_matched(discovered_reader_handle, participant, publisher)
         }
     }
 
@@ -457,12 +460,6 @@ impl DdsShared<UserDefinedDataWriter> {
         self.topic.clone()
     }
 
-    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
-        self.publisher
-            .upgrade()
-            .expect("Parent publisher of data writer must exist")
-    }
-
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -503,6 +500,7 @@ impl DdsShared<UserDefinedDataWriter> {
         &self,
         qos: QosKind<DataWriterQos>,
         participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
     ) -> DdsResult<()> {
         let qos = match qos {
             QosKind::Default => Default::default(),
@@ -519,7 +517,9 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.write_lock().set_qos(qos)?;
 
         if self.is_enabled() {
-            participant.announce_created_datawriter(self.as_discovered_writer_data())?;
+            participant.announce_created_datawriter(
+                self.as_discovered_writer_data(&publisher.get_qos()),
+            )?;
         }
 
         Ok(())
@@ -546,14 +546,19 @@ impl DdsShared<UserDefinedDataWriter> {
         self.status_condition.read_lock().get_status_changes()
     }
 
-    pub fn enable(&self, participant: &DdsShared<DomainParticipantImpl>) -> DdsResult<()> {
-        if !self.get_publisher().is_enabled() {
+    pub fn enable(
+        &self,
+        participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
+    ) -> DdsResult<()> {
+        if !publisher.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent publisher disabled".to_string(),
             ));
         }
 
-        participant.announce_created_datawriter(self.as_discovered_writer_data())?;
+        participant
+            .announce_created_datawriter(self.as_discovered_writer_data(&publisher.get_qos()))?;
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -563,10 +568,9 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.read_lock().guid().into()
     }
 
-    pub fn as_discovered_writer_data(&self) -> DiscoveredWriterData {
+    pub fn as_discovered_writer_data(&self, publisher_qos: &PublisherQos) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
         let topic_qos = self.topic.get_qos();
-        let publisher_qos = self.get_publisher().get_qos();
 
         DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -602,7 +606,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
                 topic_data: topic_qos.topic_data,
-                group_data: publisher_qos.group_data,
+                group_data: publisher_qos.group_data.clone(),
             },
         }
     }
@@ -622,6 +626,7 @@ impl DdsShared<UserDefinedDataWriter> {
         &self,
         instance_handle: InstanceHandle,
         participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
     ) {
         self.publication_matched_status
             .write_lock()
@@ -634,11 +639,13 @@ impl DdsShared<UserDefinedDataWriter> {
                     .read_lock()
                     .contains(&StatusKind::PublicationMatched) =>
             {
-                l.trigger_on_publication_matched(self, participant.downgrade())
+                l.trigger_on_publication_matched(
+                    self,
+                    participant.downgrade(),
+                    publisher.downgrade(),
+                )
             }
-            _ => self
-                .get_publisher()
-                .on_publication_matched(self, participant),
+            _ => publisher.on_publication_matched(self, participant),
         }
 
         self.status_condition
@@ -650,6 +657,7 @@ impl DdsShared<UserDefinedDataWriter> {
         &self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
         participant: &DdsShared<DomainParticipantImpl>,
+        publisher: &DdsShared<UserDefinedPublisher>,
     ) {
         self.offered_incompatible_qos_status
             .write_lock()
@@ -662,11 +670,13 @@ impl DdsShared<UserDefinedDataWriter> {
                     .read_lock()
                     .contains(&StatusKind::OfferedIncompatibleQos) =>
             {
-                l.trigger_on_offered_incompatible_qos(self, participant.downgrade())
+                l.trigger_on_offered_incompatible_qos(
+                    self,
+                    participant.downgrade(),
+                    publisher.downgrade(),
+                )
             }
-            _ => self
-                .get_publisher()
-                .on_offered_incompatible_qos(self, participant),
+            _ => publisher.on_offered_incompatible_qos(self, participant),
         }
 
         self.status_condition
@@ -796,11 +806,14 @@ mod test {
     use std::io::Write;
 
     use crate::{
-        implementation::rtps::{
-            endpoint::RtpsEndpoint,
-            messages::RtpsMessage,
-            types::{TopicKind, GUID_UNKNOWN},
-            writer::RtpsWriter,
+        implementation::{
+            rtps::{
+                endpoint::RtpsEndpoint,
+                messages::RtpsMessage,
+                types::{TopicKind, GUID_UNKNOWN},
+                writer::RtpsWriter,
+            },
+            utils::shared_object::DdsWeak,
         },
         infrastructure::qos::TopicQos,
         infrastructure::time::DURATION_ZERO,
@@ -883,14 +896,8 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(
-            rtps_writer,
-            None,
-            &[],
-            dummy_topic,
-            DdsWeak::new(),
-            DdsCondvar::new(),
-        );
+        let data_writer =
+            UserDefinedDataWriter::new(rtps_writer, None, &[], dummy_topic, DdsCondvar::new());
         *data_writer.enabled.write_lock() = true;
         data_writer
     }

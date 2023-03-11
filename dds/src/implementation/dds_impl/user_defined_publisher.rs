@@ -109,7 +109,6 @@ impl DdsShared<UserDefinedPublisher> {
             a_listener,
             mask,
             a_topic.clone(),
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
         );
 
@@ -124,7 +123,7 @@ impl DdsShared<UserDefinedPublisher> {
                 .entity_factory
                 .autoenable_created_entities
         {
-            data_writer_shared.enable(participant)?;
+            data_writer_shared.enable(participant, self)?;
         }
         Ok(data_writer_shared)
     }
@@ -147,7 +146,9 @@ impl DdsShared<UserDefinedPublisher> {
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
-            participant.announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+            participant.announce_deleted_datawriter(
+                data_writer.as_discovered_writer_data(&self.qos.read_lock()),
+            )?;
         }
 
         Ok(())
@@ -224,7 +225,9 @@ impl DdsShared<UserDefinedPublisher> {
         for data_writer in self.data_writer_list.write_lock().drain(..) {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
-                participant.announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+                participant.announce_deleted_datawriter(
+                    data_writer.as_discovered_writer_data(&self.qos.read_lock()),
+                )?;
             }
         }
 
@@ -304,7 +307,7 @@ impl DdsShared<UserDefinedPublisher> {
             .autoenable_created_entities
         {
             for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable(participant)?;
+                data_writer.enable(participant, self)?;
             }
         }
 
@@ -361,6 +364,7 @@ impl DdsShared<UserDefinedPublisher> {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                     participant,
+                    self,
                 )
             }
         }
@@ -372,7 +376,7 @@ impl DdsShared<UserDefinedPublisher> {
         participant: &DdsShared<DomainParticipantImpl>,
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.remove_matched_reader(discovered_reader_handle, participant)
+            data_writer.remove_matched_reader(discovered_reader_handle, participant, self)
         }
     }
 
