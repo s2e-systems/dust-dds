@@ -56,12 +56,9 @@ fn main() -> Result<(), eframe::Error> {
 }
 
 struct MyApp {
-    moving_circle: MovingCircle,
-    moving_triangle: MovingTriangle,
     participant: DomainParticipant,
     publisher: Publisher,
     subscriber: Subscriber,
-    writers: Vec<DataWriter<ShapeType>>,
     readers: Vec<DataReader<ShapeType>>,
     shape_writer_list: Vec<ShapeWriter>,
 }
@@ -222,23 +219,10 @@ impl MyApp {
             .create_subscriber(QosKind::Default, None, NO_STATUS)
             .unwrap();
 
-        let moving_circle = MovingCircle::new(CircleShape {
-            center: pos2(360.0, 180.0),
-            radius: 15.0,
-            fill: Color32::BLUE,
-            stroke: Stroke::NONE,
-        });
-
-        let mut moving_triangle = MovingTriangle::new();
-        moving_triangle.move_to(pos2(360.0, 180.0));
-
         Self {
-            moving_circle,
-            moving_triangle,
             participant,
             publisher,
             subscriber,
-            writers: vec![],
             readers: vec![],
             shape_writer_list: vec![],
         }
@@ -272,7 +256,7 @@ impl MyApp {
             })),
             ShapeKind::Triangle => MovingShapeKind::Triangle(MovingTriangle::new()),
             ShapeKind::Square => MovingShapeKind::Square(MovingSquare::new(RectShape {
-                rect: Rect::from_center_size(pos2(360.0, 180.0), vec2(15.0, 15.0)),
+                rect: Rect::from_center_size(pos2(360.0, 180.0), vec2(30.0, 30.0)),
                 rounding: Rounding::none(),
                 fill: Color32::BLUE,
                 stroke: Stroke::NONE,
@@ -444,7 +428,7 @@ struct MovingSquare {
 impl MovingSquare {
     fn new(shape: RectShape) -> Self {
         Self {
-            velocity: vec2(0.0, 0.0),
+            velocity: vec2(1.5, 1.5),
             shape,
         }
     }
