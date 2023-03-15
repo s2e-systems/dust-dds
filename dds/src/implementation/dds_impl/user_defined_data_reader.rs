@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::mpsc::SyncSender,
+};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -50,9 +53,9 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_subscriber::UserDefinedSubscriber,
+    any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -191,6 +194,7 @@ pub struct UserDefinedDataReader {
     timer: DdsShared<DdsRwLock<Timer>>,
     wait_for_historical_data_condvar: DdsCondvar,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedDataReader {
@@ -202,6 +206,7 @@ impl UserDefinedDataReader {
         parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
         timer: DdsShared<DdsRwLock<Timer>>,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -228,6 +233,7 @@ impl UserDefinedDataReader {
             timer,
             wait_for_historical_data_condvar: DdsCondvar::new(),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
+            announce_sender,
         })
     }
 }
@@ -719,9 +725,11 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.write_lock().reader_mut().set_qos(qos)?;
 
         if self.is_enabled() {
-            self.get_subscriber()
-                .get_participant()
-                .announce_created_datareader(self.as_discovered_reader_data());
+            self.announce_sender
+                .send(AnnounceKind::CreatedDataReader(
+                    self.as_discovered_reader_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -753,9 +761,11 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        self.get_subscriber()
-            .get_participant()
-            .announce_created_datareader(self.as_discovered_reader_data());
+        self.announce_sender
+            .send(AnnounceKind::CreatedDataReader(
+                self.as_discovered_reader_data(),
+            ))
+            .ok();
         *self.enabled.write_lock() = true;
 
         Ok(())

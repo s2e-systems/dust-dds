@@ -387,6 +387,7 @@ impl DdsShared<DomainParticipantImpl> {
             mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
+            self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self

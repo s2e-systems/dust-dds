@@ -151,8 +151,11 @@ impl DdsShared<UserDefinedPublisher> {
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
-            self.get_participant()
-                .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+            self.announce_sender
+                .send(AnnounceKind::DeletedDataWriter(
+                    data_writer.as_discovered_writer_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -226,8 +229,11 @@ impl DdsShared<UserDefinedPublisher> {
         for data_writer in self.data_writer_list.write_lock().drain(..) {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
-                self.get_participant()
-                    .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+                self.announce_sender
+                    .send(AnnounceKind::DeletedDataWriter(
+                        data_writer.as_discovered_writer_data(),
+                    ))
+                    .ok();
             }
         }
 

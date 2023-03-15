@@ -512,9 +512,11 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.write_lock().set_qos(qos)?;
 
         if self.is_enabled() {
-            self.get_publisher()
-                .get_participant()
-                .announce_created_datawriter(self.as_discovered_writer_data())?;
+            self.announce_sender
+                .send(AnnounceKind::CreatedDataWriter(
+                    self.as_discovered_writer_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -542,9 +544,11 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        self.get_publisher()
-            .get_participant()
-            .announce_created_datawriter(self.as_discovered_writer_data())?;
+        self.announce_sender
+            .send(AnnounceKind::CreatedDataWriter(
+                self.as_discovered_writer_data(),
+            ))
+            .ok();
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -842,7 +846,7 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
-        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+        let (sender, _) = std::sync::mpsc::sync_channel(1);
         let dummy_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
