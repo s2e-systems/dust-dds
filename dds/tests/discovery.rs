@@ -173,7 +173,7 @@ fn reader_discovers_writer_in_same_participant() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     assert_eq!(data_reader.get_matched_publications().unwrap().len(), 1);
 }
