@@ -251,14 +251,15 @@ impl MyApp {
             .unwrap();
 
         let shape = match shape_kind {
-            ShapeKind::Circle => MovingShapeKind::Circle(MovingCircle::new(30.0)),
-            ShapeKind::Triangle => MovingShapeKind::Triangle(MovingTriangle::new()),
-            ShapeKind::Square => MovingShapeKind::Square(MovingSquare::new(RectShape {
-                rect: Rect::from_center_size(pos2(360.0, 180.0), vec2(30.0, 30.0)),
-                rounding: Rounding::none(),
-                fill: Color32::BLUE,
-                stroke: Stroke::NONE,
-            })),
+            ShapeKind::Circle => {
+                MovingShapeKind::Circle(MovingCircle::new(BLUE, 30.0, pos2(360.0, 180.0)))
+            }
+            ShapeKind::Triangle => {
+                MovingShapeKind::Triangle(MovingTriangle::new(BLUE, 30.0, pos2(360.0, 180.0)))
+            }
+            ShapeKind::Square => {
+                MovingShapeKind::Square(MovingSquare::new(BLUE, 30.0, pos2(360.0, 180.0)))
+            }
         };
 
         let shape_writer = ShapeWriter { writer, shape };
@@ -424,7 +425,15 @@ struct MovingSquare {
 }
 impl ShapeProperties for MovingSquare {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
-        todo!()
+        Self {
+            velocity: vec2(1.5, 1.5),
+            shape: RectShape {
+                rect: Rect::from_center_size(center, vec2(size, size)),
+                rounding: Rounding::none(),
+                fill: color,
+                stroke: Stroke::NONE,
+            },
+        }
     }
 
     fn color(&self) -> Color32 {
@@ -439,14 +448,7 @@ impl ShapeProperties for MovingSquare {
         self.shape.rect.center()
     }
 }
-impl MovingSquare {
-    fn new(shape: RectShape) -> Self {
-        Self {
-            velocity: vec2(1.5, 1.5),
-            shape,
-        }
-    }
-}
+
 impl BoundingBox for MovingSquare {
     fn bb(&self) -> Rect {
         self.shape.rect
@@ -471,7 +473,6 @@ impl Velocity for MovingSquare {
     }
 }
 
-
 #[derive(Clone)]
 
 struct MovingTriangle {
@@ -481,7 +482,22 @@ struct MovingTriangle {
 }
 impl ShapeProperties for MovingTriangle {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
-        todo!()
+        let triangle = PathShape {
+            points: vec![
+                center + vec2(0.0, -size / 2.0),
+                center + vec2(-size / 2.0, size / 2.0),
+                center + vec2(size / 2.0, size / 2.0),
+            ],
+            closed: true,
+            fill: color,
+            stroke: Stroke::NONE,
+        };
+
+        Self {
+            velocity: vec2(4.0, 4.0),
+            shape: triangle,
+            size,
+        }
     }
 
     fn color(&self) -> Color32 {
@@ -519,33 +535,6 @@ impl Move for MovingTriangle {
         }
     }
 }
-impl MovingTriangle {
-    fn new() -> Self {
-        let size = 30.0;
-        let triangle = PathShape {
-            points: vec![
-                pos2(0.0, -size / 2.0),
-                pos2(-size / 2.0, size / 2.0),
-                pos2(size / 2.0, size / 2.0),
-            ],
-            closed: true,
-            fill: Color32::BLUE,
-            stroke: Stroke::NONE,
-        };
-
-        Self {
-            velocity: vec2(4.0, 4.0),
-            shape: triangle,
-            size,
-        }
-    }
-}
-
-impl From<MovingTriangle> for Shape {
-    fn from(v: MovingTriangle) -> Self {
-        v.shape.into()
-    }
-}
 
 trait Velocity {
     fn velocity(&self) -> Vec2;
@@ -569,7 +558,16 @@ struct MovingCircle {
 }
 impl ShapeProperties for MovingCircle {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
-        todo!()
+        let circle = CircleShape {
+            center,
+            radius: size / 2.0,
+            fill: color,
+            stroke: Stroke::NONE,
+        };
+        Self {
+            shape: circle,
+            velocity: vec2(2.0, 2.0),
+        }
     }
     fn color(&self) -> Color32 {
         self.shape.fill
@@ -608,26 +606,5 @@ impl Velocity for MovingCircle {
 
     fn set_velocity(&mut self, v: Vec2) {
         self.velocity = v;
-    }
-}
-
-impl MovingCircle {
-    fn new(size: f32) -> Self {
-        let circle = CircleShape {
-            center: pos2(360.0, 180.0),
-            radius: size / 2.0,
-            fill: Color32::BLUE,
-            stroke: Stroke::NONE,
-        };
-        Self {
-            shape: circle,
-            velocity: vec2(2.0, 2.0),
-        }
-    }
-}
-
-impl From<&MovingCircle> for Shape {
-    fn from(v: &MovingCircle) -> Self {
-        v.shape.into()
     }
 }
