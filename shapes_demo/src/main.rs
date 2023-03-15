@@ -128,7 +128,35 @@ enum MovingShapeKind {
     Triangle(MovingTriangle),
     Square(MovingSquare),
 }
+impl ShapeProperties for MovingShapeKind {
+    fn new(_color: Color32, _size: f32, _center: Pos2) -> Self {
+        todo!()
+    }
 
+    fn color(&self) -> Color32 {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.color(),
+            MovingShapeKind::Triangle(shape) => shape.color(),
+            MovingShapeKind::Square(shape) => shape.color(),
+        }
+    }
+
+    fn size(&self) -> f32 {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.size(),
+            MovingShapeKind::Triangle(shape) => shape.size(),
+            MovingShapeKind::Square(shape) => shape.size(),
+        }
+    }
+
+    fn center(&self) -> Pos2 {
+        match self {
+            MovingShapeKind::Circle(shape) => shape.center(),
+            MovingShapeKind::Triangle(shape) => shape.center(),
+            MovingShapeKind::Square(shape) => shape.center(),
+        }
+    }
+}
 impl MovingShapeKind {
     fn into_shape_type(&self) -> ShapeType {
         match self {
@@ -143,16 +171,6 @@ impl MovingShapeKind {
             MovingShapeKind::Circle(shape) => shape.shape.into(),
             MovingShapeKind::Triangle(shape) => shape.shape.clone().into(),
             MovingShapeKind::Square(shape) => shape.shape.into(),
-        }
-    }
-}
-
-impl BoundingBox for MovingShapeKind {
-    fn bb(&self) -> Rect {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.bb(),
-            MovingShapeKind::Triangle(shape) => shape.bb(),
-            MovingShapeKind::Square(shape) => shape.bb(),
         }
     }
 }
@@ -374,31 +392,24 @@ impl eframe::App for MyApp {
 
 fn move_within_rect<T>(object: &mut T, rect: Rect)
 where
-    T: BoundingBox + Move + Velocity,
+    T: Move + Velocity + ShapeProperties,
 {
-    let normal = if object.bb().left() < rect.left() {
-        object.move_to(pos2(
-            rect.left() + object.bb().width() / 2.0,
-            object.bb().center().y,
-        ));
+    let radius = object.size() / 2.0;
+    let left = object.center().x - radius;
+    let right = object.center().x + radius;
+    let top = object.center().y - radius;
+    let bottom = object.center().y + radius;
+    let normal = if left < rect.left() {
+        object.move_to(pos2(rect.left() + radius, object.center().y));
         Some(vec2(1.0, 0.0))
-    } else if object.bb().right() > rect.right() {
-        object.move_to(pos2(
-            rect.right() - object.bb().width() / 2.0,
-            object.bb().center().y,
-        ));
+    } else if right > rect.right() {
+        object.move_to(pos2(rect.right() - radius, object.center().y));
         Some(vec2(-1.0, 0.0))
-    } else if object.bb().top() < rect.top() {
-        object.move_to(pos2(
-            object.bb().center().x,
-            rect.top() + object.bb().height() / 2.0,
-        ));
+    } else if top < rect.top() {
+        object.move_to(pos2(object.center().x, rect.top() + radius));
         Some(vec2(0.0, 1.0))
-    } else if object.bb().bottom() > rect.bottom() {
-        object.move_to(pos2(
-            object.bb().center().x,
-            rect.bottom() - object.bb().height() / 2.0,
-        ));
+    } else if bottom > rect.bottom() {
+        object.move_to(pos2(object.center().x, rect.bottom() - radius));
         Some(vec2(0.0, -1.0))
     } else {
         None
@@ -408,10 +419,6 @@ where
         object.set_velocity(object.velocity() - 2.0 * (object.velocity() * normal) * normal);
     }
     object.move_by(object.velocity());
-}
-
-trait BoundingBox {
-    fn bb(&self) -> Rect;
 }
 
 trait Move {
@@ -449,11 +456,6 @@ impl ShapeProperties for MovingSquare {
     }
 }
 
-impl BoundingBox for MovingSquare {
-    fn bb(&self) -> Rect {
-        self.shape.rect
-    }
-}
 impl Move for MovingSquare {
     fn move_to(&mut self, p: Pos2) {
         self.shape.rect.set_center(p);
@@ -509,17 +511,13 @@ impl ShapeProperties for MovingTriangle {
     }
 
     fn center(&self) -> Pos2 {
-        self.bb().center()
+        pos2(
+            self.shape.points[0].x,
+            self.shape.points[0].y + self.size / 2.0,
+        )
     }
 }
-impl BoundingBox for MovingTriangle {
-    fn bb(&self) -> Rect {
-        Rect {
-            min: pos2(self.shape.points[1].x, self.shape.points[0].y),
-            max: pos2(self.shape.points[2].x, self.shape.points[2].y),
-        }
-    }
-}
+
 impl Move for MovingTriangle {
     fn move_to(&mut self, p: Pos2) {
         self.shape.points = vec![
@@ -577,15 +575,6 @@ impl ShapeProperties for MovingCircle {
     }
     fn center(&self) -> Pos2 {
         self.shape.center
-    }
-}
-
-impl BoundingBox for MovingCircle {
-    fn bb(&self) -> Rect {
-        Rect {
-            min: self.shape.center - vec2(self.shape.radius, self.shape.radius),
-            max: self.shape.center + vec2(self.shape.radius, self.shape.radius),
-        }
     }
 }
 
