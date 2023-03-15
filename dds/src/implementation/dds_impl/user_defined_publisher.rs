@@ -56,6 +56,7 @@ pub struct UserDefinedPublisher {
 }
 
 impl UserDefinedPublisher {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,

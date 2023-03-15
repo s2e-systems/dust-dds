@@ -198,6 +198,7 @@ pub struct UserDefinedDataReader {
 }
 
 impl UserDefinedDataReader {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsStatefulReader,
         topic: DdsShared<TopicImpl>,

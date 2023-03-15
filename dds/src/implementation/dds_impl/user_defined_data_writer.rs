@@ -855,6 +855,7 @@ mod test {
             None,
             &[],
             DdsWeak::new(),
+            sender.clone(),
         );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(

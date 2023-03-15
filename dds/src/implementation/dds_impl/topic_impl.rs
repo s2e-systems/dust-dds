@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
     implementation::{
@@ -14,7 +16,8 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+    any_topic_listener::AnyTopicListener,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     status_condition_impl::StatusConditionImpl,
 };
 
@@ -42,9 +45,11 @@ pub struct TopicImpl {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl TopicImpl {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid: Guid,
         qos: TopicQos,
@@ -53,6 +58,7 @@ impl TopicImpl {
         listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
             guid,
@@ -65,6 +71,7 @@ impl TopicImpl {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            announce_sender,
         })
     }
 }
@@ -129,8 +136,9 @@ impl DdsShared<TopicImpl> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        self.get_participant()
-            .announce_topic(self.as_discovered_topic_data());
+        self.announce_sender
+            .send(AnnounceKind::CratedTopic(self.as_discovered_topic_data()))
+            .ok();
 
         *self.enabled.write_lock() = true;
         Ok(())
@@ -235,7 +243,17 @@ mod tests {
             GuidPrefix::new([2; 12]),
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
-        let topic = TopicImpl::new(guid, TopicQos::default(), "", "", None, &[], DdsWeak::new());
+        let (announce_sender, _) = std::sync::mpsc::sync_channel(1);
+        let topic = TopicImpl::new(
+            guid,
+            TopicQos::default(),
+            "",
+            "",
+            None,
+            &[],
+            DdsWeak::new(),
+            announce_sender,
+        );
         *topic.enabled.write_lock() = true;
 
         let expected_instance_handle: InstanceHandle = guid.into();

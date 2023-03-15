@@ -173,6 +173,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
@@ -185,6 +186,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -197,6 +199,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -209,6 +212,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let builtin_subscriber = BuiltInSubscriber::new(
@@ -462,6 +466,7 @@ impl DdsShared<DomainParticipantImpl> {
             a_listener,
             mask,
             self.downgrade(),
+            self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self
