@@ -55,6 +55,9 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
+trait MovingShape: Move + Velocity + ShapeProperties + AsShapeType + AsShape {}
+impl<T: Move + Velocity + ShapeProperties + AsShapeType + AsShape> MovingShape for T {}
+
 struct MyApp {
     participant: DomainParticipant,
     publisher: Publisher,
@@ -63,8 +66,12 @@ struct MyApp {
     shape_writer_list: Vec<ShapeWriter>,
 }
 
-trait IntoShapeType {
-    fn into_shape_type(&self) -> ShapeType;
+trait AsShapeType {
+    fn as_shape_type(&self) -> ShapeType;
+}
+
+trait AsShape {
+    fn as_shape(&self) -> Shape;
 }
 
 const PURPLE: Color32 = Color32::from_rgb(128, 0, 128);
@@ -76,15 +83,17 @@ const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 const MAGENTA: Color32 = Color32::from_rgb(255, 0, 255);
 const ORANGE: Color32 = Color32::from_rgb(255, 165, 0);
 
-trait ShapeProperties {
+trait NewShape {
     fn new(color: Color32, size: f32, center: Pos2) -> Self;
+}
+trait ShapeProperties {
     fn color(&self) -> Color32;
     fn size(&self) -> f32;
     fn center(&self) -> Pos2;
 }
 
-impl<T: ShapeProperties> IntoShapeType for T {
-    fn into_shape_type(&self) -> ShapeType {
+impl<T: ShapeProperties> AsShapeType for T {
+    fn as_shape_type(&self) -> ShapeType {
         let center = self.center();
         let color = match self.color() {
             PURPLE => "PURPLE",
@@ -123,106 +132,18 @@ impl ShapeKind {
     }
 }
 
-enum MovingShapeKind {
-    Circle(MovingCircle),
-    Triangle(MovingTriangle),
-    Square(MovingSquare),
-}
-impl ShapeProperties for MovingShapeKind {
-    fn new(_color: Color32, _size: f32, _center: Pos2) -> Self {
-        todo!()
-    }
-
-    fn color(&self) -> Color32 {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.color(),
-            MovingShapeKind::Triangle(shape) => shape.color(),
-            MovingShapeKind::Square(shape) => shape.color(),
-        }
-    }
-
-    fn size(&self) -> f32 {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.size(),
-            MovingShapeKind::Triangle(shape) => shape.size(),
-            MovingShapeKind::Square(shape) => shape.size(),
-        }
-    }
-
-    fn center(&self) -> Pos2 {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.center(),
-            MovingShapeKind::Triangle(shape) => shape.center(),
-            MovingShapeKind::Square(shape) => shape.center(),
-        }
-    }
-}
-impl MovingShapeKind {
-    fn into_shape_type(&self) -> ShapeType {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.into_shape_type(),
-            MovingShapeKind::Triangle(shape) => shape.into_shape_type(),
-            MovingShapeKind::Square(shape) => shape.into_shape_type(),
-        }
-    }
-
-    fn moved_shape(&mut self) -> Shape {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.shape.into(),
-            MovingShapeKind::Triangle(shape) => shape.shape.clone().into(),
-            MovingShapeKind::Square(shape) => shape.shape.into(),
-        }
-    }
-}
-
-impl Move for MovingShapeKind {
-    fn move_to(&mut self, p: Pos2) {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.move_to(p),
-            MovingShapeKind::Triangle(shape) => shape.move_to(p),
-            MovingShapeKind::Square(shape) => shape.move_to(p),
-        }
-    }
-
-    fn move_by(&mut self, v: Vec2) {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.move_by(v),
-            MovingShapeKind::Triangle(shape) => shape.move_by(v),
-            MovingShapeKind::Square(shape) => shape.move_by(v),
-        }
-    }
-}
-
-impl Velocity for MovingShapeKind {
-    fn velocity(&self) -> Vec2 {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.velocity(),
-            MovingShapeKind::Triangle(shape) => shape.velocity(),
-            MovingShapeKind::Square(shape) => shape.velocity(),
-        }
-    }
-
-    fn set_velocity(&mut self, v: Vec2) {
-        match self {
-            MovingShapeKind::Circle(shape) => shape.set_velocity(v),
-            MovingShapeKind::Triangle(shape) => shape.set_velocity(v),
-            MovingShapeKind::Square(shape) => shape.set_velocity(v),
-        }
-    }
-}
-
 struct ShapeWriter {
     writer: DataWriter<ShapeType>,
-    shape: MovingShapeKind,
+    shape: Box<dyn MovingShape>,
 }
 impl ShapeWriter {
     fn write(&self) {
-        let data = self.shape.into_shape_type();
+        let data = self.shape.as_shape_type();
         self.writer.write(&data, None).expect("writing failed");
         println!("written {:?}", data);
     }
     fn moved_shape(&mut self) -> Shape {
-        self.shape.moved_shape().into()
+        self.shape.as_shape()
     }
 }
 
@@ -268,16 +189,10 @@ impl MyApp {
             .create_datawriter(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
 
-        let shape = match shape_kind {
-            ShapeKind::Circle => {
-                MovingShapeKind::Circle(MovingCircle::new(BLUE, 30.0, pos2(360.0, 180.0)))
-            }
-            ShapeKind::Triangle => {
-                MovingShapeKind::Triangle(MovingTriangle::new(BLUE, 30.0, pos2(360.0, 180.0)))
-            }
-            ShapeKind::Square => {
-                MovingShapeKind::Square(MovingSquare::new(BLUE, 30.0, pos2(360.0, 180.0)))
-            }
+        let shape: Box<dyn MovingShape> = match shape_kind {
+            ShapeKind::Circle => Box::new(MovingCircle::new(BLUE, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Triangle => Box::new(MovingTriangle::new(BLUE, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Square => Box::new(MovingSquare::new(BLUE, 30.0, pos2(360.0, 180.0))),
         };
 
         let shape_writer = ShapeWriter { writer, shape };
@@ -377,7 +292,7 @@ impl eframe::App for MyApp {
             let offset = &rect.left_top();
             for shape_writer in &mut self.shape_writer_list {
                 shape_writer.write();
-                move_within_rect(&mut shape_writer.shape, rect);
+                move_within_rect(shape_writer.shape.as_mut(), rect);
                 painter.add(shape_writer.moved_shape());
             }
             for reader in &self.readers {
@@ -390,10 +305,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn move_within_rect<T>(object: &mut T, rect: Rect)
-where
-    T: Move + Velocity + ShapeProperties,
-{
+fn move_within_rect(object: &mut dyn MovingShape, rect: Rect) {
     let radius = object.size() / 2.0;
     let left = object.center().x - radius;
     let right = object.center().x + radius;
@@ -430,7 +342,12 @@ struct MovingSquare {
     velocity: Vec2,
     shape: RectShape,
 }
-impl ShapeProperties for MovingSquare {
+impl AsShape for MovingSquare {
+    fn as_shape(&self) -> Shape {
+        self.shape.into()
+    }
+}
+impl NewShape for MovingSquare {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
         Self {
             velocity: vec2(1.5, 1.5),
@@ -442,7 +359,8 @@ impl ShapeProperties for MovingSquare {
             },
         }
     }
-
+}
+impl ShapeProperties for MovingSquare {
     fn color(&self) -> Color32 {
         self.shape.fill
     }
@@ -482,7 +400,12 @@ struct MovingTriangle {
     shape: PathShape,
     size: f32,
 }
-impl ShapeProperties for MovingTriangle {
+impl AsShape for MovingTriangle {
+    fn as_shape(&self) -> Shape {
+        self.shape.clone().into()
+    }
+}
+impl NewShape for MovingTriangle {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
         let triangle = PathShape {
             points: vec![
@@ -501,7 +424,8 @@ impl ShapeProperties for MovingTriangle {
             size,
         }
     }
-
+}
+impl ShapeProperties for MovingTriangle {
     fn color(&self) -> Color32 {
         self.shape.fill
     }
@@ -554,7 +478,12 @@ struct MovingCircle {
     velocity: Vec2,
     shape: CircleShape,
 }
-impl ShapeProperties for MovingCircle {
+impl AsShape for MovingCircle {
+    fn as_shape(&self) -> Shape {
+        self.shape.into()
+    }
+}
+impl NewShape for MovingCircle {
     fn new(color: Color32, size: f32, center: Pos2) -> Self {
         let circle = CircleShape {
             center,
@@ -567,6 +496,8 @@ impl ShapeProperties for MovingCircle {
             velocity: vec2(2.0, 2.0),
         }
     }
+}
+impl ShapeProperties for MovingCircle {
     fn color(&self) -> Color32 {
         self.shape.fill
     }
