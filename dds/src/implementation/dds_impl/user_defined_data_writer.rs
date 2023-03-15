@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -51,9 +51,9 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -153,6 +153,7 @@ pub struct UserDefinedDataWriter {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedDataWriter {
@@ -163,6 +164,7 @@ impl UserDefinedDataWriter {
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
@@ -179,6 +181,7 @@ impl UserDefinedDataWriter {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
+            announce_sender,
         })
     }
 }
@@ -839,6 +842,7 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
+        let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         let dummy_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -866,6 +870,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
             DdsCondvar::new(),
+            sender,
         );
         *data_writer.enabled.write_lock() = true;
         data_writer

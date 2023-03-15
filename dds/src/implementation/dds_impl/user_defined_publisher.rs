@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
@@ -30,7 +32,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
@@ -50,6 +52,7 @@ pub struct UserDefinedPublisher {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedPublisher {
@@ -61,6 +64,7 @@ impl UserDefinedPublisher {
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
@@ -74,6 +78,7 @@ impl UserDefinedPublisher {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            announce_sender,
         })
     }
 }
@@ -113,6 +118,7 @@ impl DdsShared<UserDefinedPublisher> {
             a_topic.clone(),
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
+            self.announce_sender.clone(),
         );
 
         self.data_writer_list
