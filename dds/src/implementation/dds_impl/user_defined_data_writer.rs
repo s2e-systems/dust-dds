@@ -539,12 +539,6 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_publisher().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent publisher disabled".to_string(),
-            ));
-        }
-
         self.get_publisher()
             .get_participant()
             .announce_created_datawriter(self.as_discovered_writer_data())?;

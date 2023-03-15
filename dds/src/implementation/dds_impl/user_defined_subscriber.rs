@@ -280,12 +280,6 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
-        }
-
         *self.enabled.write_lock() = true;
 
         if self

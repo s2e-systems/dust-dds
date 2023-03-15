@@ -753,12 +753,6 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_subscriber().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent subscriber disabled".to_string(),
-            ));
-        }
-
         self.get_subscriber()
             .get_participant()
             .announce_created_datareader(self.as_discovered_reader_data());

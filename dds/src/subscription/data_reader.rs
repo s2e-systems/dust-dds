@@ -676,7 +676,14 @@ where
         match &self.0 {
             DataReaderKind::BuiltinStateless(_) => todo!(),
             DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.enable(),
+            DataReaderKind::UserDefined(x) => {
+                if !x.upgrade()?.get_subscriber().is_enabled() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Parent subscriber disabled".to_string(),
+                    ));
+                }
+                x.upgrade()?.enable()
+            }
         }
     }
 

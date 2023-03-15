@@ -6,7 +6,7 @@ use crate::{
         utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
@@ -129,12 +129,6 @@ impl DdsShared<TopicImpl> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
-        }
-
         self.get_participant()
             .announce_topic(self.as_discovered_topic_data());
 
