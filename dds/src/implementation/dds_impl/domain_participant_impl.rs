@@ -284,7 +284,7 @@ impl DdsShared<DomainParticipantImpl> {
         *self.enabled.read_lock()
     }
 
-    pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
         self.builtin_publisher
             .sedp_builtin_topics_writer()
             .write_w_timestamp(
@@ -858,7 +858,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(self.rtps_participant.guid().into())
     }
 
-    pub fn announce_participant(&self) -> DdsResult<()> {
+    fn announce_participant(&self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -1236,7 +1236,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn announce_created_datawriter(
+    fn announce_created_datawriter(
         &self,
         sedp_discovered_writer_data: DiscoveredWriterData,
     ) -> DdsResult<()> {
@@ -1254,7 +1254,7 @@ impl DdsShared<DomainParticipantImpl> {
             .write_w_timestamp(writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_deleted_datawriter(
+    fn announce_deleted_datawriter(
         &self,
         sedp_discovered_writer_data: DiscoveredWriterData,
     ) -> DdsResult<()> {
@@ -1263,7 +1263,7 @@ impl DdsShared<DomainParticipantImpl> {
             .dispose_w_timestamp(&sedp_discovered_writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_created_datareader(
+    fn announce_created_datareader(
         &self,
         sedp_discovered_reader_data: DiscoveredReaderData,
     ) -> DdsResult<()> {
@@ -1281,7 +1281,7 @@ impl DdsShared<DomainParticipantImpl> {
             .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
     }
 
-    pub fn announce_deleted_datareader(
+    fn announce_deleted_datareader(
         &self,
         sedp_discovered_reader_data: DiscoveredReaderData,
     ) -> DdsResult<()> {
