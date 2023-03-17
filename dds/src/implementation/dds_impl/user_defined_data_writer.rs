@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -51,9 +51,9 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, message_receiver::MessageReceiver,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
+    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -153,6 +153,7 @@ pub struct UserDefinedDataWriter {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedDataWriter {
@@ -163,6 +164,7 @@ impl UserDefinedDataWriter {
         topic: DdsShared<TopicImpl>,
         publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
@@ -179,6 +181,7 @@ impl UserDefinedDataWriter {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
+            announce_sender,
         })
     }
 }
@@ -509,9 +512,11 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.write_lock().set_qos(qos)?;
 
         if self.is_enabled() {
-            self.get_publisher()
-                .get_participant()
-                .announce_created_datawriter(self.as_discovered_writer_data())?;
+            self.announce_sender
+                .send(AnnounceKind::CreatedDataWriter(
+                    self.as_discovered_writer_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -539,15 +544,11 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_publisher().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent publisher disabled".to_string(),
-            ));
-        }
-
-        self.get_publisher()
-            .get_participant()
-            .announce_created_datawriter(self.as_discovered_writer_data())?;
+        self.announce_sender
+            .send(AnnounceKind::CreatedDataWriter(
+                self.as_discovered_writer_data(),
+            ))
+            .ok();
         *self.enabled.write_lock() = true;
 
         Ok(())
@@ -845,6 +846,7 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
+        let (sender, _) = std::sync::mpsc::sync_channel(1);
         let dummy_topic = TopicImpl::new(
             GUID_UNKNOWN,
             TopicQos::default(),
@@ -853,6 +855,7 @@ mod test {
             None,
             &[],
             DdsWeak::new(),
+            sender.clone(),
         );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
@@ -872,6 +875,7 @@ mod test {
             dummy_topic,
             DdsWeak::new(),
             DdsCondvar::new(),
+            sender,
         );
         *data_writer.enabled.write_lock() = true;
         data_writer

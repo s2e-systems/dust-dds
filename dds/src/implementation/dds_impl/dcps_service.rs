@@ -2,6 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
+        mpsc::{Receiver, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -15,7 +16,7 @@ use crate::{
     infrastructure::{error::DdsResult, time::Duration},
 };
 
-use super::domain_participant_impl::DomainParticipantImpl;
+use super::domain_participant_impl::{AnnounceKind, DomainParticipantImpl};
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -24,6 +25,7 @@ pub struct DcpsService {
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     sender_socket: UdpSocket,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl DcpsService {
@@ -32,6 +34,8 @@ impl DcpsService {
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
+        announce_sender: SyncSender<AnnounceKind>,
+        announce_receiver: Receiver<AnnounceKind>,
     ) -> DdsResult<Self> {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
@@ -68,6 +72,23 @@ impl DcpsService {
                     domain_participant
                         .receive_built_in_data(locator, message)
                         .ok();
+                }
+            }));
+        }
+
+        //  ////////////// Entity announcer thread
+        {
+            let domain_participant = participant.clone();
+
+            let task_quit = quit.clone();
+
+            threads.push(std::thread::spawn(move || loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
+                if let Ok(r) = announce_receiver.recv() {
+                    domain_participant.announce(r).ok();
                 }
             }));
         }
@@ -160,6 +181,7 @@ impl DcpsService {
             sedp_condvar,
             user_defined_data_send_condvar,
             sender_socket,
+            announce_sender,
         })
     }
 
@@ -172,6 +194,9 @@ impl DcpsService {
 
         self.sedp_condvar.notify_all();
         self.user_defined_data_send_condvar.notify_all();
+        self.announce_sender
+            .send(AnnounceKind::DeletedParticipant)
+            .ok();
 
         if let Some(default_unicast_locator) =
             self.participant.default_unicast_locator_list().get(0)

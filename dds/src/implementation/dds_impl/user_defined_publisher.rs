@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
@@ -30,7 +32,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl,
@@ -50,9 +52,11 @@ pub struct UserDefinedPublisher {
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedPublisher {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroupImpl,
@@ -61,6 +65,7 @@ impl UserDefinedPublisher {
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedPublisher {
             qos: DdsRwLock::new(qos),
@@ -74,6 +79,7 @@ impl UserDefinedPublisher {
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            announce_sender,
         })
     }
 }
@@ -113,6 +119,7 @@ impl DdsShared<UserDefinedPublisher> {
             a_topic.clone(),
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
+            self.announce_sender.clone(),
         );
 
         self.data_writer_list
@@ -145,8 +152,11 @@ impl DdsShared<UserDefinedPublisher> {
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
-            self.get_participant()
-                .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+            self.announce_sender
+                .send(AnnounceKind::DeletedDataWriter(
+                    data_writer.as_discovered_writer_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -220,8 +230,11 @@ impl DdsShared<UserDefinedPublisher> {
         for data_writer in self.data_writer_list.write_lock().drain(..) {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
-                self.get_participant()
-                    .announce_deleted_datawriter(data_writer.as_discovered_writer_data())?;
+                self.announce_sender
+                    .send(AnnounceKind::DeletedDataWriter(
+                        data_writer.as_discovered_writer_data(),
+                    ))
+                    .ok();
             }
         }
 
@@ -292,12 +305,6 @@ impl DdsShared<UserDefinedPublisher> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
-        }
-
         *self.enabled.write_lock() = true;
 
         if self

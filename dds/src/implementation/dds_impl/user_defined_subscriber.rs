@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
@@ -36,7 +38,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
@@ -58,6 +60,7 @@ pub struct UserDefinedSubscriber {
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
     listener: DdsRwLock<Option<Box<dyn SubscriberListener + Send + Sync>>>,
     listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl UserDefinedSubscriber {
@@ -68,6 +71,7 @@ impl UserDefinedSubscriber {
         mask: &[StatusKind],
         parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
@@ -81,6 +85,7 @@ impl UserDefinedSubscriber {
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
             listener: DdsRwLock::new(listener),
             listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            announce_sender,
         })
     }
 
@@ -135,6 +140,7 @@ impl DdsShared<UserDefinedSubscriber> {
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             timer,
+            self.announce_sender.clone(),
         );
 
         self.data_reader_list
@@ -169,8 +175,11 @@ impl DdsShared<UserDefinedSubscriber> {
         data_reader.cancel_timers();
 
         if data_reader.is_enabled() {
-            self.get_participant()
-                .announce_deleted_datareader(data_reader.as_discovered_reader_data())?;
+            self.announce_sender
+                .send(AnnounceKind::DeletedDataReader(
+                    data_reader.as_discovered_reader_data(),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -216,8 +225,11 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for data_reader in self.data_reader_list.write_lock().drain(..) {
             if data_reader.is_enabled() {
-                self.get_participant()
-                    .announce_deleted_datareader(data_reader.as_discovered_reader_data())?;
+                self.announce_sender
+                    .send(AnnounceKind::DeletedDataReader(
+                        data_reader.as_discovered_reader_data(),
+                    ))
+                    .ok();
             }
         }
 
@@ -280,12 +292,6 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
-        }
-
         *self.enabled.write_lock() = true;
 
         if self

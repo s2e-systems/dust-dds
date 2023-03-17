@@ -328,7 +328,15 @@ impl Subscriber {
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.upgrade()?.enable(),
+            SubscriberKind::UserDefined(s) => {
+                if !s.upgrade()?.get_participant().is_enabled() {
+                    return Err(DdsError::PreconditionNotMet(
+                        "Parent participant is disabled".to_string(),
+                    ));
+                }
+
+                s.upgrade()?.enable()
+            }
         }
     }
 

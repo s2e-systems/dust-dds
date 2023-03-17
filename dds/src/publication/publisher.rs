@@ -9,7 +9,7 @@ use crate::{
     },
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
@@ -298,6 +298,12 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
+        if !self.0.upgrade()?.get_participant().is_enabled() {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent participant is disabled".to_string(),
+            ));
+        }
+
         self.0.upgrade()?.enable()
     }
 

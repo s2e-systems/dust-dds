@@ -227,6 +227,7 @@ impl DomainParticipantFactory {
         );
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
+        let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(1);
         let participant = DomainParticipantImpl::new(
             rtps_participant,
             domain_id,
@@ -238,6 +239,7 @@ impl DomainParticipantFactory {
             sedp_condvar,
             user_defined_data_send_condvar,
             configuration.fragment_size,
+            announce_sender.clone(),
         );
 
         let dcps_service = DcpsService::new(
@@ -245,6 +247,8 @@ impl DomainParticipantFactory {
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
+            announce_sender,
+            announce_receiver,
         )?;
 
         let participant = DomainParticipant::new(dcps_service.participant().downgrade());

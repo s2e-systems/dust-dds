@@ -1,6 +1,9 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::atomic::{AtomicU8, Ordering},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        mpsc::SyncSender,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -97,6 +100,15 @@ pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId =
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId =
     EntityId::new(EntityKey::new([0, 0, 0x04]), BUILT_IN_READER_WITH_KEY);
 
+pub enum AnnounceKind {
+    CreatedDataReader(DiscoveredReaderData),
+    CreatedDataWriter(DiscoveredWriterData),
+    CratedTopic(DiscoveredTopicData),
+    DeletedDataReader(DiscoveredReaderData),
+    DeletedDataWriter(DiscoveredWriterData),
+    DeletedParticipant,
+}
+
 pub struct DomainParticipantImpl {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
@@ -130,6 +142,7 @@ pub struct DomainParticipantImpl {
     timer_factory: TimerFactory,
     timer: DdsShared<DdsRwLock<Timer>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
+    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl DomainParticipantImpl {
@@ -145,6 +158,7 @@ impl DomainParticipantImpl {
         sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
+        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -159,6 +173,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
@@ -171,6 +186,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -183,6 +199,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
@@ -195,6 +212,7 @@ impl DomainParticipantImpl {
             None,
             &[],
             DdsWeak::new(),
+            announce_sender.clone(),
         );
 
         let builtin_subscriber = BuiltInSubscriber::new(
@@ -250,6 +268,7 @@ impl DomainParticipantImpl {
             timer_factory,
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
+            announce_sender,
         })
     }
 }
@@ -265,7 +284,7 @@ impl DdsShared<DomainParticipantImpl> {
         *self.enabled.read_lock()
     }
 
-    pub fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) {
+    fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
         self.builtin_publisher
             .sedp_builtin_topics_writer()
             .write_w_timestamp(
@@ -273,7 +292,6 @@ impl DdsShared<DomainParticipantImpl> {
                 None,
                 self.get_current_time().unwrap(),
             )
-            .unwrap();
     }
 
     pub fn create_publisher(
@@ -303,6 +321,7 @@ impl DdsShared<DomainParticipantImpl> {
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.data_max_size_serialized,
+            self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self
@@ -372,6 +391,7 @@ impl DdsShared<DomainParticipantImpl> {
             mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
+            self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self
@@ -446,6 +466,7 @@ impl DdsShared<DomainParticipantImpl> {
             a_listener,
             mask,
             self.downgrade(),
+            self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
             && self
@@ -837,7 +858,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(self.rtps_participant.guid().into())
     }
 
-    pub fn announce_participant(&self) -> DdsResult<()> {
+    fn announce_participant(&self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -1215,7 +1236,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn announce_created_datawriter(
+    fn announce_created_datawriter(
         &self,
         sedp_discovered_writer_data: DiscoveredWriterData,
     ) -> DdsResult<()> {
@@ -1233,7 +1254,7 @@ impl DdsShared<DomainParticipantImpl> {
             .write_w_timestamp(writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_deleted_datawriter(
+    fn announce_deleted_datawriter(
         &self,
         sedp_discovered_writer_data: DiscoveredWriterData,
     ) -> DdsResult<()> {
@@ -1242,7 +1263,10 @@ impl DdsShared<DomainParticipantImpl> {
             .dispose_w_timestamp(&sedp_discovered_writer_data, None, self.get_current_time()?)
     }
 
-    pub fn announce_created_datareader(&self, sedp_discovered_reader_data: DiscoveredReaderData) {
+    fn announce_created_datareader(
+        &self,
+        sedp_discovered_reader_data: DiscoveredReaderData,
+    ) -> DdsResult<()> {
         let reader_data = &DiscoveredReaderData {
             reader_proxy: ReaderProxy {
                 unicast_locator_list: self.default_unicast_locator_list().to_vec(),
@@ -1255,10 +1279,9 @@ impl DdsShared<DomainParticipantImpl> {
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
             .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
-            .unwrap();
     }
 
-    pub fn announce_deleted_datareader(
+    fn announce_deleted_datareader(
         &self,
         sedp_discovered_reader_data: DiscoveredReaderData,
     ) -> DdsResult<()> {
@@ -1396,5 +1419,16 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn cancel_timers(&self) {
         self.timer.write_lock().cancel_timers()
+    }
+
+    pub fn announce(&self, announce_kind: AnnounceKind) -> DdsResult<()> {
+        match announce_kind {
+            AnnounceKind::CreatedDataReader(d) => self.announce_created_datareader(d),
+            AnnounceKind::CreatedDataWriter(d) => self.announce_created_datawriter(d),
+            AnnounceKind::CratedTopic(d) => self.announce_topic(d),
+            AnnounceKind::DeletedDataReader(d) => self.announce_deleted_datareader(d),
+            AnnounceKind::DeletedDataWriter(d) => self.announce_deleted_datawriter(d),
+            AnnounceKind::DeletedParticipant => Ok(()),
+        }
     }
 }
