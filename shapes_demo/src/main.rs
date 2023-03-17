@@ -120,6 +120,7 @@ impl<T: ShapeProperties> AsShapeType for T {
     }
 }
 
+#[derive(Clone, Copy)]
 enum ShapeKind {
     Circle,
     Triangle,
@@ -158,6 +159,7 @@ struct MyApp {
     subscriber: Subscriber,
     reader_list: Vec<DataReader<ShapeType>>,
     shape_writer_list: Vec<ShapeWriter>,
+    window_open: Option<ShapeKind>,
 }
 
 impl MyApp {
@@ -180,10 +182,11 @@ impl MyApp {
             subscriber,
             reader_list: vec![],
             shape_writer_list: vec![],
+            window_open: None,
         }
     }
 
-    fn create_writer(&mut self, shape_kind: ShapeKind) {
+    fn create_writer(&mut self, shape_kind: ShapeKind, color: Color32) {
         let topic_name = shape_kind.as_str();
 
         let topic = self
@@ -203,9 +206,9 @@ impl MyApp {
             .unwrap();
 
         let shape: Box<dyn MovingShape> = match shape_kind {
-            ShapeKind::Circle => Box::new(MovingCircle::new(BLUE, 30.0, pos2(360.0, 180.0))),
-            ShapeKind::Triangle => Box::new(MovingTriangle::new(BLUE, 30.0, pos2(360.0, 180.0))),
-            ShapeKind::Square => Box::new(MovingSquare::new(BLUE, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Circle => Box::new(MovingCircle::new(color, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Triangle => Box::new(MovingTriangle::new(color, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Square => Box::new(MovingSquare::new(color, 30.0, pos2(360.0, 180.0))),
         };
 
         let shape_writer = ShapeWriter { writer, shape };
@@ -284,16 +287,33 @@ impl MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if let Some(shape_kind) = self.window_open {
+            egui::Window::new("Publish").show(ctx, |ui| {
+                    if ui.button("RED").clicked() {
+                        self.window_open = None;
+                        self.create_writer(shape_kind, RED);
+                    }
+                    if ui.button("GREEN").clicked() {
+                        self.window_open = None;
+                        self.create_writer(ShapeKind::Circle, GREEN);
+                    }
+                    if ui.button("BLUE").clicked() {
+                        self.window_open = None;
+                        self.create_writer(ShapeKind::Circle, BLUE);
+                    }
+                });
+        }
+
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.heading("Publish");
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
-                self.create_writer(ShapeKind::Circle);
+                self.window_open = Some(ShapeKind::Circle);
             };
             if ui.button(ShapeKind::Triangle.as_str()).clicked() {
-                self.create_writer(ShapeKind::Triangle);
+                self.window_open = Some(ShapeKind::Triangle);
             };
             if ui.button(ShapeKind::Square.as_str()).clicked() {
-                self.create_writer(ShapeKind::Square);
+                self.window_open = Some(ShapeKind::Square);
             };
             ui.separator();
             ui.heading("Subscribe");
