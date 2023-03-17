@@ -328,9 +328,12 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .get_key_value(key_holder, handle)
+        key_holder.set_key_fields_from_serialized_key(
+            self.rtps_writer
+                .write_lock()
+                .get_key_value(handle)
+                .ok_or(DdsError::BadParameter)?,
+        )
     }
 
     pub fn lookup_instance(

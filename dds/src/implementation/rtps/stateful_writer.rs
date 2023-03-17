@@ -6,7 +6,7 @@ use crate::{
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
-    topic_definition::type_support::{DdsSerializedKey, DdsType},
+    topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
@@ -144,11 +144,8 @@ impl RtpsStatefulWriter {
         }
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        self.writer.get_key_value(key_holder, handle)
+    pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
+        self.writer.get_key_value(handle)
     }
 
     pub fn dispose_w_timestamp(

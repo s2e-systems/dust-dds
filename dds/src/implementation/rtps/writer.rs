@@ -15,7 +15,7 @@ use crate::{
         qos::DataWriterQos,
         time::{Duration, DurationKind, Time},
     },
-    topic_definition::type_support::{DdsSerializedKey, DdsType},
+    topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
@@ -269,16 +269,8 @@ impl RtpsWriter {
         Ok(Some(instance_handle))
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        let serialized_key = self
-            .registered_instance_list
-            .get(&handle)
-            .ok_or(DdsError::BadParameter)?;
-
-        key_holder.set_key_fields_from_serialized_key(serialized_key)
+    pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
+        self.registered_instance_list.get(&handle)
     }
 
     pub fn lookup_instance(
