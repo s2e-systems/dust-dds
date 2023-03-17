@@ -78,9 +78,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .register_instance_w_timestamp(instance, timestamp)
+        self.register_instance_w_timestamp(instance, timestamp)
     }
 
     /// This operation performs the same function and return the same values as [`DataWriter::register_instance`] and can be used instead of
@@ -134,9 +132,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+        self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::unregister_instance`] and can
@@ -209,7 +205,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
+        self.write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::write`] and can
@@ -243,9 +239,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .dispose_w_timestamp(data, handle, timestamp)
+        self.dispose_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::dispose`] and can
