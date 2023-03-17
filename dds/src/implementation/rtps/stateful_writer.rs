@@ -101,19 +101,19 @@ impl RtpsStatefulWriter {
             .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
-    pub fn write_w_timestamp<Foo>(
+    pub fn write_w_timestamp(
         &mut self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let change =
-            self.writer
-                .new_write_change(data, instance_serialized_key, handle, timestamp)?;
+    ) -> DdsResult<()> {
+        let change = self.writer.new_write_change(
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
         self.add_change(change);
 
         Ok(())

@@ -23,7 +23,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType},
+        type_support::{DdsSerialize, DdsType, LittleEndian},
     },
 };
 
@@ -219,9 +219,15 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.0
-            .upgrade()?
-            .write_w_timestamp(data, data.get_serialized_key(), handle, timestamp)
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
+        self.0.upgrade()?.write_w_timestamp(
+            serialized_data,
+            data.get_serialized_key(),
+            handle,
+            timestamp,
+        )
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that

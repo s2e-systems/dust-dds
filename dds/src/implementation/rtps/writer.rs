@@ -90,18 +90,13 @@ impl RtpsWriter {
         &mut self.writer_cache
     }
 
-    pub fn new_write_change<Foo>(
+    pub fn new_write_change(
         &mut self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+    ) -> DdsResult<RtpsWriterCacheChange> {
         let handle = self
             .register_instance_w_timestamp(instance_serialized_key, timestamp)?
             .unwrap_or(HANDLE_NIL);

@@ -56,7 +56,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::DdsType,
+    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
@@ -285,10 +285,13 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
+        let mut serialized_data = Vec::new();
+        sedp_discovered_topic_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
         self.builtin_publisher
             .sedp_builtin_topics_writer()
             .write_w_timestamp(
-                &sedp_discovered_topic_data,
+                serialized_data,
                 sedp_discovered_topic_data.get_serialized_key(),
                 None,
                 self.get_current_time().unwrap(),
@@ -896,10 +899,13 @@ impl DdsShared<DomainParticipantImpl> {
             },
             lease_duration: self.lease_duration.into(),
         };
+        let mut serialized_data = Vec::new();
+        spdp_discovered_participant_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
         self.builtin_publisher
             .spdp_builtin_participant_writer()
             .write_w_timestamp(
-                &spdp_discovered_participant_data,
+                serialized_data,
                 spdp_discovered_participant_data.get_serialized_key(),
                 None,
                 self.get_current_time().unwrap(),
@@ -1251,10 +1257,13 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_writer_data
         };
 
+        let mut serialized_data = Vec::new();
+        writer_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
         self.builtin_publisher
             .sedp_builtin_publications_writer()
             .write_w_timestamp(
-                writer_data,
+                serialized_data,
                 writer_data.get_serialized_key(),
                 None,
                 self.get_current_time()?,
@@ -1283,10 +1292,13 @@ impl DdsShared<DomainParticipantImpl> {
             ..sedp_discovered_reader_data
         };
 
+        let mut serialized_data = Vec::new();
+        reader_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
             .write_w_timestamp(
-                reader_data,
+                serialized_data,
                 reader_data.get_serialized_key(),
                 None,
                 self.get_current_time().unwrap(),

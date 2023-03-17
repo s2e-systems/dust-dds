@@ -347,22 +347,19 @@ impl DdsShared<UserDefinedDataWriter> {
         Ok(self.rtps_writer.write_lock().lookup_instance(instance))
     }
 
-    pub fn write_w_timestamp<Foo>(
+    pub fn write_w_timestamp(
         &self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer.write_lock().write_w_timestamp(
-            data,
+            serialized_data,
             instance_serialized_key,
             handle,
             timestamp,
