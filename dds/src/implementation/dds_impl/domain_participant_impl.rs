@@ -1283,7 +1283,7 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_publications_writer()
             .dispose_w_timestamp(
                 instance_serialized_key,
-                sedp_discovered_writer_data_instance.into(),
+                sedp_discovered_writer_data_instance,
                 self.get_current_time()?,
             )
     }
@@ -1327,7 +1327,7 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_subscriptions_writer()
             .dispose_w_timestamp(
                 instance_serialized_key,
-                sedp_discovered_reader_data_instance.into(),
+                sedp_discovered_reader_data_instance,
                 self.get_current_time()?,
             )
     }
