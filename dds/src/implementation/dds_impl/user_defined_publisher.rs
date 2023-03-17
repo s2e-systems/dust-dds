@@ -154,7 +154,7 @@ impl DdsShared<UserDefinedPublisher> {
         if data_writer.is_enabled() {
             self.announce_sender
                 .send(AnnounceKind::DeletedDataWriter(
-                    data_writer.as_discovered_writer_data(),
+                    data_writer.as_discovered_writer_data().get_serialized_key(),
                 ))
                 .ok();
         }
@@ -232,7 +232,7 @@ impl DdsShared<UserDefinedPublisher> {
             if data_writer.is_enabled() {
                 self.announce_sender
                     .send(AnnounceKind::DeletedDataWriter(
-                        data_writer.as_discovered_writer_data(),
+                        data_writer.as_discovered_writer_data().get_serialized_key(),
                     ))
                     .ok();
             }

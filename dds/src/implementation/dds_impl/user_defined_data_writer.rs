@@ -39,7 +39,7 @@ use crate::{
         },
     },
     publication::data_writer::AnyDataWriter,
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -305,22 +305,19 @@ impl DdsShared<UserDefinedDataWriter> {
             .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
-    pub fn unregister_instance_w_timestamp<Foo>(
+    pub fn unregister_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
             .write_lock()
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+            .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
@@ -336,15 +333,18 @@ impl DdsShared<UserDefinedDataWriter> {
             .get_key_value(key_holder, handle)
     }
 
-    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType,
-    {
+    pub fn lookup_instance(
+        &self,
+        instance_serialized_key: DdsSerializedKey,
+    ) -> DdsResult<Option<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_writer.write_lock().lookup_instance(instance))
+        Ok(self
+            .rtps_writer
+            .write_lock()
+            .lookup_instance(instance_serialized_key))
     }
 
     pub fn write_w_timestamp(
@@ -370,22 +370,21 @@ impl DdsShared<UserDefinedDataWriter> {
         Ok(())
     }
 
-    pub fn dispose_w_timestamp<Foo>(
+    pub fn dispose_w_timestamp(
         &self,
-        data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .dispose_w_timestamp(data, handle, timestamp)
+        self.rtps_writer.write_lock().dispose_w_timestamp(
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )
     }
 
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
@@ -785,7 +784,7 @@ mod test {
         },
         infrastructure::qos::TopicQos,
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{DdsSerializedKey, Endianness},
+        topic_definition::type_support::{DdsSerialize, DdsSerializedKey, Endianness},
     };
 
     use mockall::mock;

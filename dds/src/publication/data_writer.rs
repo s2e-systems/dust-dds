@@ -146,9 +146,15 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.0
-            .upgrade()?
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+        if Foo::has_key() {
+            self.0.upgrade()?.unregister_instance_w_timestamp(
+                instance.get_serialized_key(),
+                handle,
+                timestamp,
+            )
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`. The operation will only fill the
@@ -165,7 +171,9 @@ where
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.0.upgrade()?.lookup_instance(instance)
+        self.0
+            .upgrade()?
+            .lookup_instance(instance.get_serialized_key())
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -263,7 +271,7 @@ where
     ) -> DdsResult<()> {
         self.0
             .upgrade()?
-            .dispose_w_timestamp(data, handle, timestamp)
+            .dispose_w_timestamp(data.get_serialized_key(), handle, timestamp)
     }
 
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all

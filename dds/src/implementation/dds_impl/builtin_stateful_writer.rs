@@ -180,18 +180,17 @@ impl DdsShared<BuiltinStatefulWriter> {
         Ok(())
     }
 
-    pub fn dispose_w_timestamp<Foo>(
+    pub fn dispose_w_timestamp(
         &self,
-        data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        self.rtps_writer
-            .write_lock()
-            .dispose_w_timestamp(data, handle, timestamp)?;
+    ) -> DdsResult<()> {
+        self.rtps_writer.write_lock().dispose_w_timestamp(
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
         self.sedp_condvar.notify_all();
         Ok(())
     }

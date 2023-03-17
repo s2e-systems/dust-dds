@@ -56,7 +56,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
@@ -104,8 +104,8 @@ pub enum AnnounceKind {
     CreatedDataReader(DiscoveredReaderData),
     CreatedDataWriter(DiscoveredWriterData),
     CratedTopic(DiscoveredTopicData),
-    DeletedDataReader(DiscoveredReaderData),
-    DeletedDataWriter(DiscoveredWriterData),
+    DeletedDataReader(DdsSerializedKey),
+    DeletedDataWriter(DdsSerializedKey),
     DeletedParticipant,
 }
 
@@ -1272,11 +1272,15 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_deleted_datawriter(
         &self,
-        sedp_discovered_writer_data: DiscoveredWriterData,
+        sedp_discovered_writer_data_instance: DdsSerializedKey,
     ) -> DdsResult<()> {
         self.builtin_publisher
             .sedp_builtin_publications_writer()
-            .dispose_w_timestamp(&sedp_discovered_writer_data, None, self.get_current_time()?)
+            .dispose_w_timestamp(
+                sedp_discovered_writer_data_instance,
+                None,
+                self.get_current_time()?,
+            )
     }
 
     fn announce_created_datareader(
@@ -1307,11 +1311,15 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_deleted_datareader(
         &self,
-        sedp_discovered_reader_data: DiscoveredReaderData,
+        sedp_discovered_reader_data_instance: DdsSerializedKey,
     ) -> DdsResult<()> {
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
-            .dispose_w_timestamp(&sedp_discovered_reader_data, None, self.get_current_time()?)
+            .dispose_w_timestamp(
+                sedp_discovered_reader_data_instance.as_ref().into(),
+                None,
+                self.get_current_time()?,
+            )
     }
 
     pub fn update_communication_status(&self) -> DdsResult<()> {
