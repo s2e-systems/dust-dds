@@ -55,24 +55,6 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-trait MovingShape: Move + Velocity + ShapeProperties + AsShapeType + AsShape {}
-impl<T: Move + Velocity + ShapeProperties + AsShapeType + AsShape> MovingShape for T {}
-
-struct MyApp {
-    participant: DomainParticipant,
-    publisher: Publisher,
-    subscriber: Subscriber,
-    readers: Vec<DataReader<ShapeType>>,
-    shape_writer_list: Vec<ShapeWriter>,
-}
-
-trait AsShapeType {
-    fn as_shape_type(&self) -> ShapeType;
-}
-
-trait AsShape {
-    fn as_shape(&self) -> Shape;
-}
 
 const PURPLE: Color32 = Color32::from_rgb(128, 0, 128);
 const BLUE: Color32 = Color32::BLUE;
@@ -92,9 +74,31 @@ trait ShapeProperties {
     fn center(&self) -> Pos2;
 }
 
+trait Move {
+    fn move_to(&mut self, p: Pos2);
+    fn move_by(&mut self, v: Vec2);
+}
+
+trait Velocity {
+    fn velocity(&self) -> Vec2;
+    fn set_velocity(&mut self, v: Vec2);
+}
+
+trait AsShapeType {
+    fn as_shape_type(&self, offset: Vec2) -> ShapeType;
+}
+
+trait AsShape {
+    fn as_shape(&self) -> Shape;
+}
+
+trait MovingShape: Move + Velocity + ShapeProperties + AsShapeType + AsShape {}
+impl<T: Move + Velocity + ShapeProperties + AsShapeType + AsShape> MovingShape for T {}
+
+
 impl<T: ShapeProperties> AsShapeType for T {
-    fn as_shape_type(&self) -> ShapeType {
-        let center = self.center();
+    fn as_shape_type(&self, offset: Vec2) -> ShapeType {
+        let center = self.center() - offset;
         let color = match self.color() {
             PURPLE => "PURPLE",
             BLUE => "BLUE",
@@ -137,14 +141,23 @@ struct ShapeWriter {
     shape: Box<dyn MovingShape>,
 }
 impl ShapeWriter {
-    fn write(&self) {
-        let data = self.shape.as_shape_type();
+    fn write(&self, offset: Vec2) {
+        let data = self.shape.as_shape_type(offset);
         self.writer.write(&data, None).expect("writing failed");
-        println!("written {:?}", data);
+        let shape_kind = self.writer.get_topic().unwrap().get_name().unwrap();
+        println!("{:?} written {:?}", shape_kind, data);
     }
-    fn moved_shape(&mut self) -> Shape {
+    fn shape(&mut self) -> Shape {
         self.shape.as_shape()
     }
+}
+
+struct MyApp {
+    participant: DomainParticipant,
+    publisher: Publisher,
+    subscriber: Subscriber,
+    reader_list: Vec<DataReader<ShapeType>>,
+    shape_writer_list: Vec<ShapeWriter>,
 }
 
 impl MyApp {
@@ -165,7 +178,7 @@ impl MyApp {
             participant,
             publisher,
             subscriber,
-            readers: vec![],
+            reader_list: vec![],
             shape_writer_list: vec![],
         }
     }
@@ -218,12 +231,15 @@ impl MyApp {
             .subscriber
             .create_datareader(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
-        self.readers.push(reader);
+        self.reader_list.push(reader);
     }
 
-    fn read_circle_data(&self, reader: &DataReader<ShapeType>, offset: &Pos2) -> Vec<CircleShape> {
+    fn read_data(&self, reader: &DataReader<ShapeType>, offset: Vec2) -> Vec<Shape> {
+        let shapes_kind = reader.get_topicdescription().unwrap().get_name().unwrap();
+
         let mut shapes = vec![];
         let mut previous_handle = None;
+        let now = std::time::Instant::now();
         while let Ok(samples) = reader.read_next_instance(
             1,
             previous_handle,
@@ -234,31 +250,31 @@ impl MyApp {
             if let Some(sample) = samples.first() {
                 previous_handle = Some(sample.sample_info.instance_handle);
                 if let Some(data) = &sample.data {
-                    println!("read {:?}", data);
-                    let fill = match data.color.as_str() {
-                        "PURPLE" => Color32::from_rgb(128, 0, 128),
-                        "BLUE" => Color32::BLUE,
-                        "RED" => Color32::RED,
-                        "GREEN" => Color32::GREEN,
-                        "YELLOW" => Color32::YELLOW,
-                        "CYAN" => Color32::from_rgb(0, 255, 255),
-                        "MAGENTA" => Color32::from_rgb(255, 0, 255),
-                        "ORANGE" => Color32::from_rgb(255, 165, 0),
+                    println!("{:?} {:?} read {:?}", std::time::Instant::now() - now, shapes_kind, data);
+                    let color = match data.color.as_str() {
+                        "PURPLE" => PURPLE,
+                        "BLUE" => BLUE,
+                        "RED" => RED,
+                        "GREEN" => GREEN,
+                        "YELLOW" => YELLOW,
+                        "CYAN" => CYAN,
+                        "MAGENTA" => MAGENTA,
+                        "ORANGE" => ORANGE,
                         _ => Color32::TEMPORARY_COLOR,
                     };
-                    let stroke = Stroke::new(3.0, Color32::RED);
                     let center = Pos2 {
-                        x: data.x as f32 + offset.x,
-                        y: data.y as f32 + offset.y,
-                    };
+                        x: data.x as f32,
+                        y: data.y as f32,
+                    } + offset;
 
-                    let radius = data.shapesize as f32 / 2.0;
-                    shapes.push(CircleShape {
-                        center,
-                        fill,
-                        radius,
-                        stroke,
-                    });
+                    let size = data.shapesize as f32;
+                    let shape = match shapes_kind.as_str() {
+                        "Circle"  => MovingCircle::new(color, size, center).as_shape(),
+                        "Triangle" => MovingTriangle::new(color, size, center).as_shape(),
+                        "Square" => MovingSquare::new(color, size, center).as_shape(),
+                        _ => panic!("Unsupported shape")
+                    };
+                    shapes.push(shape);
                 }
             }
         }
@@ -284,19 +300,25 @@ impl eframe::App for MyApp {
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
                 self.create_reader(ShapeKind::Circle.as_str())
             };
+            if ui.button(ShapeKind::Triangle.as_str()).clicked() {
+                self.create_reader(ShapeKind::Triangle.as_str())
+            };
+            if ui.button(ShapeKind::Square.as_str()).clicked() {
+                self.create_reader(ShapeKind::Square.as_str())
+            };
         });
         egui::CentralPanel::default().show(ctx, |ui| {
             let painter = ui.painter();
             let rect = Rect::from_center_size(ui.max_rect().center(), vec2(235.0, 265.0));
             painter.rect_filled(rect, Rounding::none(), Color32::WHITE);
-            let offset = &rect.left_top();
+            let offset = rect.left_top().to_vec2();
             for shape_writer in &mut self.shape_writer_list {
-                shape_writer.write();
+                shape_writer.write(offset);
                 move_within_rect(shape_writer.shape.as_mut(), rect);
-                painter.add(shape_writer.moved_shape());
+                painter.add(shape_writer.shape());
             }
-            for reader in &self.readers {
-                for circle in self.read_circle_data(reader, offset) {
+            for reader in &self.reader_list {
+                for circle in self.read_data(reader, offset) {
                     painter.add(circle);
                 }
             }
@@ -333,10 +355,6 @@ fn move_within_rect(object: &mut dyn MovingShape, rect: Rect) {
     object.move_by(object.velocity());
 }
 
-trait Move {
-    fn move_to(&mut self, p: Pos2);
-    fn move_by(&mut self, v: Vec2);
-}
 
 struct MovingSquare {
     velocity: Vec2,
@@ -456,11 +474,6 @@ impl Move for MovingTriangle {
             *point += v;
         }
     }
-}
-
-trait Velocity {
-    fn velocity(&self) -> Vec2;
-    fn set_velocity(&mut self, v: Vec2);
 }
 
 impl Velocity for MovingTriangle {
