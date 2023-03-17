@@ -28,6 +28,12 @@ impl Default for InstanceHandle {
 /// Special constant value representing a 'nil' [`InstanceHandle`]
 pub const HANDLE_NIL: InstanceHandle = InstanceHandle([0; 16]);
 
+impl AsRef<[u8]> for InstanceHandle {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 impl From<DdsSerializedKey> for InstanceHandle {
     fn from(x: DdsSerializedKey) -> Self {
         let data = x.as_ref();

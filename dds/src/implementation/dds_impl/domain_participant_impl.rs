@@ -47,7 +47,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
@@ -1274,11 +1274,10 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         sedp_discovered_writer_data_instance: InstanceHandle,
     ) -> DdsResult<()> {
-        let instance_serialized_key = cdr::serialize::<_, _, cdr::CdrLe>(
-            &sedp_discovered_writer_data_instance,
-            cdr::Infinite,
-        )
-        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        let serialized_key = DdsSerializedKey::from(sedp_discovered_writer_data_instance.as_ref());
+        let instance_serialized_key =
+            cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         self.builtin_publisher
             .sedp_builtin_publications_writer()
@@ -1319,11 +1318,10 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         sedp_discovered_reader_data_instance: InstanceHandle,
     ) -> DdsResult<()> {
-        let instance_serialized_key = cdr::serialize::<_, _, cdr::CdrLe>(
-            &sedp_discovered_reader_data_instance,
-            cdr::Infinite,
-        )
-        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        let serialized_key = DdsSerializedKey::from(sedp_discovered_reader_data_instance.as_ref());
+        let instance_serialized_key =
+            cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
