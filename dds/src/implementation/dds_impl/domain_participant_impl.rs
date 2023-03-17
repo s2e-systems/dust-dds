@@ -1,12 +1,3 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        mpsc::SyncSender,
-    },
-    time::{SystemTime, UNIX_EPOCH},
-};
-
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::{
@@ -56,7 +47,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
     {
         builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
         infrastructure::{
@@ -65,6 +56,15 @@ use crate::{
             time::{Duration, Time},
         },
     },
+};
+
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        mpsc::SyncSender,
+    },
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use super::{
@@ -104,8 +104,8 @@ pub enum AnnounceKind {
     CreatedDataReader(DiscoveredReaderData),
     CreatedDataWriter(DiscoveredWriterData),
     CratedTopic(DiscoveredTopicData),
-    DeletedDataReader(DdsSerializedKey),
-    DeletedDataWriter(DdsSerializedKey),
+    DeletedDataReader(InstanceHandle),
+    DeletedDataWriter(InstanceHandle),
     DeletedParticipant,
 }
 
@@ -1272,11 +1272,13 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_deleted_datawriter(
         &self,
-        sedp_discovered_writer_data_instance: DdsSerializedKey,
+        sedp_discovered_writer_data_instance: InstanceHandle,
     ) -> DdsResult<()> {
-        let mut instance_serialized_key = Vec::new();
-        sedp_discovered_writer_data_instance
-            .serialize::<_, LittleEndian>(&mut instance_serialized_key)?;
+        let instance_serialized_key = cdr::serialize::<_, _, cdr::CdrLe>(
+            &sedp_discovered_writer_data_instance,
+            cdr::Infinite,
+        )
+        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         self.builtin_publisher
             .sedp_builtin_publications_writer()
@@ -1315,11 +1317,13 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_deleted_datareader(
         &self,
-        sedp_discovered_reader_data_instance: DdsSerializedKey,
+        sedp_discovered_reader_data_instance: InstanceHandle,
     ) -> DdsResult<()> {
-        let mut instance_serialized_key = Vec::new();
-        sedp_discovered_reader_data_instance
-            .serialize::<_, LittleEndian>(&mut instance_serialized_key)?;
+        let instance_serialized_key = cdr::serialize::<_, _, cdr::CdrLe>(
+            &sedp_discovered_reader_data_instance,
+            cdr::Infinite,
+        )
+        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
