@@ -1274,11 +1274,15 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         sedp_discovered_writer_data_instance: DdsSerializedKey,
     ) -> DdsResult<()> {
+        let mut instance_serialized_key = Vec::new();
+        sedp_discovered_writer_data_instance
+            .serialize::<_, LittleEndian>(&mut instance_serialized_key)?;
+
         self.builtin_publisher
             .sedp_builtin_publications_writer()
             .dispose_w_timestamp(
-                sedp_discovered_writer_data_instance,
-                None,
+                instance_serialized_key,
+                sedp_discovered_writer_data_instance.into(),
                 self.get_current_time()?,
             )
     }
@@ -1313,11 +1317,15 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         sedp_discovered_reader_data_instance: DdsSerializedKey,
     ) -> DdsResult<()> {
+        let mut instance_serialized_key = Vec::new();
+        sedp_discovered_reader_data_instance
+            .serialize::<_, LittleEndian>(&mut instance_serialized_key)?;
+
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
             .dispose_w_timestamp(
-                sedp_discovered_reader_data_instance.as_ref().into(),
-                None,
+                instance_serialized_key,
+                sedp_discovered_reader_data_instance.into(),
                 self.get_current_time()?,
             )
     }

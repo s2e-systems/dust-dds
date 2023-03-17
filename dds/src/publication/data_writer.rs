@@ -147,9 +147,34 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         if Foo::has_key() {
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_handle) = self.lookup_instance(instance)? {
+                        if stored_handle == h {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    if let Some(stored_handle) = self.lookup_instance(instance)? {
+                        Ok(stored_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
             self.0.upgrade()?.unregister_instance_w_timestamp(
                 instance.get_serialized_key(),
-                handle,
+                instance_handle,
                 timestamp,
             )
         } else {
@@ -269,9 +294,38 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let instance_handle = match handle {
+            Some(h) => {
+                if let Some(stored_handle) = self.lookup_instance(data)? {
+                    if stored_handle == h {
+                        Ok(h)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Handle does not match instance".to_string(),
+                        ))
+                    }
+                } else {
+                    Err(DdsError::BadParameter)
+                }
+            }
+            None => {
+                if let Some(stored_handle) = self.lookup_instance(data)? {
+                    Ok(stored_handle)
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Instance not registered with this DataWriter".to_string(),
+                    ))
+                }
+            }
+        }?;
+
+        let mut serialized_key = Vec::new();
+        data.get_serialized_key()
+            .serialize::<_, LittleEndian>(&mut serialized_key)?;
+
         self.0
             .upgrade()?
-            .dispose_w_timestamp(data.get_serialized_key(), handle, timestamp)
+            .dispose_w_timestamp(serialized_key, instance_handle, timestamp)
     }
 
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all

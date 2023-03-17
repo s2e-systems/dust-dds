@@ -150,8 +150,8 @@ impl RtpsStatefulWriter {
 
     pub fn dispose_w_timestamp(
         &mut self,
-        instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
         let change = self
@@ -165,7 +165,7 @@ impl RtpsStatefulWriter {
     pub fn unregister_instance_w_timestamp(
         &mut self,
         instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
         let change =

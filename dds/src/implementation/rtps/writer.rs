@@ -113,35 +113,10 @@ impl RtpsWriter {
 
     pub fn new_dispose_change(
         &mut self,
-        instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<RtpsWriterCacheChange> {
-        let instance_handle = match handle {
-            Some(h) => {
-                if let Some(stored_handle) = self.lookup_instance(instance_serialized_key.clone()) {
-                    if stored_handle == h {
-                        Ok(h)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Handle does not match instance".to_string(),
-                        ))
-                    }
-                } else {
-                    Err(DdsError::BadParameter)
-                }
-            }
-            None => {
-                if let Some(stored_handle) = self.lookup_instance(instance_serialized_key.clone()) {
-                    Ok(stored_handle)
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Instance not registered with this DataWriter".to_string(),
-                    ))
-                }
-            }
-        }?;
-
         let mut serialized_status_info = Vec::new();
         let mut serializer =
             cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
@@ -154,9 +129,9 @@ impl RtpsWriter {
 
         Ok(self.new_change(
             ChangeKind::NotAliveDisposed,
-            instance_serialized_key.as_ref().to_vec(),
+            instance_serialized_key,
             inline_qos,
-            instance_handle,
+            handle,
             timestamp,
         ))
     }
@@ -164,34 +139,9 @@ impl RtpsWriter {
     pub fn new_unregister_change(
         &mut self,
         instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<RtpsWriterCacheChange> {
-        let instance_handle = match handle {
-            Some(h) => {
-                if let Some(stored_handle) = self.lookup_instance(instance_serialized_key.clone()) {
-                    if stored_handle == h {
-                        Ok(h)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Handle does not match instance".to_string(),
-                        ))
-                    }
-                } else {
-                    Err(DdsError::BadParameter)
-                }
-            }
-            None => {
-                if let Some(stored_handle) = self.lookup_instance(instance_serialized_key.clone()) {
-                    Ok(stored_handle)
-                } else {
-                    Err(DdsError::PreconditionNotMet(
-                        "Instance not registered with this DataWriter".to_string(),
-                    ))
-                }
-            }
-        }?;
-
         let mut serialized_status_info = Vec::new();
         let mut serializer =
             cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
@@ -216,7 +166,7 @@ impl RtpsWriter {
             ChangeKind::NotAliveUnregistered,
             instance_serialized_key.as_ref().to_vec(),
             inline_qos,
-            instance_handle,
+            handle,
             timestamp,
         ))
     }
