@@ -30,7 +30,7 @@ impl Endianness for BigEndian {
     const REPRESENTATION_OPTIONS: RepresentationType = [0, 0];
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DdsSerializedKey(Vec<u8>);
 
 impl From<&[u8]> for DdsSerializedKey {
