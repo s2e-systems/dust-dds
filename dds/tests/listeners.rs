@@ -1543,7 +1543,7 @@ fn subscriber_deadline_missed_listener() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();

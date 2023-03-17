@@ -172,8 +172,13 @@ where
                 }
             }?;
 
+            let mut serialized_key = Vec::new();
+            instance
+                .get_serialized_key()
+                .serialize::<_, LittleEndian>(&mut serialized_key)?;
+
             self.0.upgrade()?.unregister_instance_w_timestamp(
-                instance.get_serialized_key(),
+                serialized_key,
                 instance_handle,
                 timestamp,
             )

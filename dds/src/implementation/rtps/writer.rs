@@ -138,7 +138,7 @@ impl RtpsWriter {
 
     pub fn new_unregister_change(
         &mut self,
-        instance_serialized_key: DdsSerializedKey,
+        instance_serialized_key: Vec<u8>,
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<RtpsWriterCacheChange> {
@@ -164,7 +164,7 @@ impl RtpsWriter {
 
         Ok(self.new_change(
             ChangeKind::NotAliveUnregistered,
-            instance_serialized_key.as_ref().to_vec(),
+            instance_serialized_key,
             inline_qos,
             handle,
             timestamp,
