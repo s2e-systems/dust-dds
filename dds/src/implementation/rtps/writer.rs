@@ -93,6 +93,7 @@ impl RtpsWriter {
     pub fn new_write_change<Foo>(
         &mut self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<RtpsWriterCacheChange>
@@ -102,7 +103,7 @@ impl RtpsWriter {
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
         let handle = self
-            .register_instance_w_timestamp(data, timestamp)?
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
             .unwrap_or(HANDLE_NIL);
         let change = self.new_change(
             ChangeKind::Alive,
@@ -281,21 +282,17 @@ impl RtpsWriter {
         Ok(())
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &mut self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let serialized_key = instance.get_serialized_key();
-        let instance_handle = instance.get_serialized_key().into();
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let instance_handle = instance_serialized_key.clone().into();
 
         if !self.registered_instance_list.contains_key(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
                 self.registered_instance_list
-                    .insert(instance_handle, serialized_key);
+                    .insert(instance_handle, instance_serialized_key);
             } else {
                 return Err(DdsError::OutOfResources);
             }

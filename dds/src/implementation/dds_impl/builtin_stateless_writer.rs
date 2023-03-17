@@ -3,6 +3,7 @@ use crate::infrastructure::qos_policy::{
     DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
 };
 use crate::infrastructure::time::DurationKind;
+use crate::topic_definition::type_support::DdsSerializedKey;
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
@@ -84,6 +85,7 @@ impl DdsShared<BuiltinStatelessWriter> {
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
@@ -94,9 +96,12 @@ impl DdsShared<BuiltinStatelessWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .write_w_timestamp(data, handle, timestamp)
+        self.rtps_writer.write_lock().write_w_timestamp(
+            data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )
     }
 }
 

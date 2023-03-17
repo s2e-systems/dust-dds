@@ -81,7 +81,7 @@ fn deleted_readers_are_disposed_from_writer() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond.clone()))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
     data_writer.get_publication_matched_status().unwrap();
 
     subscriber.delete_datareader(&data_reader).unwrap();

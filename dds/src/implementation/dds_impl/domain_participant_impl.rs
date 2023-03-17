@@ -289,6 +289,7 @@ impl DdsShared<DomainParticipantImpl> {
             .sedp_builtin_topics_writer()
             .write_w_timestamp(
                 &sedp_discovered_topic_data,
+                sedp_discovered_topic_data.get_serialized_key(),
                 None,
                 self.get_current_time().unwrap(),
             )
@@ -899,6 +900,7 @@ impl DdsShared<DomainParticipantImpl> {
             .spdp_builtin_participant_writer()
             .write_w_timestamp(
                 &spdp_discovered_participant_data,
+                spdp_discovered_participant_data.get_serialized_key(),
                 None,
                 self.get_current_time().unwrap(),
             )
@@ -1251,7 +1253,12 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.builtin_publisher
             .sedp_builtin_publications_writer()
-            .write_w_timestamp(writer_data, None, self.get_current_time()?)
+            .write_w_timestamp(
+                writer_data,
+                writer_data.get_serialized_key(),
+                None,
+                self.get_current_time()?,
+            )
     }
 
     fn announce_deleted_datawriter(
@@ -1278,7 +1285,12 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.builtin_publisher
             .sedp_builtin_subscriptions_writer()
-            .write_w_timestamp(reader_data, None, self.get_current_time().unwrap())
+            .write_w_timestamp(
+                reader_data,
+                reader_data.get_serialized_key(),
+                None,
+                self.get_current_time().unwrap(),
+            )
     }
 
     fn announce_deleted_datareader(

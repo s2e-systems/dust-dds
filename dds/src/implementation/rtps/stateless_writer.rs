@@ -3,7 +3,7 @@ use crate::{
         error::DdsResult, instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -49,13 +49,16 @@ impl RtpsStatelessWriter {
     pub fn write_w_timestamp<Foo>(
         &mut self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
         Foo: DdsType + DdsSerialize,
     {
-        let change = self.writer.new_write_change(data, handle, timestamp)?;
+        let change =
+            self.writer
+                .new_write_change(data, instance_serialized_key, handle, timestamp)?;
         self.add_change(change);
 
         Ok(())

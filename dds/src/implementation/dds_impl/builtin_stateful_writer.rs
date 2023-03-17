@@ -31,7 +31,7 @@ use crate::{
         },
         time::{DurationKind, Time, DURATION_ZERO},
     },
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -161,6 +161,7 @@ impl DdsShared<BuiltinStatefulWriter> {
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
@@ -171,9 +172,12 @@ impl DdsShared<BuiltinStatefulWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .write_w_timestamp(data, handle, timestamp)?;
+        self.rtps_writer.write_lock().write_w_timestamp(
+            data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
 
         self.sedp_condvar.notify_all();
         Ok(())

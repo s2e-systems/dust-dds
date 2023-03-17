@@ -92,7 +92,7 @@ where
     ) -> DdsResult<Option<InstanceHandle>> {
         self.0
             .upgrade()?
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
     }
 
     /// This operation reverses the action of [`DataWriter::register_instance`]. It should only be called on an
@@ -219,7 +219,9 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
+        self.0
+            .upgrade()?
+            .write_w_timestamp(data, data.get_serialized_key(), handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that

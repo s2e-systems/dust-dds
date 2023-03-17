@@ -6,7 +6,7 @@ use crate::{
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -92,28 +92,28 @@ impl RtpsStatefulWriter {
         true
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &mut self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<Option<InstanceHandle>> {
         self.writer
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
     pub fn write_w_timestamp<Foo>(
         &mut self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
     where
         Foo: DdsType + DdsSerialize,
     {
-        let change = self.writer.new_write_change(data, handle, timestamp)?;
+        let change =
+            self.writer
+                .new_write_change(data, instance_serialized_key, handle, timestamp)?;
         self.add_change(change);
 
         Ok(())

@@ -39,7 +39,7 @@ use crate::{
         },
     },
     publication::data_writer::AnyDataWriter,
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -291,21 +291,18 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<Option<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
             .write_lock()
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
     pub fn unregister_instance_w_timestamp<Foo>(
@@ -353,6 +350,7 @@ impl DdsShared<UserDefinedDataWriter> {
     pub fn write_w_timestamp<Foo>(
         &self,
         data: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()>
@@ -363,9 +361,12 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .write_w_timestamp(data, handle, timestamp)?;
+        self.rtps_writer.write_lock().write_w_timestamp(
+            data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
 
         self.user_defined_data_send_condvar.notify_all();
 
@@ -886,7 +887,10 @@ mod test {
         let data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
-            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1, 2] }, Time::new(0, 0))
+            .register_instance_w_timestamp(
+                MockKeyedFoo { key: vec![1, 2] }.get_serialized_key(),
+                Time::new(0, 0),
+            )
             .unwrap()
             .unwrap();
 
@@ -903,7 +907,7 @@ mod test {
         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer
-            .register_instance_w_timestamp(&registered_foo, Time::new(0, 0))
+            .register_instance_w_timestamp(registered_foo.get_serialized_key(), Time::new(0, 0))
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };
