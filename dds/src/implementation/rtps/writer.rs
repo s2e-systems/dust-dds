@@ -15,7 +15,7 @@ use crate::{
         qos::DataWriterQos,
         time::{Duration, DurationKind, Time},
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
+    topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
@@ -90,19 +90,15 @@ impl RtpsWriter {
         &mut self.writer_cache
     }
 
-    pub fn new_write_change<Foo>(
+    pub fn new_write_change(
         &mut self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
         _handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+    ) -> DdsResult<RtpsWriterCacheChange> {
         let handle = self
-            .register_instance_w_timestamp(data, timestamp)?
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
             .unwrap_or(HANDLE_NIL);
         let change = self.new_change(
             ChangeKind::Alive,
@@ -115,140 +111,64 @@ impl RtpsWriter {
         Ok(change)
     }
 
-    pub fn new_dispose_change<Foo>(
+    pub fn new_dispose_change(
         &mut self,
-        data: &Foo,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange>
-    where
-        Foo: DdsType,
-    {
-        if Foo::has_key() {
-            let mut serialized_key = Vec::new();
-            DdsSerialize::serialize::<_, LittleEndian>(
-                &data.get_serialized_key(),
-                &mut serialized_key,
-            )?;
+    ) -> DdsResult<RtpsWriterCacheChange> {
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
 
-            let instance_handle = match handle {
-                Some(h) => {
-                    if let Some(stored_handle) = self.lookup_instance(data) {
-                        if stored_handle == h {
-                            Ok(h)
-                        } else {
-                            Err(DdsError::PreconditionNotMet(
-                                "Handle does not match instance".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(DdsError::BadParameter)
-                    }
-                }
-                None => {
-                    if let Some(stored_handle) = self.lookup_instance(data) {
-                        Ok(stored_handle)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Instance not registered with this DataWriter".to_string(),
-                        ))
-                    }
-                }
-            }?;
+        let inline_qos = vec![RtpsParameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )];
 
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
-
-            let inline_qos = vec![RtpsParameter::new(
-                ParameterId(PID_STATUS_INFO),
-                serialized_status_info,
-            )];
-
-            Ok(self.new_change(
-                ChangeKind::NotAliveDisposed,
-                serialized_key,
-                inline_qos,
-                instance_handle,
-                timestamp,
-            ))
-        } else {
-            Err(DdsError::IllegalOperation)
-        }
+        Ok(self.new_change(
+            ChangeKind::NotAliveDisposed,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        ))
     }
 
-    pub fn new_unregister_change<Foo>(
+    pub fn new_unregister_change(
         &mut self,
-        instance: &Foo,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        if Foo::has_key() {
-            let mut serialized_key = Vec::new();
-            DdsSerialize::serialize::<_, LittleEndian>(
-                &instance.get_serialized_key(),
-                &mut serialized_key,
-            )?;
-
-            let instance_handle = match handle {
-                Some(h) => {
-                    if let Some(stored_handle) = self.lookup_instance(instance) {
-                        if stored_handle == h {
-                            Ok(h)
-                        } else {
-                            Err(DdsError::PreconditionNotMet(
-                                "Handle does not match instance".to_string(),
-                            ))
-                        }
-                    } else {
-                        Err(DdsError::BadParameter)
-                    }
-                }
-                None => {
-                    if let Some(stored_handle) = self.lookup_instance(instance) {
-                        Ok(stored_handle)
-                    } else {
-                        Err(DdsError::PreconditionNotMet(
-                            "Instance not registered with this DataWriter".to_string(),
-                        ))
-                    }
-                }
-            }?;
-
-            let mut serialized_status_info = Vec::new();
-            let mut serializer =
-                cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-            if self
-                .qos
-                .writer_data_lifecycle
-                .autodispose_unregistered_instances
-            {
-                STATUS_INFO_DISPOSED_UNREGISTERED
-                    .serialize(&mut serializer)
-                    .unwrap();
-            } else {
-                STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
-            }
-
-            let inline_qos = vec![RtpsParameter::new(
-                ParameterId(PID_STATUS_INFO),
-                serialized_status_info,
-            )];
-
-            Ok(self.new_change(
-                ChangeKind::NotAliveUnregistered,
-                serialized_key,
-                inline_qos,
-                instance_handle,
-                timestamp,
-            ))
+    ) -> DdsResult<RtpsWriterCacheChange> {
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        if self
+            .qos
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            STATUS_INFO_DISPOSED_UNREGISTERED
+                .serialize(&mut serializer)
+                .unwrap();
         } else {
-            Err(DdsError::IllegalOperation)
+            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
         }
+
+        let inline_qos = vec![RtpsParameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )];
+
+        Ok(self.new_change(
+            ChangeKind::NotAliveUnregistered,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        ))
     }
 
     fn new_change(
@@ -281,21 +201,17 @@ impl RtpsWriter {
         Ok(())
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &mut self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         _timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let serialized_key = instance.get_serialized_key();
-        let instance_handle = instance.get_serialized_key().into();
+    ) -> DdsResult<Option<InstanceHandle>> {
+        let instance_handle = instance_serialized_key.clone().into();
 
         if !self.registered_instance_list.contains_key(&instance_handle) {
             if self.registered_instance_list.len() < self.qos.resource_limits.max_instances {
                 self.registered_instance_list
-                    .insert(instance_handle, serialized_key);
+                    .insert(instance_handle, instance_serialized_key);
             } else {
                 return Err(DdsError::OutOfResources);
             }
@@ -303,23 +219,15 @@ impl RtpsWriter {
         Ok(Some(instance_handle))
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        let serialized_key = self
-            .registered_instance_list
-            .get(&handle)
-            .ok_or(DdsError::BadParameter)?;
-
-        key_holder.set_key_fields_from_serialized_key(serialized_key)
+    pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
+        self.registered_instance_list.get(&handle)
     }
 
-    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> Option<InstanceHandle>
-    where
-        Foo: DdsType,
-    {
-        let instance_handle = instance.get_serialized_key().into();
+    pub fn lookup_instance(
+        &self,
+        instance_serialized_key: DdsSerializedKey,
+    ) -> Option<InstanceHandle> {
+        let instance_handle = instance_serialized_key.into();
         if self.registered_instance_list.contains_key(&instance_handle) {
             Some(instance_handle)
         } else {

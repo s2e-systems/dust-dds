@@ -39,7 +39,7 @@ use crate::{
         },
     },
     publication::data_writer::AnyDataWriter,
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
         infrastructure::{
@@ -291,39 +291,33 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<Option<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
             .write_lock()
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
-    pub fn unregister_instance_w_timestamp<Foo>(
+    pub fn unregister_instance_w_timestamp(
         &self,
-        instance: &Foo,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
         self.rtps_writer
             .write_lock()
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+            .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
     pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
@@ -334,60 +328,66 @@ impl DdsShared<UserDefinedDataWriter> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .get_key_value(key_holder, handle)
+        key_holder.set_key_fields_from_serialized_key(
+            self.rtps_writer
+                .write_lock()
+                .get_key_value(handle)
+                .ok_or(DdsError::BadParameter)?,
+        )
     }
 
-    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType,
-    {
+    pub fn lookup_instance(
+        &self,
+        instance_serialized_key: DdsSerializedKey,
+    ) -> DdsResult<Option<InstanceHandle>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        Ok(self.rtps_writer.write_lock().lookup_instance(instance))
+        Ok(self
+            .rtps_writer
+            .write_lock()
+            .lookup_instance(instance_serialized_key))
     }
 
-    pub fn write_w_timestamp<Foo>(
+    pub fn write_w_timestamp(
         &self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .write_w_timestamp(data, handle, timestamp)?;
+        self.rtps_writer.write_lock().write_w_timestamp(
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
 
         self.user_defined_data_send_condvar.notify_all();
 
         Ok(())
     }
 
-    pub fn dispose_w_timestamp<Foo>(
+    pub fn dispose_w_timestamp(
         &self,
-        data: &Foo,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_writer
-            .write_lock()
-            .dispose_w_timestamp(data, handle, timestamp)
+        self.rtps_writer.write_lock().dispose_w_timestamp(
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )
     }
 
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
@@ -787,7 +787,7 @@ mod test {
         },
         infrastructure::qos::TopicQos,
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{DdsSerializedKey, Endianness},
+        topic_definition::type_support::{DdsSerialize, DdsSerializedKey, Endianness},
     };
 
     use mockall::mock;
@@ -886,7 +886,10 @@ mod test {
         let data_writer = create_data_writer_test_fixture();
 
         let instance_handle = data_writer
-            .register_instance_w_timestamp(&MockKeyedFoo { key: vec![1, 2] }, Time::new(0, 0))
+            .register_instance_w_timestamp(
+                MockKeyedFoo { key: vec![1, 2] }.get_serialized_key(),
+                Time::new(0, 0),
+            )
             .unwrap()
             .unwrap();
 
@@ -903,7 +906,7 @@ mod test {
         let not_registered_foo = MockKeyedFoo { key: vec![1, 16] };
         let registered_foo = MockKeyedFoo { key: vec![1, 2] };
         data_writer
-            .register_instance_w_timestamp(&registered_foo, Time::new(0, 0))
+            .register_instance_w_timestamp(registered_foo.get_serialized_key(), Time::new(0, 0))
             .unwrap();
 
         let mut keyed_foo = MockKeyedFoo { key: vec![] };

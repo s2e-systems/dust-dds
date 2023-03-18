@@ -23,7 +23,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType},
+        type_support::{DdsSerialize, DdsType, LittleEndian},
     },
 };
 
@@ -78,9 +78,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .register_instance_w_timestamp(instance, timestamp)
+        self.register_instance_w_timestamp(instance, timestamp)
     }
 
     /// This operation performs the same function and return the same values as [`DataWriter::register_instance`] and can be used instead of
@@ -94,7 +92,7 @@ where
     ) -> DdsResult<Option<InstanceHandle>> {
         self.0
             .upgrade()?
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
     }
 
     /// This operation reverses the action of [`DataWriter::register_instance`]. It should only be called on an
@@ -134,9 +132,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+        self.unregister_instance_w_timestamp(instance, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::unregister_instance`] and can
@@ -150,9 +146,45 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.0
-            .upgrade()?
-            .unregister_instance_w_timestamp(instance, handle, timestamp)
+        if Foo::has_key() {
+            let instance_handle = match handle {
+                Some(h) => {
+                    if let Some(stored_handle) = self.lookup_instance(instance)? {
+                        if stored_handle == h {
+                            Ok(h)
+                        } else {
+                            Err(DdsError::PreconditionNotMet(
+                                "Handle does not match instance".to_string(),
+                            ))
+                        }
+                    } else {
+                        Err(DdsError::BadParameter)
+                    }
+                }
+                None => {
+                    if let Some(stored_handle) = self.lookup_instance(instance)? {
+                        Ok(stored_handle)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Instance not registered with this DataWriter".to_string(),
+                        ))
+                    }
+                }
+            }?;
+
+            let mut serialized_key = Vec::new();
+            instance
+                .get_serialized_key()
+                .serialize::<_, LittleEndian>(&mut serialized_key)?;
+
+            self.0.upgrade()?.unregister_instance_w_timestamp(
+                serialized_key,
+                instance_handle,
+                timestamp,
+            )
+        } else {
+            Err(DdsError::IllegalOperation)
+        }
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an `handle`. The operation will only fill the
@@ -169,7 +201,9 @@ where
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.0.upgrade()?.lookup_instance(instance)
+        self.0
+            .upgrade()?
+            .lookup_instance(instance.get_serialized_key())
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -209,7 +243,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
+        self.write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::write`] and can
@@ -223,7 +257,15 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        self.0.upgrade()?.write_w_timestamp(data, handle, timestamp)
+        let mut serialized_data = Vec::new();
+        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+
+        self.0.upgrade()?.write_w_timestamp(
+            serialized_data,
+            data.get_serialized_key(),
+            handle,
+            timestamp,
+        )
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -243,9 +285,7 @@ where
             .get_publisher()?
             .get_participant()?
             .get_current_time()?;
-        self.0
-            .upgrade()?
-            .dispose_w_timestamp(data, handle, timestamp)
+        self.dispose_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation performs the same function and returns the same values as [`DataWriter::dispose`] and can
@@ -259,9 +299,38 @@ where
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        let instance_handle = match handle {
+            Some(h) => {
+                if let Some(stored_handle) = self.lookup_instance(data)? {
+                    if stored_handle == h {
+                        Ok(h)
+                    } else {
+                        Err(DdsError::PreconditionNotMet(
+                            "Handle does not match instance".to_string(),
+                        ))
+                    }
+                } else {
+                    Err(DdsError::BadParameter)
+                }
+            }
+            None => {
+                if let Some(stored_handle) = self.lookup_instance(data)? {
+                    Ok(stored_handle)
+                } else {
+                    Err(DdsError::PreconditionNotMet(
+                        "Instance not registered with this DataWriter".to_string(),
+                    ))
+                }
+            }
+        }?;
+
+        let mut serialized_key = Vec::new();
+        data.get_serialized_key()
+            .serialize::<_, LittleEndian>(&mut serialized_key)?;
+
         self.0
             .upgrade()?
-            .dispose_w_timestamp(data, handle, timestamp)
+            .dispose_w_timestamp(serialized_key, instance_handle, timestamp)
     }
 
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all

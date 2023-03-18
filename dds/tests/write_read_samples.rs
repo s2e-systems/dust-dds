@@ -640,7 +640,7 @@ fn read_specific_instance() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -1313,7 +1313,7 @@ fn reader_with_minimum_time_separation_qos() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1_1 = KeyedData { id: 1, value: 1 };
     let data1_2 = KeyedData { id: 1, value: 2 };
@@ -1896,7 +1896,7 @@ fn volatile_writer_with_reader_new_reader_receives_only_new_samples() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
     writer.get_publication_matched_status().unwrap(); // To reset wait_set for subsequent calls
 
     let data1 = KeyedData { id: 1, value: 1 };

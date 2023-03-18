@@ -177,7 +177,7 @@ impl DdsShared<UserDefinedSubscriber> {
         if data_reader.is_enabled() {
             self.announce_sender
                 .send(AnnounceKind::DeletedDataReader(
-                    data_reader.as_discovered_reader_data(),
+                    data_reader.get_instance_handle(),
                 ))
                 .ok();
         }
@@ -227,7 +227,7 @@ impl DdsShared<UserDefinedSubscriber> {
             if data_reader.is_enabled() {
                 self.announce_sender
                     .send(AnnounceKind::DeletedDataReader(
-                        data_reader.as_discovered_reader_data(),
+                        data_reader.get_instance_handle(),
                     ))
                     .ok();
             }

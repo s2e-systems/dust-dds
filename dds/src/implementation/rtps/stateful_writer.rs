@@ -6,7 +6,7 @@ use crate::{
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
     },
-    topic_definition::type_support::{DdsSerialize, DdsType},
+    topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
@@ -92,28 +92,28 @@ impl RtpsStatefulWriter {
         true
     }
 
-    pub fn register_instance_w_timestamp<Foo>(
+    pub fn register_instance_w_timestamp(
         &mut self,
-        instance: &Foo,
+        instance_serialized_key: DdsSerializedKey,
         timestamp: Time,
-    ) -> DdsResult<Option<InstanceHandle>>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<Option<InstanceHandle>> {
         self.writer
-            .register_instance_w_timestamp(instance, timestamp)
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)
     }
 
-    pub fn write_w_timestamp<Foo>(
+    pub fn write_w_timestamp(
         &mut self,
-        data: &Foo,
+        serialized_data: Vec<u8>,
+        instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
-        let change = self.writer.new_write_change(data, handle, timestamp)?;
+    ) -> DdsResult<()> {
+        let change = self.writer.new_write_change(
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
         self.add_change(change);
 
         Ok(())
@@ -144,49 +144,42 @@ impl RtpsStatefulWriter {
         }
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        self.writer.get_key_value(key_holder, handle)
+    pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
+        self.writer.get_key_value(handle)
     }
 
-    pub fn dispose_w_timestamp<Foo>(
+    pub fn dispose_w_timestamp(
         &mut self,
-        data: &Foo,
-        handle: Option<InstanceHandle>,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType,
-    {
-        let change = self.writer.new_dispose_change(data, handle, timestamp)?;
-        self.add_change(change);
-
-        Ok(())
-    }
-
-    pub fn unregister_instance_w_timestamp<Foo>(
-        &mut self,
-        instance: &Foo,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> DdsResult<()>
-    where
-        Foo: DdsType + DdsSerialize,
-    {
+    ) -> DdsResult<()> {
         let change = self
             .writer
-            .new_unregister_change(instance, handle, timestamp)?;
+            .new_dispose_change(instance_serialized_key, handle, timestamp)?;
+        self.add_change(change);
+
+        Ok(())
+    }
+
+    pub fn unregister_instance_w_timestamp(
+        &mut self,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> DdsResult<()> {
+        let change =
+            self.writer
+                .new_unregister_change(instance_serialized_key, handle, timestamp)?;
         self.add_change(change);
         Ok(())
     }
 
-    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> Option<InstanceHandle>
-    where
-        Foo: DdsType,
-    {
-        self.writer.lookup_instance(instance)
+    pub fn lookup_instance(
+        &self,
+        instance_serialized_key: DdsSerializedKey,
+    ) -> Option<InstanceHandle> {
+        self.writer.lookup_instance(instance_serialized_key)
     }
 
     pub fn guid(&self) -> Guid {
