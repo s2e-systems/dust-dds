@@ -295,11 +295,11 @@ impl eframe::App for MyApp {
                     }
                     if ui.button("GREEN").clicked() {
                         self.window_open = None;
-                        self.create_writer(ShapeKind::Circle, GREEN);
+                        self.create_writer(shape_kind, GREEN);
                     }
                     if ui.button("BLUE").clicked() {
                         self.window_open = None;
-                        self.create_writer(ShapeKind::Circle, BLUE);
+                        self.create_writer(shape_kind, BLUE);
                     }
                 });
         }
