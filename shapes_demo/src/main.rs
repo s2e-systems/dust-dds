@@ -66,7 +66,7 @@ const MAGENTA: Color32 = Color32::from_rgb(255, 0, 255);
 const ORANGE: Color32 = Color32::from_rgb(255, 165, 0);
 
 trait NewShape {
-    fn new(color: Color32, size: f32, center: Pos2) -> Self;
+    fn new(color: Color32, size: f32, center: Pos2, velocity: Vec2) -> Self;
 }
 trait ShapeProperties {
     fn color(&self) -> Color32;
@@ -160,6 +160,7 @@ struct MyApp {
     reader_list: Vec<DataReader<ShapeType>>,
     shape_writer_list: Vec<ShapeWriter>,
     window_open: Option<ShapeKind>,
+    time: f64,
 }
 
 impl MyApp {
@@ -183,6 +184,7 @@ impl MyApp {
             reader_list: vec![],
             shape_writer_list: vec![],
             window_open: None,
+            time: 0.0,
         }
     }
 
@@ -205,10 +207,11 @@ impl MyApp {
             .create_datawriter(&topic, QosKind::Specific(qos), None, NO_STATUS)
             .unwrap();
 
+        let  velocity = vec2(30.0, 30.0);
         let shape: Box<dyn MovingShape> = match shape_kind {
-            ShapeKind::Circle => Box::new(MovingCircle::new(color, 30.0, pos2(360.0, 180.0))),
-            ShapeKind::Triangle => Box::new(MovingTriangle::new(color, 30.0, pos2(360.0, 180.0))),
-            ShapeKind::Square => Box::new(MovingSquare::new(color, 30.0, pos2(360.0, 180.0))),
+            ShapeKind::Circle => Box::new(MovingCircle::new(color, 30.0, pos2(360.0, 180.0), velocity)),
+            ShapeKind::Triangle => Box::new(MovingTriangle::new(color, 30.0, pos2(360.0, 180.0), velocity)),
+            ShapeKind::Square => Box::new(MovingSquare::new(color, 30.0, pos2(360.0, 180.0), velocity)),
         };
 
         let shape_writer = ShapeWriter { writer, shape };
@@ -271,10 +274,11 @@ impl MyApp {
                     } + offset;
 
                     let size = data.shapesize as f32;
+                    let velocity = vec2(0.0, 0.0);
                     let shape = match shapes_kind.as_str() {
-                        "Circle"  => MovingCircle::new(color, size, center).as_shape(),
-                        "Triangle" => MovingTriangle::new(color, size, center).as_shape(),
-                        "Square" => MovingSquare::new(color, size, center).as_shape(),
+                        "Circle"  => MovingCircle::new(color, size, center, velocity).as_shape(),
+                        "Triangle" => MovingTriangle::new(color, size, center, velocity).as_shape(),
+                        "Square" => MovingSquare::new(color, size, center, velocity).as_shape(),
                         _ => panic!("Unsupported shape")
                     };
                     shapes.push(shape);
@@ -284,6 +288,7 @@ impl MyApp {
         shapes
     }
 }
+
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -332,11 +337,14 @@ impl eframe::App for MyApp {
             let rect = Rect::from_center_size(ui.max_rect().center(), vec2(235.0, 265.0));
             painter.rect_filled(rect, Rounding::none(), Color32::WHITE);
             let offset = rect.left_top().to_vec2();
+            let time = ui.input(|i| i.time);
+            let time_delta = (time - self.time)  as f32;
             for shape_writer in &mut self.shape_writer_list {
                 shape_writer.write(offset);
-                move_within_rect(shape_writer.shape.as_mut(), rect);
+                move_within_rect(shape_writer.shape.as_mut(), rect, time_delta);
                 painter.add(shape_writer.shape());
             }
+            self.time = time;
             for reader in &self.reader_list {
                 for circle in self.read_data(reader, offset) {
                     painter.add(circle);
@@ -347,7 +355,7 @@ impl eframe::App for MyApp {
     }
 }
 
-fn move_within_rect(object: &mut dyn MovingShape, rect: Rect) {
+fn move_within_rect(object: &mut dyn MovingShape, rect: Rect, time_delta: f32) {
     let radius = object.size() / 2.0;
     let left = object.center().x - radius;
     let right = object.center().x + radius;
@@ -372,7 +380,7 @@ fn move_within_rect(object: &mut dyn MovingShape, rect: Rect) {
         // reflect motion in respect to normal of surface
         object.set_velocity(object.velocity() - 2.0 * (object.velocity() * normal) * normal);
     }
-    object.move_by(object.velocity());
+    object.move_by(time_delta * object.velocity());
 }
 
 
@@ -386,9 +394,9 @@ impl AsShape for MovingSquare {
     }
 }
 impl NewShape for MovingSquare {
-    fn new(color: Color32, size: f32, center: Pos2) -> Self {
+    fn new(color: Color32, size: f32, center: Pos2, velocity: Vec2) -> Self {
         Self {
-            velocity: vec2(1.5, 1.5),
+            velocity,
             shape: RectShape {
                 rect: Rect::from_center_size(center, vec2(size, size)),
                 rounding: Rounding::none(),
@@ -444,7 +452,7 @@ impl AsShape for MovingTriangle {
     }
 }
 impl NewShape for MovingTriangle {
-    fn new(color: Color32, size: f32, center: Pos2) -> Self {
+    fn new(color: Color32, size: f32, center: Pos2, velocity: Vec2) -> Self {
         let triangle = PathShape {
             points: vec![
                 center + vec2(0.0, -size / 2.0),
@@ -457,7 +465,7 @@ impl NewShape for MovingTriangle {
         };
 
         Self {
-            velocity: vec2(4.0, 4.0),
+            velocity,
             shape: triangle,
             size,
         }
@@ -517,7 +525,7 @@ impl AsShape for MovingCircle {
     }
 }
 impl NewShape for MovingCircle {
-    fn new(color: Color32, size: f32, center: Pos2) -> Self {
+    fn new(color: Color32, size: f32, center: Pos2, velocity: Vec2) -> Self {
         let circle = CircleShape {
             center,
             radius: size / 2.0,
@@ -526,7 +534,7 @@ impl NewShape for MovingCircle {
         };
         Self {
             shape: circle,
-            velocity: vec2(2.0, 2.0),
+            velocity,
         }
     }
 }
