@@ -1,20 +1,14 @@
 # Dust DDS
 
-This repository contains the [S2E Software Systems](https://www.s2e-systems.com) implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
+[S2E Software Systems](https://www.s2e-systems.com) implementation of the OMG [Data Distribution Services (DDS)](https://www.omg.org/omg-dds-portal/) and [Real-time Publisher-Subscriber (RTPS)](https://www.omg.org/spec/DDSI-RTPS/About-DDSI-RTPS/) protocols using the [Rust programming language](https://www.rust-lang.org/).
 
-The aim is to provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
+DDS is a middleware protocol and API standard for data-centric connectivity. The main goal of DDS is to share the right data at the right place at the right time, even between time-decoupled publishers and consumers.
 
-***Note: This crate is a work-in-progress and so far only the most basic functionality is expected to be working***
+This crate provide a high-quality Rust implementation of the minimum DDS profile. For high-quality it is meant that the implementation is done using stable Rust and without unsafe code and with large unit test code coverage.
+
 ## Example
 
-A basic example on how to use Dust DDS. Make sure you import the crate into your
-
-```toml
-[dependencies]
-dust_dds = "0.1.0"
-```
-
-Then the publisher side can be implemented as:
+A basic example on how to use Dust DDS. The publisher side can be implemented as:
 
 ```rust
     use dust_dds::{
@@ -100,11 +94,11 @@ The subscriber side can be implemented as:
             .unwrap();
 
         let samples = reader
-            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-            .unwrap();
+            .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE);
 
-        let hello_world = samples[0].data.as_ref().unwrap();
-        println!("Received: {:?}", hello_world);
+        if let Ok(hello_world_samples) = samples {
+            println!("Received: {:?}", hello_world_samples[0].data.as_ref().unwrap());
+        }
     }
 ```
 

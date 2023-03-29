@@ -24,8 +24,10 @@ use crate::{
         status::StatusKind,
     },
 };
+use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
+use schemars::schema_for;
 use socket2::Socket;
 
 use super::domain_participant::DomainParticipant;
@@ -112,6 +114,23 @@ fn get_multicast_socket(
     Ok(socket.into())
 }
 
+fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfiguration, String> {
+    let root_schema = schema_for!(DustDdsConfiguration);
+    let json_schema_str =
+        serde_json::to_string(&root_schema).expect("Json schema could not be created");
+
+    let schema = serde_json::value::Value::from_str(json_schema_str.as_str())
+        .expect("Json schema not valid");
+    let compiled_schema = JSONSchema::compile(&schema).expect("Json schema could not be compiled");
+
+    let instance =
+        serde_json::value::Value::from_str(configuration_json).map_err(|e| e.to_string())?;
+    compiled_schema
+        .validate(&instance)
+        .map_err(|errors| errors.map(|e| e.to_string()).collect::<String>())?;
+    serde_json::from_value(instance).map_err(|e| e.to_string())
+}
+
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
@@ -138,7 +157,8 @@ impl DomainParticipantFactory {
     ) -> DdsResult<DomainParticipant> {
         let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
         {
-            DustDdsConfiguration::try_from_str(configuration_json.as_str())?
+            configuration_try_from_str(configuration_json.as_str())
+                .map_err(DdsError::PreconditionNotMet)?
         } else {
             DustDdsConfiguration::default()
         };
@@ -351,5 +371,26 @@ impl DomainParticipantFactory {
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {
         self.qos.read_lock().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_configuration_json() {
+        let configuration = configuration_try_from_str(
+            r#"{"domain_tag" : "from_configuration_json", "interface_name": "Wi-Fi"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            configuration,
+            DustDdsConfiguration {
+                domain_tag: "from_configuration_json".to_string(),
+                interface_name: Some("Wi-Fi".to_string()),
+                fragment_size: 1344
+            }
+        );
     }
 }

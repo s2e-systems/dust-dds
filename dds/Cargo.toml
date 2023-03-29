@@ -1,6 +1,6 @@
 [package]
 name = "dust_dds"
-version = "0.1.0"
+version = "0.2.0"
 authors = [
 	"Joao Rebelo <jrebelo@s2e-systems.com>",
 	"Stefan Kimmer <skimmer@s2e-systems.com>",
@@ -16,7 +16,7 @@ keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
 
 [dependencies]
-dust_dds_derive = { path = "../dds_derive", version = "0.1" }
+dust_dds_derive = { path = "../dds_derive", version = "0.2" }
 serde = { version = "=1.0", default-features = false, features = ["derive"] }
 cdr = "=0.2.4"
 
