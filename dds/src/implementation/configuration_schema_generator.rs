@@ -1,7 +1,14 @@
 use std::env;
 use std::io::Write;
 
-use dust_dds::generate_dust_dds_configuration_schema;
+use schemars::schema_for;
+
+mod configuration;
+
+pub fn generate_dust_dds_configuration_schema() -> Result<String, std::io::Error> {
+    let root_schema = schema_for!(configuration::DustDdsConfiguration);
+    Ok(serde_json::to_string_pretty(&root_schema)?)
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
