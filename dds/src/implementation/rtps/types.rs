@@ -336,7 +336,7 @@ impl VendorId {
 }
 
 pub const VENDOR_ID_UNKNOWN: VendorId = VendorId([0, 0]);
-pub const VENDOR_ID_S2E: VendorId = VendorId([99, 99]);
+pub const VENDOR_ID_S2E: VendorId = VendorId([0x01, 0x14]);
 
 /// Count_t
 /// Type used to hold a count that is incremented monotonically, used to identify message duplicates.
