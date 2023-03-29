@@ -13,3 +13,15 @@ workflows:
           config-path: .circleci/continue-config.yml
           mapping: |
             .circleci/Dockerfile build_docker_image true
+
+  deployment_workflow:
+    jobs:
+      - package
+
+jobs:
+  package:
+    docker:
+      - image: cimg/rust:1.65.0
+    resource_class: large
+    steps:
+      - checkout
