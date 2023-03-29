@@ -158,7 +158,7 @@ impl DomainParticipantFactory {
         let configuration = if let Ok(configuration_json) = std::env::var("DUST_DDS_CONFIGURATION")
         {
             configuration_try_from_str(configuration_json.as_str())
-                .map_err(|e| DdsError::PreconditionNotMet(e))?
+                .map_err(DdsError::PreconditionNotMet)?
         } else {
             DustDdsConfiguration::default()
         };
