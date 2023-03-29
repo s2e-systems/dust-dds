@@ -1,0 +1,31 @@
+on:
+  push:
+    # Pattern matched against refs/tags
+    tags:
+      - '*'           # Push events to every tag not containing /
+  workflow_dispatch:
+
+name: Publish to crates.io
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - run: cargo publish --package 'dust_dds_derive' --token ${CRATES_TOKEN} --dry-run
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+
+      - run: cargo publish --package 'dust_dds' --token ${CRATES_TOKEN} --dry-run
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
