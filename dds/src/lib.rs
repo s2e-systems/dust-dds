@@ -1,9 +1,5 @@
-//! Native Rust implementation of the OMG [Data Distribution Services (DDS)](https://www.dds-foundation.org/) standard.
-//!
-//! ***Note: This crate is a work-in-progress and so far only the most basic functionality is expected to be working***
-//!
-//! DDS is a middleware protocol and API standard for data-centric connectivity. The main goal of DDS is to share the
-//! right data at the right place at the right time, even between time-decoupled publishers and consumers.
+#![doc = include_str!("../../README.md")]
+#[forbid(unsafe_code)]
 
 /// Contains the built-in topics used by the service to propagate information needed for discovery and other data.
 pub mod builtin_topics;
