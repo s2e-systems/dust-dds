@@ -41,3 +41,11 @@ path = "dust_dds_big_data_subscriber.rs"
 [[bin]]
 name = "dust_dds_big_data_publisher"
 path = "dust_dds_big_data_publisher.rs"
+
+[[bin]]
+name = "multiple_subscriber_test_subscriber"
+path = "subscriber_multi_machine.rs"
+
+[[bin]]
+name = "multiple_subscriber_test_publisher"
+path = "publisher_multi_machine.rs"
