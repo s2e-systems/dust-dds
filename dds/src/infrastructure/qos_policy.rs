@@ -831,14 +831,14 @@ impl Default for HistoryQosPolicy {
 /// If reliability is [`ReliabilityQosPolicyKind::BestEffort`] then the Service is allowed to drop samples. If the reliability is
 /// [`ReliabilityQosPolicyKind::Reliable`], the Service will block the DataWriter or discard the sample at the
 /// [`DataReader`](crate::subscription::data_reader::DataReader) in order not to lose existing samples.
-/// The constant [`LENGTH_UNLIMITED`] may be used to indicate the absence of a particular limit. For example setting
-/// [`ResourceLimitsQosPolicy::max_samples_per_instance`] to [`LENGTH_UNLIMITED`] will cause the middleware to not enforce
+/// The constant [`Length::Unlimited`] may be used to indicate the absence of a particular limit. For example setting
+/// [`ResourceLimitsQosPolicy::max_samples_per_instance`] to [`Length::Unlimited`] will cause the middleware to not enforce
 /// this particular limit.
 /// The setting of [`ResourceLimitsQosPolicy::max_samples`] must be consistent with the [`ResourceLimitsQosPolicy::max_samples_per_instance`].
 /// For these two values to be consistent they must verify that *max_samples >= max_samples_per_instance*.
 /// The setting of [`ResourceLimitsQosPolicy::max_samples_per_instance`] must be consistent with the
 /// [`HistoryQosPolicy`] depth. For these two QoS to be consistent, they must verify
-/// that *[`HistoryQosPolicy::depth`] <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
+/// that *HistoryQosPolicy depth <= [`ResourceLimitsQosPolicy::max_samples_per_instance`]*.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResourceLimitsQosPolicy {
     pub max_samples: Length,
