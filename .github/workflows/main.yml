@@ -22,10 +22,10 @@ jobs:
           toolchain: stable
           override: true
 
-      - run: cargo publish --package 'dust_dds_derive' --token ${CRATES_TOKEN} --dry-run
+      - run: cargo publish --package 'dust_dds_derive' --token ${CRATES_TOKEN}
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
 
-      - run: cargo publish --package 'dust_dds' --token ${CRATES_TOKEN} --dry-run
+      - run: cargo publish --package 'dust_dds' --token ${CRATES_TOKEN}
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
