@@ -8,7 +8,7 @@ authors = [
 ]
 license = "Apache-2.0"
 edition = "2018"
-readme = "../README.md"
+readme = "README.md"
 description = "Data Distribution Service (DDS) implementation"
 homepage = "https://s2e-systems.com/products/dust-dds"
 repository = "https://github.com/s2e-systems/dust-dds"
