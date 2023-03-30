@@ -1,1 +1,1 @@
-C:/workcopies/dust-dds/dds/README.md
+dds/README.md
