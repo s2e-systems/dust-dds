@@ -14,7 +14,8 @@ homepage = "https://s2e-systems.com/products/dust-dds"
 repository = "https://github.com/s2e-systems/dust-dds"
 keywords = ["dds", "rtps", "middleware", "network", "udp"]
 categories = ["api-bindings", "network-programming"]
-include = ["../README.md"]
+
+include = ["/src", "/examples", "../LICENSE", "README.md"]
 
 [dependencies]
 dust_dds_derive = { path = "../dds_derive", version = "0.2" }
