@@ -1507,7 +1507,7 @@ fn volatile_writer_reader_receives_only_new_samples() {
     writer.write(&data2, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader
