@@ -2,6 +2,7 @@ use std::sync::mpsc::SyncSender;
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
@@ -13,12 +14,14 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
+    topic_definition::topic::AnyTopic,
 };
 
 use super::{
     any_topic_listener::AnyTopicListener,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 impl InconsistentTopicStatus {
@@ -41,8 +44,7 @@ pub struct TopicImpl {
     topic_name: String,
     parent_participant: DdsWeak<DomainParticipantImpl>,
     enabled: DdsRwLock<bool>,
-    listener: DdsRwLock<Option<Box<dyn AnyTopicListener + Send + Sync>>>,
-    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    status_listener: DdsRwLock<StatusListener<dyn AnyTopicListener + Send + Sync>>,
     inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -67,8 +69,7 @@ impl TopicImpl {
             topic_name: topic_name.to_string(),
             parent_participant,
             enabled: DdsRwLock::new(false),
-            listener: DdsRwLock::new(listener),
-            listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
@@ -123,8 +124,7 @@ impl DdsShared<TopicImpl> {
         a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) {
-        *self.listener.write_lock() = a_listener;
-        *self.listener_status_mask.write_lock() = mask.to_vec();
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -173,27 +173,49 @@ impl DdsShared<TopicImpl> {
         }
     }
 
-    pub fn process_discovered_topic(&self, discovered_topic_data: &DiscoveredTopicData) {
+    pub fn process_discovered_topic(
+        &self,
+        discovered_topic_data: &DiscoveredTopicData,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
         if discovered_topic_data.topic_builtin_topic_data.type_name == self.type_name
             && discovered_topic_data.topic_builtin_topic_data.name == self.topic_name
             && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
         {
             self.inconsistent_topic_status.write_lock().increment();
-            if self
-                .listener_status_mask
-                .read_lock()
-                .contains(&StatusKind::InconsistentTopic)
-            {
-                if let Some(listener) = self.listener.write_lock().as_mut() {
-                    listener.trigger_on_inconsistent_topic(
-                        self,
-                        self.inconsistent_topic_status.write_lock().read_and_reset(),
-                    )
-                }
-            }
+
+            self.trigger_on_inconsistent_topic_listener(
+                &mut self.status_listener.write_lock(),
+                participant_status_listener,
+            );
+
             self.status_condition
                 .write_lock()
                 .add_communication_state(StatusKind::InconsistentTopic);
+        }
+    }
+
+    fn trigger_on_inconsistent_topic_listener(
+        &self,
+        topic_status_listener: &mut StatusListener<dyn AnyTopicListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
+        let inconsistent_topic_status_kind = &StatusKind::InconsistentTopic;
+
+        if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
+            topic_status_listener
+                .listener_mut()
+                .expect("Listener should be Some if enabled")
+                .trigger_on_inconsistent_topic(self, self.get_inconsistent_topic_status())
+        } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
+            participant_status_listener
+                .listener_mut()
+                .expect("Listener should be Some if enabled")
+                .on_inconsistent_topic(self, self.get_inconsistent_topic_status())
         }
     }
 }
@@ -227,6 +249,8 @@ fn is_discovered_topic_consistent(
         && topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data.lifespan
         && topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership
 }
+
+impl AnyTopic for DdsShared<TopicImpl> {}
 
 #[cfg(test)]
 mod tests {
