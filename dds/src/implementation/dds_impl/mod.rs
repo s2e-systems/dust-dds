@@ -13,6 +13,7 @@ pub mod message_receiver;
 pub mod participant_discovery;
 pub mod reader_factory;
 pub mod status_condition_impl;
+pub mod status_listener;
 pub mod topic_impl;
 pub mod user_defined_data_reader;
 pub mod user_defined_data_writer;
