@@ -130,9 +130,9 @@ enum ShapeKind {
 impl ShapeKind {
     fn as_str(&self) -> &'_ str {
         match self {
+            ShapeKind::Square => "Square",
             ShapeKind::Circle => "Circle",
             ShapeKind::Triangle => "Triangle",
-            ShapeKind::Square => "Square",
         }
     }
 }
@@ -146,8 +146,6 @@ impl ShapeWriter {
     fn write(&self) {
         let data = self.shape.as_shape_type(self.offset);
         self.writer.write(&data, None).expect("writing failed");
-        let shape_kind = self.writer.get_topic().unwrap().get_name().unwrap();
-        println!("{:?} written {:?}", shape_kind, data);
     }
     fn shape(&mut self) -> Shape {
         self.shape.as_shape()
@@ -236,6 +234,9 @@ impl MyApp {
 
         let velocity = vec2(30.0, 30.0);
         let shape: Box<dyn MovingShape> = match shape_kind {
+            ShapeKind::Square => {
+                Box::new(MovingSquare::new(color, 30.0, pos2(360.0, 180.0), velocity))
+            }
             ShapeKind::Circle => {
                 Box::new(MovingCircle::new(color, 30.0, pos2(360.0, 180.0), velocity))
             }
@@ -245,9 +246,6 @@ impl MyApp {
                 pos2(360.0, 180.0),
                 velocity,
             )),
-            ShapeKind::Square => {
-                Box::new(MovingSquare::new(color, 30.0, pos2(360.0, 180.0), velocity))
-            }
         };
 
         let shape_writer = ShapeWriter {
@@ -295,7 +293,6 @@ impl MyApp {
 
         let mut shapes = vec![];
         let mut previous_handle = None;
-        let now = std::time::Instant::now();
         while let Ok(samples) = reader.read_next_instance(
             1,
             previous_handle,
@@ -306,12 +303,6 @@ impl MyApp {
             if let Some(sample) = samples.first() {
                 previous_handle = Some(sample.sample_info.instance_handle);
                 if let Some(data) = &sample.data {
-                    println!(
-                        "{:?} {:?} read {:?}",
-                        std::time::Instant::now() - now,
-                        shapes_kind,
-                        data
-                    );
                     let color = match data.color.as_str() {
                         "PURPLE" => PURPLE,
                         "BLUE" => BLUE,
@@ -331,9 +322,9 @@ impl MyApp {
                     let size = data.shapesize as f32;
                     let velocity = vec2(0.0, 0.0);
                     let shape = match shapes_kind.as_str() {
+                        "Square" => MovingSquare::new(color, size, center, velocity).as_shape(),
                         "Circle" => MovingCircle::new(color, size, center, velocity).as_shape(),
                         "Triangle" => MovingTriangle::new(color, size, center, velocity).as_shape(),
-                        "Square" => MovingSquare::new(color, size, center, velocity).as_shape(),
                         _ => panic!("Unsupported shape"),
                     };
                     shapes.push(shape);
@@ -348,6 +339,14 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Some(shape_kind) = self.window_open {
             egui::Window::new("Publish").show(ctx, |ui| {
+                if ui.button("PURPLE").clicked() {
+                    self.window_open = None;
+                    self.create_writer(shape_kind, PURPLE, self.is_reliable);
+                }
+                if ui.button("BLUE").clicked() {
+                    self.window_open = None;
+                    self.create_writer(shape_kind, BLUE, self.is_reliable);
+                }
                 if ui.button("RED").clicked() {
                     self.window_open = None;
                     self.create_writer(shape_kind, RED, self.is_reliable);
@@ -356,9 +355,21 @@ impl eframe::App for MyApp {
                     self.window_open = None;
                     self.create_writer(shape_kind, GREEN, self.is_reliable);
                 }
-                if ui.button("BLUE").clicked() {
+                if ui.button("YELLOW").clicked() {
                     self.window_open = None;
-                    self.create_writer(shape_kind, BLUE, self.is_reliable);
+                    self.create_writer(shape_kind, YELLOW, self.is_reliable);
+                }
+                if ui.button("CYAN").clicked() {
+                    self.window_open = None;
+                    self.create_writer(shape_kind, CYAN, self.is_reliable);
+                }
+                if ui.button("MAGENTA").clicked() {
+                    self.window_open = None;
+                    self.create_writer(shape_kind, MAGENTA, self.is_reliable);
+                }
+                if ui.button("ORANGE").clicked() {
+                    self.window_open = None;
+                    self.create_writer(shape_kind, ORANGE, self.is_reliable);
                 }
                 ui.checkbox(&mut self.is_reliable, "reliable");
             });
@@ -366,25 +377,25 @@ impl eframe::App for MyApp {
 
         egui::SidePanel::left("left_panel").show(ctx, |ui| {
             ui.heading("Publish");
+            if ui.button(ShapeKind::Square.as_str()).clicked() {
+                self.window_open = Some(ShapeKind::Square);
+            };
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
                 self.window_open = Some(ShapeKind::Circle);
             };
             if ui.button(ShapeKind::Triangle.as_str()).clicked() {
                 self.window_open = Some(ShapeKind::Triangle);
             };
-            if ui.button(ShapeKind::Square.as_str()).clicked() {
-                self.window_open = Some(ShapeKind::Square);
-            };
             ui.separator();
             ui.heading("Subscribe");
+            if ui.button(ShapeKind::Square.as_str()).clicked() {
+                self.create_reader(ShapeKind::Square.as_str(), self.is_reliable)
+            };
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
                 self.create_reader(ShapeKind::Circle.as_str(), self.is_reliable)
             };
             if ui.button(ShapeKind::Triangle.as_str()).clicked() {
                 self.create_reader(ShapeKind::Triangle.as_str(), self.is_reliable)
-            };
-            if ui.button(ShapeKind::Square.as_str()).clicked() {
-                self.create_reader(ShapeKind::Square.as_str(), self.is_reliable)
             };
             ui.checkbox(&mut self.is_reliable, "reliable");
         });
