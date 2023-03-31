@@ -1,6 +1,6 @@
 use super::analyser::*;
 
-use crate::idl;
+use crate::idl::{self, Literal, UnaryOperator};
 use crate::parser::Rule;
 
 pub fn positive_int_const<'i>() -> AnalyserObject<'i, usize> {
@@ -28,21 +28,18 @@ pub fn primary_expr<'i>() -> AnalyserObject<'i, idl::Literal> {
 }
 
 pub fn unary_expr<'i>() -> AnalyserObject<'i, idl::Literal> {
-    use idl::Literal::*;
-    use idl::UnaryOperator::*;
-
     maybe(unary_operator())
         .zip(primary_expr())
         .and_then(|(op, l)| match (op, l) {
             (None, l) => pure(l),
 
-            (Some(Minus), Integer(n)) => pure(Integer(-n)),
-            (Some(Plus), Integer(n)) => pure(Integer(n)),
+            (Some(UnaryOperator::Minus), Literal::Integer(n)) => pure(Literal::Integer(-n)),
+            (Some(UnaryOperator::Plus), Literal::Integer(n)) => pure(Literal::Integer(n)),
 
-            (Some(Minus), Float(x)) => pure(Float(-x)),
-            (Some(Plus), Float(x)) => pure(Float(x)),
+            (Some(UnaryOperator::Minus), Literal::Float(x)) => pure(Literal::Float(-x)),
+            (Some(UnaryOperator::Plus), Literal::Float(x)) => pure(Literal::Float(x)),
 
-            (Some(Not), Bool(b)) => pure(Bool(!b)),
+            (Some(UnaryOperator::Not), Literal::Bool(b)) => pure(Literal::Bool(!b)),
 
             (Some(op), l) => fail(&format!("{:?} cannot be applied to {:?}", op, l)),
         })
