@@ -627,7 +627,7 @@ impl DdsShared<DomainParticipantImpl> {
 
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.remove_matched_reader(handle);
+            publisher.remove_matched_reader(handle, &mut self.status_listener.write_lock());
         }
 
         Ok(())
@@ -1193,6 +1193,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         discovered_participant_data.default_unicast_locator_list(),
                                         discovered_participant_data
                                             .default_multicast_locator_list(),
+                                        &mut self.status_listener.write_lock(),
                                     );
                                 }
                             }
@@ -1203,6 +1204,7 @@ impl DdsShared<DomainParticipantImpl> {
                     for publisher in self.user_defined_publisher_list.read_lock().iter() {
                         publisher.remove_matched_reader(
                             discovered_reader_data_sample.sample_info.instance_handle,
+                            &mut self.status_listener.write_lock(),
                         )
                     }
                 }

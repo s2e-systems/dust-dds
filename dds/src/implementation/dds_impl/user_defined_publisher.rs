@@ -3,6 +3,7 @@ use std::sync::mpsc::SyncSender;
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -328,6 +329,9 @@ impl DdsShared<UserDefinedPublisher> {
         discovered_reader_data: &DiscoveredReaderData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) {
         let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
             &discovered_reader_data
@@ -368,16 +372,24 @@ impl DdsShared<UserDefinedPublisher> {
                     default_unicast_locator_list,
                     default_multicast_locator_list,
                     &mut self.status_listener.write_lock(),
+                    participant_status_listener,
                 )
             }
         }
     }
 
-    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.remove_matched_reader(
                 discovered_reader_handle,
                 &mut self.status_listener.write_lock(),
+                participant_status_listener,
             )
         }
     }
