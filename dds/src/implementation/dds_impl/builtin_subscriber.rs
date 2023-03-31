@@ -3,6 +3,7 @@ use crate::{
         ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
         TopicBuiltinTopicData,
     },
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -46,6 +47,7 @@ use super::{
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     },
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    status_listener::StatusListener,
     topic_impl::TopicImpl,
 };
 
@@ -228,6 +230,9 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        _participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) {
         if self
             .sedp_builtin_topics_reader
@@ -269,6 +274,9 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         &self,
         _data_frag_submessage: &DataFragSubmessage<'_>,
         _message_receiver: &MessageReceiver,
+        _participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) {
         // Not for builtin types
     }
