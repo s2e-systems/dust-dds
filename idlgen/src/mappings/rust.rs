@@ -40,44 +40,45 @@ pub fn type_spec(t: idl::Type) -> String {
 }
 
 pub fn struct_member(member: idl::StructMember) -> String {
-    let key_tag = if member.is_key {
-        "#[key] "
-    } else {
-        ""
-    };
-    format!("{}pub {}: {}", key_tag, member.name, type_spec(member.datatype))
+    let key_tag = if member.is_key { "#[key] " } else { "" };
+    format!(
+        "{}pub {}: {}",
+        key_tag,
+        member.name,
+        type_spec(member.datatype)
+    )
 }
 
 pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("pub struct {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
+        format!("pub struct {} {{\n", def.name),
     ]
         .into_iter()
         .chain(
             def.members
                 .into_iter()
-                .map(|member| format!("    {},", struct_member(member))),
+                .map(|member| format!("    {},\n", struct_member(member))),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("pub enum {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
+        format!("pub enum {} {{\n", def.name),
     ]
         .into_iter()
         .chain(
             def.variants
                 .into_iter()
-                .map(|variant| format!("    {},", variant)),
+                .map(|variant| format!("    {},\n", variant)),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
-    [format!("mod {} {{", def.name)]
+    [format!("mod {} {{\n", def.name)]
         .into_iter()
         .chain(
             def.definitions
@@ -86,7 +87,7 @@ pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
                 .into_iter()
                 .map(|line| "    ".to_string() + &line),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn definition(def: idl::Definition) -> Box<dyn Iterator<Item = String>> {
