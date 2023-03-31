@@ -129,12 +129,12 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "pub struct Toto {",
-                "    pub a: i64,",
-                "    pub b: char,",
-                "    pub c: f64,",
-                "}",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "pub struct Toto {\n",
+                "    pub a: i64,\n",
+                "    pub b: char,\n",
+                "    pub c: f64,\n",
+                "}\n",
             ]
         )
     }
@@ -153,13 +153,13 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "pub enum Suit {",
-                "    Spades,",
-                "    Hearts,",
-                "    Diamonds,",
-                "    Clubs,",
-                "}",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "pub enum Suit {\n",
+                "    Spades,\n",
+                "    Hearts,\n",
+                "    Diamonds,\n",
+                "    Clubs,\n",
+                "}\n",
             ]
         )
     }
@@ -189,19 +189,19 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "mod M {",
-                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "    pub struct A {",
-                "        pub a: i16,",
-                "    }",
-                "    mod N {",
-                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "        pub enum B {",
-                "            C,",
-                "            D,",
-                "        }",
-                "    }",
-                "}",
+                "mod M {\n",
+                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "    pub struct A {\n",
+                "        pub a: i16,\n",
+                "    }\n",
+                "    mod N {\n",
+                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "        pub enum B {\n",
+                "            C,\n",
+                "            D,\n",
+                "        }\n",
+                "    }\n",
+                "}\n",
             ]
         )
     }
