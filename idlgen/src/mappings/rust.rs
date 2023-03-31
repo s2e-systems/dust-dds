@@ -40,44 +40,45 @@ pub fn type_spec(t: idl::Type) -> String {
 }
 
 pub fn struct_member(member: idl::StructMember) -> String {
-    let key_tag = if member.is_key {
-        "#[key] "
-    } else {
-        ""
-    };
-    format!("{}pub {}: {}", key_tag, member.name, type_spec(member.datatype))
+    let key_tag = if member.is_key { "#[key] " } else { "" };
+    format!(
+        "{}pub {}: {}",
+        key_tag,
+        member.name,
+        type_spec(member.datatype)
+    )
 }
 
 pub fn struct_def(def: idl::Struct) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("pub struct {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
+        format!("pub struct {} {{\n", def.name),
     ]
         .into_iter()
         .chain(
             def.members
                 .into_iter()
-                .map(|member| format!("    {},", struct_member(member))),
+                .map(|member| format!("    {},\n", struct_member(member))),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn enum_def(def: idl::Enum) -> impl Iterator<Item = String> {
     [
-        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]".to_string(),
-        format!("pub enum {} {{", def.name),
+        "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n".to_string(),
+        format!("pub enum {} {{\n", def.name),
     ]
         .into_iter()
         .chain(
             def.variants
                 .into_iter()
-                .map(|variant| format!("    {},", variant)),
+                .map(|variant| format!("    {},\n", variant)),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
-    [format!("mod {} {{", def.name)]
+    [format!("mod {} {{\n", def.name)]
         .into_iter()
         .chain(
             def.definitions
@@ -86,7 +87,7 @@ pub fn module_def(def: idl::Module) -> impl Iterator<Item = String> {
                 .into_iter()
                 .map(|line| "    ".to_string() + &line),
         )
-        .chain(["}".to_string()].into_iter())
+        .chain(["}\n".to_string()].into_iter())
 }
 
 pub fn definition(def: idl::Definition) -> Box<dyn Iterator<Item = String>> {
@@ -128,12 +129,12 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "pub struct Toto {",
-                "    pub a: i64,",
-                "    pub b: char,",
-                "    pub c: f64,",
-                "}",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "pub struct Toto {\n",
+                "    pub a: i64,\n",
+                "    pub b: char,\n",
+                "    pub c: f64,\n",
+                "}\n",
             ]
         )
     }
@@ -152,13 +153,13 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "pub enum Suit {",
-                "    Spades,",
-                "    Hearts,",
-                "    Diamonds,",
-                "    Clubs,",
-                "}",
+                "#[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "pub enum Suit {\n",
+                "    Spades,\n",
+                "    Hearts,\n",
+                "    Diamonds,\n",
+                "    Clubs,\n",
+                "}\n",
             ]
         )
     }
@@ -188,19 +189,19 @@ mod tests {
             })
             .collect::<Vec<String>>(),
             vec![
-                "mod M {",
-                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "    pub struct A {",
-                "        pub a: i16,",
-                "    }",
-                "    mod N {",
-                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]",
-                "        pub enum B {",
-                "            C,",
-                "            D,",
-                "        }",
-                "    }",
-                "}",
+                "mod M {\n",
+                "    #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "    pub struct A {\n",
+                "        pub a: i16,\n",
+                "    }\n",
+                "    mod N {\n",
+                "        #[derive(Debug, serde::Deserialize, serde::Serialize, dust_dds::topic_definition::type_support::DdsSerde, dust_dds::topic_definition::type_support::DdsType)]\n",
+                "        pub enum B {\n",
+                "            C,\n",
+                "            D,\n",
+                "        }\n",
+                "    }\n",
+                "}\n",
             ]
         )
     }

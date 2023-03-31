@@ -72,6 +72,7 @@ pub enum UnaryOperator {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Literal {
     Integer(i64),
     Float(f64),

@@ -15,7 +15,6 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds = { path = "../dds" }
-dust_dds_derive = { path = "../dds_derive" }
 eframe = "=0.21.0"
 image = { version = "0.24", features = ["png"] }
 periodic = "0.1.1"
@@ -25,8 +24,6 @@ cdr = "=0.2.4"
 
 [build-dependencies]
 dust_idlgen = {path = "../idlgen" }
-pest = "=2.5.3"
-pest_derive = "=2.5.3"
 
 [[bin]]
 name = "dust_dds_shapes_demo"
