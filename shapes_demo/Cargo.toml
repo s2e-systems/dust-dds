@@ -15,7 +15,6 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds = { path = "../dds" }
-dust_dds_derive = { path = "../dds_derive" }
 eframe = "=0.21.0"
 image = { version = "0.24", features = ["png"] }
 periodic = "0.1.1"
