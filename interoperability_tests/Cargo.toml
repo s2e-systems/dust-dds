@@ -16,15 +16,12 @@ categories = ["api-bindings", "network-programming"]
 
 [dependencies]
 dust_dds = { path = "../dds" }
-dust_dds_derive = { path = "../dds_derive" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 cdr = "=0.2.4"
 
 [build-dependencies]
 dust_idlgen = {path = "../idlgen" }
-pest = "=2.5.3"
-pest_derive = "=2.5.3"
 
 [[bin]]
 name = "dust_dds_publisher"
