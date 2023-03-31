@@ -274,10 +274,8 @@ impl DdsShared<UserDefinedDataWriter> {
                     }
                 }
                 Err(incompatible_qos_policy_list) => self.on_offered_incompatible_qos(
-                    &mut self.offered_incompatible_qos_status.write_lock(),
                     incompatible_qos_policy_list,
-                    &mut self.status_listener.write_lock(),
-                    &mut self.status_condition.write_lock(),
+                    publisher_status_listener,
                 ),
             }
         }
@@ -624,23 +622,21 @@ impl DdsShared<UserDefinedDataWriter> {
 
     fn on_offered_incompatible_qos(
         &self,
-        offered_incompatible_qos_status: &mut OfferedIncompatibleQosStatus,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
-        writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
-        status_condition: &mut StatusConditionImpl,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
     ) {
-        offered_incompatible_qos_status.increment(incompatible_qos_policy_list);
+        self.offered_incompatible_qos_status
+            .write_lock()
+            .increment(incompatible_qos_policy_list);
 
-        if writer_status_listener.is_enabled(&StatusKind::OfferedIncompatibleQos) {
-            writer_status_listener
-                .listener_mut()
-                .expect("Listener should have be Some if enabled")
-                .trigger_on_offered_incompatible_qos(self)
-        } else {
-            todo!(); // self.get_publisher().on_offered_incompatible_qos(self),
-        }
+        self.trigger_on_offered_incompatible_qos_listener(
+            &mut self.status_listener.write_lock(),
+            publisher_status_listener,
+        );
 
-        status_condition.add_communication_state(StatusKind::OfferedIncompatibleQos);
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::OfferedIncompatibleQos);
     }
 
     fn on_publication_matched(
@@ -652,7 +648,7 @@ impl DdsShared<UserDefinedDataWriter> {
             .write_lock()
             .increment(instance_handle);
 
-        self.trigger_publication_matched_listener(
+        self.trigger_on_publication_matched_listener(
             &mut self.status_listener.write_lock(),
             publisher_status_listener,
         );
@@ -662,7 +658,7 @@ impl DdsShared<UserDefinedDataWriter> {
             .add_communication_state(StatusKind::PublicationMatched);
     }
 
-    fn trigger_publication_matched_listener(
+    fn trigger_on_publication_matched_listener(
         &self,
         writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
         publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
@@ -675,6 +671,27 @@ impl DdsShared<UserDefinedDataWriter> {
                 .expect("Listener should be Some if enabled")
                 .trigger_on_publication_matched(self)
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
+            publisher_status_listener
+                .listener_mut()
+                .expect("Listener should be Some if enabled")
+                .on_publication_matched(self, self.get_publication_matched_status())
+        } else {
+            todo!()
+        }
+    }
+
+    fn trigger_on_offered_incompatible_qos_listener(
+        &self,
+        writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    ) {
+        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
+        if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            writer_status_listener
+                .listener_mut()
+                .expect("Listener should be Some if enabled")
+                .trigger_on_publication_matched(self)
+        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()
                 .expect("Listener should be Some if enabled")
