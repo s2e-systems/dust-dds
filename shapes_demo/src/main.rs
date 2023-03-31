@@ -162,6 +162,7 @@ struct MyApp {
     shape_writer_list: Arc<Mutex<Vec<ShapeWriter>>>,
     window_open: Option<ShapeKind>,
     time: f64,
+    is_reliable: bool,
 }
 
 impl MyApp {
@@ -200,22 +201,33 @@ impl MyApp {
             shape_writer_list,
             window_open: None,
             time: 0.0,
+            is_reliable: true,
         }
     }
 
-    fn create_writer(&mut self, shape_kind: ShapeKind, color: Color32) {
+    fn create_writer(&mut self, shape_kind: ShapeKind, color: Color32, is_reliable: bool) {
         let topic_name = shape_kind.as_str();
 
         let topic = self
             .participant
             .create_topic::<ShapeType>(topic_name, QosKind::Default, None, NO_STATUS)
             .unwrap();
-        let qos = DataWriterQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::Reliable,
-                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-            },
-            ..Default::default()
+        let qos = if is_reliable {
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::Reliable,
+                    max_blocking_time: DurationKind::Infinite,
+                },
+                ..Default::default()
+            }
+        } else {
+            DataWriterQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffort,
+                    max_blocking_time: DurationKind::Infinite,
+                },
+                ..Default::default()
+            }
         };
         let writer = self
             .publisher
@@ -246,20 +258,30 @@ impl MyApp {
         self.shape_writer_list.lock().unwrap().push(shape_writer);
     }
 
-    fn create_reader(&mut self, topic_name: &str) {
+    fn create_reader(&mut self, topic_name: &str, is_reliable: bool) {
         let topic = self
             .participant
             .create_topic::<ShapeType>(topic_name, QosKind::Default, None, NO_STATUS)
             .unwrap();
-        let qos = DataReaderQos {
-            reliability: ReliabilityQosPolicy {
-                kind: ReliabilityQosPolicyKind::BestEffort,
-                max_blocking_time: DurationKind::Finite(Duration::new(1, 0)),
-            },
-            history: HistoryQosPolicy {
-                kind: HistoryQosPolicyKind::KeepLast(1),
-            },
-            ..Default::default()
+        let qos = if is_reliable {
+            DataReaderQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::Reliable,
+                    max_blocking_time: DurationKind::Infinite,
+                },
+                history: HistoryQosPolicy {
+                    kind: HistoryQosPolicyKind::KeepLast(1),
+                },
+                ..Default::default()
+            }
+        } else {
+            DataReaderQos {
+                reliability: ReliabilityQosPolicy {
+                    kind: ReliabilityQosPolicyKind::BestEffort,
+                    max_blocking_time: DurationKind::Infinite,
+                },
+                ..Default::default()
+            }
         };
         let reader = self
             .subscriber
@@ -328,16 +350,17 @@ impl eframe::App for MyApp {
             egui::Window::new("Publish").show(ctx, |ui| {
                 if ui.button("RED").clicked() {
                     self.window_open = None;
-                    self.create_writer(shape_kind, RED);
+                    self.create_writer(shape_kind, RED, self.is_reliable);
                 }
                 if ui.button("GREEN").clicked() {
                     self.window_open = None;
-                    self.create_writer(shape_kind, GREEN);
+                    self.create_writer(shape_kind, GREEN, self.is_reliable);
                 }
                 if ui.button("BLUE").clicked() {
                     self.window_open = None;
-                    self.create_writer(shape_kind, BLUE);
+                    self.create_writer(shape_kind, BLUE, self.is_reliable);
                 }
+                ui.checkbox(&mut self.is_reliable, "reliable");
             });
         }
 
@@ -355,14 +378,15 @@ impl eframe::App for MyApp {
             ui.separator();
             ui.heading("Subscribe");
             if ui.button(ShapeKind::Circle.as_str()).clicked() {
-                self.create_reader(ShapeKind::Circle.as_str())
+                self.create_reader(ShapeKind::Circle.as_str(), self.is_reliable)
             };
             if ui.button(ShapeKind::Triangle.as_str()).clicked() {
-                self.create_reader(ShapeKind::Triangle.as_str())
+                self.create_reader(ShapeKind::Triangle.as_str(), self.is_reliable)
             };
             if ui.button(ShapeKind::Square.as_str()).clicked() {
-                self.create_reader(ShapeKind::Square.as_str())
+                self.create_reader(ShapeKind::Square.as_str(), self.is_reliable)
             };
+            ui.checkbox(&mut self.is_reliable, "reliable");
         });
         egui::CentralPanel::default().show(ctx, |ui| {
             let painter = ui.painter();
