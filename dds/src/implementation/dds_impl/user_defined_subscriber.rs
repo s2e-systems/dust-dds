@@ -425,14 +425,12 @@ impl DdsShared<UserDefinedSubscriber> {
         if subscriber_status_listener.is_enabled(data_on_readers_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
                     self.downgrade(),
                 )))
         } else if participant_status_listener.is_enabled(data_on_readers_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
                     self.downgrade(),
                 )))

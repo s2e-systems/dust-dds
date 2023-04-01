@@ -925,12 +925,10 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(on_data_available_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_data_available(self)
         } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_data_available(self)
         }
     }
@@ -967,17 +965,14 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_lost_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_sample_lost(self)
         } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_sample_lost(self, self.get_sample_lost_status())
         } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_sample_lost(self, self.get_sample_lost_status())
         }
     }
@@ -1017,17 +1012,14 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(subscription_matched_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_subscription_matched(self)
         } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_subscription_matched(self, self.get_subscription_matched_status())
         } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_subscription_matched(self, self.get_subscription_matched_status())
         }
     }
@@ -1068,17 +1060,14 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_rejected_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_sample_rejected(self)
         } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_sample_rejected(self, self.get_sample_rejected_status())
         } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_sample_rejected(self, self.get_sample_rejected_status())
         }
     }
@@ -1118,17 +1107,14 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_requested_deadline_missed(self)
         } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_requested_deadline_missed(self, self.get_requested_deadline_missed_status())
         } else if participant_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_requested_deadline_missed(self, self.get_requested_deadline_missed_status())
         }
     }
@@ -1168,17 +1154,14 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_requested_incompatible_qos(self)
         } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_requested_incompatible_qos(self, self.get_requested_incompatible_qos_status())
         } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_requested_incompatible_qos(self, self.get_requested_incompatible_qos_status())
         }
     }

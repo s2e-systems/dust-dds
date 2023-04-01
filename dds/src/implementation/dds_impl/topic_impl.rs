@@ -209,12 +209,10 @@ impl DdsShared<TopicImpl> {
         if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
             topic_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_inconsistent_topic(self, self.get_inconsistent_topic_status())
         } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_inconsistent_topic(self, self.get_inconsistent_topic_status())
         }
     }

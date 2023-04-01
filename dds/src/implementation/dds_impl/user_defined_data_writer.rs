@@ -697,17 +697,14 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(publication_matched_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_publication_matched(self)
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
             publisher_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_publication_matched(self, self.get_publication_matched_status())
         } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_publication_matched(self, self.get_publication_matched_status())
         }
     }
@@ -724,17 +721,14 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .trigger_on_offered_incompatible_qos(self)
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
         } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .expect("Listener should be Some if enabled")
                 .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
         }
     }
