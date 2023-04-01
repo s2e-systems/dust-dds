@@ -266,27 +266,12 @@ impl DdsShared<UserDefinedDataReader> {
             StatefulReaderDataReceivedResult::UnexpectedDataSequenceNumber => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
             }
-            StatefulReaderDataReceivedResult::NewSampleAdded(_instance_handle) => {
+            StatefulReaderDataReceivedResult::NewSampleAdded(instance_handle) => {
                 *self.data_available_status_changed_flag.write_lock() = true;
+                self.instance_reception_time
+                    .write_lock()
+                    .insert(instance_handle, message_receiver.reception_timestamp());
 
-                // let duration = self
-                //     .rtps_reader
-                //     .read_lock()
-                //     .reader()
-                //     .get_qos()
-                //     .deadline
-                //     .period;
-
-                // let me = self.clone();
-                // self.timer
-                //     .write_lock()
-                //     .start_timer(duration, instance_handle, move || {
-                //         me.on_requested_deadline_missed(
-                //             instance_handle,
-                //             subscriber_status_listener,
-                //             participant_status_listener,
-                //         )
-                //     });
                 UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable
             }
             StatefulReaderDataReceivedResult::NewSampleAddedAndSamplesLost(instance_handle) => {
