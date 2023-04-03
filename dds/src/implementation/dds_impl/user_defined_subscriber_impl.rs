@@ -20,7 +20,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
@@ -36,7 +36,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    domain_participant_impl::AnnounceKind,
     listener_subscriber::ListenerSubscriber,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     reader_factory::ReaderFactory,
@@ -55,7 +55,6 @@ pub struct UserDefinedSubscriberImpl {
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
@@ -69,7 +68,6 @@ impl UserDefinedSubscriberImpl {
         rtps_group: RtpsGroupImpl,
         listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -79,7 +77,6 @@ impl UserDefinedSubscriberImpl {
             data_reader_list: DdsRwLock::new(Vec::new()),
             reader_factory: DdsRwLock::new(ReaderFactory::new()),
             enabled: DdsRwLock::new(false),
-            parent_participant,
             user_defined_data_send_condvar,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
@@ -105,18 +102,14 @@ impl DdsShared<UserDefinedSubscriberImpl> {
         self.data_reader_list.read_lock().is_empty()
     }
 
-    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
-        self.parent_participant
-            .upgrade()
-            .expect("Parent participant of subscriber must exist")
-    }
-
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -125,11 +118,9 @@ impl DdsShared<UserDefinedSubscriberImpl> {
             &self.rtps_group,
             Foo::has_key(),
             qos,
-            self.get_participant().default_unicast_locator_list(),
-            self.get_participant().default_multicast_locator_list(),
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         )?;
-
-        let timer = self.get_participant().timer_factory().create_timer();
 
         let data_reader_shared = UserDefinedDataReader::new(
             rtps_reader,
@@ -138,7 +129,6 @@ impl DdsShared<UserDefinedSubscriberImpl> {
             mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
-            timer,
             self.announce_sender.clone(),
         );
 
@@ -171,7 +161,6 @@ impl DdsShared<UserDefinedSubscriberImpl> {
             })?;
 
         let data_reader = data_reader_list.remove(data_reader_list_position);
-        data_reader.cancel_timers();
 
         if data_reader.is_enabled() {
             self.announce_sender

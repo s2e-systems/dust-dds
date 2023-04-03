@@ -27,7 +27,6 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
-            timer_factory::Timer,
         },
     },
     infrastructure::{
@@ -193,7 +192,6 @@ pub struct UserDefinedDataReader {
     user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
-    timer: DdsShared<DdsRwLock<Timer>>,
     wait_for_historical_data_condvar: DdsCondvar,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -208,7 +206,6 @@ impl UserDefinedDataReader {
         mask: &[StatusKind],
         parent_subscriber: DdsWeak<UserDefinedSubscriberImpl>,
         user_defined_data_send_condvar: DdsCondvar,
-        timer: DdsShared<DdsRwLock<Timer>>,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataReader {
@@ -232,7 +229,6 @@ impl UserDefinedDataReader {
             user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
-            timer,
             wait_for_historical_data_condvar: DdsCondvar::new(),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
             announce_sender,
@@ -241,10 +237,6 @@ impl UserDefinedDataReader {
 }
 
 impl DdsShared<UserDefinedDataReader> {
-    pub fn cancel_timers(&self) {
-        self.timer.write_lock().cancel_timers()
-    }
-
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
