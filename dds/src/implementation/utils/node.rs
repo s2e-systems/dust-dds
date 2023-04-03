@@ -23,11 +23,11 @@ impl<T> Debug for RootNode<T> {
 }
 
 impl<T> RootNode<T> {
-    pub fn new(node: DdsWeak<T>) -> Self {
+    pub fn _new(node: DdsWeak<T>) -> Self {
         Self { node }
     }
 
-    pub fn get(&self) -> DdsResult<DdsShared<T>> {
+    pub fn _get(&self) -> DdsResult<DdsShared<T>> {
         self.node.upgrade()
     }
 }
@@ -61,7 +61,7 @@ impl<T, U> ChildNode<T, U> {
         self.node.upgrade()
     }
 
-    pub fn get_parent(&self) -> DdsResult<DdsShared<U>> {
+    pub fn _get_parent(&self) -> DdsResult<DdsShared<U>> {
         self.parent.upgrade()
     }
 }

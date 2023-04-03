@@ -507,9 +507,9 @@ where
         match &self.data_reader {
             DataReaderKind::BuiltinStateless(_) => todo!(),
             DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => todo!(),
+            DataReaderKind::UserDefined(_x) => todo!(),
             // Ok(Subscriber::new(SubscriberKind::UserDefined(
-                // x.upgrade()?.get_subscriber().downgrade(),
+            // x.upgrade()?.get_subscriber().downgrade(),
             // ))),
         }
     }
