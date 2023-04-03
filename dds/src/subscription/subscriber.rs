@@ -14,7 +14,7 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::user_defined_subscriber::UserDefinedSubscriberImpl, utils::shared_object::DdsWeak,
+        dds_impl::user_defined_subscriber_impl::UserDefinedSubscriberImpl, utils::shared_object::DdsWeak,
     },
     infrastructure::instance::InstanceHandle,
 };
