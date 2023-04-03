@@ -39,7 +39,7 @@ use super::{
         InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
         ANY_VIEW_STATE,
     },
-    subscriber::{Subscriber, SubscriberKind},
+    subscriber::Subscriber,
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
@@ -507,9 +507,10 @@ where
         match &self.data_reader {
             DataReaderKind::BuiltinStateless(_) => todo!(),
             DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(Subscriber::new(SubscriberKind::UserDefined(
-                x.upgrade()?.get_subscriber().downgrade(),
-            ))),
+            DataReaderKind::UserDefined(x) => todo!(),
+            // Ok(Subscriber::new(SubscriberKind::UserDefined(
+                // x.upgrade()?.get_subscriber().downgrade(),
+            // ))),
         }
     }
 

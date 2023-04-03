@@ -2,9 +2,11 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds_impl::{
-            any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+            any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriber,
+            domain_participant_impl::DomainParticipantImpl, subscriber_kind::SubscriberKind,
+            user_defined_subscriber::UserDefinedSubscriber,
         },
-        utils::shared_object::DdsWeak,
+        utils::{node::ChildNode, shared_object::DdsWeak},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -15,10 +17,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{
-        subscriber::{Subscriber, SubscriberKind},
-        subscriber_listener::SubscriberListener,
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::DdsType},
 };
 
@@ -117,7 +116,11 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_subscriber(qos, a_listener, mask)
-            .map(|x| Subscriber::new(SubscriberKind::UserDefined(x.downgrade())))
+            .map(|x| {
+                Subscriber::new(SubscriberKind::UserDefined(UserDefinedSubscriber::new(
+                    ChildNode::new(x.downgrade(), self.0.clone()),
+                )))
+            })
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -224,7 +227,7 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .get_builtin_subscriber()
-            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(x.downgrade())))
+            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(BuiltinSubscriber::new())))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
