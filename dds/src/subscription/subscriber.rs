@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        builtin_subscriber::{BuiltInSubscriberImpl, BuiltinDataReaderKind},
+        builtin_subscriber_impl::{BuiltInSubscriberImpl, BuiltinDataReaderKind},
     },
     infrastructure::{
         condition::StatusCondition,
