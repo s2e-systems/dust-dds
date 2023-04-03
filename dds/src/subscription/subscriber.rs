@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        builtin_subscriber::{BuiltInSubscriber, BuiltinDataReaderKind},
+        builtin_subscriber::{BuiltInSubscriberImpl, BuiltinDataReaderKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -14,7 +14,7 @@ use crate::{
 };
 use crate::{
     implementation::{
-        dds_impl::user_defined_subscriber::UserDefinedSubscriber, utils::shared_object::DdsWeak,
+        dds_impl::user_defined_subscriber::UserDefinedSubscriberImpl, utils::shared_object::DdsWeak,
     },
     infrastructure::instance::InstanceHandle,
 };
@@ -29,8 +29,8 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum SubscriberKind {
-    BuiltIn(DdsWeak<BuiltInSubscriber>),
-    UserDefined(DdsWeak<UserDefinedSubscriber>),
+    BuiltIn(DdsWeak<BuiltInSubscriberImpl>),
+    UserDefined(DdsWeak<UserDefinedSubscriberImpl>),
 }
 
 /// A [`Subscriber`] is the object responsible for the actual reception of the data resulting from its subscriptions.
@@ -230,7 +230,7 @@ impl Subscriber {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        UserDefinedSubscriber::copy_from_topic_qos(a_datareader_qos, a_topic_qos)
+        UserDefinedSubscriberImpl::copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
 }
 

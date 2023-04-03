@@ -69,10 +69,10 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
+    builtin_subscriber::BuiltInSubscriberImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriberImpl,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -113,9 +113,9 @@ pub struct DomainParticipantImpl {
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
-    builtin_subscriber: DdsShared<BuiltInSubscriber>,
+    builtin_subscriber: DdsShared<BuiltInSubscriberImpl>,
     builtin_publisher: DdsShared<BuiltinPublisher>,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriberImpl>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
@@ -213,7 +213,7 @@ impl DomainParticipantImpl {
             announce_sender.clone(),
         );
 
-        let builtin_subscriber = BuiltInSubscriber::new(
+        let builtin_subscriber = BuiltInSubscriberImpl::new(
             guid_prefix,
             spdp_topic_participant,
             sedp_topic_topics.clone(),
@@ -371,7 +371,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
+    ) -> DdsResult<DdsShared<UserDefinedSubscriberImpl>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -385,7 +385,7 @@ impl DdsShared<DomainParticipantImpl> {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let subscriber_shared = UserDefinedSubscriber::new(
+        let subscriber_shared = UserDefinedSubscriberImpl::new(
             subscriber_qos,
             rtps_group,
             a_listener,
@@ -580,7 +580,7 @@ impl DdsShared<DomainParticipantImpl> {
         })
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriber>> {
+    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriberImpl>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

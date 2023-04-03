@@ -56,7 +56,7 @@ pub enum BuiltinDataReaderKind<'a> {
     Stateful(&'a DdsShared<BuiltinStatefulReader>),
 }
 
-pub struct BuiltInSubscriber {
+pub struct BuiltInSubscriberImpl {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroupImpl,
     spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
@@ -66,7 +66,7 @@ pub struct BuiltInSubscriber {
     enabled: DdsRwLock<bool>,
 }
 
-impl BuiltInSubscriber {
+impl BuiltInSubscriberImpl {
     pub fn new(
         guid_prefix: GuidPrefix,
         spdp_topic_participant: DdsShared<TopicImpl>,
@@ -109,7 +109,7 @@ impl BuiltInSubscriber {
             sedp_topic_subscriptions,
         );
 
-        DdsShared::new(BuiltInSubscriber {
+        DdsShared::new(BuiltInSubscriberImpl {
             qos: DdsRwLock::new(qos),
             rtps_group,
             spdp_builtin_participant_reader,
@@ -121,7 +121,7 @@ impl BuiltInSubscriber {
     }
 }
 
-impl DdsShared<BuiltInSubscriber> {
+impl DdsShared<BuiltInSubscriberImpl> {
     pub fn spdp_builtin_participant_reader(&self) -> &DdsShared<BuiltinStatelessReader> {
         &self.spdp_builtin_participant_reader
     }
@@ -203,7 +203,7 @@ impl DdsShared<BuiltInSubscriber> {
     }
 }
 
-impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
+impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriberImpl> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
