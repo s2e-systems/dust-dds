@@ -1,4 +1,5 @@
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::rtps::{
         messages::{
             submessages::{
@@ -18,6 +19,8 @@ use crate::{
         time::{Time, TIME_INVALID},
     },
 };
+
+use super::status_listener::StatusListener;
 
 pub trait PublisherMessageReceiver {
     fn on_acknack_submessage_received(
@@ -50,12 +53,18 @@ pub trait SubscriberSubmessageReceiver {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     );
 
     fn on_data_frag_submessage_received(
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     );
 
     fn on_gap_submessage_received(
@@ -99,6 +108,9 @@ impl MessageReceiver {
         subscriber_list: &[impl SubscriberSubmessageReceiver],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) -> DdsResult<()> {
         self.dest_guid_prefix = participant_guid_prefix;
         self.source_version = message.header().version;
@@ -124,12 +136,20 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageKind::Data(data_submessage) => {
                     for subscriber in subscriber_list {
-                        subscriber.on_data_submessage_received(data_submessage, self)
+                        subscriber.on_data_submessage_received(
+                            data_submessage,
+                            self,
+                            participant_status_listener,
+                        )
                     }
                 }
                 RtpsSubmessageKind::DataFrag(data_frag_submessage) => {
                     for subscriber in subscriber_list {
-                        subscriber.on_data_frag_submessage_received(data_frag_submessage, self)
+                        subscriber.on_data_frag_submessage_received(
+                            data_frag_submessage,
+                            self,
+                            participant_status_listener,
+                        )
                     }
                 }
                 RtpsSubmessageKind::Gap(gap_submessage) => {

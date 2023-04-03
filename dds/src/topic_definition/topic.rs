@@ -20,28 +20,34 @@ use super::topic_listener::TopicListener;
 /// The [`Topic`] represents the fact that both publications and subscriptions are tied to a single data-type. Its attributes
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
-pub struct Topic<Foo>(pub(crate) DdsWeak<TopicImpl>, PhantomData<Foo>);
-
-impl<Foo> Topic<Foo> {
-    pub(crate) fn new(topic_attributes: DdsWeak<TopicImpl>) -> Self {
-        Self(topic_attributes, PhantomData)
-    }
+pub struct Topic<Foo> {
+    pub(crate) topic: DdsWeak<TopicImpl>,
+    phantom: PhantomData<Foo>,
 }
 
-impl<Foo> Drop for Topic<Foo> {
-    fn drop(&mut self) {
-        if self.0.weak_count() == 1 {
-            if let Ok(p) = self.get_participant() {
-                p.delete_topic(self).ok();
-            }
+impl<Foo> Topic<Foo> {
+    pub(crate) fn new(topic: DdsWeak<TopicImpl>) -> Self {
+        Self {
+            topic,
+            phantom: PhantomData,
         }
     }
 }
 
+// impl<Foo> Drop for Topic<Foo> {
+//     fn drop(&mut self) {
+//         if self.topic.weak_count() == 1 {
+//             if let Ok(p) = self.get_participant() {
+//                 p.delete_topic(self).ok();
+//             }
+//         }
+//     }
+// }
+
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        Ok(self.0.upgrade()?.get_inconsistent_topic_status())
+        Ok(self.topic.upgrade()?.get_inconsistent_topic_status())
     }
 }
 
@@ -50,18 +56,18 @@ impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         Ok(DomainParticipant::new(
-            self.0.upgrade()?.get_participant().downgrade(),
+            self.topic.upgrade()?.get_participant().downgrade(),
         ))
     }
 
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        Ok(self.0.upgrade()?.get_type_name())
+        Ok(self.topic.upgrade()?.get_type_name())
     }
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
-        Ok(self.0.upgrade()?.get_name())
+        Ok(self.topic.upgrade()?.get_name())
     }
 }
 
@@ -83,12 +89,12 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.0.upgrade()?.set_qos(qos)
+        self.topic.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.0.upgrade()?.get_qos())
+        Ok(self.topic.upgrade()?.get_qos())
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -103,7 +109,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         #[allow(clippy::redundant_closure)]
-        self.0.upgrade()?.set_listener(
+        self.topic.upgrade()?.set_listener(
             a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
         );
@@ -115,7 +121,7 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         Ok(StatusCondition::new(
-            self.0.upgrade()?.get_statuscondition(),
+            self.topic.upgrade()?.get_statuscondition(),
         ))
     }
 
@@ -126,7 +132,7 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.0.upgrade()?.get_status_changes())
+        Ok(self.topic.upgrade()?.get_status_changes())
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -150,18 +156,18 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.upgrade()?.get_participant().is_enabled() {
+        if !self.topic.upgrade()?.get_participant().is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
         }
 
-        self.0.upgrade()?.enable()
+        self.topic.upgrade()?.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.upgrade()?.get_instance_handle())
+        Ok(self.topic.upgrade()?.get_instance_handle())
     }
 }
 

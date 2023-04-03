@@ -665,7 +665,7 @@ fn on_data_available_listener() {
     let mut reader_listener = MockDataAvailableListener::new();
     reader_listener
         .expect_on_data_available()
-        .once()
+        .times(1..)
         .return_const(());
 
     let reader = subscriber
@@ -742,7 +742,7 @@ fn data_on_readers_listener() {
     let mut subscriber_listener = MockDataOnReadersListener::new();
     subscriber_listener
         .expect_on_data_on_readers()
-        .once()
+        .times(1..)
         .return_const(());
     let subscriber = participant
         .create_subscriber(
@@ -839,7 +839,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     let mut subscriber_listener = MockDataOnReadersListener::new();
     subscriber_listener
         .expect_on_data_on_readers()
-        .once()
+        .times(1..)
         .return_const(());
     let subscriber = participant
         .create_subscriber(

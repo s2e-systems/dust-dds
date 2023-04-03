@@ -2,6 +2,7 @@ use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::DiscoveredReaderData,
@@ -38,7 +39,7 @@ use crate::{
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
-    publication::data_writer::AnyDataWriter,
+    publication::{data_writer::AnyDataWriter, publisher_listener::PublisherListener},
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -53,7 +54,8 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    status_listener::StatusListener, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -148,9 +150,8 @@ pub struct UserDefinedDataWriter {
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
     matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
+    status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    listener: DdsRwLock<Option<Box<dyn AnyDataWriterListener + Send + Sync>>>,
-    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
     user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
     announce_sender: SyncSender<AnnounceKind>,
@@ -176,9 +177,9 @@ impl UserDefinedDataWriter {
             liveliness_lost_status: DdsRwLock::new(LivelinessLostStatus::default()),
             matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
+            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            listener: DdsRwLock::new(listener),
-            listener_status_mask: DdsRwLock::new(mask.to_vec()),
+
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
             announce_sender,
@@ -232,6 +233,10 @@ impl DdsShared<UserDefinedDataWriter> {
         discovered_reader_data: &DiscoveredReaderData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
@@ -264,20 +269,37 @@ impl DdsShared<UserDefinedDataWriter> {
                         Some(value)
                             if value != discovered_reader_data.subscription_builtin_topic_data =>
                         {
-                            self.on_publication_matched(instance_handle)
+                            self.on_publication_matched(
+                                instance_handle,
+                                publisher_status_listener,
+                                participant_status_listener,
+                            )
                         }
-                        None => self.on_publication_matched(instance_handle),
+                        None => self.on_publication_matched(
+                            instance_handle,
+                            publisher_status_listener,
+                            participant_status_listener,
+                        ),
                         _ => (),
                     }
                 }
-                Err(incompatible_qos_policy_list) => {
-                    self.on_offered_incompatible_qos(incompatible_qos_policy_list)
-                }
+                Err(incompatible_qos_policy_list) => self.on_offered_incompatible_qos(
+                    incompatible_qos_policy_list,
+                    publisher_status_listener,
+                    participant_status_listener,
+                ),
             }
         }
     }
 
-    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
         if let Some(r) = self
             .matched_subscription_list
             .write_lock()
@@ -287,7 +309,11 @@ impl DdsShared<UserDefinedDataWriter> {
                 .write_lock()
                 .matched_reader_remove(r.key.value.into());
 
-            self.on_publication_matched(discovered_reader_handle)
+            self.on_publication_matched(
+                discovered_reader_handle,
+                publisher_status_listener,
+                participant_status_listener,
+            )
         }
     }
 
@@ -531,8 +557,7 @@ impl DdsShared<UserDefinedDataWriter> {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
     ) {
-        *self.listener.write_lock() = a_listener;
-        *self.listener_status_mask.write_lock() = mask.to_vec();
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -613,55 +638,105 @@ impl DdsShared<UserDefinedDataWriter> {
             .send_message(header, transport, now);
     }
 
-    fn on_publication_matched(&self, instance_handle: InstanceHandle) {
+    fn on_offered_incompatible_qos(
+        &self,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
+        self.offered_incompatible_qos_status
+            .write_lock()
+            .increment(incompatible_qos_policy_list);
+
+        self.trigger_on_offered_incompatible_qos_listener(
+            &mut self.status_listener.write_lock(),
+            publisher_status_listener,
+            participant_status_listener,
+        );
+
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+    }
+
+    fn on_publication_matched(
+        &self,
+        instance_handle: InstanceHandle,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
         self.publication_matched_status
             .write_lock()
             .increment(instance_handle);
 
-        match self.listener.write_lock().as_mut() {
-            Some(l)
-                if self
-                    .listener_status_mask
-                    .read_lock()
-                    .contains(&StatusKind::PublicationMatched) =>
-            {
-                l.trigger_on_publication_matched(self)
-            }
-            _ => self.get_publisher().on_publication_matched(self),
-        }
+        self.trigger_on_publication_matched_listener(
+            &mut self.status_listener.write_lock(),
+            publisher_status_listener,
+            participant_status_listener,
+        );
 
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::PublicationMatched);
     }
 
-    fn on_offered_incompatible_qos(&self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
-        self.offered_incompatible_qos_status
-            .write_lock()
-            .increment(incompatible_qos_policy_list);
+    fn trigger_on_publication_matched_listener(
+        &self,
+        writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
+        let publication_matched_status_kind = &StatusKind::PublicationMatched;
 
-        match self.listener.write_lock().as_mut() {
-            Some(l)
-                if self
-                    .listener_status_mask
-                    .read_lock()
-                    .contains(&StatusKind::OfferedIncompatibleQos) =>
-            {
-                l.trigger_on_offered_incompatible_qos(self)
-            }
-            _ => self.get_publisher().on_offered_incompatible_qos(self),
+        if writer_status_listener.is_enabled(publication_matched_status_kind) {
+            writer_status_listener
+                .listener_mut()
+                .trigger_on_publication_matched(self)
+        } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
+            publisher_status_listener
+                .listener_mut()
+                .on_publication_matched(self, self.get_publication_matched_status())
+        } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
+            participant_status_listener
+                .listener_mut()
+                .on_publication_matched(self, self.get_publication_matched_status())
         }
+    }
 
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::OfferedIncompatibleQos);
+    fn trigger_on_offered_incompatible_qos_listener(
+        &self,
+        writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
+        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
+        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
+        if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            writer_status_listener
+                .listener_mut()
+                .trigger_on_offered_incompatible_qos(self)
+        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            publisher_status_listener
+                .listener_mut()
+                .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
+        } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            participant_status_listener
+                .listener_mut()
+                .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
+        }
     }
 }
 
 impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
 
 //// Helper functions
-
 fn get_discovered_reader_incompatible_qos_policy_list(
     writer: &mut RtpsStatefulWriter,
     discovered_reader_data: &SubscriptionBuiltinTopicData,

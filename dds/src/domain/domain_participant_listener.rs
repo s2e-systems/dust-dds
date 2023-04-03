@@ -6,7 +6,7 @@ use crate::{
         SampleRejectedStatus, SubscriptionMatchedStatus,
     },
     publication::data_writer::AnyDataWriter,
-    subscription::data_reader::AnyDataReader,
+    subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
     topic_definition::topic::AnyTopic,
 };
 
@@ -43,7 +43,11 @@ pub trait DomainParticipantListener {
     ) {
     }
 
+    fn on_data_on_readers(&mut self, _the_subscriber: &Subscriber) {}
+
     fn on_sample_lost(&mut self, _the_reader: &dyn AnyDataReader, _status: SampleLostStatus) {}
+
+    fn on_data_available(&mut self, _the_reader: &dyn AnyDataReader) {}
 
     fn on_sample_rejected(
         &mut self,

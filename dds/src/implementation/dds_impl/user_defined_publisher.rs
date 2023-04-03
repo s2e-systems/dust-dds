@@ -3,6 +3,7 @@ use std::sync::mpsc::SyncSender;
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
@@ -35,6 +36,7 @@ use super::{
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
     topic_impl::TopicImpl,
     user_defined_data_writer::UserDefinedDataWriter,
     writer_factory::WriterFactory,
@@ -48,8 +50,7 @@ pub struct UserDefinedPublisher {
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
     parent_participant: DdsWeak<DomainParticipantImpl>,
-    listener: DdsRwLock<Option<Box<dyn PublisherListener + Send + Sync>>>,
-    listener_status_mask: DdsRwLock<Vec<StatusKind>>,
+    status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -75,8 +76,7 @@ impl UserDefinedPublisher {
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
             parent_participant,
-            listener: DdsRwLock::new(listener),
-            listener_status_mask: DdsRwLock::new(mask.to_vec()),
+            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
@@ -292,8 +292,7 @@ impl DdsShared<UserDefinedPublisher> {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) {
-        *self.listener.write_lock() = a_listener;
-        *self.listener_status_mask.write_lock() = mask.to_vec();
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -330,6 +329,9 @@ impl DdsShared<UserDefinedPublisher> {
         discovered_reader_data: &DiscoveredReaderData,
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
     ) {
         let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
             &discovered_reader_data
@@ -369,14 +371,26 @@ impl DdsShared<UserDefinedPublisher> {
                     discovered_reader_data,
                     default_unicast_locator_list,
                     default_multicast_locator_list,
+                    &mut self.status_listener.write_lock(),
+                    participant_status_listener,
                 )
             }
         }
     }
 
-    pub fn remove_matched_reader(&self, discovered_reader_handle: InstanceHandle) {
+    pub fn remove_matched_reader(
+        &self,
+        discovered_reader_handle: InstanceHandle,
+        participant_status_listener: &mut StatusListener<
+            dyn DomainParticipantListener + Send + Sync,
+        >,
+    ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.remove_matched_reader(discovered_reader_handle)
+            data_writer.remove_matched_reader(
+                discovered_reader_handle,
+                &mut self.status_listener.write_lock(),
+                participant_status_listener,
+            )
         }
     }
 
@@ -388,36 +402,6 @@ impl DdsShared<UserDefinedPublisher> {
     ) {
         for data_writer in self.data_writer_list.read_lock().iter() {
             data_writer.send_message(header, transport, now);
-        }
-    }
-
-    pub fn on_publication_matched(&self, writer: &DdsShared<UserDefinedDataWriter>) {
-        match self.listener.write_lock().as_mut() {
-            Some(l)
-                if self
-                    .listener_status_mask
-                    .read_lock()
-                    .contains(&StatusKind::PublicationMatched) =>
-            {
-                let status = writer.get_publication_matched_status();
-                l.on_publication_matched(writer, status);
-            }
-            _ => self.get_participant().on_publication_matched(writer),
-        }
-    }
-
-    pub fn on_offered_incompatible_qos(&self, writer: &DdsShared<UserDefinedDataWriter>) {
-        match self.listener.write_lock().as_mut() {
-            Some(l)
-                if self
-                    .listener_status_mask
-                    .read_lock()
-                    .contains(&StatusKind::OfferedIncompatibleQos) =>
-            {
-                let status = writer.get_offered_incompatible_qos_status();
-                l.on_offered_incompatible_qos(writer, status)
-            }
-            _ => self.get_participant().on_offered_incompatible_qos(writer),
         }
     }
 }
