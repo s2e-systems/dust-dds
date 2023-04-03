@@ -37,15 +37,15 @@ impl Publisher {
     }
 }
 
-impl Drop for Publisher {
-    fn drop(&mut self) {
-        if self.publisher.weak_count() == 1 {
-            if let Ok(p) = self.get_participant() {
-                p.delete_publisher(self).ok();
-            }
-        }
-    }
-}
+// impl Drop for Publisher {
+//     fn drop(&mut self) {
+//         if self.publisher.weak_count() == 1 {
+//             if let Ok(p) = self.get_participant() {
+//                 p.delete_publisher(self).ok();
+//             }
+//         }
+//     }
+// }
 
 impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].

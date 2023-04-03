@@ -112,6 +112,7 @@ fn allowed_to_delete_participant_after_delete_contained_entities() {
 }
 
 #[test]
+#[ignore = "Drop is currently disable due to race condition"]
 fn all_objects_are_dropped() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();

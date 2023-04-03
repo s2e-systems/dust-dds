@@ -23,8 +23,7 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_PARTICIPANT_FACTORY},
-    domain_participant_listener::DomainParticipantListener,
+    domain_participant_factory::DomainId, domain_participant_listener::DomainParticipantListener,
 };
 
 /// The [`DomainParticipant`] represents the participation of the application on a communication plane that isolates applications running on the
@@ -60,13 +59,13 @@ impl PartialEq for DomainParticipant {
     }
 }
 
-impl Drop for DomainParticipant {
-    fn drop(&mut self) {
-        if self.0.weak_count() == 1 {
-            THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
-        }
-    }
-}
+// impl Drop for DomainParticipant {
+//     fn drop(&mut self) {
+//         if self.0.weak_count() == 1 {
+//             THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
+//         }
+//     }
+// }
 
 impl DomainParticipant {
     /// This operation creates a [`Publisher`] with the desired QoS policies and attaches to it the specified [`PublisherListener`].

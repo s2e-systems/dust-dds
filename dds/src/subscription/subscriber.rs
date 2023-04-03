@@ -49,20 +49,20 @@ impl Subscriber {
     }
 }
 
-impl Drop for Subscriber {
-    fn drop(&mut self) {
-        match &self.subscriber {
-            SubscriberKind::BuiltIn(_) => (), // Built-in subscribers don't get deleted
-            SubscriberKind::UserDefined(subscriber) => {
-                if subscriber.weak_count() == 1 {
-                    if let Ok(p) = self.get_participant() {
-                        p.delete_subscriber(self).ok();
-                    }
-                }
-            }
-        }
-    }
-}
+// impl Drop for Subscriber {
+//     fn drop(&mut self) {
+//         match &self.subscriber {
+//             SubscriberKind::BuiltIn(_) => (), // Built-in subscribers don't get deleted
+//             SubscriberKind::UserDefined(subscriber) => {
+//                 if subscriber.weak_count() == 1 {
+//                     if let Ok(p) = self.get_participant() {
+//                         p.delete_subscriber(self).ok();
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
 
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
