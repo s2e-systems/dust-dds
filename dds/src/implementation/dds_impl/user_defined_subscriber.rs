@@ -1,5 +1,8 @@
 use crate::{
-    implementation::utils::{node::ChildNode, shared_object::DdsShared},
+    implementation::utils::{
+        node::ChildNode,
+        shared_object::{DdsShared, DdsWeak},
+    },
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -57,6 +60,10 @@ impl UserDefinedSubscriber {
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
         self.0.get()?.notify_datareaders()
+    }
+
+    pub fn get_participant(&self) -> DdsWeak<DomainParticipantImpl> {
+        self.0.get_parent()
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {

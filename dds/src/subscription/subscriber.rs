@@ -156,16 +156,10 @@ impl Subscriber {
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.0 {
-            SubscriberKind::BuiltIn(_) => todo!(),
-            SubscriberKind::UserDefined(_) => todo!(),
+            SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
+            SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(s.get_participant())),
             SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
-        // match &self.subscriber {
-        //     SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-        //     SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(
-        //         s.upgrade()?.get_participant().downgrade(),
-        //     )),
-        // }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].

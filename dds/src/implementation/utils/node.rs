@@ -61,7 +61,7 @@ impl<T, U> ChildNode<T, U> {
         self.node.upgrade()
     }
 
-    pub fn _get_parent(&self) -> DdsResult<DdsShared<U>> {
-        self.parent.upgrade()
+    pub fn get_parent(&self) -> DdsWeak<U> {
+        self.parent.clone()
     }
 }
