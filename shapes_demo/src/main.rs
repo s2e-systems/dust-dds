@@ -34,7 +34,7 @@ use eframe::{
 };
 
 fn main() -> Result<(), eframe::Error> {
-    const ICON: &[u8] = include_bytes!("logo.png");
+    const ICON: &[u8] = include_bytes!("../res/logo.png");
     let icon = image::load_from_memory_with_format(ICON, image::ImageFormat::Png)
         .expect("Failed to open icon")
         .to_rgba8();
