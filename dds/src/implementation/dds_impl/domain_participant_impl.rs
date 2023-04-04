@@ -72,7 +72,7 @@ use super::{
     builtin_subscriber_impl::BuiltInSubscriberImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher_impl::UserDefinedPublisher,
+    user_defined_publisher_impl::UserDefinedPublisherImpl,
     user_defined_subscriber_impl::UserDefinedSubscriberImpl,
 };
 
@@ -119,7 +119,7 @@ pub struct DomainParticipantImpl {
     user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriberImpl>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisherImpl>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: DdsRwLock<PublisherQos>,
     topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
@@ -301,7 +301,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
+    ) -> DdsResult<DdsShared<UserDefinedPublisherImpl>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -315,7 +315,7 @@ impl DdsShared<DomainParticipantImpl> {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroupImpl::new(guid);
-        let publisher_impl_shared = UserDefinedPublisher::new(
+        let publisher_impl_shared = UserDefinedPublisherImpl::new(
             publisher_qos,
             rtps_group,
             a_listener,

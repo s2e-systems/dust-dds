@@ -55,7 +55,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher_impl::UserDefinedPublisher,
+    user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
 impl PublicationMatchedStatus {
@@ -143,7 +143,7 @@ impl OfferedIncompatibleQosStatus {
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
-    publisher: DdsWeak<UserDefinedPublisher>,
+    publisher: DdsWeak<UserDefinedPublisherImpl>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
@@ -163,7 +163,7 @@ impl UserDefinedDataWriter {
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
         topic: DdsShared<TopicImpl>,
-        publisher: DdsWeak<UserDefinedPublisher>,
+        publisher: DdsWeak<UserDefinedPublisherImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -480,7 +480,7 @@ impl DdsShared<UserDefinedDataWriter> {
         self.topic.clone()
     }
 
-    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
+    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisherImpl> {
         self.publisher
             .upgrade()
             .expect("Parent publisher of data writer must exist")

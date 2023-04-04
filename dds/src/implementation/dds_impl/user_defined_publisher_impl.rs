@@ -42,7 +42,7 @@ use super::{
     writer_factory::WriterFactory,
 };
 
-pub struct UserDefinedPublisher {
+pub struct UserDefinedPublisherImpl {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroupImpl,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
@@ -56,7 +56,7 @@ pub struct UserDefinedPublisher {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedPublisher {
+impl UserDefinedPublisherImpl {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
@@ -68,7 +68,7 @@ impl UserDefinedPublisher {
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedPublisher {
+        DdsShared::new(UserDefinedPublisherImpl {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -84,7 +84,7 @@ impl UserDefinedPublisher {
     }
 }
 
-impl DdsShared<UserDefinedPublisher> {
+impl DdsShared<UserDefinedPublisherImpl> {
     pub fn is_empty(&self) -> bool {
         self.data_writer_list.read_lock().is_empty()
     }
@@ -406,7 +406,7 @@ impl DdsShared<UserDefinedPublisher> {
     }
 }
 
-impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {
+impl PublisherMessageReceiver for DdsShared<UserDefinedPublisherImpl> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,

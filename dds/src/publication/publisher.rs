@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         dds_impl::{
             any_data_writer_listener::AnyDataWriterListener,
-            user_defined_publisher_impl::UserDefinedPublisher,
+            user_defined_publisher_impl::UserDefinedPublisherImpl,
         },
         utils::shared_object::DdsWeak,
     },
@@ -28,11 +28,11 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(PartialEq, Debug)]
 pub struct Publisher {
-    publisher: DdsWeak<UserDefinedPublisher>,
+    publisher: DdsWeak<UserDefinedPublisherImpl>,
 }
 
 impl Publisher {
-    pub(crate) fn new(publisher: DdsWeak<UserDefinedPublisher>) -> Self {
+    pub(crate) fn new(publisher: DdsWeak<UserDefinedPublisherImpl>) -> Self {
         Self { publisher }
     }
 }
