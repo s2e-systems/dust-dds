@@ -72,7 +72,7 @@ use super::{
     builtin_subscriber_impl::BuiltInSubscriberImpl, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    user_defined_publisher_impl::UserDefinedPublisher,
     user_defined_subscriber_impl::UserDefinedSubscriberImpl,
 };
 

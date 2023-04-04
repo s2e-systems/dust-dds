@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         dds_impl::{
             any_data_writer_listener::AnyDataWriterListener,
-            user_defined_publisher::UserDefinedPublisher,
+            user_defined_publisher_impl::UserDefinedPublisher,
         },
         utils::shared_object::DdsWeak,
     },

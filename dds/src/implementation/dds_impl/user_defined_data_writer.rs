@@ -55,7 +55,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    user_defined_publisher_impl::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
