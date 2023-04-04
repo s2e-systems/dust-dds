@@ -126,7 +126,7 @@ impl ShapeWriter {
     }
 }
 
-pub struct MyApp {
+pub struct ShapesDemoApp {
     participant: DomainParticipant,
     publisher: Publisher,
     subscriber: Subscriber,
@@ -137,7 +137,7 @@ pub struct MyApp {
     is_reliable: bool,
 }
 
-impl MyApp {
+impl ShapesDemoApp {
     pub fn new() -> Self {
         let domain_id = 0;
         let participant_factory = DomainParticipantFactory::get_instance();
@@ -309,7 +309,7 @@ impl MyApp {
     }
 }
 
-impl eframe::App for MyApp {
+impl eframe::App for ShapesDemoApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         if let Some(shape_kind) = self.window_open {
             egui::Window::new("Publish").show(ctx, |ui| {

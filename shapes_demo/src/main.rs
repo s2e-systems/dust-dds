@@ -23,6 +23,6 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Dust DDS Shapes Demo",
         options,
-        Box::new(|_cc| Box::new(app::MyApp::new())),
+        Box::new(|_cc| Box::new(app::ShapesDemoApp::new())),
     )
 }
