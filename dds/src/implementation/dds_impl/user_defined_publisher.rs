@@ -39,9 +39,18 @@ impl UserDefinedPublisher {
     where
         Foo: DdsType,
     {
-        self.0
-            .get()?
-            .create_datawriter::<Foo>(a_topic, qos, a_listener, mask)
+        let participant = self.0.get_parent().upgrade()?;
+        let default_unicast_locator_list = participant.default_unicast_locator_list();
+        let default_multicast_locator_list = participant.default_multicast_locator_list();
+
+        self.0.get()?.create_datawriter::<Foo>(
+            a_topic,
+            qos,
+            a_listener,
+            mask,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+        )
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
