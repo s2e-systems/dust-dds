@@ -3,7 +3,7 @@ use crate::{
     implementation::{
         dds_impl::{
             any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriber,
-            domain_participant_impl::DomainParticipantImpl, subscriber_kind::SubscriberKind,
+            domain_participant_impl::DomainParticipantImpl, entity_kind::SubscriberKind,
             user_defined_publisher::UserDefinedPublisher,
             user_defined_subscriber::UserDefinedSubscriber,
         },

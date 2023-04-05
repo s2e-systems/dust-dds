@@ -25,6 +25,7 @@ use super::{
     user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
+#[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriter(
     ChildNode<
         UserDefinedDataWriterImpl,

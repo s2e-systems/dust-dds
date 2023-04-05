@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, data_writer_kind::DataWriterKind,
+        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterKind,
     },
     infrastructure::{
         condition::StatusCondition,
