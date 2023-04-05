@@ -38,14 +38,14 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
     topic_impl::TopicImpl,
-    user_defined_data_writer_impl::UserDefinedDataWriterImpl,
+    user_defined_data_writer::UserDefinedDataWriter,
     writer_factory::WriterFactory,
 };
 
 pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
-    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriterImpl>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -98,7 +98,7 @@ impl DdsShared<UserDefinedPublisher> {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
     {
@@ -111,7 +111,7 @@ impl DdsShared<UserDefinedPublisher> {
             self.data_max_size_serialized,
         )?;
 
-        let data_writer_shared = UserDefinedDataWriterImpl::new(
+        let data_writer_shared = UserDefinedDataWriter::new(
             rtps_writer_impl,
             a_listener,
             mask,
@@ -164,7 +164,7 @@ impl DdsShared<UserDefinedPublisher> {
     pub fn lookup_datawriter<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
     {

@@ -17,7 +17,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriterNode,
+    topic_impl::TopicImpl, user_defined_data_writer_node::UserDefinedDataWriterNode,
     user_defined_publisher::UserDefinedPublisher,
 };
 

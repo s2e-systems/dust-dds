@@ -44,15 +44,15 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
     topic_impl::TopicImpl,
-    user_defined_data_reader_impl::{
-        UserDefinedDataReaderImpl, UserDefinedReaderDataSubmessageReceivedResult,
+    user_defined_data_reader::{
+        UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
     },
 };
 
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReaderImpl>>>,
+    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -110,7 +110,7 @@ impl DdsShared<UserDefinedSubscriber> {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataReaderImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -122,7 +122,7 @@ impl DdsShared<UserDefinedSubscriber> {
             default_multicast_locator_list,
         )?;
 
-        let data_reader_shared = UserDefinedDataReaderImpl::new(
+        let data_reader_shared = UserDefinedDataReader::new(
             rtps_reader,
             a_topic.clone(),
             a_listener,
@@ -176,7 +176,7 @@ impl DdsShared<UserDefinedSubscriber> {
     pub fn lookup_datareader<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReaderImpl>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType,
     {
