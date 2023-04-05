@@ -38,7 +38,7 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
     topic_impl::TopicImpl,
-    user_defined_data_writer::UserDefinedDataWriterImpl,
+    user_defined_data_writer_impl::UserDefinedDataWriterImpl,
     writer_factory::WriterFactory,
 };
 

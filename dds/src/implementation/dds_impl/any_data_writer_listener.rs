@@ -4,7 +4,7 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
-use super::user_defined_data_writer::UserDefinedDataWriterImpl;
+use super::user_defined_data_writer_impl::UserDefinedDataWriterImpl;
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(&mut self, _the_writer: &DdsShared<UserDefinedDataWriterImpl>);

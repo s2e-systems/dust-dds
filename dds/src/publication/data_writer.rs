@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         dds_impl::{
             any_data_writer_listener::AnyDataWriterListener,
-            user_defined_data_writer::UserDefinedDataWriterImpl,
+            user_defined_data_writer_impl::UserDefinedDataWriterImpl,
         },
         utils::shared_object::DdsWeak,
     },

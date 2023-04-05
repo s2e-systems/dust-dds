@@ -19,7 +19,7 @@ pub mod status_listener;
 pub mod subscriber_kind;
 pub mod topic_impl;
 pub mod user_defined_data_reader;
-pub mod user_defined_data_writer;
+pub mod user_defined_data_writer_impl;
 pub mod user_defined_publisher_impl;
 pub mod user_defined_subscriber;
 pub mod user_defined_subscriber_impl;
