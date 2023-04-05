@@ -391,9 +391,10 @@ where
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(
-            self.data_writer.upgrade()?.get_publisher().downgrade(),
-        ))
+        todo!()
+        // Ok(Publisher::new(
+        //     self.data_writer.upgrade()?.get_publisher().downgrade(),
+        // ))
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the

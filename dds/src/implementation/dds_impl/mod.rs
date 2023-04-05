@@ -24,3 +24,4 @@ pub mod user_defined_publisher_impl;
 pub mod user_defined_subscriber;
 pub mod user_defined_subscriber_impl;
 pub mod writer_factory;
+pub mod user_defined_publisher;
