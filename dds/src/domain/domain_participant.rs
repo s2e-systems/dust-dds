@@ -4,6 +4,7 @@ use crate::{
         dds_impl::{
             any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriber,
             domain_participant_impl::DomainParticipantImpl, subscriber_kind::SubscriberKind,
+            user_defined_publisher::UserDefinedPublisher,
             user_defined_subscriber::UserDefinedSubscriber,
         },
         utils::{node::ChildNode, shared_object::DdsWeak},
@@ -83,7 +84,12 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_publisher(qos, a_listener, mask)
-            .map(|x| Publisher::new(x.downgrade()))
+            .map(|x| {
+                Publisher::new(UserDefinedPublisher::new(ChildNode::new(
+                    x.downgrade(),
+                    self.0.clone(),
+                )))
+            })
     }
 
     /// This operation deletes an existing [`Publisher`].
