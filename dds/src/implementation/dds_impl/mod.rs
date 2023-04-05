@@ -16,6 +16,7 @@ pub mod listener_data_reader;
 pub mod listener_data_writer;
 pub mod listener_subscriber;
 pub mod message_receiver;
+
 pub mod participant_discovery;
 pub mod reader_factory;
 pub mod status_condition_impl;
@@ -25,8 +26,8 @@ pub mod user_defined_data_reader;
 pub mod user_defined_data_reader_impl;
 pub mod user_defined_data_writer;
 pub mod user_defined_data_writer_impl;
-pub mod user_defined_publisher;
+pub mod user_defined_publisher_node;
 pub mod user_defined_publisher_impl;
-pub mod user_defined_subscriber;
+pub mod user_defined_subscriber_node;
 pub mod user_defined_subscriber_impl;
 pub mod writer_factory;

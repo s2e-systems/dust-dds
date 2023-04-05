@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
-        user_defined_publisher::UserDefinedPublisherNode,
+        user_defined_publisher_node::UserDefinedPublisherNode,
     },
     infrastructure::{
         condition::StatusCondition,

@@ -4,8 +4,8 @@ use crate::{
         dds_impl::{
             any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriberNode,
             domain_participant_impl::DomainParticipantImpl, node_kind::SubscriberNodeKind,
-            user_defined_publisher::UserDefinedPublisherNode,
-            user_defined_subscriber::UserDefinedSubscriberNode,
+            user_defined_publisher_node::UserDefinedPublisherNode,
+            user_defined_subscriber_node::UserDefinedSubscriberNode,
         },
         utils::{
             node::{ChildNode, RootNode},

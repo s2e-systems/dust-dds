@@ -3,7 +3,7 @@ use super::{
     listener_data_reader::ListenerDataReaderNode, listener_data_writer::ListenerDataWriterNode,
     listener_subscriber::ListenerSubscriberNode, user_defined_data_reader::UserDefinedDataReaderNode,
     user_defined_data_writer::UserDefinedDataWriterNode,
-    user_defined_subscriber::UserDefinedSubscriberNode,
+    user_defined_subscriber_node::UserDefinedSubscriberNode,
 };
 
 #[derive(PartialEq, Debug)]
