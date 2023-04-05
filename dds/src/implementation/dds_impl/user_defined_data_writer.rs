@@ -22,7 +22,7 @@ use super::{
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl, user_defined_data_writer_impl::UserDefinedDataWriterImpl,
     user_defined_publisher_node::UserDefinedPublisherNode,
-    user_defined_publisher_impl::UserDefinedPublisher,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]

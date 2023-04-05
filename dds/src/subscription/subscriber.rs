@@ -3,7 +3,7 @@ use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         builtin_subscriber_impl::BuiltinDataReaderKind, node_kind::SubscriberNodeKind,
-        user_defined_subscriber_impl::UserDefinedSubscriber,
+        user_defined_subscriber::UserDefinedSubscriber,
     },
     infrastructure::{
         condition::StatusCondition,

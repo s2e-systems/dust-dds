@@ -18,7 +18,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
     user_defined_data_reader_impl::UserDefinedDataReaderImpl,
-    user_defined_subscriber_impl::UserDefinedSubscriber,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 #[derive(PartialEq, Debug)]

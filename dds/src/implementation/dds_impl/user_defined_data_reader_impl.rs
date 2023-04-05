@@ -57,7 +57,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber_impl::UserDefinedSubscriber,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
