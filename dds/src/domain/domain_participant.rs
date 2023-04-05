@@ -2,7 +2,7 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds_impl::{
-            any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriberNode,
+            any_topic_listener::AnyTopicListener, builtin_subscriber_node::BuiltinSubscriberNode,
             domain_participant_impl::DomainParticipantImpl, node_kind::SubscriberNodeKind,
             user_defined_publisher_node::UserDefinedPublisherNode,
             user_defined_subscriber_node::UserDefinedSubscriberNode,
