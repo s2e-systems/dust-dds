@@ -4,7 +4,7 @@ use crate::{
             any_data_reader_listener::AnyDataReaderListener,
             builtin_stateful_reader::BuiltinStatefulReader,
             builtin_stateless_reader::BuiltinStatelessReader,
-            user_defined_data_reader::UserDefinedDataReader,
+            user_defined_data_reader::UserDefinedDataReaderImpl,
         },
         utils::shared_object::DdsWeak,
     },
@@ -54,7 +54,7 @@ pub struct Sample<Foo> {
 pub enum DataReaderKind {
     BuiltinStateless(DdsWeak<BuiltinStatelessReader>),
     BuiltinStateful(DdsWeak<BuiltinStatefulReader>),
-    UserDefined(DdsWeak<UserDefinedDataReader>),
+    UserDefined(DdsWeak<UserDefinedDataReaderImpl>),
 }
 
 /// A [`DataReader`] allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the

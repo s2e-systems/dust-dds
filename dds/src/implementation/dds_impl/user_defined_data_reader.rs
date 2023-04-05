@@ -175,7 +175,7 @@ impl SubscriptionMatchedStatus {
     }
 }
 
-pub struct UserDefinedDataReader {
+pub struct UserDefinedDataReaderImpl {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
@@ -197,7 +197,7 @@ pub struct UserDefinedDataReader {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedDataReader {
+impl UserDefinedDataReaderImpl {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsStatefulReader,
@@ -208,7 +208,7 @@ impl UserDefinedDataReader {
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataReader {
+        DdsShared::new(UserDefinedDataReaderImpl {
             rtps_reader: DdsRwLock::new(rtps_reader),
             topic,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
@@ -236,7 +236,7 @@ impl UserDefinedDataReader {
     }
 }
 
-impl DdsShared<UserDefinedDataReader> {
+impl DdsShared<UserDefinedDataReaderImpl> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -1165,4 +1165,4 @@ impl DdsShared<UserDefinedDataReader> {
     }
 }
 
-impl AnyDataReader for DdsShared<UserDefinedDataReader> {}
+impl AnyDataReader for DdsShared<UserDefinedDataReaderImpl> {}

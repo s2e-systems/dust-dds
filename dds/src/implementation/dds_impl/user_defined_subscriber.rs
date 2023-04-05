@@ -17,7 +17,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    user_defined_data_reader::UserDefinedDataReaderImpl,
     user_defined_subscriber_impl::UserDefinedSubscriberImpl,
 };
 
@@ -39,7 +39,7 @@ impl UserDefinedSubscriber {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReaderImpl>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -64,7 +64,7 @@ impl UserDefinedSubscriber {
     pub fn lookup_datareader<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<DdsShared<UserDefinedDataReaderImpl>>
     where
         Foo: DdsType,
     {
