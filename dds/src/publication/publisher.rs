@@ -70,15 +70,16 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        #[allow(clippy::redundant_closure)]
-        self.0
-            .create_datawriter::<Foo>(
-                &a_topic.topic.upgrade()?,
-                qos,
-                a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-                mask,
-            )
-            .map(|x| DataWriter::new(x.downgrade()))
+        // #[allow(clippy::redundant_closure)]
+        // self.0
+        //     .create_datawriter::<Foo>(
+        //         &a_topic.topic.upgrade()?,
+        //         qos,
+        //         a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+        //         mask,
+        //     )
+        //     .map(|x| DataWriter::new(x.downgrade()))
+        todo!()
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -103,9 +104,10 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize,
     {
-        self.0
-            .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
-            .map(|x| Some(DataWriter::new(x.downgrade())))
+        // self.0
+        //     .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
+        //     .map(|x| Some(DataWriter::new(x.downgrade())))
+        todo!()
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
