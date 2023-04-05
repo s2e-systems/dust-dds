@@ -44,7 +44,7 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
     topic_impl::TopicImpl,
-    user_defined_data_reader::{
+    user_defined_data_reader_impl::{
         UserDefinedDataReaderImpl, UserDefinedReaderDataSubmessageReceivedResult,
     },
 };

@@ -4,7 +4,7 @@ use crate::{
             any_data_reader_listener::AnyDataReaderListener,
             builtin_stateful_reader::BuiltinStatefulReader,
             builtin_stateless_reader::BuiltinStatelessReader,
-            user_defined_data_reader::UserDefinedDataReaderImpl,
+            user_defined_data_reader_impl::UserDefinedDataReaderImpl,
         },
         utils::shared_object::DdsWeak,
     },
