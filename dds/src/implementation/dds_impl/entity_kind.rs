@@ -1,8 +1,8 @@
 use super::{
-    builtin_data_reader::BuiltinDataReader, builtin_subscriber::BuiltinSubscriberNode,
-    listener_data_reader::ListenerDataReader, listener_data_writer::ListenerDataWriter,
-    listener_subscriber::ListenerSubscriberNode, user_defined_data_reader::UserDefinedDataReader,
-    user_defined_data_writer::UserDefinedDataWriter,
+    builtin_data_reader::BuiltinDataReaderNode, builtin_subscriber::BuiltinSubscriberNode,
+    listener_data_reader::ListenerDataReaderNode, listener_data_writer::ListenerDataWriterNode,
+    listener_subscriber::ListenerSubscriberNode, user_defined_data_reader::UserDefinedDataReaderNode,
+    user_defined_data_writer::UserDefinedDataWriterNode,
     user_defined_subscriber::UserDefinedSubscriberNode,
 };
 
@@ -14,14 +14,14 @@ pub enum SubscriberNodeKind {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum DataWriterKind {
-    UserDefined(UserDefinedDataWriter),
-    Listener(ListenerDataWriter),
+pub enum DataWriterNodeKind {
+    UserDefined(UserDefinedDataWriterNode),
+    Listener(ListenerDataWriterNode),
 }
 
 #[derive(PartialEq, Debug)]
-pub enum DataReaderKind {
-    Builtin(BuiltinDataReader),
-    UserDefined(UserDefinedDataReader),
-    Listener(ListenerDataReader),
+pub enum DataReaderKindNode {
+    Builtin(BuiltinDataReaderNode),
+    UserDefined(UserDefinedDataReaderNode),
+    Listener(ListenerDataReaderNode),
 }

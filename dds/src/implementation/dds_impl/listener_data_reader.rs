@@ -1,2 +1,2 @@
 #[derive(PartialEq, Debug)]
-pub struct ListenerDataReader;
+pub struct ListenerDataReaderNode;

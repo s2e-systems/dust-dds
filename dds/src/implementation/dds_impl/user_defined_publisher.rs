@@ -17,7 +17,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
+    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriterNode,
     user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
@@ -37,7 +37,7 @@ impl UserDefinedPublisher {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<UserDefinedDataWriter>
+    ) -> DdsResult<UserDefinedDataWriterNode>
     where
         Foo: DdsType,
     {
@@ -54,7 +54,7 @@ impl UserDefinedPublisher {
             default_multicast_locator_list,
         )?;
 
-        Ok(UserDefinedDataWriter::new(ChildNode::new(
+        Ok(UserDefinedDataWriterNode::new(ChildNode::new(
             writer.downgrade(),
             self.0.clone(),
         )))
@@ -67,13 +67,13 @@ impl UserDefinedPublisher {
     pub fn lookup_datawriter<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<UserDefinedDataWriter>
+    ) -> DdsResult<UserDefinedDataWriterNode>
     where
         Foo: DdsType,
     {
         let writer = self.0.get()?.lookup_datawriter::<Foo>(topic)?;
 
-        Ok(UserDefinedDataWriter::new(ChildNode::new(
+        Ok(UserDefinedDataWriterNode::new(ChildNode::new(
             writer.downgrade(),
             self.0.clone(),
         )))

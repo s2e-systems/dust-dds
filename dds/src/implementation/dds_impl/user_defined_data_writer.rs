@@ -26,14 +26,14 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedDataWriter(
+pub struct UserDefinedDataWriterNode(
     ChildNode<
         UserDefinedDataWriterImpl,
         ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
     >,
 );
 
-impl UserDefinedDataWriter {
+impl UserDefinedDataWriterNode {
     pub fn new(
         node: ChildNode<
             UserDefinedDataWriterImpl,

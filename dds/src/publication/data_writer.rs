@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterKind,
+        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterNodeKind,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -25,10 +25,10 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(DataWriterKind, PhantomData<Foo>);
+pub struct DataWriter<Foo>(DataWriterNodeKind, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
-    pub(crate) fn new(data_writer: DataWriterKind) -> Self {
+    pub(crate) fn new(data_writer: DataWriterNodeKind) -> Self {
         Self(data_writer, PhantomData)
     }
 }
@@ -82,10 +82,10 @@ where
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => {
+            DataWriterNodeKind::UserDefined(w) => {
                 w.register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
             }
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -172,10 +172,10 @@ where
                 .serialize::<_, LittleEndian>(&mut serialized_key)?;
 
             match &self.0 {
-                DataWriterKind::UserDefined(w) => {
+                DataWriterNodeKind::UserDefined(w) => {
                     w.unregister_instance_w_timestamp(serialized_key, instance_handle, timestamp)
                 }
-                DataWriterKind::Listener(_) => todo!(),
+                DataWriterNodeKind::Listener(_) => todo!(),
             }
         } else {
             Err(DdsError::IllegalOperation)
@@ -188,8 +188,8 @@ where
     /// correspond to an existing data object known to the [`DataWriter`].
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_key_value(key_holder, handle),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_key_value(key_holder, handle),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -200,8 +200,8 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -260,13 +260,13 @@ where
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.write_w_timestamp(
+            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
                 serialized_data,
                 data.get_serialized_key(),
                 handle,
                 timestamp,
             ),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -331,10 +331,10 @@ where
             .serialize::<_, LittleEndian>(&mut serialized_key)?;
 
         match &self.0 {
-            DataWriterKind::UserDefined(w) => {
+            DataWriterNodeKind::UserDefined(w) => {
                 w.dispose_w_timestamp(serialized_key, instance_handle, timestamp)
             }
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -348,56 +348,56 @@ where
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_liveliness_lost_status(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_liveliness_lost_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_offered_deadline_missed_status(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_offered_deadline_missed_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_publication_matched_status(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_publication_matched_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => Ok(Topic::new(w.get_topic()?.downgrade())),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => Ok(Topic::new(w.get_topic()?.downgrade())),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -411,8 +411,8 @@ where
     /// if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.assert_liveliness(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.assert_liveliness(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -427,8 +427,8 @@ where
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_matched_subscription_data(subscription_handle),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscription_data(subscription_handle),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -440,8 +440,8 @@ where
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_matched_subscriptions(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscriptions(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 }
@@ -465,16 +465,16 @@ where
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.set_qos(qos),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.set_qos(qos),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_qos(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_qos(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -490,7 +490,7 @@ where
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) =>
+            DataWriterNodeKind::UserDefined(w) =>
             {
                 #[allow(clippy::redundant_closure)]
                 w.set_listener(
@@ -499,7 +499,7 @@ where
                     mask,
                 )
             }
-            DataWriterKind::Listener(_) => Err(DdsError::IllegalOperation),
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -508,8 +508,8 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => Ok(StatusCondition::new(w.get_statuscondition()?)),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => Ok(StatusCondition::new(w.get_statuscondition()?)),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -521,8 +521,8 @@ where
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_status_changes(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_status_changes(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -548,16 +548,16 @@ where
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.enable(),
-            DataWriterKind::Listener(_) => Err(DdsError::IllegalOperation),
+            DataWriterNodeKind::UserDefined(w) => w.enable(),
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            DataWriterKind::UserDefined(w) => w.get_instance_handle(),
-            DataWriterKind::Listener(_) => todo!(),
+            DataWriterNodeKind::UserDefined(w) => w.get_instance_handle(),
+            DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
 }

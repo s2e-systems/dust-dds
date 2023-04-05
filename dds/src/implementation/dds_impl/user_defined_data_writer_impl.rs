@@ -53,7 +53,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    listener_data_writer::ListenerDataWriter, message_receiver::MessageReceiver,
+    listener_data_writer::ListenerDataWriterNode, message_receiver::MessageReceiver,
     status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
     topic_impl::TopicImpl, user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
@@ -698,7 +698,7 @@ impl DdsShared<UserDefinedDataWriterImpl> {
             writer_status_listener
                 .listener_mut()
                 .trigger_on_publication_matched(
-                    ListenerDataWriter,
+                    ListenerDataWriterNode,
                     self.get_publication_matched_status(),
                 )
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
@@ -725,7 +725,7 @@ impl DdsShared<UserDefinedDataWriterImpl> {
             writer_status_listener
                 .listener_mut()
                 .trigger_on_offered_incompatible_qos(
-                    ListenerDataWriter,
+                    ListenerDataWriterNode,
                     self.get_offered_incompatible_qos_status(),
                 )
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {

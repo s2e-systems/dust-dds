@@ -1,7 +1,7 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterKind,
+        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterNodeKind,
         user_defined_publisher::UserDefinedPublisher,
     },
     infrastructure::{
@@ -78,7 +78,7 @@ impl Publisher {
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
             )
-            .map(|x| DataWriter::new(DataWriterKind::UserDefined(x)))
+            .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -105,7 +105,7 @@ impl Publisher {
     {
         self.0
             .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
-            .map(|x| Some(DataWriter::new(DataWriterKind::UserDefined(x))))
+            .map(|x| Some(DataWriter::new(DataWriterNodeKind::UserDefined(x))))
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
