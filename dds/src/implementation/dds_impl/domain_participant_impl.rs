@@ -69,7 +69,7 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber_impl::BuiltInSubscriber, message_receiver::MessageReceiver,
+    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
     user_defined_publisher::UserDefinedPublisher,

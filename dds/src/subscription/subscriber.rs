@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        builtin_subscriber_impl::BuiltinDataReaderKind, node_kind::SubscriberNodeKind,
+        builtin_subscriber::BuiltinDataReaderKind, node_kind::SubscriberNodeKind,
         user_defined_subscriber::UserDefinedSubscriber,
     },
     infrastructure::{

@@ -5,7 +5,7 @@ use crate::{
 };
 
 use super::{
-    builtin_subscriber_impl::{BuiltInSubscriber, BuiltinDataReaderKind},
+    builtin_subscriber::{BuiltInSubscriber, BuiltinDataReaderKind},
     domain_participant_impl::DomainParticipantImpl,
 };
 
