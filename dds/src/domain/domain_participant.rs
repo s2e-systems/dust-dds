@@ -234,7 +234,7 @@ impl DomainParticipant {
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         self.0.upgrade()?.get_builtin_subscriber().map(|x| {
-            Subscriber::new(SubscriberKind::BuiltIn(BuiltinSubscriber::new(
+            Subscriber::new(SubscriberKind::Builtin(BuiltinSubscriber::new(
                 ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
             )))
         })

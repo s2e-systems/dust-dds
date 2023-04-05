@@ -8,7 +8,7 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub enum SubscriberKind {
-    BuiltIn(BuiltinSubscriber),
+    Builtin(BuiltinSubscriber),
     UserDefined(UserDefinedSubscriber),
     Listener(ListenerSubscriber),
 }
