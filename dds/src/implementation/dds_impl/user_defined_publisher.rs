@@ -41,7 +41,7 @@ impl UserDefinedPublisher {
     where
         Foo: DdsType,
     {
-        let participant = self.0.get_parent().get()?;
+        let participant = self.0.parent().get()?;
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
@@ -100,7 +100,7 @@ impl UserDefinedPublisher {
     }
 
     pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
-        Ok(self.0.get_parent().get()?.downgrade())
+        Ok(self.0.parent().get()?.downgrade())
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -149,7 +149,7 @@ impl UserDefinedPublisher {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.get_parent().get()?.is_enabled() {
+        if !self.0.parent().get()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));

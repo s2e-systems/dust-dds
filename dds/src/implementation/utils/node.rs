@@ -87,7 +87,7 @@ impl<T, U> ChildNode<T, U> {
         self.node.upgrade()
     }
 
-    pub fn get_parent(&self) -> &U {
+    pub fn parent(&self) -> &U {
         &self.parent
     }
 }

@@ -43,7 +43,7 @@ impl UserDefinedSubscriber {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        let participant = self.0.get_parent().get()?;
+        let participant = self.0.parent().get()?;
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
@@ -76,7 +76,7 @@ impl UserDefinedSubscriber {
     }
 
     pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
-        Ok(self.0.get_parent().get()?.downgrade())
+        Ok(self.0.parent().get()?.downgrade())
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {

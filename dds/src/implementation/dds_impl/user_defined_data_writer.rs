@@ -125,7 +125,7 @@ impl UserDefinedDataWriter {
     }
 
     pub fn get_publisher(&self) -> UserDefinedPublisher {
-        UserDefinedPublisher::new(self.0.get_parent().clone())
+        UserDefinedPublisher::new(self.0.parent().clone())
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
