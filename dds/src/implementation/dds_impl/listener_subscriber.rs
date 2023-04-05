@@ -1,7 +1,7 @@
 #[derive(PartialEq, Debug)]
-pub struct ListenerSubscriber {}
+pub struct ListenerSubscriberNode {}
 
-impl ListenerSubscriber {
+impl ListenerSubscriberNode {
     pub fn new() -> Self {
         Self {}
     }

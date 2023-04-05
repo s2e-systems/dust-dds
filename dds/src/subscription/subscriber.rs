@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        builtin_subscriber_impl::BuiltinDataReaderKind, entity_kind::SubscriberKind,
+        builtin_subscriber_impl::BuiltinDataReaderKind, entity_kind::SubscriberNodeKind,
         user_defined_subscriber_impl::UserDefinedSubscriberImpl,
     },
     infrastructure::{
@@ -30,10 +30,10 @@ use super::{
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
 #[derive(PartialEq, Debug)]
-pub struct Subscriber(SubscriberKind);
+pub struct Subscriber(SubscriberNodeKind);
 
 impl Subscriber {
-    pub(crate) fn new(subscriber: SubscriberKind) -> Self {
+    pub(crate) fn new(subscriber: SubscriberNodeKind) -> Self {
         Self(subscriber)
     }
 }
@@ -81,8 +81,8 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
     {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) =>
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) =>
             {
                 #[allow(clippy::redundant_closure)]
                 s.create_datareader::<Foo>(
@@ -94,7 +94,7 @@ impl Subscriber {
                 )
                 .map(|x| DataReader::new(DataReaderKind::UserDefined(x.downgrade())))
             }
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -106,11 +106,11 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
     {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => {
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => {
                 s.delete_datareader(a_datareader.get_instance_handle()?)
             }
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -124,7 +124,7 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         match &self.0 {
-            SubscriberKind::Builtin(s) => s.lookup_datareader::<Foo>(topic_name).map(|x| {
+            SubscriberNodeKind::Builtin(s) => s.lookup_datareader::<Foo>(topic_name).map(|x| {
                 Some(match x {
                     BuiltinDataReaderKind::Stateless(r) => {
                         DataReader::new(DataReaderKind::BuiltinStateless(r.downgrade()))
@@ -134,10 +134,10 @@ impl Subscriber {
                     }
                 })
             }),
-            SubscriberKind::UserDefined(s) => s
+            SubscriberNodeKind::UserDefined(s) => s
                 .lookup_datareader::<Foo>(topic_name)
                 .map(|x| Some(DataReader::new(DataReaderKind::UserDefined(x.downgrade())))),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -147,27 +147,27 @@ impl Subscriber {
     /// [`SubscriberListener`] can delegate to the [`DataReaderListener`] objects the handling of the data.
     pub fn notify_datareaders(&self) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.notify_datareaders(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.notify_datareaders(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Subscriber`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(s.get_participant()?)),
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => Ok(DomainParticipant::new(s.get_participant()?)),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.get_sample_lost_status(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.get_sample_lost_status(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -179,9 +179,9 @@ impl Subscriber {
     /// contained [`DataReader`] objects.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.delete_contained_entities(),
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.delete_contained_entities(),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -193,9 +193,9 @@ impl Subscriber {
     /// reset back to the initial values the factory would use, that is the default value of [`DataReaderQos`].
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.set_default_datareader_qos(qos),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.set_default_datareader_qos(qos),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -205,9 +205,9 @@ impl Subscriber {
     /// [`Subscriber::get_default_datareader_qos`], or else, if the call was never made, the default values of [`DataReaderQos`].
     pub fn get_default_datareader_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.get_default_datareader_qos(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.get_default_datareader_qos(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -238,18 +238,18 @@ impl Subscriber {
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.set_qos(qos),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.set_qos(qos),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => todo!(),
-            SubscriberKind::UserDefined(s) => s.get_qos(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::UserDefined(s) => s.get_qos(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -265,9 +265,9 @@ impl Subscriber {
         mask: &[StatusKind],
     ) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.set_listener(a_listener, mask),
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.set_listener(a_listener, mask),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -276,9 +276,9 @@ impl Subscriber {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => todo!(),
-            SubscriberKind::UserDefined(s) => s.get_statuscondition(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::UserDefined(s) => s.get_statuscondition(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -290,9 +290,9 @@ impl Subscriber {
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => todo!(),
-            SubscriberKind::UserDefined(s) => s.get_status_changes(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::UserDefined(s) => s.get_status_changes(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -318,18 +318,18 @@ impl Subscriber {
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => s.enable(),
-            SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
+            SubscriberNodeKind::UserDefined(s) => s.enable(),
+            SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            SubscriberKind::Builtin(_) => todo!(),
-            SubscriberKind::UserDefined(s) => s.get_instance_handle(),
-            SubscriberKind::Listener(_) => todo!(),
+            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::UserDefined(s) => s.get_instance_handle(),
+            SubscriberNodeKind::Listener(_) => todo!(),
         }
     }
 }

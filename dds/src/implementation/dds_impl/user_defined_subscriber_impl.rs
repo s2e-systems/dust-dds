@@ -37,8 +37,8 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::AnnounceKind,
-    entity_kind::SubscriberKind,
-    listener_subscriber::ListenerSubscriber,
+    entity_kind::SubscriberNodeKind,
+    listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
@@ -413,14 +413,14 @@ impl DdsShared<UserDefinedSubscriberImpl> {
         if subscriber_status_listener.is_enabled(data_on_readers_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .on_data_on_readers(&Subscriber::new(SubscriberKind::Listener(
-                    ListenerSubscriber::new(),
+                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+                    ListenerSubscriberNode::new(),
                 )))
         } else if participant_status_listener.is_enabled(data_on_readers_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_data_on_readers(&Subscriber::new(SubscriberKind::Listener(
-                    ListenerSubscriber::new(),
+                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+                    ListenerSubscriberNode::new(),
                 )))
         } else {
             for data_reader in self.data_reader_list.read_lock().iter() {

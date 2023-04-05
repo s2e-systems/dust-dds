@@ -10,9 +10,9 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct BuiltinSubscriber(ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>);
+pub struct BuiltinSubscriberNode(ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>);
 
-impl BuiltinSubscriber {
+impl BuiltinSubscriberNode {
     pub fn new(node: ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }

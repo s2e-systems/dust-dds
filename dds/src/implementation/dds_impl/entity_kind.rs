@@ -1,16 +1,16 @@
 use super::{
-    builtin_data_reader::BuiltinDataReader, builtin_subscriber::BuiltinSubscriber,
+    builtin_data_reader::BuiltinDataReader, builtin_subscriber::BuiltinSubscriberNode,
     listener_data_reader::ListenerDataReader, listener_data_writer::ListenerDataWriter,
-    listener_subscriber::ListenerSubscriber, user_defined_data_reader::UserDefinedDataReader,
+    listener_subscriber::ListenerSubscriberNode, user_defined_data_reader::UserDefinedDataReader,
     user_defined_data_writer::UserDefinedDataWriter,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_subscriber::UserDefinedSubscriberNode,
 };
 
 #[derive(PartialEq, Debug)]
-pub enum SubscriberKind {
-    Builtin(BuiltinSubscriber),
-    UserDefined(UserDefinedSubscriber),
-    Listener(ListenerSubscriber),
+pub enum SubscriberNodeKind {
+    Builtin(BuiltinSubscriberNode),
+    UserDefined(UserDefinedSubscriberNode),
+    Listener(ListenerSubscriberNode),
 }
 
 #[derive(PartialEq, Debug)]

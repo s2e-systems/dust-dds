@@ -2,10 +2,10 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds_impl::{
-            any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriber,
-            domain_participant_impl::DomainParticipantImpl, entity_kind::SubscriberKind,
+            any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriberNode,
+            domain_participant_impl::DomainParticipantImpl, entity_kind::SubscriberNodeKind,
             user_defined_publisher::UserDefinedPublisher,
-            user_defined_subscriber::UserDefinedSubscriber,
+            user_defined_subscriber::UserDefinedSubscriberNode,
         },
         utils::{
             node::{ChildNode, RootNode},
@@ -126,7 +126,7 @@ impl DomainParticipant {
             .upgrade()?
             .create_subscriber(qos, a_listener, mask)
             .map(|x| {
-                Subscriber::new(SubscriberKind::UserDefined(UserDefinedSubscriber::new(
+                Subscriber::new(SubscriberNodeKind::UserDefined(UserDefinedSubscriberNode::new(
                     ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
                 )))
             })
@@ -234,7 +234,7 @@ impl DomainParticipant {
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         self.0.upgrade()?.get_builtin_subscriber().map(|x| {
-            Subscriber::new(SubscriberKind::Builtin(BuiltinSubscriber::new(
+            Subscriber::new(SubscriberNodeKind::Builtin(BuiltinSubscriberNode::new(
                 ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
             )))
         })
