@@ -7,7 +7,7 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsType},
 };
 
-use super::{entity_kind::DataWriterNodeKind, listener_data_writer::ListenerDataWriterNode};
+use super::{node_kind::DataWriterNodeKind, listener_data_writer::ListenerDataWriterNode};
 
 pub trait AnyDataWriterListener {
     fn trigger_on_liveliness_lost(

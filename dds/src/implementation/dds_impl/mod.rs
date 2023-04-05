@@ -11,7 +11,7 @@ pub mod builtin_subscriber;
 pub mod builtin_subscriber_impl;
 pub mod dcps_service;
 pub mod domain_participant_impl;
-pub mod entity_kind;
+pub mod node_kind;
 pub mod listener_data_reader;
 pub mod listener_data_writer;
 pub mod listener_subscriber;

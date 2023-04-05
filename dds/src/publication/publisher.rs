@@ -1,7 +1,7 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, entity_kind::DataWriterNodeKind,
+        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
         user_defined_publisher::UserDefinedPublisher,
     },
     infrastructure::{

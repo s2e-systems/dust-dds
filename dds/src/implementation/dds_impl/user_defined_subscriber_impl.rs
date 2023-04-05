@@ -37,7 +37,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::AnnounceKind,
-    entity_kind::SubscriberNodeKind,
+    node_kind::SubscriberNodeKind,
     listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     reader_factory::ReaderFactory,
