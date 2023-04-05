@@ -17,7 +17,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_data_writer_impl::UserDefinedDataWriterImpl,
+    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
     user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
@@ -37,7 +37,7 @@ impl UserDefinedPublisher {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
+    ) -> DdsResult<UserDefinedDataWriter>
     where
         Foo: DdsType,
     {
@@ -45,14 +45,19 @@ impl UserDefinedPublisher {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        self.0.get()?.create_datawriter::<Foo>(
+        let writer = self.0.get()?.create_datawriter::<Foo>(
             a_topic,
             qos,
             a_listener,
             mask,
             default_unicast_locator_list,
             default_multicast_locator_list,
-        )
+        )?;
+
+        Ok(UserDefinedDataWriter::new(ChildNode::new(
+            writer.downgrade(),
+            self.0.clone(),
+        )))
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
@@ -62,11 +67,16 @@ impl UserDefinedPublisher {
     pub fn lookup_datawriter<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
+    ) -> DdsResult<UserDefinedDataWriter>
     where
         Foo: DdsType,
     {
-        self.0.get()?.lookup_datawriter::<Foo>(topic)
+        let writer = self.0.get()?.lookup_datawriter::<Foo>(topic)?;
+
+        Ok(UserDefinedDataWriter::new(ChildNode::new(
+            writer.downgrade(),
+            self.0.clone(),
+        )))
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {

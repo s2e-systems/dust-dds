@@ -22,6 +22,14 @@ impl<T> Debug for RootNode<T> {
     }
 }
 
+impl<T> Clone for RootNode<T> {
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node.clone(),
+        }
+    }
+}
+
 impl<T> RootNode<T> {
     pub fn new(node: DdsWeak<T>) -> Self {
         Self { node }
@@ -55,6 +63,18 @@ where
             .field("node", &self.node)
             .field("parent", &self.parent)
             .finish()
+    }
+}
+
+impl<T, U> Clone for ChildNode<T, U>
+where
+    U: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            node: self.node.clone(),
+            parent: self.parent.clone(),
+        }
     }
 }
 

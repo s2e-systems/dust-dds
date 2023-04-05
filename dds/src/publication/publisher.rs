@@ -1,7 +1,7 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener,
+        any_data_writer_listener::AnyDataWriterListener, data_writer_kind::DataWriterKind,
         user_defined_publisher::UserDefinedPublisher,
     },
     infrastructure::{
@@ -70,16 +70,15 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        // #[allow(clippy::redundant_closure)]
-        // self.0
-        //     .create_datawriter::<Foo>(
-        //         &a_topic.topic.upgrade()?,
-        //         qos,
-        //         a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-        //         mask,
-        //     )
-        //     .map(|x| DataWriter::new(x.downgrade()))
-        todo!()
+        #[allow(clippy::redundant_closure)]
+        self.0
+            .create_datawriter::<Foo>(
+                &a_topic.topic.upgrade()?,
+                qos,
+                a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+                mask,
+            )
+            .map(|x| DataWriter::new(DataWriterKind::UserDefined(x)))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -104,10 +103,9 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize,
     {
-        // self.0
-        //     .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
-        //     .map(|x| Some(DataWriter::new(x.downgrade())))
-        todo!()
+        self.0
+            .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
+            .map(|x| Some(DataWriter::new(DataWriterKind::UserDefined(x))))
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
