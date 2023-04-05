@@ -697,7 +697,10 @@ impl DdsShared<UserDefinedDataWriterImpl> {
         if writer_status_listener.is_enabled(publication_matched_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_publication_matched(ListenerDataWriter)
+                .trigger_on_publication_matched(
+                    ListenerDataWriter,
+                    self.get_publication_matched_status(),
+                )
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
             publisher_status_listener
                 .listener_mut()
@@ -721,7 +724,10 @@ impl DdsShared<UserDefinedDataWriterImpl> {
         if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_offered_incompatible_qos(ListenerDataWriter)
+                .trigger_on_offered_incompatible_qos(
+                    ListenerDataWriter,
+                    self.get_offered_incompatible_qos_status(),
+                )
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()

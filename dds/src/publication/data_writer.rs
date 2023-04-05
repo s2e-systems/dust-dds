@@ -85,7 +85,7 @@ where
             DataWriterKind::UserDefined(w) => {
                 w.register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
             }
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -175,7 +175,7 @@ where
                 DataWriterKind::UserDefined(w) => {
                     w.unregister_instance_w_timestamp(serialized_key, instance_handle, timestamp)
                 }
-                DataWriterKind::Listener => todo!(),
+                DataWriterKind::Listener(_) => todo!(),
             }
         } else {
             Err(DdsError::IllegalOperation)
@@ -189,7 +189,7 @@ where
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_key_value(key_holder, handle),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -201,7 +201,7 @@ where
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -266,7 +266,7 @@ where
                 handle,
                 timestamp,
             ),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -334,7 +334,7 @@ where
             DataWriterKind::UserDefined(w) => {
                 w.dispose_w_timestamp(serialized_key, instance_handle, timestamp)
             }
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -349,7 +349,7 @@ where
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -357,7 +357,7 @@ where
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_liveliness_lost_status(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -365,7 +365,7 @@ where
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_offered_deadline_missed_status(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -373,7 +373,7 @@ where
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -381,7 +381,7 @@ where
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_publication_matched_status(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -389,16 +389,16 @@ where
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => Ok(Topic::new(w.get_topic()?.downgrade())),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        todo!()
-        // Ok(Publisher::new(
-        //     self.data_writer.upgrade()?.get_publisher().downgrade(),
-        // ))
+        match &self.0 {
+            DataWriterKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
+            DataWriterKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the
@@ -412,7 +412,7 @@ where
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.assert_liveliness(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -428,7 +428,7 @@ where
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_matched_subscription_data(subscription_handle),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -441,7 +441,7 @@ where
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_matched_subscriptions(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 }
@@ -466,7 +466,7 @@ where
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.set_qos(qos),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -474,7 +474,7 @@ where
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_qos(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -499,7 +499,7 @@ where
                     mask,
                 )
             }
-            DataWriterKind::Listener => Err(DdsError::IllegalOperation),
+            DataWriterKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -509,7 +509,7 @@ where
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => Ok(StatusCondition::new(w.get_statuscondition()?)),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -522,7 +522,7 @@ where
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_status_changes(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 
@@ -549,7 +549,7 @@ where
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.enable(),
-            DataWriterKind::Listener => Err(DdsError::IllegalOperation),
+            DataWriterKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
@@ -557,7 +557,7 @@ where
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
             DataWriterKind::UserDefined(w) => w.get_instance_handle(),
-            DataWriterKind::Listener => todo!(),
+            DataWriterKind::Listener(_) => todo!(),
         }
     }
 }
