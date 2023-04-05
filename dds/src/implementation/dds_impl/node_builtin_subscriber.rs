@@ -5,8 +5,8 @@ use crate::{
 };
 
 use super::{
-    builtin_subscriber::{BuiltInSubscriber, BuiltinDataReaderKind},
-    domain_participant_impl::DomainParticipantImpl,
+    builtin_subscriber::BuiltInSubscriber, domain_participant_impl::DomainParticipantImpl,
+    node_builtin_data_reader::BuiltinDataReaderNode,
 };
 
 #[derive(PartialEq, Debug)]
@@ -17,10 +17,15 @@ impl BuiltinSubscriberNode {
         Self(node)
     }
 
-    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<BuiltinDataReaderKind>
+    pub fn lookup_datareader<Foo>(
+        &self,
+        topic_name: &str,
+    ) -> DdsResult<Option<BuiltinDataReaderNode>>
     where
         Foo: DdsType,
     {
-        self.0.get()?.lookup_datareader::<Foo>(topic_name)
+        self.0.get()?.lookup_datareader::<Foo>(topic_name)?;
+
+        Ok(Some(BuiltinDataReaderNode))
     }
 }

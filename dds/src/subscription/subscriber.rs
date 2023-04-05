@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        builtin_subscriber::BuiltinDataReaderKind, node_kind::SubscriberNodeKind,
+        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
         user_defined_subscriber::UserDefinedSubscriber,
     },
     infrastructure::{
@@ -19,8 +19,7 @@ use crate::{
 };
 
 use super::{
-    data_reader::{DataReader, DataReaderKind},
-    data_reader_listener::DataReaderListener,
+    data_reader::DataReader, data_reader_listener::DataReaderListener,
     subscriber_listener::SubscriberListener,
 };
 
@@ -92,7 +91,7 @@ impl Subscriber {
                         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
                     mask,
                 )
-                .map(|x| DataReader::new(DataReaderKind::UserDefined(x.downgrade())))
+                .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
             }
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
@@ -124,19 +123,12 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => s.lookup_datareader::<Foo>(topic_name).map(|x| {
-                Some(match x {
-                    BuiltinDataReaderKind::Stateless(r) => {
-                        DataReader::new(DataReaderKind::BuiltinStateless(r.downgrade()))
-                    }
-                    BuiltinDataReaderKind::Stateful(r) => {
-                        DataReader::new(DataReaderKind::BuiltinStateful(r.downgrade()))
-                    }
-                })
-            }),
-            SubscriberNodeKind::UserDefined(s) => s
-                .lookup_datareader::<Foo>(topic_name)
-                .map(|x| Some(DataReader::new(DataReaderKind::UserDefined(x.downgrade())))),
+            SubscriberNodeKind::Builtin(s) => Ok(s
+                .lookup_datareader::<Foo>(topic_name)?
+                .map(|x| DataReader::new(DataReaderNodeKind::Builtin(x)))),
+            SubscriberNodeKind::UserDefined(s) => Ok(s
+                .lookup_datareader::<Foo>(topic_name)?
+                .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
     }

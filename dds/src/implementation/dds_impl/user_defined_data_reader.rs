@@ -55,9 +55,9 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber::UserDefinedSubscriber,
+    message_receiver::MessageReceiver, node_listener_data_reader::ListenerDataReaderNode,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -923,7 +923,7 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(on_data_available_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_data_available(self)
+                .trigger_on_data_available(ListenerDataReaderNode)
         } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
             participant_status_listener
                 .listener_mut()
@@ -963,7 +963,7 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_lost_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_sample_lost(self)
+                .trigger_on_sample_lost(ListenerDataReaderNode, self.get_sample_lost_status())
         } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
             subscriber_status_listener
                 .listener_mut()
@@ -1010,7 +1010,10 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(subscription_matched_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_subscription_matched(self)
+                .trigger_on_subscription_matched(
+                    ListenerDataReaderNode,
+                    self.get_subscription_matched_status(),
+                )
         } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
             subscriber_status_listener
                 .listener_mut()
@@ -1058,7 +1061,10 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_rejected_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_sample_rejected(self)
+                .trigger_on_sample_rejected(
+                    ListenerDataReaderNode,
+                    self.get_sample_rejected_status(),
+                )
         } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
             subscriber_status_listener
                 .listener_mut()
@@ -1105,7 +1111,10 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_requested_deadline_missed(self)
+                .trigger_on_requested_deadline_missed(
+                    ListenerDataReaderNode,
+                    self.get_requested_deadline_missed_status(),
+                )
         } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             subscriber_status_listener
                 .listener_mut()
@@ -1152,7 +1161,10 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_requested_incompatible_qos(self)
+                .trigger_on_requested_incompatible_qos(
+                    ListenerDataReaderNode,
+                    self.get_requested_incompatible_qos_status(),
+                )
         } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             subscriber_status_listener
                 .listener_mut()

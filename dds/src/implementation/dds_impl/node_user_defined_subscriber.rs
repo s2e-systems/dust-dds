@@ -16,8 +16,8 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    domain_participant_impl::DomainParticipantImpl,
+    node_user_defined_data_reader::UserDefinedDataReaderNode, topic_impl::TopicImpl,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -27,9 +27,7 @@ pub struct UserDefinedSubscriberNode(
 );
 
 impl UserDefinedSubscriberNode {
-    pub fn new(
-        node: ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
-    ) -> Self {
+    pub fn new(node: ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
 
@@ -39,7 +37,7 @@ impl UserDefinedSubscriberNode {
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<UserDefinedDataReaderNode>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -47,14 +45,16 @@ impl UserDefinedSubscriberNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        self.0.get()?.create_datareader::<Foo>(
+        let reader = self.0.get()?.create_datareader::<Foo>(
             a_topic,
             qos,
             a_listener,
             mask,
             default_unicast_locator_list,
             default_multicast_locator_list,
-        )
+        )?;
+
+        Ok(UserDefinedDataReaderNode)
     }
 
     pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
@@ -64,11 +64,12 @@ impl UserDefinedSubscriberNode {
     pub fn lookup_datareader<Foo>(
         &self,
         topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<Option<UserDefinedDataReaderNode>>
     where
         Foo: DdsType,
     {
-        self.0.get()?.lookup_datareader::<Foo>(topic_name)
+        self.0.get()?.lookup_datareader::<Foo>(topic_name)?;
+        Ok(Some(UserDefinedDataReaderNode))
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
