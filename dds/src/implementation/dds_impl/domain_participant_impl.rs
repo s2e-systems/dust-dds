@@ -17,7 +17,7 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{overall_structure::RtpsMessageHeader, types::ProtocolId, RtpsMessage},
             participant::RtpsParticipant,
             transport::TransportWrite,
@@ -314,7 +314,7 @@ impl DdsShared<DomainParticipantImpl> {
             USER_DEFINED_WRITER_GROUP,
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
         let publisher_impl_shared = UserDefinedPublisherImpl::new(
             publisher_qos,
             rtps_group,
@@ -384,7 +384,7 @@ impl DdsShared<DomainParticipantImpl> {
             USER_DEFINED_READER_GROUP,
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
         let subscriber_shared = UserDefinedSubscriberImpl::new(
             subscriber_qos,
             rtps_group,

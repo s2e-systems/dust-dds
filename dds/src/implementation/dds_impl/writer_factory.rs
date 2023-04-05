@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
-        group::RtpsGroupImpl,
+        group::RtpsGroup,
         stateful_writer::RtpsStatefulWriter,
         types::{
             EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
@@ -47,7 +47,7 @@ impl WriterFactory {
 
     pub fn create_writer(
         &mut self,
-        rtps_group: &RtpsGroupImpl,
+        rtps_group: &RtpsGroup,
         has_key: bool,
         qos: QosKind<DataWriterQos>,
         default_unicast_locator_list: &[Locator],
@@ -83,7 +83,7 @@ impl WriterFactory {
         )))
     }
 
-    fn create_unique_writer_guid(&mut self, rtps_group: &RtpsGroupImpl, has_key: bool) -> Guid {
+    fn create_unique_writer_guid(&mut self, rtps_group: &RtpsGroup, has_key: bool) -> Guid {
         let entity_kind = match has_key {
             true => USER_DEFINED_WRITER_WITH_KEY,
             false => USER_DEFINED_WRITER_NO_KEY,
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn each_created_writer_has_different_guid() {
         let mut factory = WriterFactory::new();
-        let rtps_group = RtpsGroupImpl::new(Guid::new(
+        let rtps_group = RtpsGroup::new(Guid::new(
             GuidPrefix::new([1; 12]),
             EntityId::new(EntityKey::new([1; 3]), USER_DEFINED_WRITER_GROUP),
         ));

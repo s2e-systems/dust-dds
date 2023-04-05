@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -44,7 +44,7 @@ use super::{
 
 pub struct UserDefinedPublisherImpl {
     qos: DdsRwLock<PublisherQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriterImpl>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
@@ -59,7 +59,7 @@ impl UserDefinedPublisherImpl {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
         user_defined_data_send_condvar: DdsCondvar,

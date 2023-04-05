@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
@@ -51,7 +51,7 @@ use super::{
 
 pub struct UserDefinedSubscriberImpl {
     qos: DdsRwLock<SubscriberQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReaderImpl>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
@@ -65,7 +65,7 @@ pub struct UserDefinedSubscriberImpl {
 impl UserDefinedSubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
         user_defined_data_send_condvar: DdsCondvar,

@@ -12,7 +12,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
@@ -58,7 +58,7 @@ pub enum BuiltinDataReaderKind {
 
 pub struct BuiltInSubscriberImpl {
     qos: DdsRwLock<SubscriberQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
     sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
     sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader>,
@@ -78,7 +78,7 @@ impl BuiltInSubscriberImpl {
 
         let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
 
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);

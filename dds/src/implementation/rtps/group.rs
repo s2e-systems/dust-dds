@@ -1,10 +1,10 @@
 use super::{entity::RtpsEntity, types::Guid};
 
-pub struct RtpsGroupImpl {
+pub struct RtpsGroup {
     entity: RtpsEntity,
 }
 
-impl RtpsGroupImpl {
+impl RtpsGroup {
     pub fn new(guid: Guid) -> Self {
         Self {
             entity: RtpsEntity::new(guid),
@@ -12,7 +12,7 @@ impl RtpsGroupImpl {
     }
 }
 
-impl RtpsGroupImpl {
+impl RtpsGroup {
     pub fn guid(&self) -> Guid {
         self.entity.guid()
     }
