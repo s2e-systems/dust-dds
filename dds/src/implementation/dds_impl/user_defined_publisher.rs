@@ -1,6 +1,6 @@
 use crate::{
     implementation::utils::{
-        node::ChildNode,
+        node::{ChildNode, RootNode},
         shared_object::{DdsRwLock, DdsShared, DdsWeak},
     },
     infrastructure::{
@@ -22,10 +22,12 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedPublisher(ChildNode<UserDefinedPublisherImpl, DomainParticipantImpl>);
+pub struct UserDefinedPublisher(
+    ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
+);
 
 impl UserDefinedPublisher {
-    pub fn new(node: ChildNode<UserDefinedPublisherImpl, DomainParticipantImpl>) -> Self {
+    pub fn new(node: ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
 
@@ -39,7 +41,7 @@ impl UserDefinedPublisher {
     where
         Foo: DdsType,
     {
-        let participant = self.0.get_parent().upgrade()?;
+        let participant = self.0.get_parent().get()?;
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
@@ -87,8 +89,8 @@ impl UserDefinedPublisher {
         self.0.get()?.wait_for_acknowledgments(max_wait)
     }
 
-    pub fn get_participant(&self) -> DdsWeak<DomainParticipantImpl> {
-        self.0.get_parent().clone()
+    pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
+        Ok(self.0.get_parent().get()?.downgrade())
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -137,7 +139,7 @@ impl UserDefinedPublisher {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.get_parent().upgrade()?.is_enabled() {
+        if !self.0.get_parent().get()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));

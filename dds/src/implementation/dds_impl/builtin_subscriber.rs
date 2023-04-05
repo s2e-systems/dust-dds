@@ -1,5 +1,6 @@
 use crate::{
-    implementation::utils::node::ChildNode, infrastructure::error::DdsResult,
+    implementation::utils::node::{ChildNode, RootNode},
+    infrastructure::error::DdsResult,
     topic_definition::type_support::DdsType,
 };
 
@@ -9,10 +10,10 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct BuiltinSubscriber(ChildNode<BuiltInSubscriberImpl, DomainParticipantImpl>);
+pub struct BuiltinSubscriber(ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>);
 
 impl BuiltinSubscriber {
-    pub fn new(node: ChildNode<BuiltInSubscriberImpl, DomainParticipantImpl>) -> Self {
+    pub fn new(node: ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
 

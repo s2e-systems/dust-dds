@@ -440,8 +440,7 @@ where
         self.0.set_listener(
             a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
             mask,
-        );
-        Ok(())
+        )
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned

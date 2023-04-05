@@ -1,6 +1,6 @@
 use crate::{
     implementation::utils::{
-        node::ChildNode,
+        node::{ChildNode, RootNode},
         shared_object::{DdsShared, DdsWeak},
     },
     infrastructure::{
@@ -22,10 +22,14 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedSubscriber(ChildNode<UserDefinedSubscriberImpl, DomainParticipantImpl>);
+pub struct UserDefinedSubscriber(
+    ChildNode<UserDefinedSubscriberImpl, RootNode<DomainParticipantImpl>>,
+);
 
 impl UserDefinedSubscriber {
-    pub fn new(node: ChildNode<UserDefinedSubscriberImpl, DomainParticipantImpl>) -> Self {
+    pub fn new(
+        node: ChildNode<UserDefinedSubscriberImpl, RootNode<DomainParticipantImpl>>,
+    ) -> Self {
         Self(node)
     }
 
@@ -39,7 +43,7 @@ impl UserDefinedSubscriber {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        let participant = self.0.get_parent().upgrade()?;
+        let participant = self.0.get_parent().get()?;
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
@@ -71,8 +75,8 @@ impl UserDefinedSubscriber {
         self.0.get()?.notify_datareaders()
     }
 
-    pub fn get_participant(&self) -> DdsWeak<DomainParticipantImpl> {
-        self.0.get_parent()
+    pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
+        Ok(self.0.get_parent().get()?.downgrade())
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {

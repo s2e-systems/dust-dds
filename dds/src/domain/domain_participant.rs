@@ -7,7 +7,10 @@ use crate::{
             user_defined_publisher::UserDefinedPublisher,
             user_defined_subscriber::UserDefinedSubscriber,
         },
-        utils::{node::ChildNode, shared_object::DdsWeak},
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::DdsWeak,
+        },
     },
     infrastructure::{
         condition::StatusCondition,
@@ -87,7 +90,7 @@ impl DomainParticipant {
             .map(|x| {
                 Publisher::new(UserDefinedPublisher::new(ChildNode::new(
                     x.downgrade(),
-                    self.0.clone(),
+                    RootNode::new(self.0.clone()),
                 )))
             })
     }
@@ -124,7 +127,7 @@ impl DomainParticipant {
             .create_subscriber(qos, a_listener, mask)
             .map(|x| {
                 Subscriber::new(SubscriberKind::UserDefined(UserDefinedSubscriber::new(
-                    ChildNode::new(x.downgrade(), self.0.clone()),
+                    ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
                 )))
             })
     }
@@ -232,7 +235,7 @@ impl DomainParticipant {
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
         self.0.upgrade()?.get_builtin_subscriber().map(|x| {
             Subscriber::new(SubscriberKind::BuiltIn(BuiltinSubscriber::new(
-                ChildNode::new(x.downgrade(), self.0.clone()),
+                ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
             )))
         })
     }

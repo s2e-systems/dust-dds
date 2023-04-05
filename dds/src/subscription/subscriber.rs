@@ -157,7 +157,7 @@ impl Subscriber {
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
         match &self.0 {
             SubscriberKind::BuiltIn(_) => Err(DdsError::IllegalOperation),
-            SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(s.get_participant())),
+            SubscriberKind::UserDefined(s) => Ok(DomainParticipant::new(s.get_participant()?)),
             SubscriberKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
