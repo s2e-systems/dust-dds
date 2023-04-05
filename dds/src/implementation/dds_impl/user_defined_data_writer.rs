@@ -22,14 +22,14 @@ use super::{
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl, user_defined_data_writer_impl::UserDefinedDataWriterImpl,
     user_defined_publisher_node::UserDefinedPublisherNode,
-    user_defined_publisher_impl::UserDefinedPublisherImpl,
+    user_defined_publisher_impl::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode(
     ChildNode<
         UserDefinedDataWriterImpl,
-        ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
+        ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
     >,
 );
 
@@ -37,7 +37,7 @@ impl UserDefinedDataWriterNode {
     pub fn new(
         node: ChildNode<
             UserDefinedDataWriterImpl,
-            ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
+            ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
         >,
     ) -> Self {
         Self(node)

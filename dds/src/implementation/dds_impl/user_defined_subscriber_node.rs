@@ -18,17 +18,17 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl,
     user_defined_data_reader_impl::UserDefinedDataReaderImpl,
-    user_defined_subscriber_impl::UserDefinedSubscriberImpl,
+    user_defined_subscriber_impl::UserDefinedSubscriber,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedSubscriberNode(
-    ChildNode<UserDefinedSubscriberImpl, RootNode<DomainParticipantImpl>>,
+    ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
 );
 
 impl UserDefinedSubscriberNode {
     pub fn new(
-        node: ChildNode<UserDefinedSubscriberImpl, RootNode<DomainParticipantImpl>>,
+        node: ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
     ) -> Self {
         Self(node)
     }

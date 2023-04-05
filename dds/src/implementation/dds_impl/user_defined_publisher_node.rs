@@ -18,16 +18,16 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriterNode,
-    user_defined_publisher_impl::UserDefinedPublisherImpl,
+    user_defined_publisher_impl::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedPublisherNode(
-    ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
+    ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
 );
 
 impl UserDefinedPublisherNode {
-    pub fn new(node: ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(node: ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
 

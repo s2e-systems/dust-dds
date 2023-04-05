@@ -5,15 +5,15 @@ use crate::{
 };
 
 use super::{
-    builtin_subscriber_impl::{BuiltInSubscriberImpl, BuiltinDataReaderKind},
+    builtin_subscriber_impl::{BuiltInSubscriber, BuiltinDataReaderKind},
     domain_participant_impl::DomainParticipantImpl,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct BuiltinSubscriberNode(ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>);
+pub struct BuiltinSubscriberNode(ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>);
 
 impl BuiltinSubscriberNode {
-    pub fn new(node: ChildNode<BuiltInSubscriberImpl, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(node: ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
 

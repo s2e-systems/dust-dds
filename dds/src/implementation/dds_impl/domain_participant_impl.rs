@@ -69,11 +69,11 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber_impl::BuiltInSubscriberImpl, message_receiver::MessageReceiver,
+    builtin_subscriber_impl::BuiltInSubscriber, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher_impl::UserDefinedPublisherImpl,
-    user_defined_subscriber_impl::UserDefinedSubscriberImpl,
+    user_defined_publisher_impl::UserDefinedPublisher,
+    user_defined_subscriber_impl::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -114,12 +114,12 @@ pub struct DomainParticipantImpl {
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
-    builtin_subscriber: DdsShared<BuiltInSubscriberImpl>,
+    builtin_subscriber: DdsShared<BuiltInSubscriber>,
     builtin_publisher: DdsShared<BuiltinPublisher>,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriberImpl>>>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisherImpl>>>,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: DdsRwLock<PublisherQos>,
     topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
@@ -214,7 +214,7 @@ impl DomainParticipantImpl {
             announce_sender.clone(),
         );
 
-        let builtin_subscriber = BuiltInSubscriberImpl::new(
+        let builtin_subscriber = BuiltInSubscriber::new(
             guid_prefix,
             spdp_topic_participant,
             sedp_topic_topics.clone(),
@@ -301,7 +301,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedPublisherImpl>> {
+    ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -315,7 +315,7 @@ impl DdsShared<DomainParticipantImpl> {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl_shared = UserDefinedPublisherImpl::new(
+        let publisher_impl_shared = UserDefinedPublisher::new(
             publisher_qos,
             rtps_group,
             a_listener,
@@ -371,7 +371,7 @@ impl DdsShared<DomainParticipantImpl> {
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedSubscriberImpl>> {
+    ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -385,7 +385,7 @@ impl DdsShared<DomainParticipantImpl> {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber_shared = UserDefinedSubscriberImpl::new(
+        let subscriber_shared = UserDefinedSubscriber::new(
             subscriber_qos,
             rtps_group,
             a_listener,
@@ -579,7 +579,7 @@ impl DdsShared<DomainParticipantImpl> {
         })
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriberImpl>> {
+    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriber>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
         }

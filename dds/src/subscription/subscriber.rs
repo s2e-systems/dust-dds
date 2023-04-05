@@ -3,7 +3,7 @@ use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         builtin_subscriber_impl::BuiltinDataReaderKind, node_kind::SubscriberNodeKind,
-        user_defined_subscriber_impl::UserDefinedSubscriberImpl,
+        user_defined_subscriber_impl::UserDefinedSubscriber,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -221,7 +221,7 @@ impl Subscriber {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        UserDefinedSubscriberImpl::copy_from_topic_qos(a_datareader_qos, a_topic_qos)
+        UserDefinedSubscriber::copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
 
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.

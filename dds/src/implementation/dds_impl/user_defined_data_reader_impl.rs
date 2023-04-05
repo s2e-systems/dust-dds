@@ -57,7 +57,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber_impl::UserDefinedSubscriberImpl,
+    user_defined_subscriber_impl::UserDefinedSubscriber,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -179,7 +179,7 @@ pub struct UserDefinedDataReaderImpl {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     topic: DdsShared<TopicImpl>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
-    parent_subscriber: DdsWeak<UserDefinedSubscriberImpl>,
+    parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -204,7 +204,7 @@ impl UserDefinedDataReaderImpl {
         topic: DdsShared<TopicImpl>,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_subscriber: DdsWeak<UserDefinedSubscriberImpl>,
+        parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -673,7 +673,7 @@ impl DdsShared<UserDefinedDataReaderImpl> {
         self.topic.clone()
     }
 
-    pub fn get_subscriber(&self) -> DdsShared<UserDefinedSubscriberImpl> {
+    pub fn get_subscriber(&self) -> DdsShared<UserDefinedSubscriber> {
         self.parent_subscriber
             .upgrade()
             .expect("Parent subscriber of data reader must exist")

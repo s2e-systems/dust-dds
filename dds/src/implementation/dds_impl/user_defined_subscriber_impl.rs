@@ -37,9 +37,9 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::AnnounceKind,
-    node_kind::SubscriberNodeKind,
     listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    node_kind::SubscriberNodeKind,
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
@@ -49,7 +49,7 @@ use super::{
     },
 };
 
-pub struct UserDefinedSubscriberImpl {
+pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReaderImpl>>>,
@@ -62,7 +62,7 @@ pub struct UserDefinedSubscriberImpl {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedSubscriberImpl {
+impl UserDefinedSubscriber {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
@@ -71,7 +71,7 @@ impl UserDefinedSubscriberImpl {
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedSubscriberImpl {
+        DdsShared::new(UserDefinedSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
@@ -93,7 +93,7 @@ impl UserDefinedSubscriberImpl {
     }
 }
 
-impl DdsShared<UserDefinedSubscriberImpl> {
+impl DdsShared<UserDefinedSubscriber> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -430,7 +430,7 @@ impl DdsShared<UserDefinedSubscriberImpl> {
     }
 }
 
-impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriberImpl> {
+impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
