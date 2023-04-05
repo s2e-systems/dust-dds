@@ -140,7 +140,7 @@ impl OfferedIncompatibleQosStatus {
     }
 }
 
-pub struct UserDefinedDataWriter {
+pub struct UserDefinedDataWriterImpl {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     topic: DdsShared<TopicImpl>,
     publisher: DdsWeak<UserDefinedPublisherImpl>,
@@ -157,7 +157,7 @@ pub struct UserDefinedDataWriter {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedDataWriter {
+impl UserDefinedDataWriterImpl {
     pub fn new(
         rtps_writer: RtpsStatefulWriter,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
@@ -167,7 +167,7 @@ impl UserDefinedDataWriter {
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataWriter {
+        DdsShared::new(UserDefinedDataWriterImpl {
             rtps_writer: DdsRwLock::new(rtps_writer),
             topic,
             publisher,
@@ -187,7 +187,7 @@ impl UserDefinedDataWriter {
     }
 }
 
-impl DdsShared<UserDefinedDataWriter> {
+impl DdsShared<UserDefinedDataWriterImpl> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -734,7 +734,7 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 }
 
-impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
+impl AnyDataWriter for DdsShared<UserDefinedDataWriterImpl> {}
 
 //// Helper functions
 fn get_discovered_reader_incompatible_qos_policy_list(
@@ -920,7 +920,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
+    fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriterImpl> {
         let (sender, _) = std::sync::mpsc::sync_channel(1);
         let dummy_topic = TopicImpl::new(
             GUID_UNKNOWN,
@@ -943,7 +943,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(
+        let data_writer = UserDefinedDataWriterImpl::new(
             rtps_writer,
             None,
             &[],

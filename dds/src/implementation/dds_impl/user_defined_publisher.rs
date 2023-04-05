@@ -17,7 +17,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
+    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriterImpl,
     user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
@@ -35,7 +35,7 @@ impl UserDefinedPublisher {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
     where
         Foo: DdsType,
     {
@@ -60,7 +60,7 @@ impl UserDefinedPublisher {
     pub fn lookup_datawriter<Foo>(
         &self,
         topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriterImpl>>
     where
         Foo: DdsType,
     {

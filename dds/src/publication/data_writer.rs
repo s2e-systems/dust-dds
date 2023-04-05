@@ -5,7 +5,7 @@ use crate::{
     implementation::{
         dds_impl::{
             any_data_writer_listener::AnyDataWriterListener,
-            user_defined_data_writer::UserDefinedDataWriter,
+            user_defined_data_writer::UserDefinedDataWriterImpl,
         },
         utils::shared_object::DdsWeak,
     },
@@ -33,7 +33,7 @@ pub struct DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize + 'static,
 {
-    data_writer: DdsWeak<UserDefinedDataWriter>,
+    data_writer: DdsWeak<UserDefinedDataWriterImpl>,
     phantom: PhantomData<Foo>,
 }
 
@@ -41,7 +41,7 @@ impl<Foo> DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize + 'static,
 {
-    pub(crate) fn new(data_writer: DdsWeak<UserDefinedDataWriter>) -> Self {
+    pub(crate) fn new(data_writer: DdsWeak<UserDefinedDataWriterImpl>) -> Self {
         Self {
             data_writer,
             phantom: PhantomData,
