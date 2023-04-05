@@ -53,9 +53,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher_impl::UserDefinedPublisherImpl,
+    listener_data_writer::ListenerDataWriter, message_receiver::MessageReceiver,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
 impl PublicationMatchedStatus {
@@ -697,7 +697,7 @@ impl DdsShared<UserDefinedDataWriterImpl> {
         if writer_status_listener.is_enabled(publication_matched_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_publication_matched(self)
+                .trigger_on_publication_matched(ListenerDataWriter)
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
             publisher_status_listener
                 .listener_mut()
@@ -721,7 +721,7 @@ impl DdsShared<UserDefinedDataWriterImpl> {
         if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_offered_incompatible_qos(self)
+                .trigger_on_offered_incompatible_qos(ListenerDataWriter)
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()

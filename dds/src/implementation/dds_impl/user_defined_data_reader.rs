@@ -787,6 +787,12 @@ impl DdsShared<UserDefinedDataReader> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
+        // if !self.0.get_publisher().is_enabled() {
+        //     return Err(DdsError::PreconditionNotMet(
+        //         "Parent publisher disabled".to_string(),
+        //     ));
+        // }
+
         self.announce_sender
             .send(AnnounceKind::CreatedDataReader(
                 self.as_discovered_reader_data(),

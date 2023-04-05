@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::utils::{
-        node::ChildNode,
+        node::{ChildNode, RootNode},
         shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
@@ -27,7 +27,7 @@ use super::{
 pub struct UserDefinedDataWriter(
     ChildNode<
         UserDefinedDataWriterImpl,
-        ChildNode<UserDefinedPublisherImpl, DomainParticipantImpl>,
+        ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
     >,
 );
 
@@ -35,7 +35,7 @@ impl UserDefinedDataWriter {
     pub fn new(
         node: ChildNode<
             UserDefinedDataWriterImpl,
-            ChildNode<UserDefinedPublisherImpl, DomainParticipantImpl>,
+            ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
         >,
     ) -> Self {
         Self(node)
