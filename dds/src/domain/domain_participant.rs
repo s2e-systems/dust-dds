@@ -4,7 +4,7 @@ use crate::{
         dds_impl::{
             any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltinSubscriberNode,
             domain_participant_impl::DomainParticipantImpl, node_kind::SubscriberNodeKind,
-            user_defined_publisher::UserDefinedPublisher,
+            user_defined_publisher::UserDefinedPublisherNode,
             user_defined_subscriber::UserDefinedSubscriberNode,
         },
         utils::{
@@ -88,7 +88,7 @@ impl DomainParticipant {
             .upgrade()?
             .create_publisher(qos, a_listener, mask)
             .map(|x| {
-                Publisher::new(UserDefinedPublisher::new(ChildNode::new(
+                Publisher::new(UserDefinedPublisherNode::new(ChildNode::new(
                     x.downgrade(),
                     RootNode::new(self.0.clone()),
                 )))

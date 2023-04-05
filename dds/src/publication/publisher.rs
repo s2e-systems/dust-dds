@@ -2,7 +2,7 @@ use crate::{
     domain::domain_participant::DomainParticipant,
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
-        user_defined_publisher::UserDefinedPublisher,
+        user_defined_publisher::UserDefinedPublisherNode,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -24,10 +24,10 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(PartialEq, Debug)]
-pub struct Publisher(UserDefinedPublisher);
+pub struct Publisher(UserDefinedPublisherNode);
 
 impl Publisher {
-    pub(crate) fn new(publisher: UserDefinedPublisher) -> Self {
+    pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
         Self(publisher)
     }
 }

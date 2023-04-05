@@ -21,7 +21,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
     topic_impl::TopicImpl, user_defined_data_writer_impl::UserDefinedDataWriterImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    user_defined_publisher::UserDefinedPublisherNode,
     user_defined_publisher_impl::UserDefinedPublisherImpl,
 };
 
@@ -125,8 +125,8 @@ impl UserDefinedDataWriterNode {
         Ok(self.0.get()?.get_topic())
     }
 
-    pub fn get_publisher(&self) -> UserDefinedPublisher {
-        UserDefinedPublisher::new(self.0.parent().clone())
+    pub fn get_publisher(&self) -> UserDefinedPublisherNode {
+        UserDefinedPublisherNode::new(self.0.parent().clone())
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {

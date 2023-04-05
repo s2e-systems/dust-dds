@@ -22,11 +22,11 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedPublisher(
+pub struct UserDefinedPublisherNode(
     ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>,
 );
 
-impl UserDefinedPublisher {
+impl UserDefinedPublisherNode {
     pub fn new(node: ChildNode<UserDefinedPublisherImpl, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
     }
