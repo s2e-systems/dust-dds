@@ -144,7 +144,7 @@ impl TimerFactory {
         timer
     }
 
-    pub fn delete_timer(&self, timer: &DdsShared<DdsRwLock<Timer>>) {
+    pub fn _delete_timer(&self, timer: &DdsShared<DdsRwLock<Timer>>) {
         self.timer_list.write_lock().retain(|x| x != timer);
     }
 }
@@ -275,7 +275,7 @@ mod tests {
             move || mock_task2.run(),
         );
 
-        timer_factory.delete_timer(&tp2);
+        timer_factory._delete_timer(&tp2);
 
         std::thread::sleep(std::time::Duration::from_millis(2500));
     }
@@ -305,7 +305,7 @@ mod tests {
                 move || mock_task2.run(),
             );
 
-            timer_factory.delete_timer(&tp2);
+            timer_factory._delete_timer(&tp2);
         }
         std::thread::sleep(std::time::Duration::from_millis(2500));
     }

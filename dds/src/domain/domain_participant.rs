@@ -2,9 +2,15 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     implementation::{
         dds_impl::{
-            any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
+            any_topic_listener::AnyTopicListener, node_builtin_subscriber::BuiltinSubscriberNode,
+            domain_participant_impl::DomainParticipantImpl, node_kind::SubscriberNodeKind,
+            node_user_defined_publisher::UserDefinedPublisherNode,
+            node_user_defined_subscriber::UserDefinedSubscriberNode,
         },
-        utils::shared_object::DdsWeak,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::DdsWeak,
+        },
     },
     infrastructure::{
         condition::StatusCondition,
@@ -15,10 +21,7 @@ use crate::{
         time::{Duration, Time},
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{
-        subscriber::{Subscriber, SubscriberKind},
-        subscriber_listener::SubscriberListener,
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::{topic::Topic, topic_listener::TopicListener, type_support::DdsType},
 };
 
@@ -84,7 +87,12 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_publisher(qos, a_listener, mask)
-            .map(|x| Publisher::new(x.downgrade()))
+            .map(|x| {
+                Publisher::new(UserDefinedPublisherNode::new(ChildNode::new(
+                    x.downgrade(),
+                    RootNode::new(self.0.clone()),
+                )))
+            })
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -117,7 +125,11 @@ impl DomainParticipant {
         self.0
             .upgrade()?
             .create_subscriber(qos, a_listener, mask)
-            .map(|x| Subscriber::new(SubscriberKind::UserDefined(x.downgrade())))
+            .map(|x| {
+                Subscriber::new(SubscriberNodeKind::UserDefined(UserDefinedSubscriberNode::new(
+                    ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
+                )))
+            })
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -221,10 +233,11 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        self.0
-            .upgrade()?
-            .get_builtin_subscriber()
-            .map(|x| Subscriber::new(SubscriberKind::BuiltIn(x.downgrade())))
+        self.0.upgrade()?.get_builtin_subscriber().map(|x| {
+            Subscriber::new(SubscriberNodeKind::Builtin(BuiltinSubscriberNode::new(
+                ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
+            )))
+        })
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

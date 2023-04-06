@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
@@ -20,7 +20,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
@@ -30,17 +30,16 @@ use crate::{
         status::{SampleLostStatus, StatusKind},
         time::Time,
     },
-    subscription::{
-        subscriber::{Subscriber, SubscriberKind},
-        subscriber_listener::SubscriberListener,
-    },
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    domain_participant_impl::AnnounceKind,
+    node_listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    node_kind::SubscriberNodeKind,
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
@@ -52,11 +51,10 @@ use super::{
 
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     user_defined_data_send_condvar: DdsCondvar,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
@@ -67,10 +65,9 @@ pub struct UserDefinedSubscriber {
 impl UserDefinedSubscriber {
     pub fn new(
         qos: SubscriberQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -80,7 +77,6 @@ impl UserDefinedSubscriber {
             data_reader_list: DdsRwLock::new(Vec::new()),
             reader_factory: DdsRwLock::new(ReaderFactory::new()),
             enabled: DdsRwLock::new(false),
-            parent_participant,
             user_defined_data_send_condvar,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
@@ -106,18 +102,14 @@ impl DdsShared<UserDefinedSubscriber> {
         self.data_reader_list.read_lock().is_empty()
     }
 
-    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
-        self.parent_participant
-            .upgrade()
-            .expect("Parent participant of subscriber must exist")
-    }
-
     pub fn create_datareader<Foo>(
         &self,
         a_topic: &DdsShared<TopicImpl>,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
     ) -> DdsResult<DdsShared<UserDefinedDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -126,11 +118,9 @@ impl DdsShared<UserDefinedSubscriber> {
             &self.rtps_group,
             Foo::has_key(),
             qos,
-            self.get_participant().default_unicast_locator_list(),
-            self.get_participant().default_multicast_locator_list(),
+            default_unicast_locator_list,
+            default_multicast_locator_list,
         )?;
-
-        let timer = self.get_participant().timer_factory().create_timer();
 
         let data_reader_shared = UserDefinedDataReader::new(
             rtps_reader,
@@ -139,7 +129,6 @@ impl DdsShared<UserDefinedSubscriber> {
             mask,
             self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
-            timer,
             self.announce_sender.clone(),
         );
 
@@ -172,7 +161,6 @@ impl DdsShared<UserDefinedSubscriber> {
             })?;
 
         let data_reader = data_reader_list.remove(data_reader_list_position);
-        data_reader.cancel_timers();
 
         if data_reader.is_enabled() {
             self.announce_sender
@@ -425,14 +413,14 @@ impl DdsShared<UserDefinedSubscriber> {
         if subscriber_status_listener.is_enabled(data_on_readers_status_kind) {
             subscriber_status_listener
                 .listener_mut()
-                .on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
-                    self.downgrade(),
+                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+                    ListenerSubscriberNode::new(),
                 )))
         } else if participant_status_listener.is_enabled(data_on_readers_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_data_on_readers(&Subscriber::new(SubscriberKind::UserDefined(
-                    self.downgrade(),
+                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+                    ListenerSubscriberNode::new(),
                 )))
         } else {
             for data_reader in self.data_reader_list.read_lock().iter() {

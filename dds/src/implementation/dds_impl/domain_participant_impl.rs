@@ -17,7 +17,7 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{overall_structure::RtpsMessageHeader, types::ProtocolId, RtpsMessage},
             participant::RtpsParticipant,
             transport::TransportWrite,
@@ -137,7 +137,7 @@ pub struct DomainParticipantImpl {
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
-    timer_factory: TimerFactory,
+    _timer_factory: TimerFactory,
     timer: DdsShared<DdsRwLock<Timer>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -262,7 +262,7 @@ impl DomainParticipantImpl {
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
-            timer_factory,
+            _timer_factory: timer_factory,
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
@@ -313,13 +313,12 @@ impl DdsShared<DomainParticipantImpl> {
             USER_DEFINED_WRITER_GROUP,
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
         let publisher_impl_shared = UserDefinedPublisher::new(
             publisher_qos,
             rtps_group,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.data_max_size_serialized,
             self.announce_sender.clone(),
@@ -384,13 +383,12 @@ impl DdsShared<DomainParticipantImpl> {
             USER_DEFINED_READER_GROUP,
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
         let subscriber_shared = UserDefinedSubscriber::new(
             subscriber_qos,
             rtps_group,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.announce_sender.clone(),
         );
@@ -1368,10 +1366,6 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
         &self.user_defined_data_send_condvar
-    }
-
-    pub fn timer_factory(&self) -> &TimerFactory {
-        &self.timer_factory
     }
 
     pub fn cancel_timers(&self) {

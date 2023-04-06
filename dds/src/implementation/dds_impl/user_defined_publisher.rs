@@ -7,7 +7,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -17,13 +17,13 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -33,7 +33,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
@@ -44,12 +44,11 @@ use super::{
 
 pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -60,10 +59,9 @@ impl UserDefinedPublisher {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
-        rtps_group: RtpsGroupImpl,
+        rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_participant: DdsWeak<DomainParticipantImpl>,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
@@ -75,7 +73,6 @@ impl UserDefinedPublisher {
             data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             user_defined_data_send_condvar,
-            parent_participant,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -99,6 +96,8 @@ impl DdsShared<UserDefinedPublisher> {
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
+        default_unicast_locator_list: &[Locator],
+        default_multicast_locator_list: &[Locator],
     ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
     where
         Foo: DdsType,
@@ -107,8 +106,8 @@ impl DdsShared<UserDefinedPublisher> {
             &self.rtps_group,
             Foo::has_key(),
             qos,
-            self.get_participant().default_unicast_locator_list(),
-            self.get_participant().default_multicast_locator_list(),
+            default_unicast_locator_list,
+            default_multicast_locator_list,
             self.data_max_size_serialized,
         )?;
 
@@ -252,20 +251,6 @@ impl DdsShared<UserDefinedPublisher> {
             .read_lock()
             .get_default_datawriter_qos()
             .clone()
-    }
-
-    pub fn copy_from_topic_qos(
-        &self,
-        _a_datawriter_qos: &mut DataWriterQos,
-        _a_topic_qos: &TopicQos,
-    ) -> DdsResult<()> {
-        todo!()
-    }
-
-    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
-        self.parent_participant
-            .upgrade()
-            .expect("Parent participant of publisher must exist")
     }
 
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {

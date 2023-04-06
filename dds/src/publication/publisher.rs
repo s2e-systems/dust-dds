@@ -1,15 +1,12 @@
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::{
-        dds_impl::{
-            any_data_writer_listener::AnyDataWriterListener,
-            user_defined_publisher::UserDefinedPublisher,
-        },
-        utils::shared_object::DdsWeak,
+    implementation::dds_impl::{
+        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
+        node_user_defined_publisher::UserDefinedPublisherNode,
     },
     infrastructure::{
         condition::StatusCondition,
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
@@ -27,25 +24,13 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(PartialEq, Debug)]
-pub struct Publisher {
-    publisher: DdsWeak<UserDefinedPublisher>,
-}
+pub struct Publisher(UserDefinedPublisherNode);
 
 impl Publisher {
-    pub(crate) fn new(publisher: DdsWeak<UserDefinedPublisher>) -> Self {
-        Self { publisher }
+    pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
+        Self(publisher)
     }
 }
-
-// impl Drop for Publisher {
-//     fn drop(&mut self) {
-//         if self.publisher.weak_count() == 1 {
-//             if let Ok(p) = self.get_participant() {
-//                 p.delete_publisher(self).ok();
-//             }
-//         }
-//     }
-// }
 
 impl Publisher {
     /// This operation creates a [`DataWriter`]. The returned [`DataWriter`] will be attached and belongs to the [`Publisher`].
@@ -76,15 +61,14 @@ impl Publisher {
         Foo: DdsType + DdsSerialize + 'static,
     {
         #[allow(clippy::redundant_closure)]
-        self.publisher
-            .upgrade()?
+        self.0
             .create_datawriter::<Foo>(
                 &a_topic.topic.upgrade()?,
                 qos,
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
             )
-            .map(|x| DataWriter::new(x.downgrade()))
+            .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -97,8 +81,7 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        self.publisher
-            .upgrade()?
+        self.0
             .delete_datawriter(a_datawriter.get_instance_handle()?)
     }
 
@@ -110,10 +93,9 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize,
     {
-        self.publisher
-            .upgrade()?
+        self.0
             .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
-            .map(|x| Some(DataWriter::new(x.downgrade())))
+            .map(|x| Some(DataWriter::new(DataWriterNodeKind::UserDefined(x))))
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using [`DataWriter`] objects
@@ -123,7 +105,7 @@ impl Publisher {
     /// modifications has completed. If the [`Publisher`] is deleted before [`Publisher::resume_publications`] is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        self.publisher.upgrade()?.suspend_publications()
+        self.0.suspend_publications()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -132,7 +114,7 @@ impl Publisher {
     /// The call to [`Publisher::resume_publications`] must match a previous call to [`Publisher::suspend_publications`] otherwise
     /// the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn resume_publications(&self) -> DdsResult<()> {
-        self.publisher.upgrade()?.resume_publications()
+        self.0.resume_publications()
     }
 
     /// This operation requests that the application will begin a *coherent set* of modifications using [`DataWriter`] objects attached to
@@ -152,13 +134,13 @@ impl Publisher {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        self.publisher.upgrade()?.begin_coherent_changes()
+        self.0.begin_coherent_changes()
     }
 
     /// This operation terminates the *coherent set* initiated by the matching call to [`Publisher::begin_coherent_changes`]. If there is no matching
     /// call to [`Publisher::begin_coherent_changes`], the operation will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        self.publisher.upgrade()?.end_coherent_changes()
+        self.0.end_coherent_changes()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable [`DataWriter`] entities is acknowledged by all
@@ -167,14 +149,12 @@ impl Publisher {
     /// have been acknowledged by all reliable matched data readers; a return value of [`DdsError::Timeout`](crate::infrastructure::error::DdsError)
     /// indicates that `max_wait` elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.publisher.upgrade()?.wait_for_acknowledgments(max_wait)
+        self.0.wait_for_acknowledgments(max_wait)
     }
 
     /// This operation returns the [`DomainParticipant`] to which the [`Publisher`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
-            self.publisher.upgrade()?.get_participant().downgrade(),
-        ))
+        Ok(DomainParticipant::new(self.0.get_participant()?))
     }
 
     /// This operation deletes all the entities that were created by means of the [`Publisher::create_datawriter`] operations.
@@ -184,7 +164,7 @@ impl Publisher {
     /// Once this operation returns successfully, the application may delete the [`Publisher`] knowing that it has no
     /// contained [`DataWriter`] objects
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.publisher.upgrade()?.delete_contained_entities()
+        self.0.delete_contained_entities()
     }
 
     /// This operation sets the default value of the [`DataWriterQos`] which will be used for newly created [`DataWriter`] entities in
@@ -194,7 +174,7 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.publisher.upgrade()?.set_default_datawriter_qos(qos)
+        self.0.set_default_datawriter_qos(qos)
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -202,7 +182,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.publisher.upgrade()?.get_default_datawriter_qos())
+        self.0.get_default_datawriter_qos()
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -216,9 +196,7 @@ impl Publisher {
         a_datawriter_qos: &mut DataWriterQos,
         a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
-        self.publisher
-            .upgrade()?
-            .copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+        self.0.copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
 }
 
@@ -237,12 +215,12 @@ impl Publisher {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.publisher.upgrade()?.set_qos(qos)
+        self.0.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.publisher.upgrade()?.get_qos())
+        self.0.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -256,17 +234,14 @@ impl Publisher {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.publisher.upgrade()?.set_listener(a_listener, mask);
-        Ok(())
+        self.0.set_listener(a_listener, mask)
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            self.publisher.upgrade()?.get_statuscondition(),
-        ))
+        Ok(StatusCondition::new(self.0.get_statuscondition()?))
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -276,7 +251,7 @@ impl Publisher {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.publisher.upgrade()?.get_status_changes())
+        self.0.get_status_changes()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -300,17 +275,11 @@ impl Publisher {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.publisher.upgrade()?.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
-        }
-
-        self.publisher.upgrade()?.enable()
+        self.0.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.publisher.upgrade()?.get_instance_handle())
+        self.0.get_instance_handle()
     }
 }

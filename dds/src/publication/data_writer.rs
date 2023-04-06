@@ -2,12 +2,8 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::{
-        dds_impl::{
-            any_data_writer_listener::AnyDataWriterListener,
-            user_defined_data_writer::UserDefinedDataWriter,
-        },
-        utils::shared_object::DdsWeak,
+    implementation::dds_impl::{
+        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -29,23 +25,11 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>
-where
-    Foo: DdsType + DdsSerialize + 'static,
-{
-    data_writer: DdsWeak<UserDefinedDataWriter>,
-    phantom: PhantomData<Foo>,
-}
+pub struct DataWriter<Foo>(DataWriterNodeKind, PhantomData<Foo>);
 
-impl<Foo> DataWriter<Foo>
-where
-    Foo: DdsType + DdsSerialize + 'static,
-{
-    pub(crate) fn new(data_writer: DdsWeak<UserDefinedDataWriter>) -> Self {
-        Self {
-            data_writer,
-            phantom: PhantomData,
-        }
+impl<Foo> DataWriter<Foo> {
+    pub(crate) fn new(data_writer: DataWriterNodeKind) -> Self {
+        Self(data_writer, PhantomData)
     }
 }
 
@@ -97,9 +81,12 @@ where
         instance: &Foo,
         timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
-        self.data_writer
-            .upgrade()?
-            .register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => {
+                w.register_instance_w_timestamp(instance.get_serialized_key(), timestamp)
+            }
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation reverses the action of [`DataWriter::register_instance`]. It should only be called on an
@@ -184,11 +171,12 @@ where
                 .get_serialized_key()
                 .serialize::<_, LittleEndian>(&mut serialized_key)?;
 
-            self.data_writer.upgrade()?.unregister_instance_w_timestamp(
-                serialized_key,
-                instance_handle,
-                timestamp,
-            )
+            match &self.0 {
+                DataWriterNodeKind::UserDefined(w) => {
+                    w.unregister_instance_w_timestamp(serialized_key, instance_handle, timestamp)
+                }
+                DataWriterNodeKind::Listener(_) => todo!(),
+            }
         } else {
             Err(DdsError::IllegalOperation)
         }
@@ -199,9 +187,10 @@ where
     /// This operation returns [`DdsError::BadParameter`](crate::infrastructure::error::DdsError) if the `handle` does not
     /// correspond to an existing data object known to the [`DataWriter`].
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        self.data_writer
-            .upgrade()?
-            .get_key_value(key_holder, handle)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_key_value(key_holder, handle),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation takes as a parameter an instance and returns an [`InstanceHandle`] that can be used in subsequent operations
@@ -210,9 +199,10 @@ where
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.data_writer
-            .upgrade()?
-            .lookup_instance(instance.get_serialized_key())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -269,12 +259,15 @@ where
         let mut serialized_data = Vec::new();
         data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 
-        self.data_writer.upgrade()?.write_w_timestamp(
-            serialized_data,
-            data.get_serialized_key(),
-            handle,
-            timestamp,
-        )
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
+                serialized_data,
+                data.get_serialized_key(),
+                handle,
+                timestamp,
+            ),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -337,9 +330,12 @@ where
         data.get_serialized_key()
             .serialize::<_, LittleEndian>(&mut serialized_key)?;
 
-        self.data_writer
-            .upgrade()?
-            .dispose_w_timestamp(serialized_key, instance_handle, timestamp)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => {
+                w.dispose_w_timestamp(serialized_key, instance_handle, timestamp)
+            }
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all
@@ -351,49 +347,58 @@ where
     /// This operation is intended to be used only if the DataWriter has [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind).
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.data_writer
-            .upgrade()?
-            .wait_for_acknowledgments(max_wait)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the [`LivelinessLostStatus`].
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        Ok(self.data_writer.upgrade()?.get_liveliness_lost_status())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_liveliness_lost_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the [`OfferedDeadlineMissedStatus`].
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        Ok(self
-            .data_writer
-            .upgrade()?
-            .get_offered_deadline_missed_status())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_offered_deadline_missed_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the [`OfferedIncompatibleQosStatus`].
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
-        Ok(self
-            .data_writer
-            .upgrade()?
-            .get_offered_incompatible_qos_status())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_offered_incompatible_qos_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        Ok(self.data_writer.upgrade()?.get_publication_matched_status())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_publication_matched_status(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
-        Ok(Topic::new(
-            self.data_writer.upgrade()?.get_topic().downgrade(),
-        ))
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => Ok(Topic::new(w.get_topic()?.downgrade())),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation returns the [`Publisher`] to which the [`DataWriter`] object belongs.
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
-        Ok(Publisher::new(
-            self.data_writer.upgrade()?.get_publisher().downgrade(),
-        ))
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation manually asserts the liveliness of the [`DataWriter`]. This is used in combination with the
@@ -405,7 +410,10 @@ where
     /// [`DomainParticipant`](crate::domain::domain_participant::DomainParticipant). Consequently the use of this operation is only needed
     /// if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.data_writer.upgrade()?.assert_liveliness()
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.assert_liveliness(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the [`DataWriter`]; that is, a subscription
@@ -418,9 +426,10 @@ where
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        self.data_writer
-            .upgrade()?
-            .get_matched_subscription_data(subscription_handle)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscription_data(subscription_handle),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the [`DataWriter`]]; that is, subscriptions that have a
@@ -430,7 +439,10 @@ where
     /// [`DataReader`](crate::subscription::data_reader::DataReader) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.data_writer.upgrade()?.get_matched_subscriptions()
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscriptions(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 }
 
@@ -452,12 +464,18 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.data_writer.upgrade()?.set_qos(qos)
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.set_qos(qos),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        Ok(self.data_writer.upgrade()?.get_qos())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_qos(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -471,21 +489,28 @@ where
         a_listener: Option<Box<dyn DataWriterListener<Foo = Foo> + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        #[allow(clippy::redundant_closure)]
-        self.data_writer.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
-            mask,
-        );
-        Ok(())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) =>
+            {
+                #[allow(clippy::redundant_closure)]
+                w.set_listener(
+                    a_listener
+                        .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|l| Box::new(l)),
+                    mask,
+                )
+            }
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        }
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            self.data_writer.upgrade()?.get_statuscondition(),
-        ))
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => Ok(StatusCondition::new(w.get_statuscondition()?)),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -495,7 +520,10 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.data_writer.upgrade()?.get_status_changes())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_status_changes(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -519,18 +547,18 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.data_writer.upgrade()?.get_publisher().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent publisher disabled".to_string(),
-            ));
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.enable(),
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
-
-        self.data_writer.upgrade()?.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.data_writer.upgrade()?.get_instance_handle())
+        match &self.0 {
+            DataWriterNodeKind::UserDefined(w) => w.get_instance_handle(),
+            DataWriterNodeKind::Listener(_) => todo!(),
+        }
     }
 }
 

@@ -1,8 +1,4 @@
 use crate::{
-    builtin_topics::{
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
-    },
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -12,7 +8,7 @@ use crate::{
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{
@@ -26,13 +22,9 @@ use crate::{
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
-        condition::StatusCondition,
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-        qos::SubscriberQos,
+        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
         status::StatusKind,
     },
-    topic_definition::type_support::DdsType,
 };
 
 use super::{
@@ -51,14 +43,9 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-pub enum BuiltinDataReaderKind<'a> {
-    Stateless(&'a DdsShared<BuiltinStatelessReader>),
-    Stateful(&'a DdsShared<BuiltinStatefulReader>),
-}
-
 pub struct BuiltInSubscriber {
     qos: DdsRwLock<SubscriberQos>,
-    rtps_group: RtpsGroupImpl,
+    rtps_group: RtpsGroup,
     spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
     sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
     sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader>,
@@ -78,7 +65,7 @@ impl BuiltInSubscriber {
 
         let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
 
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
@@ -136,34 +123,6 @@ impl DdsShared<BuiltInSubscriber> {
 
     pub fn sedp_builtin_subscriptions_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
         &self.sedp_builtin_subscriptions_reader
-    }
-
-    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<BuiltinDataReaderKind>
-    where
-        Foo: DdsType,
-    {
-        match topic_name {
-            "DCPSParticipant" if Foo::type_name() == ParticipantBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateless(
-                    &self.spdp_builtin_participant_reader,
-                ))
-            }
-            "DCPSTopic" if Foo::type_name() == TopicBuiltinTopicData::type_name() => Ok(
-                BuiltinDataReaderKind::Stateful(&self.sedp_builtin_topics_reader),
-            ),
-            "DCPSPublication" if Foo::type_name() == PublicationBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateful(
-                    &self.sedp_builtin_publications_reader,
-                ))
-            }
-            "DCPSSubscription" if Foo::type_name() == SubscriptionBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateful(
-                    &self.sedp_builtin_subscriptions_reader,
-                ))
-            }
-
-            _ => Err(DdsError::BadParameter),
-        }
     }
 
     pub fn get_qos(&self) -> SubscriberQos {

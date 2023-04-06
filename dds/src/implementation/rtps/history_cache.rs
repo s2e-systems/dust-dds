@@ -39,7 +39,7 @@ pub struct RtpsWriterCacheChange {
     kind: ChangeKind,
     writer_guid: Guid,
     sequence_number: SequenceNumber,
-    instance_handle: InstanceHandle,
+    _instance_handle: InstanceHandle,
     timestamp: Time,
     data: Vec<u8>,
     inline_qos: Vec<RtpsParameter>,
@@ -173,7 +173,7 @@ impl RtpsWriterCacheChange {
             kind,
             writer_guid,
             sequence_number,
-            instance_handle,
+            _instance_handle: instance_handle,
             timestamp,
             data: data_value,
             inline_qos,
@@ -190,8 +190,8 @@ impl RtpsWriterCacheChange {
         self.writer_guid
     }
 
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.instance_handle
+    pub fn _instance_handle(&self) -> InstanceHandle {
+        self._instance_handle
     }
 
     pub fn sequence_number(&self) -> SequenceNumber {

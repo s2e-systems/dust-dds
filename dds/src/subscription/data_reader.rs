@@ -1,20 +1,16 @@
 use crate::{
-    implementation::{
-        dds_impl::{
-            any_data_reader_listener::AnyDataReaderListener,
-            builtin_stateful_reader::BuiltinStatefulReader,
-            builtin_stateless_reader::BuiltinStatelessReader,
-            user_defined_data_reader::UserDefinedDataReader,
-        },
-        utils::shared_object::DdsWeak,
+    implementation::dds_impl::{
+        any_data_reader_listener::AnyDataReaderListener,
+        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
     },
     infrastructure::{
         error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
-};
-use crate::{
     subscription::data_reader_listener::DataReaderListener,
+    topic_definition::{
+        topic::Topic,
+        type_support::{DdsDeserialize, DdsType},
+    },
     {
         builtin_topics::PublicationBuiltinTopicData,
         infrastructure::{
@@ -32,14 +28,12 @@ use crate::{
 
 use std::marker::PhantomData;
 
-use crate::topic_definition::topic::Topic;
-
 use super::{
     sample_info::{
         InstanceStateKind, SampleInfo, SampleStateKind, ViewStateKind, ANY_INSTANCE_STATE,
         ANY_VIEW_STATE,
     },
-    subscriber::{Subscriber, SubscriberKind},
+    subscriber::Subscriber,
 };
 
 /// A [`Sample`] contains the data and [`SampleInfo`] read by the [`DataReader`].
@@ -51,34 +45,16 @@ pub struct Sample<Foo> {
     pub sample_info: SampleInfo,
 }
 
-pub enum DataReaderKind {
-    BuiltinStateless(DdsWeak<BuiltinStatelessReader>),
-    BuiltinStateful(DdsWeak<BuiltinStatefulReader>),
-    UserDefined(DdsWeak<UserDefinedDataReader>),
-}
-
 /// A [`DataReader`] allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached [`Subscriber`].
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>
-where
-    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-{
-    data_reader: DataReaderKind,
-    phantom: PhantomData<Foo>,
-}
+pub struct DataReader<Foo>(DataReaderNodeKind, PhantomData<Foo>);
 
-impl<Foo> DataReader<Foo>
-where
-    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-{
-    pub(crate) fn new(data_reader: DataReaderKind) -> Self {
-        Self {
-            data_reader,
-            phantom: PhantomData,
-        }
+impl<Foo> DataReader<Foo> {
+    pub(crate) fn new(data_reader: DataReaderNodeKind) -> Self {
+        Self(data_reader, PhantomData)
     }
 }
 
@@ -148,22 +124,29 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
                 instance_states,
                 None,
             ),
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+            DataReaderNodeKind::BuiltinStateful(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
                 instance_states,
                 None,
             ),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.read(
+            DataReaderNodeKind::UserDefined(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
+            DataReaderNodeKind::Listener(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
@@ -183,10 +166,17 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.take(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => r.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
+            DataReaderNodeKind::Listener(r) => r.take(
                 max_samples,
                 sample_states,
                 view_states,
@@ -204,22 +194,29 @@ where
     /// This operation provides a simplified API to ‘read’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        let mut samples = match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+        let mut samples = match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.read(
                 1,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
                 ANY_INSTANCE_STATE,
                 None,
             )?,
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+            DataReaderNodeKind::BuiltinStateful(r) => r.read(
                 1,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
                 ANY_INSTANCE_STATE,
                 None,
             )?,
-            DataReaderKind::UserDefined(x) => x.upgrade()?.read(
+            DataReaderNodeKind::UserDefined(r) => r.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
+            DataReaderNodeKind::Listener(r) => r.read(
                 1,
                 &[SampleStateKind::NotRead],
                 ANY_VIEW_STATE,
@@ -238,11 +235,21 @@ where
     /// This operation provides a simplified API to ‘take’ samples avoiding the need for the application to manage
     /// sequences and specify states.
     pub fn take_next_sample(&self) -> DdsResult<Sample<Foo>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => {
-                let mut samples = x.upgrade()?.take(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => {
+                let mut samples = r.take(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                )?;
+                Ok(samples.pop().unwrap())
+            }
+            DataReaderNodeKind::Listener(r) => {
+                let mut samples = r.take(
                     1,
                     &[SampleStateKind::NotRead],
                     ANY_VIEW_STATE,
@@ -270,22 +277,29 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
                 instance_states,
                 Some(a_handle),
             ),
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
+            DataReaderNodeKind::BuiltinStateful(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
                 instance_states,
                 Some(a_handle),
             ),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.read(
+            DataReaderNodeKind::UserDefined(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(a_handle),
+            ),
+            DataReaderNodeKind::Listener(r) => r.read(
                 max_samples,
                 sample_states,
                 view_states,
@@ -311,16 +325,17 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.take(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => r.take(
                 max_samples,
                 sample_states,
                 view_states,
                 instance_states,
                 Some(a_handle),
             ),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -355,22 +370,29 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read_next_instance(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.read_next_instance(
                 max_samples,
                 previous_handle,
                 sample_states,
                 view_states,
                 instance_states,
             ),
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read_next_instance(
+            DataReaderNodeKind::BuiltinStateful(r) => r.read_next_instance(
                 max_samples,
                 previous_handle,
                 sample_states,
                 view_states,
                 instance_states,
             ),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.read_next_instance(
+            DataReaderNodeKind::UserDefined(r) => r.read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
+            DataReaderNodeKind::Listener(r) => r.read_next_instance(
                 max_samples,
                 previous_handle,
                 sample_states,
@@ -391,10 +413,17 @@ where
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.take_next_instance(
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => r.take_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
+            DataReaderNodeKind::Listener(r) => r.take_next_instance(
                 max_samples,
                 previous_handle,
                 sample_states,
@@ -409,10 +438,11 @@ where
     /// This operation may return [`DdsError::BadParameter`](crate::infrastructure::error::DdsError)
     /// if the [`InstanceHandle`] `handle` does not correspond to an existing data object known to the [`DataReader`].
     pub fn get_key_value(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.get_key_value(key_holder, handle),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_key_value(key_holder, handle),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -423,30 +453,31 @@ where
     /// been previously registered, or if for any other reason the Service is unable to provide
     /// an instance handle, the operation will succeed and return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.lookup_instance(instance),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.lookup_instance(instance),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`LivelinessChangedStatus`].
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_liveliness_changed_status()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_liveliness_changed_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`RequestedDeadlineMissedStatus`].
     pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                Ok(x.upgrade()?.get_requested_deadline_missed_status())
-            }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_requested_deadline_missed_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -454,62 +485,66 @@ where
     pub fn get_requested_incompatible_qos_status(
         &self,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                Ok(x.upgrade()?.get_requested_incompatible_qos_status())
-            }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_requested_incompatible_qos_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`SampleLostStatus`].
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_sample_lost_status()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_sample_lost_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`SampleRejectedStatus`].
     pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_sample_rejected_status()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_sample_rejected_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the [`SubscriptionMatchedStatus`].
     pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_subscription_matched_status()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_subscription_matched_status(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`Topic`] associated with the [`DataReader`]. This is the same [`Topic`]
     /// that was used to create the [`DataReader`].
     pub fn get_topicdescription(&self) -> DdsResult<Topic<Foo>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                Ok(Topic::new(x.upgrade()?.get_topicdescription().downgrade()))
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => {
+                Ok(Topic::new(r.get_topicdescription()?.downgrade()))
             }
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(Subscriber::new(SubscriberKind::UserDefined(
-                x.upgrade()?.get_subscriber().downgrade(),
-            ))),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => Ok(Subscriber::new(
+                SubscriberNodeKind::UserDefined(r.get_subscriber()),
+            )),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -526,10 +561,11 @@ where
     /// There are situations where the application logic may require the application to wait until all “historical”
     /// data is received.
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.wait_for_historical_data(max_wait),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.wait_for_historical_data(max_wait),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -544,12 +580,13 @@ where
         &self,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => x
-                .upgrade()?
-                .get_matched_publication_data(publication_handle),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => {
+                r.get_matched_publication_data(publication_handle)
+            }
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -560,19 +597,16 @@ where
     /// the corresponding matched [`DataWriter`](crate::publication::data_writer::DataWriter) entities. These handles match the ones that appear in the
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) when reading the “DCPSPublications” builtin topic.
     pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_matched_publications()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => r.get_matched_publications(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 }
 
-/// This implementation block contains the Entity operations for the [`DataReader`].
-impl<Foo> DataReader<Foo>
-where
-    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-{
+impl<Foo> DataReader<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
@@ -586,45 +620,24 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.set_qos(qos),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::UserDefined(r) => r.set_qos(qos),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_qos(),
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_qos(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.get_qos(),
-        })
-    }
-
-    /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
-    /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
-    /// as a Listener whose operations perform no action.
-    /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
-    /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
-    /// will be removed.
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                #[allow(clippy::redundant_closure)]
-                x.upgrade()?.set_listener(
-                    a_listener
-                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
-                    mask,
-                );
-                Ok(())
-            }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.get_qos(),
+            DataReaderNodeKind::BuiltinStateful(r) => r.get_qos(),
+            DataReaderNodeKind::UserDefined(r) => r.get_qos(),
+            DataReaderNodeKind::Listener(_) => todo!(),
+            // DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_qos(),
+            // DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_qos(),
+            // DataReaderKind::UserDefined(x) => x.upgrade()?.get_qos(),
         }
     }
 
@@ -632,17 +645,24 @@ where
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => {
-                StatusCondition::new(x.upgrade()?.get_statuscondition())
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => {
+                Ok(StatusCondition::new(r.get_statuscondition()?))
             }
-            DataReaderKind::BuiltinStateful(x) => {
-                StatusCondition::new(x.upgrade()?.get_statuscondition())
+            DataReaderNodeKind::BuiltinStateful(r) => {
+                Ok(StatusCondition::new(r.get_statuscondition()?))
             }
-            DataReaderKind::UserDefined(x) => {
-                StatusCondition::new(x.upgrade()?.get_statuscondition())
+            DataReaderNodeKind::UserDefined(r) => {
+                Ok(StatusCondition::new(r.get_statuscondition()?))
             }
-        })
+            DataReaderNodeKind::Listener(_) => todo!(),
+            // DataReaderKind::BuiltinStateless(x) => {
+            //     StatusCondition::new(x.upgrade()?.get_statuscondition())
+            // }
+            // DataReaderKind::BuiltinStateful(x) => {
+            //     StatusCondition::new(x.upgrade()?.get_statuscondition())
+            // }
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -652,10 +672,11 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => Ok(x.upgrade()?.get_status_changes()),
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.get_status_changes(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
@@ -680,28 +701,54 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        match &self.data_reader {
-            DataReaderKind::BuiltinStateless(_) => todo!(),
-            DataReaderKind::BuiltinStateful(_) => todo!(),
-            DataReaderKind::UserDefined(x) => {
-                if !x.upgrade()?.get_subscriber().is_enabled() {
-                    return Err(DdsError::PreconditionNotMet(
-                        "Parent subscriber disabled".to_string(),
-                    ));
-                }
-                x.upgrade()?.enable()
-            }
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) => r.enable(),
+            DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(match &self.data_reader {
-            DataReaderKind::BuiltinStateless(x) => x.upgrade()?.get_instance_handle(),
-            DataReaderKind::BuiltinStateful(x) => x.upgrade()?.get_instance_handle(),
-            DataReaderKind::UserDefined(x) => x.upgrade()?.get_instance_handle(),
-        })
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(r) => r.get_instance_handle(),
+            DataReaderNodeKind::BuiltinStateful(r) => r.get_instance_handle(),
+            DataReaderNodeKind::UserDefined(r) => r.get_instance_handle(),
+            DataReaderNodeKind::Listener(_) => todo!(),
+        }
     }
 }
 
+impl<Foo> DataReader<Foo>
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static + Send + Sync,
+{
+    /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
+    /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
+    /// as a Listener whose operations perform no action.
+    /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
+    /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
+    /// will be removed.
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn DataReaderListener<Foo = Foo> + Send + Sync>>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
+        match &self.0 {
+            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::UserDefined(r) =>
+            {
+                #[allow(clippy::redundant_closure)]
+                r.set_listener(
+                    a_listener
+                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|l| Box::new(l)),
+                    mask,
+                )
+            }
+            DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        }
+    }
+}
 pub trait AnyDataReader {}

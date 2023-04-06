@@ -39,7 +39,7 @@ use crate::{
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
-    publication::{data_writer::AnyDataWriter, publisher_listener::PublisherListener},
+    publication::publisher_listener::PublisherListener,
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -53,9 +53,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -697,15 +697,24 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(publication_matched_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_publication_matched(self)
+                .trigger_on_publication_matched(
+                    ListenerDataWriterNode::new(),
+                    self.get_publication_matched_status(),
+                )
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
             publisher_status_listener
                 .listener_mut()
-                .on_publication_matched(self, self.get_publication_matched_status())
+                .on_publication_matched(
+                    &ListenerDataWriterNode::new(),
+                    self.get_publication_matched_status(),
+                )
         } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_publication_matched(self, self.get_publication_matched_status())
+                .on_publication_matched(
+                    &ListenerDataWriterNode::new(),
+                    self.get_publication_matched_status(),
+                )
         }
     }
 
@@ -721,20 +730,27 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             writer_status_listener
                 .listener_mut()
-                .trigger_on_offered_incompatible_qos(self)
+                .trigger_on_offered_incompatible_qos(
+                    ListenerDataWriterNode::new(),
+                    self.get_offered_incompatible_qos_status(),
+                )
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()
-                .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    self.get_offered_incompatible_qos_status(),
+                )
         } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_offered_incompatible_qos(self, self.get_offered_incompatible_qos_status())
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    self.get_offered_incompatible_qos_status(),
+                )
         }
     }
 }
-
-impl AnyDataWriter for DdsShared<UserDefinedDataWriter> {}
 
 //// Helper functions
 fn get_discovered_reader_incompatible_qos_policy_list(

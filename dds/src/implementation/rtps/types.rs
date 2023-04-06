@@ -275,6 +275,7 @@ pub enum TopicKind {
 /// It can take the values:
 /// ALIVE, ALIVE_FILTERED, NOT_ALIVE_DISPOSED, NOT_ALIVE_UNREGISTERED
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[allow(dead_code)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,

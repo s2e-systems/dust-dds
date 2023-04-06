@@ -1,7 +1,7 @@
 use crate::{
     implementation::{
         rtps::{
-            group::RtpsGroupImpl,
+            group::RtpsGroup,
             messages::{overall_structure::RtpsMessageHeader, submessages::AckNackSubmessage},
             transport::TransportWrite,
             types::{EntityId, EntityKey, Guid, GuidPrefix, Locator, BUILT_IN_WRITER_GROUP},
@@ -28,7 +28,7 @@ use super::{
 
 pub struct BuiltinPublisher {
     _qos: DdsRwLock<PublisherQos>,
-    _rtps_group: RtpsGroupImpl,
+    _rtps_group: RtpsGroup,
     spdp_builtin_participant_writer: DdsShared<BuiltinStatelessWriter>,
     sedp_builtin_topics_writer: DdsShared<BuiltinStatefulWriter>,
     sedp_builtin_publications_writer: DdsShared<BuiltinStatefulWriter>,
@@ -49,7 +49,7 @@ impl BuiltinPublisher {
 
         let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);
-        let rtps_group = RtpsGroupImpl::new(guid);
+        let rtps_group = RtpsGroup::new(guid);
 
         let spdp_builtin_participant_writer_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);

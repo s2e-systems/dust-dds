@@ -1,7 +1,7 @@
 use crate::{
     implementation::rtps::{
         endpoint::RtpsEndpoint,
-        group::RtpsGroupImpl,
+        group::RtpsGroup,
         reader::RtpsReader,
         stateful_reader::RtpsStatefulReader,
         types::{
@@ -47,7 +47,7 @@ impl ReaderFactory {
 
     pub fn create_reader<Foo>(
         &mut self,
-        rtps_group: &RtpsGroupImpl,
+        rtps_group: &RtpsGroup,
         has_key: bool,
         qos: QosKind<DataReaderQos>,
         default_unicast_locator_list: &[Locator],
@@ -83,7 +83,7 @@ impl ReaderFactory {
         )))
     }
 
-    fn create_unique_reader_guid(&mut self, rtps_group: &RtpsGroupImpl, has_key: bool) -> Guid {
+    fn create_unique_reader_guid(&mut self, rtps_group: &RtpsGroup, has_key: bool) -> Guid {
         let entity_kind = match has_key {
             true => USER_DEFINED_READER_WITH_KEY,
             false => USER_DEFINED_READER_NO_KEY,

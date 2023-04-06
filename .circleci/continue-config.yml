@@ -20,6 +20,14 @@ jobs:
           command: |
             echo $DOCKERHUB_ACCESS_TOKEN | docker login --username $DOCKERHUB_USERNAME --password-stdin
             docker push s2esystems/dust_dds_interoperability:1.65.0
+  clippy:
+    docker:
+      - image: cimg/rust:1.65.0
+    resource_class: large
+    steps:
+      - checkout
+      - run: cargo --version
+      - run: cargo clippy -- -D warnings
   build:
     docker:
       - image: cimg/rust:1.65.0
@@ -28,12 +36,6 @@ jobs:
       - checkout
       - run: rustup component add llvm-tools-preview
       - run: cargo --version
-      - run:
-          name: Run clippy
-          command: |
-            export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
-            export LLVM_PROFILE_FILE="test-%p-%m.profraw"
-            cargo clippy -- -D warnings
       - run:
           name: Run Tests
           command: |
@@ -144,6 +146,7 @@ workflows:
     jobs:
       - build_and_push_docker_image
       - build
+      - clippy
       - interoperability_tests:
           requires:
             - build_and_push_docker_image
@@ -153,5 +156,6 @@ workflows:
       not: << pipeline.parameters.build_docker_image >>
     jobs:
       - build
+      - clippy
       - interoperability_tests
       - multi_machine_tests

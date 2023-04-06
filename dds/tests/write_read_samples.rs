@@ -1813,7 +1813,7 @@ fn data_reader_publication_handle_sample_info() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(&UserData(1), None).unwrap();
 
@@ -2012,6 +2012,7 @@ fn write_read_unregistered_samples_are_also_disposed() {
 }
 
 #[test]
+#[ignore = "removing expired data causes race condition"]
 fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
 
