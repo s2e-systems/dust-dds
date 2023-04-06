@@ -139,7 +139,7 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.0.get()?.get_qos().clone())
+        Ok(self.0.get()?.get_qos())
     }
 
     pub fn set_listener(

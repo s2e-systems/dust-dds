@@ -159,7 +159,8 @@ impl UserDefinedDataWriterNode {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        Ok(self.0.get()?.set_listener(a_listener, mask))
+        self.0.get()?.set_listener(a_listener, mask);
+        Ok(())
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {

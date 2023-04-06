@@ -130,7 +130,8 @@ impl UserDefinedSubscriberNode {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        Ok(self.0.get()?.set_listener(a_listener, mask))
+        self.0.get()?.set_listener(a_listener, mask);
+        Ok(())
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
