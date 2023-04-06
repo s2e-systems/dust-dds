@@ -146,6 +146,7 @@ workflows:
     jobs:
       - build_and_push_docker_image
       - build
+      - clippy
       - interoperability_tests:
           requires:
             - build_and_push_docker_image
@@ -155,5 +156,6 @@ workflows:
       not: << pipeline.parameters.build_docker_image >>
     jobs:
       - build
+      - clippy
       - interoperability_tests
       - multi_machine_tests
