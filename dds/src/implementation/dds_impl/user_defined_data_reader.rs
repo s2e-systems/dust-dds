@@ -26,6 +26,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            node::RootNode,
             shared_object::{DdsRwLock, DdsShared, DdsWeak},
         },
     },
@@ -917,11 +918,15 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(on_data_available_status_kind) {
             reader_status_listener
                 .listener_mut()
-                .trigger_on_data_available(ListenerDataReaderNode::new())
+                .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
+                    self.downgrade(),
+                )))
         } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_data_available(&ListenerDataReaderNode::new())
+                .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
+                    self.downgrade(),
+                )))
         }
     }
 
@@ -958,17 +963,17 @@ impl DdsShared<UserDefinedDataReader> {
             reader_status_listener
                 .listener_mut()
                 .trigger_on_sample_lost(
-                    ListenerDataReaderNode::new(),
+                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_lost_status(),
                 )
         } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
             subscriber_status_listener.listener_mut().on_sample_lost(
-                &ListenerDataReaderNode::new(),
+                &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                 self.get_sample_lost_status(),
             )
         } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
             participant_status_listener.listener_mut().on_sample_lost(
-                &ListenerDataReaderNode::new(),
+                &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                 self.get_sample_lost_status(),
             )
         }
@@ -1010,21 +1015,21 @@ impl DdsShared<UserDefinedDataReader> {
             reader_status_listener
                 .listener_mut()
                 .trigger_on_subscription_matched(
-                    ListenerDataReaderNode::new(),
+                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
                 )
         } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
             subscriber_status_listener
                 .listener_mut()
                 .on_subscription_matched(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
                 )
         } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
                 .on_subscription_matched(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
                 )
         }
@@ -1067,21 +1072,21 @@ impl DdsShared<UserDefinedDataReader> {
             reader_status_listener
                 .listener_mut()
                 .trigger_on_sample_rejected(
-                    ListenerDataReaderNode::new(),
+                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
                 )
         } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
             subscriber_status_listener
                 .listener_mut()
                 .on_sample_rejected(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
                 )
         } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
             participant_status_listener
                 .listener_mut()
                 .on_sample_rejected(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
                 )
         }
@@ -1123,21 +1128,21 @@ impl DdsShared<UserDefinedDataReader> {
             reader_status_listener
                 .listener_mut()
                 .trigger_on_requested_deadline_missed(
-                    ListenerDataReaderNode::new(),
+                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
                 )
         } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             subscriber_status_listener
                 .listener_mut()
                 .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
                 )
         } else if participant_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             participant_status_listener
                 .listener_mut()
                 .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
                 )
         }
@@ -1179,21 +1184,21 @@ impl DdsShared<UserDefinedDataReader> {
             reader_status_listener
                 .listener_mut()
                 .trigger_on_requested_incompatible_qos(
-                    ListenerDataReaderNode::new(),
+                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),
                 )
         } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             subscriber_status_listener
                 .listener_mut()
                 .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),
                 )
         } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
                 .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(),
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),
                 )
         }

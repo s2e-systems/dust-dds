@@ -146,7 +146,13 @@ where
                 instance_states,
                 None,
             ),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
         }
     }
 
@@ -170,7 +176,13 @@ where
                 instance_states,
                 None,
             ),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => r.take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
         }
     }
 
@@ -204,7 +216,13 @@ where
                 ANY_INSTANCE_STATE,
                 None,
             )?,
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => r.read(
+                1,
+                &[SampleStateKind::NotRead],
+                ANY_VIEW_STATE,
+                ANY_INSTANCE_STATE,
+                None,
+            )?,
         };
         Ok(samples.pop().unwrap())
     }
@@ -230,7 +248,16 @@ where
                 )?;
                 Ok(samples.pop().unwrap())
             }
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => {
+                let mut samples = r.take(
+                    1,
+                    &[SampleStateKind::NotRead],
+                    ANY_VIEW_STATE,
+                    ANY_INSTANCE_STATE,
+                    None,
+                )?;
+                Ok(samples.pop().unwrap())
+            }
         }
     }
 
@@ -272,7 +299,13 @@ where
                 instance_states,
                 Some(a_handle),
             ),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                Some(a_handle),
+            ),
         }
     }
 
@@ -359,21 +392,13 @@ where
                 view_states,
                 instance_states,
             ),
-            DataReaderNodeKind::Listener(_) => todo!(),
-            // DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read_next_instance(
-            //     max_samples,
-            //     previous_handle,
-            //     sample_states,
-            //     view_states,
-            //     instance_states,
-            // ),
-            // DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read_next_instance(
-            //     max_samples,
-            //     previous_handle,
-            //     sample_states,
-            //     view_states,
-            //     instance_states,
-            // ),
+            DataReaderNodeKind::Listener(r) => r.read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
         }
     }
 
@@ -398,7 +423,13 @@ where
                 view_states,
                 instance_states,
             ),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(r) => r.take_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            ),
         }
     }
 
