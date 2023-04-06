@@ -1,7 +1,7 @@
 pub mod any_data_reader_listener;
 pub mod any_data_writer_listener;
 pub mod any_topic_listener;
-pub mod node_builtin_data_reader;
+pub mod node_builtin_data_reader_stateful;
 pub mod builtin_publisher;
 pub mod builtin_stateful_reader;
 pub mod builtin_stateful_writer;
@@ -30,3 +30,4 @@ pub mod node_user_defined_publisher;
 pub mod user_defined_subscriber;
 pub mod node_user_defined_subscriber;
 pub mod writer_factory;
+pub mod node_builtin_data_reader_stateless;

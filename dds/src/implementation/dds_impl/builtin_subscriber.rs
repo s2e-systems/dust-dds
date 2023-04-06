@@ -51,11 +51,6 @@ use super::{
     topic_impl::TopicImpl,
 };
 
-pub enum BuiltinDataReaderKind {
-    Stateless(DdsShared<BuiltinStatelessReader>),
-    Stateful(DdsShared<BuiltinStatefulReader>),
-}
-
 pub struct BuiltInSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
@@ -136,34 +131,6 @@ impl DdsShared<BuiltInSubscriber> {
 
     pub fn sedp_builtin_subscriptions_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
         &self.sedp_builtin_subscriptions_reader
-    }
-
-    pub fn lookup_datareader<Foo>(&self, topic_name: &str) -> DdsResult<BuiltinDataReaderKind>
-    where
-        Foo: DdsType,
-    {
-        match topic_name {
-            "DCPSParticipant" if Foo::type_name() == ParticipantBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateless(
-                    self.spdp_builtin_participant_reader.clone(),
-                ))
-            }
-            "DCPSTopic" if Foo::type_name() == TopicBuiltinTopicData::type_name() => Ok(
-                BuiltinDataReaderKind::Stateful(self.sedp_builtin_topics_reader.clone()),
-            ),
-            "DCPSPublication" if Foo::type_name() == PublicationBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateful(
-                    self.sedp_builtin_publications_reader.clone(),
-                ))
-            }
-            "DCPSSubscription" if Foo::type_name() == SubscriptionBuiltinTopicData::type_name() => {
-                Ok(BuiltinDataReaderKind::Stateful(
-                    self.sedp_builtin_subscriptions_reader.clone(),
-                ))
-            }
-
-            _ => Err(DdsError::BadParameter),
-        }
     }
 
     pub fn get_qos(&self) -> SubscriberQos {

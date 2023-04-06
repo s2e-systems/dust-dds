@@ -54,7 +54,10 @@ impl UserDefinedSubscriberNode {
             default_multicast_locator_list,
         )?;
 
-        Ok(UserDefinedDataReaderNode)
+        Ok(UserDefinedDataReaderNode::new(ChildNode::new(
+            reader.downgrade(),
+            self.0.clone(),
+        )))
     }
 
     pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
@@ -68,8 +71,11 @@ impl UserDefinedSubscriberNode {
     where
         Foo: DdsType,
     {
-        self.0.get()?.lookup_datareader::<Foo>(topic_name)?;
-        Ok(Some(UserDefinedDataReaderNode))
+        let reader = self.0.get()?.lookup_datareader::<Foo>(topic_name)?;
+        Ok(Some(UserDefinedDataReaderNode::new(ChildNode::new(
+            reader.downgrade(),
+            self.0.clone(),
+        ))))
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
