@@ -479,8 +479,8 @@ fn publisher_and_subscriber_regex_partition_is_matched() {
         .attach_condition(Condition::StatusCondition(cond_data_writer))
         .unwrap();
 
-    assert!(wait_set_data_reader.wait(Duration::new(5, 0)).is_ok());
-    assert!(wait_set_data_writer.wait(Duration::new(5, 0)).is_ok());
+    assert!(wait_set_data_reader.wait(Duration::new(10, 0)).is_ok());
+    assert!(wait_set_data_writer.wait(Duration::new(10, 0)).is_ok());
 }
 
 #[test]

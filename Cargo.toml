@@ -3,7 +3,5 @@
 members = [
     "dds",
     "dds_derive",
-    "idlgen",
     "interoperability_tests",
-    "shapes_demo",
 ]
