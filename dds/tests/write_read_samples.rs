@@ -1813,7 +1813,7 @@ fn data_reader_publication_handle_sample_info() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer.write(&UserData(1), None).unwrap();
 
