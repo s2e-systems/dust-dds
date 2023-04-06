@@ -1,4 +1,4 @@
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Eq)]
 pub struct ListenerSubscriberNode {}
 
 impl ListenerSubscriberNode {

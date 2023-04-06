@@ -13,7 +13,7 @@ pub mod dcps_service;
 pub mod domain_participant_impl;
 pub mod node_listener_data_reader;
 pub mod node_listener_data_writer;
-pub mod listener_subscriber;
+pub mod node_listener_subscriber;
 pub mod message_receiver;
 pub mod node_kind;
 pub mod participant_discovery;

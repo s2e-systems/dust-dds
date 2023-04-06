@@ -1,6 +1,6 @@
 use crate::publication::data_writer::AnyDataWriter;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Eq)]
 pub struct ListenerDataWriterNode();
 
 impl ListenerDataWriterNode {

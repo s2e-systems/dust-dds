@@ -1,5 +1,5 @@
 use super::{
-    listener_subscriber::ListenerSubscriberNode,
+    node_listener_subscriber::ListenerSubscriberNode,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_builtin_subscriber::BuiltinSubscriberNode,
