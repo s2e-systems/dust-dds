@@ -5,7 +5,7 @@ use crate::{
         shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, QosKind},
         status::{
@@ -19,10 +19,10 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
+    domain_participant_impl::DomainParticipantImpl,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    user_defined_publisher::UserDefinedPublisher,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -171,6 +171,11 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
+        if !self.0.parent().get()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent publisher disabled".to_string(),
+            ));
+        }
         self.0.get()?.enable()
     }
 

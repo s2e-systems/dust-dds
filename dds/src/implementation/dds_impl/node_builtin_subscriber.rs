@@ -4,7 +4,13 @@ use crate::{
         TopicBuiltinTopicData,
     },
     implementation::utils::node::{ChildNode, RootNode},
-    infrastructure::error::{DdsError, DdsResult},
+    infrastructure::{
+        condition::StatusCondition,
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::SubscriberQos,
+        status::StatusKind,
+    },
     topic_definition::type_support::DdsType,
 };
 
@@ -66,5 +72,21 @@ impl BuiltinSubscriberNode {
 
             _ => Err(DdsError::BadParameter),
         }
+    }
+
+    pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
+        Ok(self.0.get()?.get_qos())
+    }
+
+    pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
+        self.0.get()?.get_statuscondition()
+    }
+
+    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
+        self.0.get()?.get_status_changes()
+    }
+
+    pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
+        Ok(self.0.get()?.get_instance_handle())
     }
 }

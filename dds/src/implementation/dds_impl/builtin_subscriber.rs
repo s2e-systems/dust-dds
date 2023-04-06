@@ -1,8 +1,4 @@
 use crate::{
-    builtin_topics::{
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
-    },
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -26,13 +22,9 @@ use crate::{
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
-        condition::StatusCondition,
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-        qos::SubscriberQos,
+        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
         status::StatusKind,
     },
-    topic_definition::type_support::DdsType,
 };
 
 use super::{

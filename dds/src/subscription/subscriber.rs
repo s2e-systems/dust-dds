@@ -37,21 +37,6 @@ impl Subscriber {
     }
 }
 
-// impl Drop for Subscriber {
-//     fn drop(&mut self) {
-//         match &self.subscriber {
-//             SubscriberKind::BuiltIn(_) => (), // Built-in subscribers don't get deleted
-//             SubscriberKind::UserDefined(subscriber) => {
-//                 if subscriber.weak_count() == 1 {
-//                     if let Ok(p) = self.get_participant() {
-//                         p.delete_subscriber(self).ok();
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
     /// The [`DataReader`] returned by this operation has an associated [`Topic`] and a type `Foo`.
@@ -239,7 +224,7 @@ impl Subscriber {
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::Builtin(s) => s.get_qos(),
             SubscriberNodeKind::UserDefined(s) => s.get_qos(),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -268,7 +253,7 @@ impl Subscriber {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::Builtin(s) => s.get_statuscondition(),
             SubscriberNodeKind::UserDefined(s) => s.get_statuscondition(),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -282,7 +267,7 @@ impl Subscriber {
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::Builtin(s) => s.get_status_changes(),
             SubscriberNodeKind::UserDefined(s) => s.get_status_changes(),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
@@ -319,7 +304,7 @@ impl Subscriber {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(_) => todo!(),
+            SubscriberNodeKind::Builtin(s) => s.get_instance_handle(),
             SubscriberNodeKind::UserDefined(s) => s.get_instance_handle(),
             SubscriberNodeKind::Listener(_) => todo!(),
         }

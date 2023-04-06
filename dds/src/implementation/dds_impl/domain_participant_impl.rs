@@ -72,8 +72,7 @@ use super::{
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -138,7 +137,6 @@ pub struct DomainParticipantImpl {
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
-    timer_factory: TimerFactory,
     timer: DdsShared<DdsRwLock<Timer>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -263,7 +261,6 @@ impl DomainParticipantImpl {
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
-            timer_factory,
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
@@ -1367,10 +1364,6 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
         &self.user_defined_data_send_condvar
-    }
-
-    pub fn timer_factory(&self) -> &TimerFactory {
-        &self.timer_factory
     }
 
     pub fn cancel_timers(&self) {

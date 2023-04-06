@@ -650,7 +650,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.cache_change
     }
 
-    pub fn status(&self) -> ChangeForReaderStatusKind {
+    pub fn _status(&self) -> ChangeForReaderStatusKind {
         self.change_for_reader.status
     }
 
@@ -658,19 +658,19 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.change_for_reader.is_relevant
     }
 
-    pub fn kind(&self) -> ChangeKind {
+    pub fn _kind(&self) -> ChangeKind {
         self.cache_change.kind()
     }
 
-    pub fn writer_guid(&self) -> Guid {
+    pub fn _writer_guid(&self) -> Guid {
         self.cache_change.writer_guid()
     }
 
-    pub fn instance_handle(&self) -> InstanceHandle {
-        self.cache_change.instance_handle()
+    pub fn _instance_handle(&self) -> InstanceHandle {
+        self.cache_change._instance_handle()
     }
 
-    pub fn sequence_number(&self) -> SequenceNumber {
+    pub fn _sequence_number(&self) -> SequenceNumber {
         self.cache_change.sequence_number()
     }
 
@@ -678,7 +678,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.cache_change.data_value()
     }
 
-    pub fn inline_qos(&self) -> &[RtpsParameter] {
+    pub fn _inline_qos(&self) -> &[RtpsParameter] {
         self.cache_change.inline_qos()
     }
 

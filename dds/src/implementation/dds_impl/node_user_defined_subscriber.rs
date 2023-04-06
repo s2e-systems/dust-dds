@@ -26,6 +26,21 @@ pub struct UserDefinedSubscriberNode(
     ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
 );
 
+// impl Drop for UserDefinedSubscriberNode {
+//     fn drop(&mut self) {
+//         match &self.subscriber {
+//             SubscriberKind::BuiltIn(_) => (), // Built-in subscribers don't get deleted
+//             SubscriberKind::UserDefined(subscriber) => {
+//                 if subscriber.weak_count() == 1 {
+//                     if let Ok(p) = self.get_participant() {
+//                         p.delete_subscriber(self).ok();
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }
+
 impl UserDefinedSubscriberNode {
     pub fn new(node: ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)
@@ -87,7 +102,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        todo!()
+        self.0.get()?.get_sample_lost_status()
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {

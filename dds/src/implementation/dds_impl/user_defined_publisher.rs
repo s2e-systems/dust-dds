@@ -23,7 +23,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
+        qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
         time::{Duration, Time},
     },
@@ -251,14 +251,6 @@ impl DdsShared<UserDefinedPublisher> {
             .read_lock()
             .get_default_datawriter_qos()
             .clone()
-    }
-
-    pub fn copy_from_topic_qos(
-        &self,
-        _a_datawriter_qos: &mut DataWriterQos,
-        _a_topic_qos: &TopicQos,
-    ) -> DdsResult<()> {
-        todo!()
     }
 
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {

@@ -16,8 +16,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
-    topic_impl::TopicImpl, node_user_defined_data_writer::UserDefinedDataWriterNode,
+    domain_participant_impl::DomainParticipantImpl,
+    node_user_defined_data_writer::UserDefinedDataWriterNode,
+    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
     user_defined_publisher::UserDefinedPublisher,
 };
 
@@ -25,6 +26,16 @@ use super::{
 pub struct UserDefinedPublisherNode(
     ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
 );
+
+// impl Drop for UserDefinedPublisherNode {
+//     fn drop(&mut self) {
+//         if self.publisher.weak_count() == 1 {
+//             if let Ok(p) = self.get_participant() {
+//                 p.delete_publisher(self).ok();
+//             }
+//         }
+//     }
+// }
 
 impl UserDefinedPublisherNode {
     pub fn new(node: ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>) -> Self {

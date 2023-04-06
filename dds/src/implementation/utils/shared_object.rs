@@ -77,7 +77,7 @@ impl<T> DdsWeak<T> {
         self.0.ptr_eq(&other.0)
     }
 
-    pub fn weak_count(&self) -> usize {
+    pub fn _weak_count(&self) -> usize {
         self.0.weak_count()
     }
 }

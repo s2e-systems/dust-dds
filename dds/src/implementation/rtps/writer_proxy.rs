@@ -235,7 +235,7 @@ impl RtpsWriterProxy {
         self.last_received_heartbeat_count
     }
 
-    pub fn last_received_heartbeat_frag_count(&self) -> Count {
+    pub fn _last_received_heartbeat_frag_count(&self) -> Count {
         self.last_received_heartbeat_frag_count
     }
 
