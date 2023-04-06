@@ -125,8 +125,20 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateless(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
+            DataReaderNodeKind::BuiltinStateful(r) => r.read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                None,
+            ),
             DataReaderNodeKind::UserDefined(r) => r.read(
                 max_samples,
                 sample_states,
@@ -135,20 +147,6 @@ where
                 None,
             ),
             DataReaderNodeKind::Listener(_) => todo!(),
-            // DataReaderKind::BuiltinStateless(x) => x.upgrade()?.read(
-            //     max_samples,
-            //     sample_states,
-            //     view_states,
-            //     instance_states,
-            //     None,
-            // ),
-            // DataReaderKind::BuiltinStateful(x) => x.upgrade()?.read(
-            //     max_samples,
-            //     sample_states,
-            //     view_states,
-            //     instance_states,
-            //     None,
-            // ),
         }
     }
 
@@ -609,8 +607,12 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(r) => todo!(), //Ok(StatusCondition::new(r.get_statuscondition()?)),
+            DataReaderNodeKind::BuiltinStateless(r) => {
+                Ok(StatusCondition::new(r.get_statuscondition()?))
+            }
+            DataReaderNodeKind::BuiltinStateful(r) => {
+                Ok(StatusCondition::new(r.get_statuscondition()?))
+            }
             DataReaderNodeKind::UserDefined(r) => {
                 Ok(StatusCondition::new(r.get_statuscondition()?))
             }

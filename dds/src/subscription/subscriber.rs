@@ -125,7 +125,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(s) => Ok(s
                 .lookup_datareader::<Foo>(topic_name)?
-                .map(|x| DataReader::new(DataReaderNodeKind::BuiltinStateful(x)))),
+                .map(|x| DataReader::new(x))),
             SubscriberNodeKind::UserDefined(s) => Ok(s
                 .lookup_datareader::<Foo>(topic_name)?
                 .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))),
