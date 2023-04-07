@@ -90,6 +90,7 @@ impl DdsShared<UserDefinedPublisher> {
         *self.enabled.read_lock()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_datawriter<Foo>(
         &self,
         type_name: &'static str,

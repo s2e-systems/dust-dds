@@ -192,7 +192,7 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn get_type_name(&self) -> &'static str {
-        &self.type_name
+        self.type_name
     }
 
     pub fn is_enabled(&self) -> bool {

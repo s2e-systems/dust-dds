@@ -102,6 +102,7 @@ impl DdsShared<UserDefinedSubscriber> {
         self.data_reader_list.read_lock().is_empty()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_datareader<Foo>(
         &self,
         type_name: &'static str,
