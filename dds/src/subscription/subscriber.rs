@@ -70,7 +70,8 @@ impl Subscriber {
             {
                 #[allow(clippy::redundant_closure)]
                 s.create_datareader::<Foo>(
-                    &a_topic.topic.upgrade()?,
+                    a_topic.get_type_name()?,
+                    a_topic.get_name()?,
                     qos,
                     a_listener
                         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
@@ -112,7 +113,7 @@ impl Subscriber {
                 .lookup_datareader::<Foo>(topic_name)?
                 .map(|x| DataReader::new(x))),
             SubscriberNodeKind::UserDefined(s) => Ok(s
-                .lookup_datareader::<Foo>(topic_name)?
+                .lookup_datareader(Foo::type_name(), topic_name)?
                 .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))),
             SubscriberNodeKind::Listener(_) => todo!(),
         }

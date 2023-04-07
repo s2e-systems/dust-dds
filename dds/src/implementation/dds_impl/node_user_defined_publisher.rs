@@ -1,7 +1,7 @@
 use crate::{
     implementation::utils::{
         node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -16,10 +16,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher,
+    status_condition_impl::StatusConditionImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -44,7 +43,8 @@ impl UserDefinedPublisherNode {
 
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &DdsShared<TopicImpl>,
+        type_name: &'static str,
+        topic_name: String,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
@@ -56,8 +56,9 @@ impl UserDefinedPublisherNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        let writer = self.0.get()?.create_datawriter::<Foo>(
-            a_topic,
+        let data_writer = self.0.get()?.create_datawriter::<Foo>(
+            type_name,
+            topic_name,
             qos,
             a_listener,
             mask,
@@ -65,24 +66,33 @@ impl UserDefinedPublisherNode {
             default_multicast_locator_list,
         )?;
 
-        Ok(UserDefinedDataWriterNode::new(ChildNode::new(
-            writer.downgrade(),
-            self.0.clone(),
-        )))
+        let data_writer_node =
+            UserDefinedDataWriterNode::new(ChildNode::new(data_writer.downgrade(), self.0.clone()));
+
+        if self.0.get()?.is_enabled()
+            && self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            data_writer_node.enable()?;
+        }
+
+        Ok(data_writer_node)
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
         self.0.get()?.delete_datawriter(data_writer_handle)
     }
 
-    pub fn lookup_datawriter<Foo>(
+    pub fn lookup_datawriter(
         &self,
-        topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<UserDefinedDataWriterNode>
-    where
-        Foo: DdsType,
-    {
-        let writer = self.0.get()?.lookup_datawriter::<Foo>(topic)?;
+        type_name: &'static str,
+        topic_name: &str,
+    ) -> DdsResult<UserDefinedDataWriterNode> {
+        let writer = self.0.get()?.lookup_datawriter(type_name, topic_name)?;
 
         Ok(UserDefinedDataWriterNode::new(ChildNode::new(
             writer.downgrade(),
@@ -110,8 +120,8 @@ impl UserDefinedPublisherNode {
         self.0.get()?.wait_for_acknowledgments(max_wait)
     }
 
-    pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
-        Ok(self.0.parent().get()?.downgrade())
+    pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
+        Ok(DomainParticipantNode::new(self.0.parent().clone()))
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -166,7 +176,33 @@ impl UserDefinedPublisherNode {
             ));
         }
 
-        self.0.get()?.enable()
+        if !self.0.get()?.is_enabled() {
+            self.0.get()?.enable()?;
+
+            if self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+            {
+                for data_writer in self.0.get()?.data_writer_list() {
+                    data_writer.enable()?;
+                    let topic = self
+                        .0
+                        .parent()
+                        .get()?
+                        .lookup_topicdescription(
+                            data_writer.get_topic_name(),
+                            data_writer.get_type_name(),
+                        )
+                        .expect("Topic must exist");
+                    data_writer.announce_writer(&topic.get_qos(), &self.0.get()?.get_qos());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

@@ -7,7 +7,10 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
-        dds_impl::{dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl},
+        dds_impl::{
+            dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl,
+            node_domain_participant::DomainParticipantNode,
+        },
         rtps::{
             participant::RtpsParticipant,
             types::{
@@ -16,7 +19,7 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
+        utils::{condvar::DdsCondvar, node::RootNode, shared_object::DdsRwLock},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -271,7 +274,9 @@ impl DomainParticipantFactory {
             announce_receiver,
         )?;
 
-        let participant = DomainParticipant::new(dcps_service.participant().downgrade());
+        let participant = DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
+            dcps_service.participant().downgrade(),
+        )));
 
         if self
             .qos
@@ -295,7 +300,12 @@ impl DomainParticipantFactory {
 
         let index = participant_list
             .iter()
-            .position(|pm| DomainParticipant::new(pm.participant().downgrade()).eq(participant))
+            .position(|pm| {
+                DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
+                    pm.participant().downgrade(),
+                )))
+                .eq(participant)
+            })
             .ok_or(DdsError::AlreadyDeleted)?;
 
         if participant_list[index].participant().is_empty() {
@@ -327,7 +337,11 @@ impl DomainParticipantFactory {
             .read_lock()
             .iter()
             .find(|dp| dp.participant().get_domain_id() == domain_id)
-            .map(|dp| DomainParticipant::new(dp.participant().downgrade()))
+            .map(|dp| {
+                DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
+                    dp.participant().downgrade(),
+                )))
+            })
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

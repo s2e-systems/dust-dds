@@ -21,7 +21,7 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
 };
 
@@ -121,8 +121,22 @@ impl UserDefinedDataWriterNode {
         Ok(self.0.get()?.get_publication_matched_status())
     }
 
-    pub fn get_topic(&self) -> DdsResult<DdsShared<TopicImpl>> {
-        Ok(self.0.get()?.get_topic())
+    pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+
+        Ok(UserDefinedTopicNode::new(ChildNode::new(
+            topic.downgrade(),
+            self.0.parent().parent().clone(),
+        )))
     }
 
     pub fn get_publisher(&self) -> UserDefinedPublisherNode {
@@ -147,7 +161,24 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)
+        self.0.get()?.set_qos(qos)?;
+
+        if self.0.get()?.is_enabled() {
+            let topic = self
+                .0
+                .parent()
+                .parent()
+                .get()?
+                .lookup_topicdescription(
+                    self.0.get()?.get_topic_name(),
+                    self.0.get()?.get_type_name(),
+                )
+                .expect("Topic must exist");
+            self.0
+                .get()?
+                .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        }
+        Ok(())
     }
 
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
@@ -177,7 +208,23 @@ impl UserDefinedDataWriterNode {
                 "Parent publisher disabled".to_string(),
             ));
         }
-        self.0.get()?.enable()
+        self.0.get()?.enable()?;
+
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+        self.0
+            .get()?
+            .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

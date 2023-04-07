@@ -23,12 +23,12 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::{PublisherQos, QosKind},
+        qos::{PublisherQos, QosKind, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -55,7 +55,6 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -142,8 +141,8 @@ impl OfferedIncompatibleQosStatus {
 
 pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
-    topic: DdsShared<TopicImpl>,
-    publisher: DdsWeak<UserDefinedPublisher>,
+    type_name: &'static str,
+    topic_name: String,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
@@ -162,15 +161,15 @@ impl UserDefinedDataWriter {
         rtps_writer: RtpsStatefulWriter,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
-        topic: DdsShared<TopicImpl>,
-        publisher: DdsWeak<UserDefinedPublisher>,
+        type_name: &'static str,
+        topic_name: String,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
-            topic,
-            publisher,
+            type_name,
+            topic_name,
             publication_matched_status: DdsRwLock::new(PublicationMatchedStatus::default()),
             offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
             offered_incompatible_qos_status: DdsRwLock::new(OfferedIncompatibleQosStatus::default()),
@@ -188,6 +187,14 @@ impl UserDefinedDataWriter {
 }
 
 impl DdsShared<UserDefinedDataWriter> {
+    pub fn get_topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
+    pub fn get_type_name(&self) -> &'static str {
+        self.type_name
+    }
+
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -237,21 +244,22 @@ impl DdsShared<UserDefinedDataWriter> {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        publisher_qos: &PublisherQos,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
             .topic_name
-            == self.topic.get_name();
+            == self.topic_name;
         let is_matched_type_name = discovered_reader_data
             .subscription_builtin_topic_data
             .type_name
-            == self.topic.get_type_name();
+            == self.type_name;
 
         if is_matched_topic_name && is_matched_type_name {
             let add_matched_reader_result = add_discovered_reader(
                 &mut self.rtps_writer.write_lock(),
                 discovered_reader_data,
-                &self.get_publisher().get_qos(),
+                publisher_qos,
                 default_unicast_locator_list,
                 default_multicast_locator_list,
             );
@@ -476,16 +484,6 @@ impl DdsShared<UserDefinedDataWriter> {
             .read_and_reset(self.matched_subscription_list.read_lock().len() as i32)
     }
 
-    pub fn get_topic(&self) -> DdsShared<TopicImpl> {
-        self.topic.clone()
-    }
-
-    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
-        self.publisher
-            .upgrade()
-            .expect("Parent publisher of data writer must exist")
-    }
-
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -537,14 +535,6 @@ impl DdsShared<UserDefinedDataWriter> {
 
         self.rtps_writer.write_lock().set_qos(qos)?;
 
-        if self.is_enabled() {
-            self.announce_sender
-                .send(AnnounceKind::CreatedDataWriter(
-                    self.as_discovered_writer_data(),
-                ))
-                .ok();
-        }
-
         Ok(())
     }
 
@@ -569,24 +559,29 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        self.announce_sender
-            .send(AnnounceKind::CreatedDataWriter(
-                self.as_discovered_writer_data(),
-            ))
-            .ok();
         *self.enabled.write_lock() = true;
 
         Ok(())
+    }
+
+    pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
+        self.announce_sender
+            .send(AnnounceKind::CreatedDataWriter(
+                self.as_discovered_writer_data(topic_qos, publisher_qos),
+            ))
+            .ok();
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_writer.read_lock().guid().into()
     }
 
-    pub fn as_discovered_writer_data(&self) -> DiscoveredWriterData {
+    pub fn as_discovered_writer_data(
+        &self,
+        topic_qos: &TopicQos,
+        publisher_qos: &PublisherQos,
+    ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
-        let topic_qos = self.topic.get_qos();
-        let publisher_qos = self.get_publisher().get_qos();
 
         DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -608,8 +603,8 @@ impl DdsShared<UserDefinedDataWriter> {
                 participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
-                topic_name: self.topic.get_name(),
-                type_name: self.topic.get_type_name().to_string(),
+                topic_name: self.topic_name.clone(),
+                type_name: self.type_name.to_string(),
                 durability: writer_qos.durability.clone(),
                 deadline: writer_qos.deadline.clone(),
                 latency_budget: writer_qos.latency_budget.clone(),
@@ -621,8 +616,8 @@ impl DdsShared<UserDefinedDataWriter> {
                 destination_order: writer_qos.destination_order,
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
-                topic_data: topic_qos.topic_data,
-                group_data: publisher_qos.group_data,
+                topic_data: topic_qos.topic_data.clone(),
+                group_data: publisher_qos.group_data.clone(),
             },
         }
     }
@@ -876,7 +871,6 @@ mod test {
             types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
         },
-        infrastructure::qos::TopicQos,
         infrastructure::time::DURATION_ZERO,
         topic_definition::type_support::{DdsSerialize, DdsSerializedKey, Endianness},
     };
@@ -938,16 +932,6 @@ mod test {
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
         let (sender, _) = std::sync::mpsc::sync_channel(1);
-        let dummy_topic = TopicImpl::new(
-            GUID_UNKNOWN,
-            TopicQos::default(),
-            "",
-            "",
-            None,
-            &[],
-            DdsWeak::new(),
-            sender.clone(),
-        );
 
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
@@ -963,8 +947,8 @@ mod test {
             rtps_writer,
             None,
             &[],
-            dummy_topic,
-            DdsWeak::new(),
+            "",
+            String::from(""),
             DdsCondvar::new(),
             sender,
         );

@@ -29,7 +29,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
         },
     },
@@ -170,7 +170,6 @@ impl DomainParticipantImpl {
             DCPS_PARTICIPANT,
             None,
             &[],
-            DdsWeak::new(),
             announce_sender.clone(),
         );
 
@@ -183,7 +182,6 @@ impl DomainParticipantImpl {
             DCPS_TOPIC,
             None,
             &[],
-            DdsWeak::new(),
             announce_sender.clone(),
         );
 
@@ -196,7 +194,6 @@ impl DomainParticipantImpl {
             DCPS_PUBLICATION,
             None,
             &[],
-            DdsWeak::new(),
             announce_sender.clone(),
         );
 
@@ -209,7 +206,6 @@ impl DomainParticipantImpl {
             DCPS_SUBSCRIPTION,
             None,
             &[],
-            DdsWeak::new(),
             announce_sender.clone(),
         );
 
@@ -434,16 +430,14 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn create_topic<Foo>(
+    pub fn create_topic(
         &self,
         topic_name: &str,
+        type_name: &'static str,
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<TopicImpl>>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<DdsShared<TopicImpl>> {
         let topic_counter = self
             .user_defined_topic_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -460,11 +454,10 @@ impl DdsShared<DomainParticipantImpl> {
         let topic_shared = TopicImpl::new(
             topic_guid,
             qos,
-            Foo::type_name(),
+            type_name,
             topic_name,
             a_listener,
             mask,
-            self.downgrade(),
             self.announce_sender.clone(),
         );
         if *self.enabled.read_lock()
@@ -484,7 +477,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_topic(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
-        if self
+        let topic = self
             .topic_list
             .read_lock()
             .iter()
@@ -494,12 +487,26 @@ impl DdsShared<DomainParticipantImpl> {
                     "Topic can only be deleted from its parent publisher".to_string(),
                 )
             })?
-            .strong_count()
-            > 1
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic still attached to some data reader or data writer".to_string(),
-            ));
+            .clone();
+
+        for publisher in self.user_defined_publisher_list.read_lock().iter() {
+            if publisher.data_writer_list().any(|w| {
+                w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
+            }) {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data writer".to_string(),
+                ));
+            }
+        }
+
+        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+            if subscriber.data_reader_list().any(|r| {
+                r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
+            }) {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data reader".to_string(),
+                ));
+            }
         }
 
         self.topic_list
@@ -508,22 +515,22 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn find_topic<Foo>(
+    pub fn find_topic(
         &self,
         topic_name: &str,
+        type_name: &'static str,
         timeout: Duration,
-    ) -> DdsResult<DdsShared<TopicImpl>>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<DdsShared<TopicImpl>> {
         let start_time = self.get_current_time()?;
 
         while self.get_current_time()? - start_time < timeout {
             // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
             // discovered and, if so, create a new local topic representing the discovered topic
-            if let Some(topic) = self.topic_list.read_lock().iter().find(|topic| {
-                topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name()
-            }) {
+            if let Some(topic) =
+                self.topic_list.read_lock().iter().find(|topic| {
+                    topic.get_name() == topic_name && topic.get_type_name() == type_name
+                })
+            {
                 return Ok(topic.clone());
             }
 
@@ -533,7 +540,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .discovered_topic_list
                 .read_lock()
                 .iter()
-                .find(|&(_, t)| t.name == topic_name && t.type_name == Foo::type_name())
+                .find(|&(_, t)| t.name == topic_name && t.type_name == type_name)
             {
                 let qos = TopicQos {
                     topic_data: discovered_topic_info.topic_data.clone(),
@@ -549,8 +556,9 @@ impl DdsShared<DomainParticipantImpl> {
                     lifespan: discovered_topic_info.lifespan.clone(),
                     ownership: discovered_topic_info.ownership.clone(),
                 };
-                return self.create_topic::<Foo>(
+                return self.create_topic(
                     &discovered_topic_info.name,
+                    type_name,
                     QosKind::Specific(qos),
                     None,
                     NO_STATUS,
@@ -565,12 +573,13 @@ impl DdsShared<DomainParticipantImpl> {
         Err(DdsError::Timeout)
     }
 
-    pub fn lookup_topicdescription<Foo>(&self, topic_name: &str) -> Option<DdsShared<TopicImpl>>
-    where
-        Foo: DdsType,
-    {
+    pub fn lookup_topicdescription(
+        &self,
+        topic_name: &str,
+        type_name: &str,
+    ) -> Option<DdsShared<TopicImpl>> {
         self.topic_list.read_lock().iter().find_map(|topic| {
-            if topic.get_name() == topic_name && topic.get_type_name() == Foo::type_name() {
+            if topic.get_name() == topic_name && topic.get_type_name() == type_name {
                 Some(topic.clone())
             } else {
                 None

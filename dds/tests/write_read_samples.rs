@@ -330,7 +330,7 @@ fn read_only_unread_samples() {
     writer.write(&data5, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples1 = reader

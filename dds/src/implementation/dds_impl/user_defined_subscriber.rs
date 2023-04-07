@@ -20,6 +20,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            iterator::DdsIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -37,13 +38,12 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::AnnounceKind,
-    node_listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
+    node_listener_subscriber::ListenerSubscriberNode,
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    topic_impl::TopicImpl,
     user_defined_data_reader::{
         UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
     },
@@ -102,9 +102,11 @@ impl DdsShared<UserDefinedSubscriber> {
         self.data_reader_list.read_lock().is_empty()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &DdsShared<TopicImpl>,
+        type_name: &'static str,
+        topic_name: String,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
@@ -124,10 +126,10 @@ impl DdsShared<UserDefinedSubscriber> {
 
         let data_reader_shared = UserDefinedDataReader::new(
             rtps_reader,
-            a_topic.clone(),
+            type_name,
+            topic_name,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.announce_sender.clone(),
         );
@@ -173,24 +175,24 @@ impl DdsShared<UserDefinedSubscriber> {
         Ok(())
     }
 
-    pub fn lookup_datareader<Foo>(
+    pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
+        DdsIterator::new(&self.data_reader_list)
+    }
+
+    pub fn lookup_datareader(
         &self,
+        type_name: &str,
         topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>> {
         let data_reader_list = &self.data_reader_list.write_lock();
 
         data_reader_list
             .iter()
-            .find_map(|data_reader_shared| {
-                let data_reader_topic = data_reader_shared.get_topicdescription();
-
-                if data_reader_topic.get_name() == topic_name
-                    && data_reader_topic.get_type_name() == Foo::type_name()
+            .find_map(|data_reader| {
+                if data_reader.get_topic_name() == topic_name
+                    && data_reader.get_type_name() == type_name
                 {
-                    Some(data_reader_shared.clone())
+                    Some(data_reader.clone())
                 } else {
                     None
                 }
@@ -358,6 +360,7 @@ impl DdsShared<UserDefinedSubscriber> {
                     default_multicast_locator_list,
                     &mut self.status_listener.write_lock(),
                     participant_status_listener,
+                    &self.qos.read_lock(),
                 )
             }
         }

@@ -234,7 +234,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
     assert_eq!(
         participant.delete_topic(&reader_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data reader or data writer".to_string()
+            "Topic still attached to some data reader".to_string()
         ))
     );
 }
@@ -260,7 +260,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
     assert_eq!(
         participant.delete_topic(&writer_topic),
         Err(DdsError::PreconditionNotMet(
-            "Topic still attached to some data reader or data writer".to_string()
+            "Topic still attached to some data writer".to_string()
         ))
     );
 }

@@ -1,13 +1,14 @@
 use super::{
-    node_listener_subscriber::ListenerSubscriberNode,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_builtin_subscriber::BuiltinSubscriberNode,
     node_listener_data_reader::ListenerDataReaderNode,
     node_listener_data_writer::ListenerDataWriterNode,
+    node_listener_subscriber::ListenerSubscriberNode, node_listener_topic::ListenerTopicNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
+    node_user_defined_topic::UserDefinedTopicNode,
 };
 
 #[derive(PartialEq, Debug)]
@@ -29,4 +30,10 @@ pub enum DataReaderNodeKind {
     BuiltinStateless(BuiltinDataReaderStatelessNode),
     UserDefined(UserDefinedDataReaderNode),
     Listener(ListenerDataReaderNode),
+}
+
+#[derive(PartialEq, Debug)]
+pub enum TopicNodeKind {
+    UserDefined(UserDefinedTopicNode),
+    Listener(ListenerTopicNode),
 }

@@ -17,6 +17,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            iterator::DdsIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -37,7 +38,6 @@ use super::{
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    topic_impl::TopicImpl,
     user_defined_data_writer::UserDefinedDataWriter,
     writer_factory::WriterFactory,
 };
@@ -90,9 +90,11 @@ impl DdsShared<UserDefinedPublisher> {
         *self.enabled.read_lock()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn create_datawriter<Foo>(
         &self,
-        a_topic: &DdsShared<TopicImpl>,
+        type_name: &'static str,
+        topic_name: String,
         qos: QosKind<DataWriterQos>,
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
@@ -115,8 +117,8 @@ impl DdsShared<UserDefinedPublisher> {
             rtps_writer_impl,
             a_listener,
             mask,
-            a_topic.clone(),
-            self.downgrade(),
+            type_name,
+            topic_name,
             self.user_defined_data_send_condvar.clone(),
             self.announce_sender.clone(),
         );
@@ -125,15 +127,6 @@ impl DdsShared<UserDefinedPublisher> {
             .write_lock()
             .push(data_writer_shared.clone());
 
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            data_writer_shared.enable()?;
-        }
         Ok(data_writer_shared)
     }
 
@@ -161,23 +154,23 @@ impl DdsShared<UserDefinedPublisher> {
         Ok(())
     }
 
-    pub fn lookup_datawriter<Foo>(
+    pub fn data_writer_list(&self) -> DdsIterator<'_, UserDefinedDataWriter> {
+        DdsIterator::new(&self.data_writer_list)
+    }
+
+    pub fn lookup_datawriter(
         &self,
-        topic: &DdsShared<TopicImpl>,
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
-    where
-        Foo: DdsType,
-    {
+        type_name: &str,
+        topic_name: &str,
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter>> {
         self.data_writer_list
             .write_lock()
             .iter()
-            .find_map(|data_writer_shared| {
-                let data_writer_topic = data_writer_shared.get_topic();
-
-                if data_writer_topic.get_name() == topic.get_name()
-                    && data_writer_topic.get_type_name() == Foo::type_name()
+            .find_map(|data_writer| {
+                if data_writer.get_topic_name() == topic_name
+                    && data_writer.get_type_name() == type_name
                 {
-                    Some(data_writer_shared.clone())
+                    Some(data_writer.clone())
                 } else {
                     None
                 }
@@ -291,17 +284,6 @@ impl DdsShared<UserDefinedPublisher> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
-        if self
-            .qos
-            .read_lock()
-            .entity_factory
-            .autoenable_created_entities
-        {
-            for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable()?;
-            }
-        }
-
         Ok(())
     }
 
@@ -358,6 +340,7 @@ impl DdsShared<UserDefinedPublisher> {
                     default_multicast_locator_list,
                     &mut self.status_listener.write_lock(),
                     participant_status_listener,
+                    &self.qos.read_lock(),
                 )
             }
         }

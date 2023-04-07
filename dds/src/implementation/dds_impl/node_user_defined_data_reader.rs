@@ -25,7 +25,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     user_defined_data_reader::UserDefinedDataReader,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -166,8 +166,22 @@ impl UserDefinedDataReaderNode {
         Ok(self.0.get()?.get_subscription_matched_status())
     }
 
-    pub fn get_topicdescription(&self) -> DdsResult<DdsShared<TopicImpl>> {
-        Ok(self.0.get()?.get_topicdescription())
+    pub fn get_topicdescription(&self) -> DdsResult<UserDefinedTopicNode> {
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+
+        Ok(UserDefinedTopicNode::new(ChildNode::new(
+            topic.downgrade(),
+            self.0.parent().parent().clone(),
+        )))
     }
 
     pub fn get_subscriber(&self) -> UserDefinedSubscriberNode {
@@ -192,7 +206,25 @@ impl UserDefinedDataReaderNode {
     }
 
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)
+        self.0.get()?.set_qos(qos)?;
+
+        if self.0.get()?.is_enabled() {
+            let topic = self
+                .0
+                .parent()
+                .parent()
+                .get()?
+                .lookup_topicdescription(
+                    self.0.get()?.get_topic_name(),
+                    self.0.get()?.get_type_name(),
+                )
+                .expect("Topic must exist");
+            self.0
+                .get()?
+                .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        }
+
+        Ok(())
     }
 
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
@@ -223,7 +255,23 @@ impl UserDefinedDataReaderNode {
             ));
         }
 
-        self.0.get()?.enable()
+        self.0.get()?.enable()?;
+
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+        self.0
+            .get()?
+            .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

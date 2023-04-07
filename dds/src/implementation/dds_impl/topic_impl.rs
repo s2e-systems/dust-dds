@@ -6,7 +6,7 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::discovered_topic_data::DiscoveredTopicData,
         rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared, DdsWeak},
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::DdsResult,
@@ -14,13 +14,11 @@ use crate::{
         qos::{QosKind, TopicQos},
         status::{InconsistentTopicStatus, StatusKind},
     },
-    topic_definition::topic::AnyTopic,
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
-    status_condition_impl::StatusConditionImpl,
+    any_topic_listener::AnyTopicListener, domain_participant_impl::AnnounceKind,
+    node_listener_topic::ListenerTopicNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
 
@@ -42,7 +40,6 @@ pub struct TopicImpl {
     qos: DdsRwLock<TopicQos>,
     type_name: &'static str,
     topic_name: String,
-    parent_participant: DdsWeak<DomainParticipantImpl>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyTopicListener + Send + Sync>>,
     inconsistent_topic_status: DdsRwLock<InconsistentTopicStatus>,
@@ -59,7 +56,6 @@ impl TopicImpl {
         topic_name: &str,
         listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_participant: DdsWeak<DomainParticipantImpl>,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(Self {
@@ -67,7 +63,6 @@ impl TopicImpl {
             qos: DdsRwLock::new(qos),
             type_name,
             topic_name: topic_name.to_string(),
-            parent_participant,
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             inconsistent_topic_status: DdsRwLock::new(InconsistentTopicStatus::default()),
@@ -83,12 +78,6 @@ impl DdsShared<TopicImpl> {
             .write_lock()
             .remove_communication_state(StatusKind::InconsistentTopic);
         self.inconsistent_topic_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_participant(&self) -> DdsShared<DomainParticipantImpl> {
-        self.parent_participant
-            .upgrade()
-            .expect("Parent participant of topic must exist")
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -209,11 +198,14 @@ impl DdsShared<TopicImpl> {
         if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
             topic_status_listener
                 .listener_mut()
-                .trigger_on_inconsistent_topic(self, self.get_inconsistent_topic_status())
+                .trigger_on_inconsistent_topic(
+                    ListenerTopicNode,
+                    self.get_inconsistent_topic_status(),
+                )
         } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
             participant_status_listener
                 .listener_mut()
-                .on_inconsistent_topic(self, self.get_inconsistent_topic_status())
+                .on_inconsistent_topic(&ListenerTopicNode, self.get_inconsistent_topic_status())
         }
     }
 }
@@ -248,8 +240,6 @@ fn is_discovered_topic_consistent(
         && topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership
 }
 
-impl AnyTopic for DdsShared<TopicImpl> {}
-
 #[cfg(test)]
 mod tests {
 
@@ -273,7 +263,6 @@ mod tests {
             "",
             None,
             &[],
-            DdsWeak::new(),
             announce_sender,
         );
         *topic.enabled.write_lock() = true;
