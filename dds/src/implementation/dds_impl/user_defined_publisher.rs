@@ -17,6 +17,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            iterator::DdsIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -126,16 +127,6 @@ impl DdsShared<UserDefinedPublisher> {
             .write_lock()
             .push(data_writer_shared.clone());
 
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            todo!()
-            // data_writer_shared.enable()?;
-        }
         Ok(data_writer_shared)
     }
 
@@ -161,6 +152,10 @@ impl DdsShared<UserDefinedPublisher> {
         }
 
         Ok(())
+    }
+
+    pub fn data_writer_list(&self) -> DdsIterator<'_, UserDefinedDataWriter> {
+        DdsIterator::new(&self.data_writer_list)
     }
 
     pub fn lookup_datawriter(
@@ -288,17 +283,6 @@ impl DdsShared<UserDefinedPublisher> {
 
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
-
-        if self
-            .qos
-            .read_lock()
-            .entity_factory
-            .autoenable_created_entities
-        {
-            for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.enable()?;
-            }
-        }
 
         Ok(())
     }

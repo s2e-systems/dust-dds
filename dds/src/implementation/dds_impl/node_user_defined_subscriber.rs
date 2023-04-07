@@ -1,11 +1,8 @@
 use crate::{
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::DdsShared,
-    },
+    implementation::utils::node::{ChildNode, RootNode},
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         status::{SampleLostStatus, StatusKind},
@@ -17,7 +14,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode, topic_impl::TopicImpl,
+    node_user_defined_data_reader::UserDefinedDataReaderNode,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -48,7 +45,8 @@ impl UserDefinedSubscriberNode {
 
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &DdsShared<TopicImpl>,
+        type_name: &'static str,
+        topic_name: String,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
@@ -61,7 +59,8 @@ impl UserDefinedSubscriberNode {
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
         let reader = self.0.get()?.create_datareader::<Foo>(
-            a_topic,
+            type_name,
+            topic_name,
             qos,
             a_listener,
             mask,
@@ -69,10 +68,21 @@ impl UserDefinedSubscriberNode {
             default_multicast_locator_list,
         )?;
 
-        Ok(UserDefinedDataReaderNode::new(ChildNode::new(
-            reader.downgrade(),
-            self.0.clone(),
-        )))
+        let node =
+            UserDefinedDataReaderNode::new(ChildNode::new(reader.downgrade(), self.0.clone()));
+
+        if self.0.get()?.is_enabled()
+            && self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            node.enable()?;
+        }
+
+        Ok(node)
     }
 
     pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
@@ -139,14 +149,39 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        // if !s.upgrade()?.get_participant().is_enabled() {
-        //             return Err(DdsError::PreconditionNotMet(
-        //                 "Parent participant is disabled".to_string(),
-        //             ));
-        //         }
+        if !self.0.parent().get()?.is_enabled() {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent participant is disabled".to_string(),
+            ));
+        }
 
-        //         s.upgrade()?.enable()
-        self.0.get()?.enable()
+        if !self.0.get()?.is_enabled() {
+            self.0.get()?.enable()?;
+
+            if self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+            {
+                for data_reader in self.0.get()?.data_reader_list() {
+                    data_reader.enable()?;
+                    let topic = self
+                        .0
+                        .parent()
+                        .get()?
+                        .lookup_topicdescription(
+                            data_reader.get_topic_name(),
+                            data_reader.get_type_name(),
+                        )
+                        .expect("Topic must exist");
+                    data_reader.announce_reader(&topic.get_qos());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

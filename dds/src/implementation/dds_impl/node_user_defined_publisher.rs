@@ -56,7 +56,7 @@ impl UserDefinedPublisherNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        let writer = self.0.get()?.create_datawriter::<Foo>(
+        let data_writer = self.0.get()?.create_datawriter::<Foo>(
             type_name,
             topic_name,
             qos,
@@ -66,10 +66,21 @@ impl UserDefinedPublisherNode {
             default_multicast_locator_list,
         )?;
 
-        Ok(UserDefinedDataWriterNode::new(ChildNode::new(
-            writer.downgrade(),
-            self.0.clone(),
-        )))
+        let data_writer_node =
+            UserDefinedDataWriterNode::new(ChildNode::new(data_writer.downgrade(), self.0.clone()));
+
+        if self.0.get()?.is_enabled()
+            && self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+        {
+            data_writer_node.enable()?;
+        }
+
+        Ok(data_writer_node)
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
@@ -165,7 +176,33 @@ impl UserDefinedPublisherNode {
             ));
         }
 
-        self.0.get()?.enable()
+        if !self.0.get()?.is_enabled() {
+            self.0.get()?.enable()?;
+
+            if self
+                .0
+                .get()?
+                .get_qos()
+                .entity_factory
+                .autoenable_created_entities
+            {
+                for data_writer in self.0.get()?.data_writer_list() {
+                    data_writer.enable()?;
+                    let topic = self
+                        .0
+                        .parent()
+                        .get()?
+                        .lookup_topicdescription(
+                            data_writer.get_topic_name(),
+                            data_writer.get_type_name(),
+                        )
+                        .expect("Topic must exist");
+                    data_writer.announce_writer(&topic.get_qos());
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

@@ -20,6 +20,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            iterator::DdsIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -37,13 +38,12 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::AnnounceKind,
-    node_listener_subscriber::ListenerSubscriberNode,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
+    node_listener_subscriber::ListenerSubscriberNode,
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    topic_impl::TopicImpl,
     user_defined_data_reader::{
         UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
     },
@@ -104,7 +104,8 @@ impl DdsShared<UserDefinedSubscriber> {
 
     pub fn create_datareader<Foo>(
         &self,
-        a_topic: &DdsShared<TopicImpl>,
+        type_name: &'static str,
+        topic_name: String,
         qos: QosKind<DataReaderQos>,
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
@@ -124,7 +125,8 @@ impl DdsShared<UserDefinedSubscriber> {
 
         let data_reader_shared = UserDefinedDataReader::new(
             rtps_reader,
-            a_topic.clone(),
+            type_name,
+            topic_name,
             a_listener,
             mask,
             self.downgrade(),
@@ -171,6 +173,10 @@ impl DdsShared<UserDefinedSubscriber> {
         }
 
         Ok(())
+    }
+
+    pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
+        DdsIterator::new(&self.data_reader_list)
     }
 
     pub fn lookup_datareader<Foo>(

@@ -128,7 +128,7 @@ impl UserDefinedDataWriterNode {
             .parent()
             .get()?
             .lookup_topicdescription(
-                &self.0.get()?.get_topic_name(),
+                self.0.get()?.get_topic_name(),
                 self.0.get()?.get_type_name(),
             )
             .expect("Topic must exist");
@@ -161,7 +161,22 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)
+        self.0.get()?.set_qos(qos)?;
+
+        if self.0.get()?.is_enabled() {
+            let topic = self
+                .0
+                .parent()
+                .parent()
+                .get()?
+                .lookup_topicdescription(
+                    self.0.get()?.get_topic_name(),
+                    self.0.get()?.get_type_name(),
+                )
+                .expect("Topic must exist");
+            self.0.get()?.announce_writer(&topic.get_qos());
+        }
+        Ok(())
     }
 
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
@@ -191,7 +206,21 @@ impl UserDefinedDataWriterNode {
                 "Parent publisher disabled".to_string(),
             ));
         }
-        self.0.get()?.enable()
+        self.0.get()?.enable()?;
+
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+        self.0.get()?.announce_writer(&topic.get_qos());
+
+        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

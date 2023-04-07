@@ -191,8 +191,8 @@ impl UserDefinedDataWriter {
 }
 
 impl DdsShared<UserDefinedDataWriter> {
-    pub fn get_topic_name(&self) -> String {
-        self.topic_name.clone()
+    pub fn get_topic_name(&self) -> &str {
+        &self.topic_name
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -544,15 +544,6 @@ impl DdsShared<UserDefinedDataWriter> {
 
         self.rtps_writer.write_lock().set_qos(qos)?;
 
-        if self.is_enabled() {
-            todo!()
-            // self.announce_sender
-            //     .send(AnnounceKind::CreatedDataWriter(
-            //         self.as_discovered_writer_data(),
-            //     ))
-            //     .ok();
-        }
-
         Ok(())
     }
 
@@ -577,14 +568,17 @@ impl DdsShared<UserDefinedDataWriter> {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        // self.announce_sender
-        //     .send(AnnounceKind::CreatedDataWriter(
-        //         self.as_discovered_writer_data(topic_qos),
-        //     ))
-        //     .ok();
         *self.enabled.write_lock() = true;
-        todo!();
+
         Ok(())
+    }
+
+    pub fn announce_writer(&self, topic_qos: &TopicQos) {
+        self.announce_sender
+            .send(AnnounceKind::CreatedDataWriter(
+                self.as_discovered_writer_data(topic_qos),
+            ))
+            .ok();
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
