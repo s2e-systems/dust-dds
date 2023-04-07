@@ -63,7 +63,8 @@ impl Publisher {
         #[allow(clippy::redundant_closure)]
         self.0
             .create_datawriter::<Foo>(
-                &a_topic.topic.upgrade()?,
+                a_topic.get_type_name()?,
+                a_topic.get_name()?,
                 qos,
                 a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
                 mask,
@@ -94,7 +95,7 @@ impl Publisher {
         Foo: DdsType + DdsSerialize,
     {
         self.0
-            .lookup_datawriter::<Foo>(&topic.topic.upgrade()?)
+            .lookup_datawriter(topic.get_type_name()?, &topic.get_name()?)
             .map(|x| Some(DataWriter::new(DataWriterNodeKind::UserDefined(x))))
     }
 

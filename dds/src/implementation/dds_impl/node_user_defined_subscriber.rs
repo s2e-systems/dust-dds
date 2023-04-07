@@ -1,7 +1,7 @@
 use crate::{
     implementation::utils::{
         node::{ChildNode, RootNode},
-        shared_object::{DdsShared, DdsWeak},
+        shared_object::DdsShared,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode, topic_impl::TopicImpl,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -97,8 +97,8 @@ impl UserDefinedSubscriberNode {
         self.0.get()?.notify_datareaders()
     }
 
-    pub fn get_participant(&self) -> DdsResult<DdsWeak<DomainParticipantImpl>> {
-        Ok(self.0.parent().get()?.downgrade())
+    pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
+        Ok(DomainParticipantNode::new(self.0.parent().clone()))
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {

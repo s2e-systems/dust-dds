@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
+        any_data_writer_listener::AnyDataWriterListener,
+        node_kind::{DataWriterNodeKind, TopicNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -388,7 +389,9 @@ where
     /// This operation returns the [`Topic`] associated with the [`DataWriter`]. This is the same [`Topic`] that was used to create the [`DataWriter`].
     pub fn get_topic(&self) -> DdsResult<Topic<Foo>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => Ok(Topic::new(w.get_topic()?.downgrade())),
+            DataWriterNodeKind::UserDefined(w) => {
+                Ok(Topic::new(TopicNodeKind::UserDefined(w.get_topic()?)))
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -427,7 +430,9 @@ where
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscription_data(subscription_handle),
+            DataWriterNodeKind::UserDefined(w) => {
+                w.get_matched_subscription_data(subscription_handle)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -508,7 +513,9 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => Ok(StatusCondition::new(w.get_statuscondition()?)),
+            DataWriterNodeKind::UserDefined(w) => {
+                Ok(StatusCondition::new(w.get_statuscondition()?))
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

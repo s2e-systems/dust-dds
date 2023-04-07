@@ -530,7 +530,8 @@ where
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => todo!(),
             DataReaderNodeKind::UserDefined(r) => {
-                Ok(Topic::new(r.get_topicdescription()?.downgrade()))
+                todo!()
+                // Ok(Topic::new(r.get_topicdescription()?.downgrade()))
             }
             DataReaderNodeKind::Listener(_) => todo!(),
         }

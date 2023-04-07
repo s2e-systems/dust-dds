@@ -1,16 +1,9 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    implementation::{
-        dds_impl::{
-            any_topic_listener::AnyTopicListener, node_builtin_subscriber::BuiltinSubscriberNode,
-            domain_participant_impl::DomainParticipantImpl, node_kind::SubscriberNodeKind,
-            node_user_defined_publisher::UserDefinedPublisherNode,
-            node_user_defined_subscriber::UserDefinedSubscriberNode,
-        },
-        utils::{
-            node::{ChildNode, RootNode},
-            shared_object::DdsWeak,
-        },
+    implementation::dds_impl::{
+        any_topic_listener::AnyTopicListener,
+        node_domain_participant::DomainParticipantNode,
+        node_kind::{SubscriberNodeKind, TopicNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -47,18 +40,12 @@ use super::{
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
-#[derive(Debug)]
-pub struct DomainParticipant(DdsWeak<DomainParticipantImpl>);
+#[derive(PartialEq, Debug)]
+pub struct DomainParticipant(DomainParticipantNode);
 
 impl DomainParticipant {
-    pub(crate) fn new(domain_participant_impl: DdsWeak<DomainParticipantImpl>) -> Self {
-        Self(domain_participant_impl)
-    }
-}
-
-impl PartialEq for DomainParticipant {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.ptr_eq(&other.0)
+    pub(crate) fn new(node: DomainParticipantNode) -> Self {
+        Self(node)
     }
 }
 
@@ -84,15 +71,9 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Publisher> {
-        self.0
-            .upgrade()?
-            .create_publisher(qos, a_listener, mask)
-            .map(|x| {
-                Publisher::new(UserDefinedPublisherNode::new(ChildNode::new(
-                    x.downgrade(),
-                    RootNode::new(self.0.clone()),
-                )))
-            })
+        Ok(Publisher::new(
+            self.0.create_publisher(qos, a_listener, mask)?,
+        ))
     }
 
     /// This operation deletes an existing [`Publisher`].
@@ -104,8 +85,8 @@ impl DomainParticipant {
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
         self.0
-            .upgrade()?
-            .delete_publisher(a_publisher.get_instance_handle()?)
+            .delete_publisher(a_publisher.get_instance_handle()?)?;
+        Ok(())
     }
 
     /// This operation creates a [`Subscriber`] with the desired QoS policies and attaches to it the specified [`SubscriberListener`].
@@ -122,14 +103,9 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        self.0
-            .upgrade()?
-            .create_subscriber(qos, a_listener, mask)
-            .map(|x| {
-                Subscriber::new(SubscriberNodeKind::UserDefined(UserDefinedSubscriberNode::new(
-                    ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
-                )))
-            })
+        Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
+            self.0.create_subscriber(qos, a_listener, mask)?,
+        )))
     }
 
     /// This operation deletes an existing [`Subscriber`].
@@ -140,8 +116,8 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         self.0
-            .upgrade()?
-            .delete_subscriber(a_subscriber.get_instance_handle()?)
+            .delete_subscriber(a_subscriber.get_instance_handle()?)?;
+        Ok(())
     }
 
     /// This operation creates a [`Topic`] with the desired QoS policies and attaches to it the specified [`TopicListener`].
@@ -163,16 +139,15 @@ impl DomainParticipant {
     where
         Foo: DdsType + 'static,
     {
-        #[allow(clippy::redundant_closure)]
-        self.0
-            .upgrade()?
-            .create_topic::<Foo>(
+        Ok(Topic::new(TopicNodeKind::UserDefined(
+            self.0.create_topic(
                 topic_name,
+                Foo::type_name(),
                 qos,
                 a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
                 mask,
-            )
-            .map(|x| Topic::new(x.downgrade()))
+            )?,
+        )))
     }
 
     /// This operation deletes a [`Topic`].
@@ -181,9 +156,9 @@ impl DomainParticipant {
     /// it, it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     /// The [`DomainParticipant::delete_topic()`] operation must be called on the same [`DomainParticipant`] object used to create the [`Topic`]. If [`DomainParticipant::delete_topic()`] is
     /// called on a different [`DomainParticipant`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_topic<'a, Foo: 'a>(&'a self, a_topic: &'a Topic<Foo>) -> DdsResult<()> {
-        let topic_handle = a_topic.topic.upgrade()?.get_instance_handle();
-        self.0.upgrade()?.delete_topic(topic_handle)
+    pub fn delete_topic<Foo>(&self, a_topic: &Topic<Foo>) -> DdsResult<()> {
+        self.0.delete_topic(a_topic.get_instance_handle()?)?;
+        Ok(())
     }
 
     /// This operation gives access to an existing (or ready to exist) enabled [`Topic`], based on its name. The operation takes
@@ -202,9 +177,8 @@ impl DomainParticipant {
         Foo: DdsType,
     {
         self.0
-            .upgrade()?
-            .find_topic::<Foo>(topic_name, timeout)
-            .map(|x| Topic::new(x.downgrade()))
+            .find_topic(topic_name, Foo::type_name(), timeout)
+            .map(|x| Topic::new(TopicNodeKind::UserDefined(x)))
     }
 
     /// This operation gives access to an existing locally-created [`Topic`], based on its name and type. The
@@ -223,9 +197,8 @@ impl DomainParticipant {
     {
         Ok(self
             .0
-            .upgrade()?
-            .lookup_topicdescription::<Foo>(topic_name)
-            .map(|x| Topic::new(x.downgrade())))
+            .lookup_topicdescription(topic_name, Foo::type_name())?
+            .map(|x| Topic::new(TopicNodeKind::UserDefined(x))))
     }
 
     /// This operation allows access to the built-in [`Subscriber`]. Each [`DomainParticipant`] contains several built-in [`Topic`] objects as
@@ -233,11 +206,9 @@ impl DomainParticipant {
     /// The built-in topics are used to communicate information about other [`DomainParticipant`], [`Topic`], [`DataReader`](crate::subscription::data_reader::DataReader), and [`DataWriter`](crate::publication::data_writer::DataWriter)
     /// objects.
     pub fn get_builtin_subscriber(&self) -> DdsResult<Subscriber> {
-        self.0.upgrade()?.get_builtin_subscriber().map(|x| {
-            Subscriber::new(SubscriberNodeKind::Builtin(BuiltinSubscriberNode::new(
-                ChildNode::new(x.downgrade(), RootNode::new(self.0.clone())),
-            )))
-        })
+        self.0
+            .get_builtin_subscriber()
+            .map(|x| Subscriber::new(SubscriberNodeKind::Builtin(x)))
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -252,7 +223,7 @@ impl DomainParticipant {
     /// [`DataReader`](crate::subscription::data_reader::DataReader) is read with the same read/take operations used for any DataReader.
     /// The [`DomainParticipant::ignore_participant()`] operation is not reversible.
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.upgrade()?.ignore_participant(handle)
+        self.0.ignore_participant(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote topic. This means it will locally ignore any
@@ -263,7 +234,7 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSTopic” topic.
     /// The [`DomainParticipant::ignore_topic()`] operation is not reversible.
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.upgrade()?.ignore_topic(handle)
+        self.0.ignore_topic(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -272,7 +243,7 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSPublication” topic.
     /// The [`DomainParticipant::ignore_publication()`] operation is not reversible.
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.upgrade()?.ignore_publication(handle)
+        self.0.ignore_publication(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -282,13 +253,13 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in [`DataReader`](crate::subscription::data_reader::DataReader) to the “DCPSSubscription” topic.
     /// The [`DomainParticipant::ignore_subscription()`] operation is not reversible.
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.upgrade()?.ignore_subscription(handle)
+        self.0.ignore_subscription(handle)
     }
 
     /// This operation retrieves the [`DomainId`] used to create the DomainParticipant. The [`DomainId`] identifies the DDS domain to
     /// which the [`DomainParticipant`] belongs. Each DDS domain represents a separate data “communication plane” isolated from other domains.
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        Ok(self.0.upgrade()?.get_domain_id())
+        self.0.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -302,7 +273,7 @@ impl DomainParticipant {
     /// Once this operation returns successfully, the application may delete the [`DomainParticipant`] knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.upgrade()?.delete_contained_entities()
+        self.0.delete_contained_entities()
     }
 
     /// This operation manually asserts the liveliness of the [`DomainParticipant`]. This is used in combination
@@ -313,7 +284,7 @@ impl DomainParticipant {
     /// NOTE: Writing data via the write operation on a  [`DataWriter`](crate::publication::data_writer::DataWriter) asserts liveliness on the DataWriter itself and its
     /// [`DomainParticipant`]. Consequently the use of this operation is only needed if the application is not writing data regularly.
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.0.upgrade()?.assert_liveliness()
+        self.0.assert_liveliness()
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created [`Publisher`] entities in the
@@ -323,7 +294,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values the default values of [`PublisherQos`].
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.0.upgrade()?.set_default_publisher_qos(qos)
+        self.0.set_default_publisher_qos(qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -331,7 +302,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_publisher_qos()`], or else, if the call was never made, the default values of the [`PublisherQos`].
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.0.upgrade()?.get_default_publisher_qos())
+        self.0.get_default_publisher_qos()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created [`Subscriber`] entities in the
@@ -341,7 +312,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the default values of [`SubscriberQos`].
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.0.upgrade()?.set_default_subscriber_qos(qos)
+        self.0.set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -349,7 +320,7 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_subscriber_qos()`], or else, if the call was never made, the default values of [`SubscriberQos`].
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        Ok(self.0.upgrade()?.get_default_subscriber_qos())
+        self.0.get_default_subscriber_qos()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created [`Topic`] entities in the case
@@ -359,7 +330,7 @@ impl DomainParticipant {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the default values of [`TopicQos`].
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.0.upgrade()?.set_default_topic_qos(qos)
+        self.0.set_default_topic_qos(qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created [`Topic`]
@@ -367,13 +338,13 @@ impl DomainParticipant {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`DomainParticipant::set_default_topic_qos()`], or else, if the call was never made, the default values of [`TopicQos`]
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.0.upgrade()?.get_default_topic_qos())
+        self.0.get_default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the [`DomainParticipant::ignore_participant()`] operation.
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.upgrade()?.get_discovered_participants()
+        self.0.get_discovered_participants()
     }
 
     /// This operation retrieves information on a [`DomainParticipant`] that has been discovered on the network. The participant must
@@ -386,15 +357,13 @@ impl DomainParticipant {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        self.0
-            .upgrade()?
-            .get_discovered_participant_data(participant_handle)
+        self.0.get_discovered_participant_data(participant_handle)
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the [`DomainParticipant::ignore_topic()`] operation.
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.upgrade()?.get_discovered_topics()
+        self.0.get_discovered_topics()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -407,7 +376,7 @@ impl DomainParticipant {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        self.0.upgrade()?.get_discovered_topic_data(topic_handle)
+        self.0.get_discovered_topic_data(topic_handle)
     }
 
     /// This operation checks whether or not the given `a_handle` represents an Entity that was created from the [`DomainParticipant`].
@@ -417,13 +386,13 @@ impl DomainParticipant {
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// `get_instance_handle`.
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
-        self.0.upgrade()?.contains_entity(a_handle)
+        self.0.contains_entity(a_handle)
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.0.upgrade()?.get_current_time()
+        self.0.get_current_time()
     }
 }
 
@@ -442,12 +411,12 @@ impl DomainParticipant {
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.0.upgrade()?.set_qos(qos)
+        self.0.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`DomainParticipantQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        Ok(self.0.upgrade()?.get_qos())
+        self.0.get_qos()
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -461,17 +430,14 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.upgrade()?.set_listener(a_listener, mask);
-        Ok(())
+        self.0.set_listener(a_listener, mask)
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            self.0.upgrade()?.get_statuscondition(),
-        ))
+        self.0.get_statuscondition()
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -481,7 +447,7 @@ impl DomainParticipant {
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.0.upgrade()?.get_status_changes())
+        self.0.get_status_changes()
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -505,11 +471,11 @@ impl DomainParticipant {
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive”, that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.upgrade()?.enable()
+        self.0.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.upgrade()?.get_instance_handle()
+        self.0.get_instance_handle()
     }
 }

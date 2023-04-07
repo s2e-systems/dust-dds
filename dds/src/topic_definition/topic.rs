@@ -2,10 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     domain::domain_participant::DomainParticipant,
-    implementation::{
-        dds_impl::{any_topic_listener::AnyTopicListener, topic_impl::TopicImpl},
-        utils::shared_object::DdsWeak,
-    },
+    implementation::dds_impl::{any_topic_listener::AnyTopicListener, node_kind::TopicNodeKind},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -21,14 +18,14 @@ use super::topic_listener::TopicListener;
 /// `type_name` defines a unique resulting type for the publication or the subscription. It has also a `name` that allows it to
 /// be retrieved locally.
 pub struct Topic<Foo> {
-    pub(crate) topic: DdsWeak<TopicImpl>,
+    pub(crate) node: TopicNodeKind,
     phantom: PhantomData<Foo>,
 }
 
 impl<Foo> Topic<Foo> {
-    pub(crate) fn new(topic: DdsWeak<TopicImpl>) -> Self {
+    pub(crate) fn new(node: TopicNodeKind) -> Self {
         Self {
-            topic,
+            node,
             phantom: PhantomData,
         }
     }
@@ -47,7 +44,10 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This method allows the application to retrieve the [`InconsistentTopicStatus`] of the [`Topic`].
     pub fn get_inconsistent_topic_status(&self) -> DdsResult<InconsistentTopicStatus> {
-        Ok(self.topic.upgrade()?.get_inconsistent_topic_status())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_inconsistent_topic_status(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 }
 
@@ -55,27 +55,31 @@ impl<Foo> Topic<Foo> {
 impl<Foo> Topic<Foo> {
     /// This operation returns the [`DomainParticipant`] to which the [`Topic`] belongs.
     pub fn get_participant(&self) -> DdsResult<DomainParticipant> {
-        Ok(DomainParticipant::new(
-            self.topic.upgrade()?.get_participant().downgrade(),
-        ))
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => Ok(DomainParticipant::new(t.get_participant())),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// The name of the type used to create the [`Topic`]
     pub fn get_type_name(&self) -> DdsResult<&'static str> {
-        Ok(self.topic.upgrade()?.get_type_name())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_type_name(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// The name used to create the [`Topic`]
     pub fn get_name(&self) -> DdsResult<String> {
-        Ok(self.topic.upgrade()?.get_name())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_name(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 }
 
 /// This implementation block contains the Entity operations for the [`Topic`].
-impl<Foo> Topic<Foo>
-where
-    Foo: 'static,
-{
+impl<Foo> Topic<Foo> {
     /// This operation is used to set the QoS policies of the Entity and replacing the values of any policies previously set.
     /// Certain policies are “immutable;” they can only be set at Entity creation time, or before the entity is made enabled.
     /// If [`Self::set_qos()`] is invoked after the Entity is enabled and it attempts to change the value of an “immutable” policy, the operation will
@@ -89,40 +93,30 @@ where
     /// The operation [`Self::set_qos()`] cannot modify the immutable QoS so a successful return of the operation indicates that the mutable QoS for the Entity has been
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.topic.upgrade()?.set_qos(qos)
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.set_qos(qos),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
+        // self.node.upgrade()?.set_qos(qos)
     }
 
     /// This operation allows access to the existing set of [`TopicQos`] policies.
     pub fn get_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.topic.upgrade()?.get_qos())
-    }
-
-    /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
-    /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
-    /// as a Listener whose operations perform no action.
-    /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
-    /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
-    /// will be removed.
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsResult<()> {
-        #[allow(clippy::redundant_closure)]
-        self.topic.upgrade()?.set_listener(
-            a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
-            mask,
-        );
-        Ok(())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_qos(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
+        // Ok(self.node.upgrade()?.get_qos())
     }
 
     /// This operation allows access to the [`StatusCondition`] associated with the Entity. The returned
     /// condition can then be added to a [`WaitSet`](crate::infrastructure::wait_set::WaitSet) so that the application can wait for specific status changes
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(
-            self.topic.upgrade()?.get_statuscondition(),
-        ))
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_statuscondition(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation retrieves the list of communication statuses in the Entity that are ‘triggered.’ That is, the list of statuses whose
@@ -132,7 +126,10 @@ where
     /// The list of statuses returned by the [`Self::get_status_changes`] operation refers to the status that are triggered on the Entity itself
     /// and does not include statuses that apply to contained entities.
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.topic.upgrade()?.get_status_changes())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_status_changes(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
     }
 
     /// This operation enables the Entity. Entity objects can be created either enabled or disabled. This is controlled by the value of
@@ -156,18 +153,44 @@ where
     /// The Listeners associated with an entity are not called until the entity is enabled. Conditions associated with an entity that is not
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.topic.upgrade()?.get_participant().is_enabled() {
-            return Err(DdsError::PreconditionNotMet(
-                "Parent participant is disabled".to_string(),
-            ));
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.enable(),
+            TopicNodeKind::Listener(_) => todo!(),
         }
-
-        self.topic.upgrade()?.enable()
     }
 
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.topic.upgrade()?.get_instance_handle())
+        match &self.node {
+            TopicNodeKind::UserDefined(t) => t.get_instance_handle(),
+            TopicNodeKind::Listener(_) => todo!(),
+        }
+    }
+}
+
+impl<Foo> Topic<Foo>
+where
+    Foo: 'static,
+{
+    /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
+    /// indicated by the specified mask. It is permitted to use [`None`] as the value of the listener. The [`None`] listener behaves
+    /// as a Listener whose operations perform no action.
+    /// Only one listener can be attached to each Entity. If a listener was already set, the operation [`Self::set_listener()`] will replace it with the
+    /// new one. Consequently if the value [`None`] is passed for the listener parameter to the [`Self::set_listener()`] operation, any existing listener
+    /// will be removed.
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn TopicListener<Foo = Foo> + Send + Sync>>,
+        mask: &[StatusKind],
+    ) -> DdsResult<()> {
+        match &self.node {
+            #[allow(clippy::redundant_closure)]
+            TopicNodeKind::UserDefined(t) => t.set_listener(
+                a_listener.map::<Box<dyn AnyTopicListener + Send + Sync>, _>(|l| Box::new(l)),
+                mask,
+            ),
+            TopicNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+        }
     }
 }
 

@@ -66,17 +66,17 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) =>
-            {
-                #[allow(clippy::redundant_closure)]
-                s.create_datareader::<Foo>(
-                    &a_topic.topic.upgrade()?,
-                    qos,
-                    a_listener
-                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
-                    mask,
-                )
-                .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
+            SubscriberNodeKind::UserDefined(s) => {
+                todo!()
+                // #[allow(clippy::redundant_closure)]
+                // s.create_datareader::<Foo>(
+                //     &a_topic.node.upgrade()?,
+                //     qos,
+                //     a_listener
+                //         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
+                //     mask,
+                // )
+                // .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
             }
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
