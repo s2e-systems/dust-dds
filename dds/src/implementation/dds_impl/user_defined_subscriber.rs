@@ -129,7 +129,6 @@ impl DdsShared<UserDefinedSubscriber> {
             topic_name,
             a_listener,
             mask,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.announce_sender.clone(),
         );
@@ -179,24 +178,20 @@ impl DdsShared<UserDefinedSubscriber> {
         DdsIterator::new(&self.data_reader_list)
     }
 
-    pub fn lookup_datareader<Foo>(
+    pub fn lookup_datareader(
         &self,
+        type_name: &str,
         topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
-    where
-        Foo: DdsType,
-    {
+    ) -> DdsResult<DdsShared<UserDefinedDataReader>> {
         let data_reader_list = &self.data_reader_list.write_lock();
 
         data_reader_list
             .iter()
-            .find_map(|data_reader_shared| {
-                let data_reader_topic = data_reader_shared.get_topicdescription();
-
-                if data_reader_topic.get_name() == topic_name
-                    && data_reader_topic.get_type_name() == Foo::type_name()
+            .find_map(|data_reader| {
+                if data_reader.get_topic_name() == topic_name
+                    && data_reader.get_type_name() == type_name
                 {
-                    Some(data_reader_shared.clone())
+                    Some(data_reader.clone())
                 } else {
                     None
                 }
@@ -364,6 +359,7 @@ impl DdsShared<UserDefinedSubscriber> {
                     default_multicast_locator_list,
                     &mut self.status_listener.write_lock(),
                     participant_status_listener,
+                    &self.qos.read_lock(),
                 )
             }
         }

@@ -89,14 +89,12 @@ impl UserDefinedSubscriberNode {
         self.0.get()?.delete_datareader(a_datareader_handle)
     }
 
-    pub fn lookup_datareader<Foo>(
+    pub fn lookup_datareader(
         &self,
+        type_name: &str,
         topic_name: &str,
-    ) -> DdsResult<Option<UserDefinedDataReaderNode>>
-    where
-        Foo: DdsType,
-    {
-        let reader = self.0.get()?.lookup_datareader::<Foo>(topic_name)?;
+    ) -> DdsResult<Option<UserDefinedDataReaderNode>> {
+        let reader = self.0.get()?.lookup_datareader(type_name, topic_name)?;
         Ok(Some(UserDefinedDataReaderNode::new(ChildNode::new(
             reader.downgrade(),
             self.0.clone(),
@@ -176,7 +174,7 @@ impl UserDefinedSubscriberNode {
                             data_reader.get_type_name(),
                         )
                         .expect("Topic must exist");
-                    data_reader.announce_reader(&topic.get_qos());
+                    data_reader.announce_reader(&topic.get_qos(), &self.0.get()?.get_qos());
                 }
             }
         }

@@ -58,10 +58,6 @@ impl<T> PartialEq for DdsShared<T> {
 pub struct DdsWeak<T: ?Sized>(Weak<T>);
 
 impl<T> DdsWeak<T> {
-    pub fn new() -> Self {
-        DdsWeak(Weak::new())
-    }
-
     pub fn upgrade(&self) -> DdsResult<DdsShared<T>> {
         self.0
             .upgrade()

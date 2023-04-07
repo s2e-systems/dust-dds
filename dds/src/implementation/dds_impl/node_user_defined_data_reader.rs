@@ -219,7 +219,9 @@ impl UserDefinedDataReaderNode {
                     self.0.get()?.get_type_name(),
                 )
                 .expect("Topic must exist");
-            self.0.get()?.announce_reader(&topic.get_qos());
+            self.0
+                .get()?
+                .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
         }
 
         Ok(())
@@ -265,7 +267,9 @@ impl UserDefinedDataReaderNode {
                 self.0.get()?.get_type_name(),
             )
             .expect("Topic must exist");
-        self.0.get()?.announce_reader(&topic.get_qos());
+        self.0
+            .get()?
+            .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
 
         Ok(())
     }

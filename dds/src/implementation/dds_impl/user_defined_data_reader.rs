@@ -27,13 +27,13 @@ use crate::{
         utils::{
             condvar::DdsCondvar,
             node::RootNode,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        qos::{DataReaderQos, QosKind, TopicQos},
+        qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
         qos_policy::{
             DurabilityQosPolicyKind, QosPolicyId, DEADLINE_QOS_POLICY_ID,
             DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
@@ -58,7 +58,6 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, node_listener_data_reader::ListenerDataReaderNode,
     status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -181,7 +180,6 @@ pub struct UserDefinedDataReader {
     type_name: &'static str,
     topic_name: String,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
-    parent_subscriber: DdsWeak<UserDefinedSubscriber>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -207,7 +205,6 @@ impl UserDefinedDataReader {
         topic_name: String,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-        parent_subscriber: DdsWeak<UserDefinedSubscriber>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -216,7 +213,6 @@ impl UserDefinedDataReader {
             type_name,
             topic_name,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
-            parent_subscriber,
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus::default()),
             requested_deadline_missed_status: DdsRwLock::new(
                 RequestedDeadlineMissedStatus::default(),
@@ -384,14 +380,18 @@ impl DdsShared<UserDefinedDataReader> {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        subscriber_qos: &SubscriberQos,
     ) {
         let publication_builtin_topic_data = &discovered_writer_data.publication_builtin_topic_data;
         if publication_builtin_topic_data.topic_name == self.topic_name
             && publication_builtin_topic_data.type_name == self.type_name
         {
             let instance_handle = discovered_writer_data.get_serialized_key().into();
-            let incompatible_qos_policy_list =
-                self.get_discovered_writer_incompatible_qos_policy_list(discovered_writer_data);
+            let incompatible_qos_policy_list = self
+                .get_discovered_writer_incompatible_qos_policy_list(
+                    discovered_writer_data,
+                    subscriber_qos,
+                );
             if incompatible_qos_policy_list.is_empty() {
                 let unicast_locator_list = if discovered_writer_data
                     .writer_proxy
@@ -465,18 +465,17 @@ impl DdsShared<UserDefinedDataReader> {
     fn get_discovered_writer_incompatible_qos_policy_list(
         &self,
         discovered_writer_data: &DiscoveredWriterData,
+        subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
         let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
-        let parent_subscriber_qos = self.get_subscriber().get_qos();
 
         let mut incompatible_qos_policy_list = Vec::new();
 
-        if parent_subscriber_qos.presentation.access_scope > writer_info.presentation.access_scope
-            || parent_subscriber_qos.presentation.coherent_access
+        if subscriber_qos.presentation.access_scope > writer_info.presentation.access_scope
+            || subscriber_qos.presentation.coherent_access
                 != writer_info.presentation.coherent_access
-            || parent_subscriber_qos.presentation.ordered_access
-                != writer_info.presentation.ordered_access
+            || subscriber_qos.presentation.ordered_access != writer_info.presentation.ordered_access
         {
             incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
         }
@@ -681,17 +680,6 @@ impl DdsShared<UserDefinedDataReader> {
             .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
     }
 
-    pub fn get_topicdescription(&self) -> DdsShared<TopicImpl> {
-        todo!()
-        // self.topic.clone()
-    }
-
-    pub fn get_subscriber(&self) -> DdsShared<UserDefinedSubscriber> {
-        self.parent_subscriber
-            .upgrade()
-            .expect("Parent subscriber of data reader must exist")
-    }
-
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             Err(DdsError::NotEnabled)
@@ -796,10 +784,10 @@ impl DdsShared<UserDefinedDataReader> {
         Ok(())
     }
 
-    pub fn announce_reader(&self, topic_qos: &TopicQos) {
+    pub fn announce_reader(&self, topic_qos: &TopicQos, subscriber_qos: &SubscriberQos) {
         self.announce_sender
             .send(AnnounceKind::CreatedDataReader(
-                self.as_discovered_reader_data(topic_qos),
+                self.as_discovered_reader_data(topic_qos, subscriber_qos),
             ))
             .ok();
     }
@@ -808,10 +796,13 @@ impl DdsShared<UserDefinedDataReader> {
         self.rtps_reader.read_lock().reader().guid().into()
     }
 
-    pub fn as_discovered_reader_data(&self, topic_qos: &TopicQos) -> DiscoveredReaderData {
+    pub fn as_discovered_reader_data(
+        &self,
+        topic_qos: &TopicQos,
+        subscriber_qos: &SubscriberQos,
+    ) -> DiscoveredReaderData {
         let guid = self.rtps_reader.read_lock().reader().guid();
         let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
-        let subscriber_qos = self.get_subscriber().get_qos();
 
         DiscoveredReaderData {
             reader_proxy: ReaderProxy {
@@ -841,7 +832,7 @@ impl DdsShared<UserDefinedDataReader> {
                 presentation: subscriber_qos.presentation.clone(),
                 partition: subscriber_qos.partition.clone(),
                 topic_data: topic_qos.topic_data.clone(),
-                group_data: subscriber_qos.group_data,
+                group_data: subscriber_qos.group_data.clone(),
             },
         }
     }

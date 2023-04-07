@@ -113,7 +113,7 @@ impl Subscriber {
                 .lookup_datareader::<Foo>(topic_name)?
                 .map(|x| DataReader::new(x))),
             SubscriberNodeKind::UserDefined(s) => Ok(s
-                .lookup_datareader::<Foo>(topic_name)?
+                .lookup_datareader(Foo::type_name(), topic_name)?
                 .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))),
             SubscriberNodeKind::Listener(_) => todo!(),
         }
