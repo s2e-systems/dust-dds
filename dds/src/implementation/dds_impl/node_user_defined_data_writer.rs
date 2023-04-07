@@ -174,7 +174,9 @@ impl UserDefinedDataWriterNode {
                     self.0.get()?.get_type_name(),
                 )
                 .expect("Topic must exist");
-            self.0.get()?.announce_writer(&topic.get_qos());
+            self.0
+                .get()?
+                .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
         }
         Ok(())
     }
@@ -218,7 +220,9 @@ impl UserDefinedDataWriterNode {
                 self.0.get()?.get_type_name(),
             )
             .expect("Topic must exist");
-        self.0.get()?.announce_writer(&topic.get_qos());
+        self.0
+            .get()?
+            .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
 
         Ok(())
     }

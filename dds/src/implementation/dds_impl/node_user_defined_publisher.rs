@@ -197,7 +197,7 @@ impl UserDefinedPublisherNode {
                             data_writer.get_type_name(),
                         )
                         .expect("Topic must exist");
-                    data_writer.announce_writer(&topic.get_qos());
+                    data_writer.announce_writer(&topic.get_qos(), &self.0.get()?.get_qos());
                 }
             }
         }

@@ -23,7 +23,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared, DdsWeak},
+            shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
@@ -55,7 +55,6 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
     message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    user_defined_publisher::UserDefinedPublisher,
 };
 
 impl PublicationMatchedStatus {
@@ -144,7 +143,6 @@ pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     type_name: &'static str,
     topic_name: String,
-    publisher: DdsWeak<UserDefinedPublisher>,
     publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
     offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
@@ -165,7 +163,6 @@ impl UserDefinedDataWriter {
         mask: &[StatusKind],
         type_name: &'static str,
         topic_name: String,
-        publisher: DdsWeak<UserDefinedPublisher>,
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -173,7 +170,6 @@ impl UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
             topic_name,
-            publisher,
             publication_matched_status: DdsRwLock::new(PublicationMatchedStatus::default()),
             offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
             offered_incompatible_qos_status: DdsRwLock::new(OfferedIncompatibleQosStatus::default()),
@@ -248,6 +244,7 @@ impl DdsShared<UserDefinedDataWriter> {
         participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
+        publisher_qos: &PublisherQos,
     ) {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
@@ -262,7 +259,7 @@ impl DdsShared<UserDefinedDataWriter> {
             let add_matched_reader_result = add_discovered_reader(
                 &mut self.rtps_writer.write_lock(),
                 discovered_reader_data,
-                &self.get_publisher().get_qos(),
+                publisher_qos,
                 default_unicast_locator_list,
                 default_multicast_locator_list,
             );
@@ -487,12 +484,6 @@ impl DdsShared<UserDefinedDataWriter> {
             .read_and_reset(self.matched_subscription_list.read_lock().len() as i32)
     }
 
-    pub fn get_publisher(&self) -> DdsShared<UserDefinedPublisher> {
-        self.publisher
-            .upgrade()
-            .expect("Parent publisher of data writer must exist")
-    }
-
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -573,10 +564,10 @@ impl DdsShared<UserDefinedDataWriter> {
         Ok(())
     }
 
-    pub fn announce_writer(&self, topic_qos: &TopicQos) {
+    pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
         self.announce_sender
             .send(AnnounceKind::CreatedDataWriter(
-                self.as_discovered_writer_data(topic_qos),
+                self.as_discovered_writer_data(topic_qos, publisher_qos),
             ))
             .ok();
     }
@@ -585,9 +576,12 @@ impl DdsShared<UserDefinedDataWriter> {
         self.rtps_writer.read_lock().guid().into()
     }
 
-    pub fn as_discovered_writer_data(&self, topic_qos: &TopicQos) -> DiscoveredWriterData {
+    pub fn as_discovered_writer_data(
+        &self,
+        topic_qos: &TopicQos,
+        publisher_qos: &PublisherQos,
+    ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
-        let publisher_qos = self.get_publisher().get_qos();
 
         DiscoveredWriterData {
             writer_proxy: WriterProxy {
@@ -623,7 +617,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 presentation: publisher_qos.presentation.clone(),
                 partition: publisher_qos.partition.clone(),
                 topic_data: topic_qos.topic_data.clone(),
-                group_data: publisher_qos.group_data,
+                group_data: publisher_qos.group_data.clone(),
             },
         }
     }
@@ -955,7 +949,6 @@ mod test {
             &[],
             "",
             String::from(""),
-            DdsWeak::new(),
             DdsCondvar::new(),
             sender,
         );

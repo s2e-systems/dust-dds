@@ -118,7 +118,6 @@ impl DdsShared<UserDefinedPublisher> {
             mask,
             type_name,
             topic_name,
-            self.downgrade(),
             self.user_defined_data_send_condvar.clone(),
             self.announce_sender.clone(),
         );
@@ -340,6 +339,7 @@ impl DdsShared<UserDefinedPublisher> {
                     default_multicast_locator_list,
                     &mut self.status_listener.write_lock(),
                     participant_status_listener,
+                    &self.qos.read_lock(),
                 )
             }
         }
