@@ -1,7 +1,7 @@
 use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
+        node_kind::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
     },
     infrastructure::{
         error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
@@ -529,10 +529,9 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => {
-                todo!()
-                // Ok(Topic::new(r.get_topicdescription()?.downgrade()))
-            }
+            DataReaderNodeKind::UserDefined(r) => Ok(Topic::new(TopicNodeKind::UserDefined(
+                r.get_topicdescription()?,
+            ))),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

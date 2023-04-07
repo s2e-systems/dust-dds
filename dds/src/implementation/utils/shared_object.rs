@@ -16,10 +16,6 @@ impl<T> DdsShared<T> {
     pub fn downgrade(&self) -> DdsWeak<T> {
         DdsWeak(Arc::downgrade(&self.0))
     }
-
-    pub fn strong_count(&self) -> usize {
-        Arc::strong_count(&self.0)
-    }
 }
 
 impl<T: ?Sized> Deref for DdsShared<T> {

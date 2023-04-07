@@ -25,7 +25,7 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    status_condition_impl::StatusConditionImpl, topic_impl::TopicImpl,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     user_defined_data_reader::UserDefinedDataReader,
     user_defined_subscriber::UserDefinedSubscriber,
 };
@@ -166,8 +166,22 @@ impl UserDefinedDataReaderNode {
         Ok(self.0.get()?.get_subscription_matched_status())
     }
 
-    pub fn get_topicdescription(&self) -> DdsResult<DdsShared<TopicImpl>> {
-        Ok(self.0.get()?.get_topicdescription())
+    pub fn get_topicdescription(&self) -> DdsResult<UserDefinedTopicNode> {
+        let topic = self
+            .0
+            .parent()
+            .parent()
+            .get()?
+            .lookup_topicdescription(
+                self.0.get()?.get_topic_name(),
+                self.0.get()?.get_type_name(),
+            )
+            .expect("Topic must exist");
+
+        Ok(UserDefinedTopicNode::new(ChildNode::new(
+            topic.downgrade(),
+            self.0.parent().parent().clone(),
+        )))
     }
 
     pub fn get_subscriber(&self) -> UserDefinedSubscriberNode {

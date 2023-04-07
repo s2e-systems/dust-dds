@@ -477,7 +477,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_topic(&self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
-        if self
+        let topic = self
             .topic_list
             .read_lock()
             .iter()
@@ -487,12 +487,26 @@ impl DdsShared<DomainParticipantImpl> {
                     "Topic can only be deleted from its parent publisher".to_string(),
                 )
             })?
-            .strong_count()
-            > 1
-        {
-            return Err(DdsError::PreconditionNotMet(
-                "Topic still attached to some data reader or data writer".to_string(),
-            ));
+            .clone();
+
+        for publisher in self.user_defined_publisher_list.read_lock().iter() {
+            if publisher.data_writer_list().any(|w| {
+                w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
+            }) {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data writer".to_string(),
+                ));
+            }
+        }
+
+        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+            if subscriber.data_reader_list().any(|r| {
+                r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
+            }) {
+                return Err(DdsError::PreconditionNotMet(
+                    "Topic still attached to some data reader".to_string(),
+                ));
+            }
         }
 
         self.topic_list
