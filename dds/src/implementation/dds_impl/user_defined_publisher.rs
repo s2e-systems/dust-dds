@@ -82,10 +82,6 @@ impl UserDefinedPublisher {
 }
 
 impl DdsShared<UserDefinedPublisher> {
-    pub fn is_empty(&self) -> bool {
-        self.data_writer_list.read_lock().is_empty()
-    }
-
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }

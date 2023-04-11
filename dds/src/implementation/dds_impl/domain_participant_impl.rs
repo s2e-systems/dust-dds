@@ -337,7 +337,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
-        if !self
+        if self
             .user_defined_publisher_list
             .read_lock()
             .iter()
@@ -347,7 +347,9 @@ impl DdsShared<DomainParticipantImpl> {
                     "Publisher can only be deleted from its parent participant".to_string(),
                 )
             })?
-            .is_empty()
+            .data_writer_list()
+            .count()
+            > 0
         {
             return Err(DdsError::PreconditionNotMet(
                 "Publisher still contains data writers".to_string(),
