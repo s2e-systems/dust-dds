@@ -289,6 +289,6 @@ impl DomainParticipantNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get()?.get_instance_handle()
+        Ok(self.0.get()?.guid().into())
     }
 }

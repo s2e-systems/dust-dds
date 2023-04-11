@@ -10,11 +10,21 @@ use std::{
 
 use crate::{
     implementation::{
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
+            discovered_topic_data::DiscoveredTopicData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+        },
         rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
-    infrastructure::{error::DdsResult, time::Duration},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        time::Duration,
+    },
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
 
 use super::domain_participant_impl::{AnnounceKind, DomainParticipantImpl};
@@ -88,8 +98,31 @@ impl DcpsService {
                     break;
                 }
 
-                if let Ok(r) = announce_receiver.recv() {
-                    domain_participant.announce(r).ok();
+                if let Ok(announce_kind) = announce_receiver.recv() {
+                    match announce_kind {
+                        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
+                            announce_created_data_reader(
+                                &domain_participant,
+                                discovered_reader_data,
+                            )
+                        }
+                        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
+                            announce_created_data_writer(
+                                &domain_participant,
+                                discovered_writer_data,
+                            )
+                        }
+                        AnnounceKind::CratedTopic(discovered_topic_data) => {
+                            announce_created_topic(&domain_participant, discovered_topic_data)
+                        }
+                        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
+                            announce_deleted_reader(&domain_participant, deleted_reader_handle)
+                        }
+                        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
+                            announce_deleted_writer(&domain_participant, deleted_writer_handle)
+                        }
+                        AnnounceKind::DeletedParticipant => (),
+                    }
                 }
             }));
         }
@@ -277,4 +310,138 @@ impl DcpsService {
             thread.join().unwrap();
         }
     }
+}
+
+fn announce_created_data_reader(
+    domain_participant: &DomainParticipantImpl,
+    discovered_reader_data: DiscoveredReaderData,
+) {
+    let reader_data = &DiscoveredReaderData {
+        reader_proxy: ReaderProxy {
+            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
+            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
+            ..discovered_reader_data.reader_proxy
+        },
+        ..discovered_reader_data
+    };
+
+    let mut serialized_data = Vec::new();
+    reader_data
+        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .expect("Failed to serialize data");
+
+    let timestamp = domain_participant
+        .get_current_time()
+        .expect("Time should be valid");
+    domain_participant
+        .get_builtin_publisher()
+        .sedp_builtin_subscriptions_writer()
+        .write_w_timestamp(
+            serialized_data,
+            reader_data.get_serialized_key(),
+            None,
+            timestamp,
+        )
+        .expect("Should not fail to write built-in message");
+}
+
+fn announce_created_data_writer(
+    domain_participant: &DomainParticipantImpl,
+    discovered_writer_data: DiscoveredWriterData,
+) {
+    let writer_data = &DiscoveredWriterData {
+        writer_proxy: WriterProxy {
+            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
+            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
+            ..discovered_writer_data.writer_proxy
+        },
+        ..discovered_writer_data
+    };
+
+    let mut serialized_data = Vec::new();
+    writer_data
+        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .expect("Failed to serialize data");
+
+    let timestamp = domain_participant
+        .get_current_time()
+        .expect("Time should be valid");
+
+    domain_participant
+        .get_builtin_publisher()
+        .sedp_builtin_publications_writer()
+        .write_w_timestamp(
+            serialized_data,
+            writer_data.get_serialized_key(),
+            None,
+            timestamp,
+        )
+        .expect("Should not fail to write built-in message");
+}
+
+fn announce_created_topic(
+    domain_participant: &DomainParticipantImpl,
+    discovered_topic: DiscoveredTopicData,
+) {
+    let mut serialized_data = Vec::new();
+    discovered_topic
+        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .expect("Failed to serialize data");
+
+    let timestamp = domain_participant
+        .get_current_time()
+        .expect("Time should be valid");
+
+    domain_participant
+        .get_builtin_publisher()
+        .sedp_builtin_topics_writer()
+        .write_w_timestamp(
+            serialized_data,
+            discovered_topic.get_serialized_key(),
+            None,
+            timestamp,
+        )
+        .expect("Should not fail to write built-in message");
+}
+
+fn announce_deleted_reader(
+    domain_participant: &DomainParticipantImpl,
+    reader_handle: InstanceHandle,
+) {
+    let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
+    let instance_serialized_key =
+        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            .expect("Failed to serialize data");
+
+    let timestamp = domain_participant
+        .get_current_time()
+        .expect("Time should be valid");
+
+    domain_participant
+        .get_builtin_publisher()
+        .sedp_builtin_subscriptions_writer()
+        .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
+        .expect("Should not fail to write built-in message");
+}
+
+fn announce_deleted_writer(
+    domain_participant: &DomainParticipantImpl,
+    writer_handle: InstanceHandle,
+) {
+    let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
+    let instance_serialized_key =
+        cdr::serialize::<_, _, cdr::CdrLe>(&serialized_key, cdr::Infinite)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            .expect("Failed to serialize data");
+
+    let timestamp = domain_participant
+        .get_current_time()
+        .expect("Time should be valid");
+
+    domain_participant
+        .get_builtin_publisher()
+        .sedp_builtin_publications_writer()
+        .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
+        .expect("Should not fail to write built-in message");
 }
