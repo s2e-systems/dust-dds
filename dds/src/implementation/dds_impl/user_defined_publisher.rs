@@ -147,7 +147,7 @@ impl DdsShared<UserDefinedPublisher> {
     }
 
     pub fn data_writer_list(&self) -> DdsIterator<'_, UserDefinedDataWriter> {
-        DdsIterator::new(&self.data_writer_list)
+        DdsIterator::new(self.data_writer_list.read_lock())
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {

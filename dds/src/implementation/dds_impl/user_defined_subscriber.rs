@@ -168,7 +168,7 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 
     pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
-        DdsIterator::new(&self.data_reader_list)
+        DdsIterator::new(self.data_reader_list.read_lock())
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {

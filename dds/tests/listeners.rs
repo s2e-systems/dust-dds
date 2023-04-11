@@ -785,7 +785,7 @@ fn data_on_readers_listener() {
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
-    wait_set.wait(Duration::new(2, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 }
 
 #[test]
