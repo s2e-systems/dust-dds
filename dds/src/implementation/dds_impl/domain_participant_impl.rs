@@ -1051,7 +1051,9 @@ impl DdsShared<DomainParticipantImpl> {
         let now = self.get_current_time()?;
 
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.send_message(header, transport, now)
+            for data_writer in publisher.data_writer_list() {
+                data_writer.send_message(header, transport, now)
+            }
         }
 
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {

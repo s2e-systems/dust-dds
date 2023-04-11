@@ -92,7 +92,20 @@ impl UserDefinedPublisherNode {
         type_name: &'static str,
         topic_name: &str,
     ) -> DdsResult<UserDefinedDataWriterNode> {
-        let writer = self.0.get()?.lookup_datawriter(type_name, topic_name)?;
+        let writer = self
+            .0
+            .get()?
+            .data_writer_list()
+            .find_map(|data_writer| {
+                if data_writer.get_topic_name() == topic_name
+                    && data_writer.get_type_name() == type_name
+                {
+                    Some(data_writer.clone())
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
 
         Ok(UserDefinedDataWriterNode::new(ChildNode::new(
             writer.downgrade(),
