@@ -8,14 +8,10 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             group::RtpsGroup,
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessages::{
-                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-                    HeartbeatSubmessage,
-                },
+            messages::submessages::{
+                DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+                HeartbeatSubmessage,
             },
-            transport::TransportWrite,
             types::{GuidPrefix, Locator},
         },
         utils::{
@@ -98,10 +94,6 @@ impl DdsShared<UserDefinedSubscriber> {
         *self.enabled.read_lock()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.data_reader_list.read_lock().is_empty()
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn create_datareader<Foo>(
         &self,
@@ -177,27 +169,6 @@ impl DdsShared<UserDefinedSubscriber> {
 
     pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
         DdsIterator::new(&self.data_reader_list)
-    }
-
-    pub fn lookup_datareader(
-        &self,
-        type_name: &str,
-        topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>> {
-        let data_reader_list = &self.data_reader_list.write_lock();
-
-        data_reader_list
-            .iter()
-            .find_map(|data_reader| {
-                if data_reader.get_topic_name() == topic_name
-                    && data_reader.get_type_name() == type_name
-                {
-                    Some(data_reader.clone())
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
@@ -379,12 +350,6 @@ impl DdsShared<UserDefinedSubscriber> {
                 &mut self.status_listener.write_lock(),
                 participant_status_listener,
             )
-        }
-    }
-
-    pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.send_message(header, transport);
         }
     }
 

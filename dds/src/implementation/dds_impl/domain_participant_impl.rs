@@ -408,7 +408,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
-        if !self
+        if self
             .user_defined_subscriber_list
             .read_lock()
             .iter()
@@ -418,7 +418,9 @@ impl DdsShared<DomainParticipantImpl> {
                     "Subscriber can only be deleted from its parent participant".to_string(),
                 )
             })?
-            .is_empty()
+            .data_reader_list()
+            .count()
+            > 0
         {
             return Err(DdsError::PreconditionNotMet(
                 "Subscriber still contains data readers".to_string(),
@@ -1057,7 +1059,9 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            subscriber.send_message(header, transport)
+            for data_reader in subscriber.data_reader_list() {
+                data_reader.send_message(header, transport)
+            }
         }
 
         Ok(())
