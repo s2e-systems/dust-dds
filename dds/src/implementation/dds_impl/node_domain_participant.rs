@@ -132,7 +132,9 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.ignore_participant(handle)
+        self.0.get()?.ignore_participant(handle);
+
+        Ok(())
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -140,7 +142,9 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.ignore_topic(handle)
+        self.0.get()?.ignore_topic(handle);
+
+        Ok(())
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -148,7 +152,9 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.ignore_publication(handle)
+        self.0.get()?.ignore_publication(handle);
+
+        Ok(())
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
@@ -156,7 +162,9 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.ignore_subscription(handle)
+        self.0.get()?.ignore_subscription(handle);
+
+        Ok(())
     }
 
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {

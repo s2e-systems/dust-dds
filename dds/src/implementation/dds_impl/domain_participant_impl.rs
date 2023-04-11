@@ -601,34 +601,28 @@ impl DdsShared<DomainParticipantImpl> {
         self.builtin_subscriber.clone()
     }
 
-    pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_participant(&self, handle: InstanceHandle) {
         self.ignored_participants.write_lock().insert(handle);
         self.remove_discovered_participant(handle);
-
-        Ok(())
     }
 
-    pub fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_topic(&self, _handle: InstanceHandle) {
         todo!()
     }
 
-    pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_publication(&self, handle: InstanceHandle) {
         self.ignored_publications.write_lock().insert(handle);
 
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
             subscriber.remove_matched_writer(handle, &mut self.status_listener.write_lock());
         }
-
-        Ok(())
     }
 
-    pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
+    pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
             publisher.remove_matched_reader(handle, &mut self.status_listener.write_lock());
         }
-
-        Ok(())
     }
 
     pub fn get_domain_id(&self) -> DomainId {
