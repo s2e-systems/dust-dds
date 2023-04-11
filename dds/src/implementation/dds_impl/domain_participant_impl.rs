@@ -647,10 +647,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         todo!()
     }
 
@@ -715,10 +711,6 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         Ok(self
             .discovered_participant_list
             .read_lock()
@@ -729,10 +721,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         Ok(self
             .discovered_topic_list
             .read_lock()
@@ -745,10 +733,6 @@ impl DdsShared<DomainParticipantImpl> {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.discovered_topic_list
             .read_lock()
             .get(&topic_handle)
@@ -757,10 +741,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn contains_entity(&self, _a_handle: InstanceHandle) -> DdsResult<bool> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         todo!()
     }
 
@@ -846,10 +826,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         Ok(self.rtps_participant.guid().into())
     }
 

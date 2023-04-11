@@ -176,6 +176,10 @@ impl DomainParticipantNode {
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.assert_liveliness()
     }
 
@@ -204,6 +208,10 @@ impl DomainParticipantNode {
     }
 
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_participants()
     }
 
@@ -211,12 +219,20 @@ impl DomainParticipantNode {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0
             .get()?
             .get_discovered_participant_data(participant_handle)
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_topics()
     }
 
@@ -224,10 +240,18 @@ impl DomainParticipantNode {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_topic_data(topic_handle)
     }
 
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.contains_entity(a_handle)
     }
 

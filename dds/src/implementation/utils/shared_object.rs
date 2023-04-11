@@ -68,10 +68,6 @@ impl<T> DdsWeak<T> {
     pub fn ptr_eq(&self, other: &Self) -> bool {
         self.0.ptr_eq(&other.0)
     }
-
-    pub fn _weak_count(&self) -> usize {
-        self.0.weak_count()
-    }
 }
 
 impl<T: ?Sized> Clone for DdsWeak<T> {
