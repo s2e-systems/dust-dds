@@ -126,9 +126,37 @@ impl DcpsService {
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
 
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: domain_participant.protocol_version(),
+                    vendor_id: domain_participant.vendor_id(),
+                    guid_prefix: domain_participant.guid().prefix(),
+                };
+
+                let now = domain_participant
+                    .get_current_time()
+                    .expect("Time should be valid");
+
                 domain_participant
-                    .send_built_in_data(&mut metatraffic_unicast_transport_send)
-                    .unwrap();
+                    .get_builtin_publisher()
+                    .spdp_builtin_participant_writer()
+                    .send_message(header, &mut metatraffic_unicast_transport_send);
+                domain_participant
+                    .get_builtin_publisher()
+                    .sedp_builtin_publications_writer()
+                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
+                domain_participant
+                    .get_builtin_publisher()
+                    .sedp_builtin_subscriptions_writer()
+                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
+                domain_participant
+                    .get_builtin_publisher()
+                    .sedp_builtin_topics_writer()
+                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
+
+                domain_participant
+                    .get_builtin_subscriber()
+                    .send_message(header, &mut metatraffic_unicast_transport_send);
             }));
         }
 

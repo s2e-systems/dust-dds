@@ -18,9 +18,8 @@ use crate::{
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             group::RtpsGroup,
-            messages::{overall_structure::RtpsMessageHeader, types::ProtocolId, RtpsMessage},
+            messages::RtpsMessage,
             participant::RtpsParticipant,
-            transport::TransportWrite,
             types::{
                 Count, EntityId, EntityKey, Guid, Locator, ProtocolVersion, VendorId,
                 BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_WITH_KEY,
@@ -601,6 +600,10 @@ impl DdsShared<DomainParticipantImpl> {
         self.builtin_subscriber.clone()
     }
 
+    pub fn get_builtin_publisher(&self) -> DdsShared<BuiltinPublisher> {
+        self.builtin_publisher.clone()
+    }
+
     pub fn ignore_participant(&self, handle: InstanceHandle) {
         self.ignored_participants.write_lock().insert(handle);
         self.remove_discovered_participant(handle);
@@ -984,22 +987,6 @@ impl DdsShared<DomainParticipantImpl> {
                 .sedp_builtin_topics_writer()
                 .remove_matched_participant(participant_guid_prefix);
         }
-    }
-
-    pub fn send_built_in_data(&self, transport: &mut impl TransportWrite) -> DdsResult<()> {
-        let header = RtpsMessageHeader {
-            protocol: ProtocolId::PROTOCOL_RTPS,
-            version: self.rtps_participant.protocol_version(),
-            vendor_id: self.rtps_participant.vendor_id(),
-            guid_prefix: self.rtps_participant.guid().prefix(),
-        };
-
-        let now = self.get_current_time()?;
-
-        self.builtin_publisher.send_message(header, transport, now);
-        self.builtin_subscriber.send_message(header, transport);
-
-        Ok(())
     }
 
     pub fn receive_built_in_data(
