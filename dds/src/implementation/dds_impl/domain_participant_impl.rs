@@ -29,6 +29,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
+            iterator::DdsIterator,
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
         },
@@ -267,12 +268,6 @@ impl DomainParticipantImpl {
 }
 
 impl DdsShared<DomainParticipantImpl> {
-    pub fn is_empty(&self) -> bool {
-        self.user_defined_publisher_list.read_lock().is_empty()
-            && self.user_defined_publisher_list.read_lock().is_empty()
-            && self.topic_list.read_lock().is_empty()
-    }
-
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -363,6 +358,10 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
+    pub fn publisher_list(&self) -> DdsIterator<UserDefinedPublisher> {
+        DdsIterator::new(&self.user_defined_publisher_list)
+    }
+
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
@@ -432,6 +431,10 @@ impl DdsShared<DomainParticipantImpl> {
             .retain(|x| x.get_instance_handle() != a_subscriber_handle);
 
         Ok(())
+    }
+
+    pub fn subscriber_list(&self) -> DdsIterator<UserDefinedSubscriber> {
+        DdsIterator::new(&self.user_defined_subscriber_list)
     }
 
     pub fn create_topic(
@@ -517,6 +520,10 @@ impl DdsShared<DomainParticipantImpl> {
             .write_lock()
             .retain(|x| x.get_instance_handle() != a_topic_handle);
         Ok(())
+    }
+
+    pub fn topic_list(&self) -> DdsIterator<TopicImpl> {
+        DdsIterator::new(&self.topic_list)
     }
 
     pub fn find_topic(

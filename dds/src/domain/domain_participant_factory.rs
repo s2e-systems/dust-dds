@@ -308,7 +308,19 @@ impl DomainParticipantFactory {
             })
             .ok_or(DdsError::AlreadyDeleted)?;
 
-        if participant_list[index].participant().is_empty() {
+        let is_participant_empty = participant_list[index]
+            .participant()
+            .publisher_list()
+            .count()
+            == 0
+            && participant_list[index]
+                .participant()
+                .subscriber_list()
+                .count()
+                == 0
+            && participant_list[index].participant().topic_list().count() == 0;
+
+        if is_participant_empty {
             participant_list[index].participant().cancel_timers();
             participant_list[index].shutdown_tasks();
             participant_list.remove(index);

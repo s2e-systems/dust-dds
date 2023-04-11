@@ -141,6 +141,7 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
+
                     domain_participant
                         .receive_user_defined_data(locator, message)
                         .ok();
