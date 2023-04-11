@@ -10,6 +10,7 @@ use std::{
 
 use crate::{
     implementation::{
+        rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
@@ -141,7 +142,6 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
-
                     domain_participant
                         .receive_user_defined_data(locator, message)
                         .ok();
@@ -165,9 +165,27 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                domain_participant
-                    .send_user_defined_data(&mut default_unicast_transport_send)
-                    .unwrap();
+                let header = RtpsMessageHeader {
+                    protocol: ProtocolId::PROTOCOL_RTPS,
+                    version: domain_participant.protocol_version(),
+                    vendor_id: domain_participant.vendor_id(),
+                    guid_prefix: domain_participant.guid().prefix(),
+                };
+                let now = domain_participant
+                    .get_current_time()
+                    .expect("Failed to get current time");
+
+                for publisher in domain_participant.publisher_list() {
+                    for data_writer in publisher.data_writer_list() {
+                        data_writer.send_message(header, &mut default_unicast_transport_send, now)
+                    }
+                }
+
+                for subscriber in domain_participant.subscriber_list() {
+                    for data_reader in subscriber.data_reader_list() {
+                        data_reader.send_message(header, &mut default_unicast_transport_send)
+                    }
+                }
             }));
         }
 

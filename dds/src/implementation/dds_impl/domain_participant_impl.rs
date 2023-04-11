@@ -22,9 +22,10 @@ use crate::{
             participant::RtpsParticipant,
             transport::TransportWrite,
             types::{
-                Count, EntityId, EntityKey, Guid, Locator, BUILT_IN_READER_WITH_KEY,
-                BUILT_IN_TOPIC, BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT,
-                USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
+                Count, EntityId, EntityKey, Guid, Locator, ProtocolVersion, VendorId,
+                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_WITH_KEY,
+                ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
+                USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
@@ -270,6 +271,18 @@ impl DomainParticipantImpl {
 impl DdsShared<DomainParticipantImpl> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_participant.guid()
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.rtps_participant.vendor_id()
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.rtps_participant.protocol_version()
     }
 
     fn announce_topic(&self, sedp_discovered_topic_data: DiscoveredTopicData) -> DdsResult<()> {
@@ -1032,30 +1045,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.discover_matched_readers().ok();
         self.discover_matched_writers().ok();
         self.discover_matched_topics().ok();
-
-        Ok(())
-    }
-
-    pub fn send_user_defined_data(&self, transport: &mut impl TransportWrite) -> DdsResult<()> {
-        let header = RtpsMessageHeader {
-            protocol: ProtocolId::PROTOCOL_RTPS,
-            version: self.rtps_participant.protocol_version(),
-            vendor_id: self.rtps_participant.vendor_id(),
-            guid_prefix: self.rtps_participant.guid().prefix(),
-        };
-        let now = self.get_current_time()?;
-
-        for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            for data_writer in publisher.data_writer_list() {
-                data_writer.send_message(header, transport, now)
-            }
-        }
-
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            for data_reader in subscriber.data_reader_list() {
-                data_reader.send_message(header, transport)
-            }
-        }
 
         Ok(())
     }
