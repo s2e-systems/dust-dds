@@ -597,19 +597,11 @@ impl DdsShared<DomainParticipantImpl> {
         Err(DdsError::Timeout)
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriber>> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(self.builtin_subscriber.clone())
+    pub fn get_builtin_subscriber(&self) -> DdsShared<BuiltInSubscriber> {
+        self.builtin_subscriber.clone()
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.ignored_participants.write_lock().insert(handle);
         self.remove_discovered_participant(handle);
 
@@ -617,19 +609,12 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn ignore_topic(&self, _handle: InstanceHandle) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         todo!()
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.ignored_publications.write_lock().insert(handle);
+
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
             subscriber.remove_matched_writer(handle, &mut self.status_listener.write_lock());
         }
@@ -638,10 +623,6 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
             publisher.remove_matched_reader(handle, &mut self.status_listener.write_lock());

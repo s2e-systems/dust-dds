@@ -7,7 +7,7 @@ use crate::{
     implementation::utils::node::{ChildNode, RootNode},
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
@@ -115,25 +115,47 @@ impl DomainParticipantNode {
     }
 
     pub fn get_builtin_subscriber(&self) -> DdsResult<BuiltinSubscriberNode> {
-        self.0
-            .get()?
-            .get_builtin_subscriber()
-            .map(|x| BuiltinSubscriberNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let builtin_subcriber = self.0.get()?.get_builtin_subscriber();
+
+        Ok(BuiltinSubscriberNode::new(ChildNode::new(
+            builtin_subcriber.downgrade(),
+            self.0.clone(),
+        )))
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.ignore_participant(handle)
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.ignore_topic(handle)
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.ignore_publication(handle)
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.ignore_subscription(handle)
     }
 
