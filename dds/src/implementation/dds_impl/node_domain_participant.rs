@@ -256,7 +256,11 @@ impl DomainParticipantNode {
     }
 
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.0.get()?.get_current_time()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        Ok(self.0.get()?.get_current_time())
     }
 
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {

@@ -166,9 +166,7 @@ impl DcpsService {
                     guid_prefix: domain_participant.guid().prefix(),
                 };
 
-                let now = domain_participant
-                    .get_current_time()
-                    .expect("Time should be valid");
+                let now = domain_participant.get_current_time();
 
                 domain_participant
                     .get_builtin_publisher()
@@ -232,9 +230,7 @@ impl DcpsService {
                     vendor_id: domain_participant.vendor_id(),
                     guid_prefix: domain_participant.guid().prefix(),
                 };
-                let now = domain_participant
-                    .get_current_time()
-                    .expect("Failed to get current time");
+                let now = domain_participant.get_current_time();
 
                 for publisher in domain_participant.publisher_list() {
                     for data_writer in publisher.data_writer_list() {
@@ -330,9 +326,7 @@ fn announce_created_data_reader(
         .serialize::<_, LittleEndian>(&mut serialized_data)
         .expect("Failed to serialize data");
 
-    let timestamp = domain_participant
-        .get_current_time()
-        .expect("Time should be valid");
+    let timestamp = domain_participant.get_current_time();
     domain_participant
         .get_builtin_publisher()
         .sedp_builtin_subscriptions_writer()
@@ -363,9 +357,7 @@ fn announce_created_data_writer(
         .serialize::<_, LittleEndian>(&mut serialized_data)
         .expect("Failed to serialize data");
 
-    let timestamp = domain_participant
-        .get_current_time()
-        .expect("Time should be valid");
+    let timestamp = domain_participant.get_current_time();
 
     domain_participant
         .get_builtin_publisher()
@@ -388,9 +380,7 @@ fn announce_created_topic(
         .serialize::<_, LittleEndian>(&mut serialized_data)
         .expect("Failed to serialize data");
 
-    let timestamp = domain_participant
-        .get_current_time()
-        .expect("Time should be valid");
+    let timestamp = domain_participant.get_current_time();
 
     domain_participant
         .get_builtin_publisher()
@@ -414,9 +404,7 @@ fn announce_deleted_reader(
             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
             .expect("Failed to serialize data");
 
-    let timestamp = domain_participant
-        .get_current_time()
-        .expect("Time should be valid");
+    let timestamp = domain_participant.get_current_time();
 
     domain_participant
         .get_builtin_publisher()
@@ -435,9 +423,7 @@ fn announce_deleted_writer(
             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
             .expect("Failed to serialize data");
 
-    let timestamp = domain_participant
-        .get_current_time()
-        .expect("Time should be valid");
+    let timestamp = domain_participant.get_current_time();
 
     domain_participant
         .get_builtin_publisher()

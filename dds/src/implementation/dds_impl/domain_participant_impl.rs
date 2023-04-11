@@ -300,15 +300,12 @@ impl DomainParticipantImpl {
         self.builtin_publisher.clone()
     }
 
-    pub fn get_current_time(&self) -> DdsResult<Time> {
+    pub fn get_current_time(&self) -> Time {
         let now_system_time = SystemTime::now();
-        match now_system_time.duration_since(UNIX_EPOCH) {
-            Ok(unix_time) => Ok(Time::new(
-                unix_time.as_secs() as i32,
-                unix_time.subsec_nanos(),
-            )),
-            Err(_) => Err(DdsError::Error),
-        }
+        let unix_time = now_system_time
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock time is before Unix epoch start");
+        Time::new(unix_time.as_secs() as i32, unix_time.subsec_nanos())
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -563,9 +560,9 @@ impl DdsShared<DomainParticipantImpl> {
         type_name: &'static str,
         timeout: Duration,
     ) -> DdsResult<DdsShared<TopicImpl>> {
-        let start_time = self.get_current_time()?;
+        let start_time = self.get_current_time();
 
-        while self.get_current_time()? - start_time < timeout {
+        while self.get_current_time() - start_time < timeout {
             // Check if a topic exists locally. If topic doesn't exist locally check if it has already been
             // discovered and, if so, create a new local topic representing the discovered topic
             if let Some(topic) =
@@ -607,7 +604,7 @@ impl DdsShared<DomainParticipantImpl> {
                 );
             }
             // Block until timeout unless new topic is found or created
-            let duration_until_timeout = (self.get_current_time()? - start_time) - timeout;
+            let duration_until_timeout = (self.get_current_time() - start_time) - timeout;
             self.topic_find_condvar
                 .wait_timeout(duration_until_timeout)
                 .ok();
@@ -867,7 +864,7 @@ impl DdsShared<DomainParticipantImpl> {
                 serialized_data,
                 spdp_discovered_participant_data.get_serialized_key(),
                 None,
-                self.get_current_time().unwrap(),
+                self.get_current_time(),
             )
     }
 
@@ -962,7 +959,7 @@ impl DdsShared<DomainParticipantImpl> {
         source_locator: Locator,
         message: RtpsMessage,
     ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()?).process_message(
+        MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid().prefix(),
             core::slice::from_ref(&self.builtin_publisher),
             core::slice::from_ref(&self.builtin_subscriber),
@@ -984,7 +981,7 @@ impl DdsShared<DomainParticipantImpl> {
         source_locator: Locator,
         message: RtpsMessage,
     ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()?).process_message(
+        MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid().prefix(),
             self.user_defined_publisher_list.read_lock().as_slice(),
             self.user_defined_subscriber_list.read_lock().as_slice(),
@@ -1177,7 +1174,7 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     pub fn update_communication_status(&self) -> DdsResult<()> {
-        let now = self.get_current_time()?;
+        let now = self.get_current_time();
         for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
             subscriber.update_communication_status(now, &mut self.status_listener.write_lock());
         }
