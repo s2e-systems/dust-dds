@@ -103,7 +103,14 @@ impl DomainParticipantNode {
         Ok(self
             .0
             .get()?
-            .lookup_topicdescription(topic_name, type_name)
+            .topic_list()
+            .find_map(|topic| {
+                if topic.get_name() == topic_name && topic.get_type_name() == type_name {
+                    Some(topic.clone())
+                } else {
+                    None
+                }
+            })
             .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
     }
 
