@@ -106,7 +106,7 @@ impl DomainParticipantNode {
             .topic_list()
             .find_map(|topic| {
                 if topic.get_name() == topic_name && topic.get_type_name() == type_name {
-                    Some(topic.clone())
+                    Some(topic)
                 } else {
                     None
                 }

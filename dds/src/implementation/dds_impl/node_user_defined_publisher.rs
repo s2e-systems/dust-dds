@@ -100,7 +100,7 @@ impl UserDefinedPublisherNode {
                 if data_writer.get_topic_name() == topic_name
                     && data_writer.get_type_name() == type_name
                 {
-                    Some(data_writer.clone())
+                    Some(data_writer)
                 } else {
                     None
                 }

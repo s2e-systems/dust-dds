@@ -102,7 +102,7 @@ impl UserDefinedSubscriberNode {
                 if data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
                 {
-                    Some(data_reader.clone())
+                    Some(data_reader)
                 } else {
                     None
                 }
