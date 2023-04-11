@@ -182,10 +182,11 @@ impl UserDefinedSubscriberNode {
                         .0
                         .parent()
                         .get()?
-                        .lookup_topicdescription(
-                            data_reader.get_topic_name(),
-                            data_reader.get_type_name(),
-                        )
+                        .topic_list()
+                        .find(|t| {
+                            t.get_name() == data_reader.get_topic_name()
+                                && t.get_type_name() == data_reader.get_type_name()
+                        })
                         .expect("Topic must exist");
                     data_reader.announce_reader(&topic.get_qos(), &self.0.get()?.get_qos());
                 }

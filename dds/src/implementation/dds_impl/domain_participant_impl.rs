@@ -584,20 +584,6 @@ impl DdsShared<DomainParticipantImpl> {
         Err(DdsError::Timeout)
     }
 
-    pub fn lookup_topicdescription(
-        &self,
-        topic_name: &str,
-        type_name: &str,
-    ) -> Option<DdsShared<TopicImpl>> {
-        self.topic_list.read_lock().iter().find_map(|topic| {
-            if topic.get_name() == topic_name && topic.get_type_name() == type_name {
-                Some(topic.clone())
-            } else {
-                None
-            }
-        })
-    }
-
     pub fn get_builtin_subscriber(&self) -> DdsResult<DdsShared<BuiltInSubscriber>> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
