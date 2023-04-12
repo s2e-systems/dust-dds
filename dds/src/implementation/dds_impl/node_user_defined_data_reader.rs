@@ -167,15 +167,17 @@ impl UserDefinedDataReaderNode {
     }
 
     pub fn get_topicdescription(&self) -> DdsResult<UserDefinedTopicNode> {
+        let data_reader = self.0.get()?;
         let topic = self
             .0
             .parent()
             .parent()
             .get()?
-            .lookup_topicdescription(
-                self.0.get()?.get_topic_name(),
-                self.0.get()?.get_type_name(),
-            )
+            .topic_list()
+            .find(|t| {
+                t.get_name() == data_reader.get_topic_name()
+                    && t.get_type_name() == data_reader.get_type_name()
+            })
             .expect("Topic must exist");
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
@@ -208,16 +210,18 @@ impl UserDefinedDataReaderNode {
     pub fn set_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
         self.0.get()?.set_qos(qos)?;
 
+        let data_reader = self.0.get()?;
         if self.0.get()?.is_enabled() {
             let topic = self
                 .0
                 .parent()
                 .parent()
                 .get()?
-                .lookup_topicdescription(
-                    self.0.get()?.get_topic_name(),
-                    self.0.get()?.get_type_name(),
-                )
+                .topic_list()
+                .find(|t| {
+                    t.get_name() == data_reader.get_topic_name()
+                        && t.get_type_name() == data_reader.get_type_name()
+                })
                 .expect("Topic must exist");
             self.0
                 .get()?
@@ -257,15 +261,18 @@ impl UserDefinedDataReaderNode {
 
         self.0.get()?.enable()?;
 
+        let data_reader = self.0.get()?;
+
         let topic = self
             .0
             .parent()
             .parent()
             .get()?
-            .lookup_topicdescription(
-                self.0.get()?.get_topic_name(),
-                self.0.get()?.get_type_name(),
-            )
+            .topic_list()
+            .find(|t| {
+                t.get_name() == data_reader.get_topic_name()
+                    && t.get_type_name() == data_reader.get_type_name()
+            })
             .expect("Topic must exist");
         self.0
             .get()?

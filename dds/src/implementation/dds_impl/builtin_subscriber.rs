@@ -44,7 +44,7 @@ use super::{
 };
 
 pub struct BuiltInSubscriber {
-    qos: DdsRwLock<SubscriberQos>,
+    qos: SubscriberQos,
     rtps_group: RtpsGroup,
     spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
     sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
@@ -97,7 +97,7 @@ impl BuiltInSubscriber {
         );
 
         DdsShared::new(BuiltInSubscriber {
-            qos: DdsRwLock::new(qos),
+            qos,
             rtps_group,
             spdp_builtin_participant_reader,
             enabled: DdsRwLock::new(false),
@@ -126,7 +126,7 @@ impl DdsShared<BuiltInSubscriber> {
     }
 
     pub fn get_qos(&self) -> SubscriberQos {
-        self.qos.read_lock().clone()
+        self.qos.clone()
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {

@@ -2,8 +2,7 @@ use crate::{
     implementation::{
         rtps::{
             group::RtpsGroup,
-            messages::{overall_structure::RtpsMessageHeader, submessages::AckNackSubmessage},
-            transport::TransportWrite,
+            messages::submessages::AckNackSubmessage,
             types::{EntityId, EntityKey, Guid, GuidPrefix, Locator, BUILT_IN_WRITER_GROUP},
         },
         utils::{
@@ -11,7 +10,7 @@ use crate::{
             shared_object::{DdsRwLock, DdsShared},
         },
     },
-    infrastructure::{error::DdsResult, qos::PublisherQos, time::Time},
+    infrastructure::{error::DdsResult, qos::PublisherQos},
 };
 
 use super::{
@@ -27,7 +26,7 @@ use super::{
 };
 
 pub struct BuiltinPublisher {
-    _qos: DdsRwLock<PublisherQos>,
+    _qos: PublisherQos,
     _rtps_group: RtpsGroup,
     spdp_builtin_participant_writer: DdsShared<BuiltinStatelessWriter>,
     sedp_builtin_topics_writer: DdsShared<BuiltinStatefulWriter>,
@@ -83,7 +82,7 @@ impl BuiltinPublisher {
         );
 
         DdsShared::new(BuiltinPublisher {
-            _qos: DdsRwLock::new(qos),
+            _qos: qos,
             _rtps_group: rtps_group,
             spdp_builtin_participant_writer,
             sedp_builtin_topics_writer,
@@ -120,22 +119,6 @@ impl DdsShared<BuiltinPublisher> {
         self.sedp_builtin_subscriptions_writer.enable()?;
 
         Ok(())
-    }
-
-    pub fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        self.spdp_builtin_participant_writer
-            .send_message(header, transport);
-        self.sedp_builtin_publications_writer
-            .send_message(header, transport, now);
-        self.sedp_builtin_subscriptions_writer
-            .send_message(header, transport, now);
-        self.sedp_builtin_topics_writer
-            .send_message(header, transport, now);
     }
 }
 

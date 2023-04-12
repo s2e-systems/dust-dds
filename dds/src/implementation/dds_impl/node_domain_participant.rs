@@ -7,7 +7,7 @@ use crate::{
     implementation::utils::node::{ChildNode, RootNode},
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DomainParticipantQos, PublisherQos, QosKind, SubscriberQos, TopicQos},
         status::StatusKind,
@@ -103,31 +103,68 @@ impl DomainParticipantNode {
         Ok(self
             .0
             .get()?
-            .lookup_topicdescription(topic_name, type_name)
+            .topic_list()
+            .find_map(|topic| {
+                if topic.get_name() == topic_name && topic.get_type_name() == type_name {
+                    Some(topic)
+                } else {
+                    None
+                }
+            })
             .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
     }
 
     pub fn get_builtin_subscriber(&self) -> DdsResult<BuiltinSubscriberNode> {
-        self.0
-            .get()?
-            .get_builtin_subscriber()
-            .map(|x| BuiltinSubscriberNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        let builtin_subcriber = self.0.get()?.get_builtin_subscriber();
+
+        Ok(BuiltinSubscriberNode::new(ChildNode::new(
+            builtin_subcriber.downgrade(),
+            self.0.clone(),
+        )))
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.ignore_participant(handle)
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.ignore_participant(handle);
+
+        Ok(())
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.ignore_topic(handle)
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.ignore_topic(handle);
+
+        Ok(())
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.ignore_publication(handle)
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.ignore_publication(handle);
+
+        Ok(())
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.ignore_subscription(handle)
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.ignore_subscription(handle);
+
+        Ok(())
     }
 
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
@@ -139,6 +176,10 @@ impl DomainParticipantNode {
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.assert_liveliness()
     }
 
@@ -167,6 +208,10 @@ impl DomainParticipantNode {
     }
 
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_participants()
     }
 
@@ -174,12 +219,20 @@ impl DomainParticipantNode {
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0
             .get()?
             .get_discovered_participant_data(participant_handle)
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_topics()
     }
 
@@ -187,15 +240,27 @@ impl DomainParticipantNode {
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.get_discovered_topic_data(topic_handle)
     }
 
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0.get()?.contains_entity(a_handle)
     }
 
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        self.0.get()?.get_current_time()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        Ok(self.0.get()?.get_current_time())
     }
 
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
@@ -228,6 +293,6 @@ impl DomainParticipantNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        self.0.get()?.get_instance_handle()
+        Ok(self.0.get()?.guid().into())
     }
 }

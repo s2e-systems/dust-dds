@@ -94,7 +94,20 @@ impl UserDefinedSubscriberNode {
         type_name: &str,
         topic_name: &str,
     ) -> DdsResult<Option<UserDefinedDataReaderNode>> {
-        let reader = self.0.get()?.lookup_datareader(type_name, topic_name)?;
+        let reader = self
+            .0
+            .get()?
+            .data_reader_list()
+            .find_map(|data_reader| {
+                if data_reader.get_topic_name() == topic_name
+                    && data_reader.get_type_name() == type_name
+                {
+                    Some(data_reader)
+                } else {
+                    None
+                }
+            })
+            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
         Ok(Some(UserDefinedDataReaderNode::new(ChildNode::new(
             reader.downgrade(),
             self.0.clone(),
@@ -169,10 +182,11 @@ impl UserDefinedSubscriberNode {
                         .0
                         .parent()
                         .get()?
-                        .lookup_topicdescription(
-                            data_reader.get_topic_name(),
-                            data_reader.get_type_name(),
-                        )
+                        .topic_list()
+                        .find(|t| {
+                            t.get_name() == data_reader.get_topic_name()
+                                && t.get_type_name() == data_reader.get_type_name()
+                        })
                         .expect("Topic must exist");
                     data_reader.announce_reader(&topic.get_qos(), &self.0.get()?.get_qos());
                 }
