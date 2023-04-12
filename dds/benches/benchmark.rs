@@ -87,7 +87,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .create_subscriber(QosKind::Default, None, NO_STATUS)
         .unwrap();
 
-    let (sender, receiver) = std::sync::mpsc::sync_channel(0);
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
 
     let listener = Box::new(Listener { sender });
     let _reader = subscriber
