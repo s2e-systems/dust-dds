@@ -122,15 +122,18 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
+        let data_writer = self.0.get()?;
+
         let topic = self
             .0
             .parent()
             .parent()
             .get()?
-            .lookup_topicdescription(
-                self.0.get()?.get_topic_name(),
-                self.0.get()?.get_type_name(),
-            )
+            .topic_list()
+            .find(|t| {
+                t.get_name() == data_writer.get_topic_name()
+                    && t.get_type_name() == data_writer.get_type_name()
+            })
             .expect("Topic must exist");
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
@@ -163,16 +166,19 @@ impl UserDefinedDataWriterNode {
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         self.0.get()?.set_qos(qos)?;
 
+        let data_writer = self.0.get()?;
+
         if self.0.get()?.is_enabled() {
             let topic = self
                 .0
                 .parent()
                 .parent()
                 .get()?
-                .lookup_topicdescription(
-                    self.0.get()?.get_topic_name(),
-                    self.0.get()?.get_type_name(),
-                )
+                .topic_list()
+                .find(|t| {
+                    t.get_name() == data_writer.get_topic_name()
+                        && t.get_type_name() == data_writer.get_type_name()
+                })
                 .expect("Topic must exist");
             self.0
                 .get()?
@@ -210,15 +216,18 @@ impl UserDefinedDataWriterNode {
         }
         self.0.get()?.enable()?;
 
+        let data_writer = self.0.get()?;
+
         let topic = self
             .0
             .parent()
             .parent()
             .get()?
-            .lookup_topicdescription(
-                self.0.get()?.get_topic_name(),
-                self.0.get()?.get_type_name(),
-            )
+            .topic_list()
+            .find(|t| {
+                t.get_name() == data_writer.get_topic_name()
+                    && t.get_type_name() == data_writer.get_type_name()
+            })
             .expect("Topic must exist");
         self.0
             .get()?
