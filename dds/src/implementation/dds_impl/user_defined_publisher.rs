@@ -8,11 +8,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             group::RtpsGroup,
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessages::{AckNackSubmessage, NackFragSubmessage},
-            },
-            transport::TransportWrite,
+            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             types::Locator,
         },
         utils::{
@@ -26,7 +22,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
-        time::{Duration, Time},
+        time::Duration,
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -82,10 +78,6 @@ impl UserDefinedPublisher {
 }
 
 impl DdsShared<UserDefinedPublisher> {
-    pub fn is_empty(&self) -> bool {
-        self.data_writer_list.read_lock().is_empty()
-    }
-
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -155,27 +147,7 @@ impl DdsShared<UserDefinedPublisher> {
     }
 
     pub fn data_writer_list(&self) -> DdsIterator<'_, UserDefinedDataWriter> {
-        DdsIterator::new(&self.data_writer_list)
-    }
-
-    pub fn lookup_datawriter(
-        &self,
-        type_name: &str,
-        topic_name: &str,
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>> {
-        self.data_writer_list
-            .write_lock()
-            .iter()
-            .find_map(|data_writer| {
-                if data_writer.get_topic_name() == topic_name
-                    && data_writer.get_type_name() == type_name
-                {
-                    Some(data_writer.clone())
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))
+        DdsIterator::new(self.data_writer_list.read_lock())
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {
@@ -359,17 +331,6 @@ impl DdsShared<UserDefinedPublisher> {
                 &mut self.status_listener.write_lock(),
                 participant_status_listener,
             )
-        }
-    }
-
-    pub fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.send_message(header, transport, now);
         }
     }
 }
