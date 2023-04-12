@@ -2105,7 +2105,7 @@ fn transient_local_writer_does_not_deliver_lifespan_expired_data() {
 }
 
 #[test]
-fn best_effort_reception() {
+fn best_effort_should_receive_all_samples_in_order_if_perfect_wire() {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
         data_sample_list: std::vec::IntoIter<KeyedData>,
@@ -2153,7 +2153,7 @@ fn best_effort_reception() {
             &topic,
             QosKind::Default,
             Some(listener),
-            &[StatusKind::DataAvailable, StatusKind::SubscriptionMatched],
+            &[StatusKind::DataAvailable],
         )
         .unwrap();
     let publisher = participant
