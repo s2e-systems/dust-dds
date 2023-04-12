@@ -69,8 +69,8 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
 
         fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
             the_reader
-                .take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
-                .unwrap();
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .ok();
             self.sender.send(()).unwrap();
         }
     }
