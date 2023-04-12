@@ -26,16 +26,6 @@ pub struct UserDefinedPublisherNode(
     ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
 );
 
-// impl Drop for UserDefinedPublisherNode {
-//     fn drop(&mut self) {
-//         if self.publisher.weak_count() == 1 {
-//             if let Ok(p) = self.get_participant() {
-//                 p.delete_publisher(self).ok();
-//             }
-//         }
-//     }
-// }
-
 impl UserDefinedPublisherNode {
     pub fn new(node: ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>) -> Self {
         Self(node)

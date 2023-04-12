@@ -49,14 +49,6 @@ impl DomainParticipant {
     }
 }
 
-// impl Drop for DomainParticipant {
-//     fn drop(&mut self) {
-//         if self.0.weak_count() == 1 {
-//             THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
-//         }
-//     }
-// }
-
 impl DomainParticipant {
     /// This operation creates a [`Publisher`] with the desired QoS policies and attaches to it the specified [`PublisherListener`].
     /// If the specified QoS policies are not consistent, the operation will fail and no [`Publisher`] will be created.
