@@ -60,6 +60,48 @@ pub fn best_effort_write_only(c: &mut Criterion) {
     });
 }
 
+pub fn best_effort_read_only(c: &mut Criterion) {
+    let domain_id = 201;
+    let participant = DomainParticipantFactory::get_instance()
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<KeyedData>("MyTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let reader = subscriber
+        .create_datareader(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let cond = writer.get_statuscondition().unwrap();
+    cond.set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(cond))
+        .unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
+
+    writer.write(&KeyedData { id: 1, value: 1 }, None).unwrap();
+
+    c.bench_function("best_effort_read_only", |b| {
+        b.iter(|| {
+            reader
+                .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+                .ok();
+        })
+    });
+}
+
 fn best_effort_write_and_receive(c: &mut Criterion) {
     struct Listener {
         sender: std::sync::mpsc::SyncSender<()>,
@@ -75,7 +117,7 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         }
     }
 
-    let domain_id = 201;
+    let domain_id = 202;
     let participant_factory = DomainParticipantFactory::get_instance();
     let participant = participant_factory
         .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
@@ -114,18 +156,20 @@ fn best_effort_write_and_receive(c: &mut Criterion) {
         .unwrap();
     wait_set.wait(Duration::new(60, 0)).unwrap();
 
-    c.bench_function(
-        "best_effort_write_and_receive",
-        |b| {
-            b.iter(|| {
-                writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
-                receiver
-                    .recv_timeout(std::time::Duration::from_secs(10))
-                    .unwrap();
-            })
-        },
-    );
+    c.bench_function("best_effort_write_and_receive", |b| {
+        b.iter(|| {
+            writer.write(&KeyedData { id: 1, value: 7 }, None).unwrap();
+            receiver
+                .recv_timeout(std::time::Duration::from_secs(10))
+                .unwrap();
+        })
+    });
 }
 
-criterion_group!(benches, best_effort_write_only, best_effort_write_and_receive);
+criterion_group!(
+    benches,
+    best_effort_write_only,
+    best_effort_read_only,
+    best_effort_write_and_receive
+);
 criterion_main!(benches);
