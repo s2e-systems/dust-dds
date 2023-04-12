@@ -58,21 +58,6 @@ impl<Foo> DataReader<Foo> {
     }
 }
 
-// impl<Foo> Drop for DataReader<Foo>
-// where
-//     Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-// {
-//     fn drop(&mut self) {
-//         if let DataReaderKind::UserDefined(r) = &self.data_reader {
-//             if r.weak_count() == 1 {
-//                 if let Ok(s) = self.get_subscriber() {
-//                     s.delete_datareader(self).ok();
-//                 }
-//             }
-//         }
-//     }
-// }
-
 impl<Foo> DataReader<Foo>
 where
     Foo: DdsType + for<'de> DdsDeserialize<'de>,

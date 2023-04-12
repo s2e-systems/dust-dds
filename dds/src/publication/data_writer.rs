@@ -34,19 +34,6 @@ impl<Foo> DataWriter<Foo> {
     }
 }
 
-// impl<Foo> Drop for DataWriter<Foo>
-// where
-//     Foo: DdsType + DdsSerialize + 'static,
-// {
-//     fn drop(&mut self) {
-//         if self.data_writer.weak_count() == 1 {
-//             if let Ok(p) = self.get_publisher() {
-//                 p.delete_datawriter(self).ok();
-//             }
-//         }
-//     }
-// }
-
 impl<Foo> DataWriter<Foo>
 where
     Foo: DdsType + DdsSerialize,
