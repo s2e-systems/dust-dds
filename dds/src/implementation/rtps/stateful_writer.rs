@@ -47,6 +47,78 @@ impl RtpsStatefulWriter {
         }
     }
 
+    pub fn guid(&self) -> Guid {
+        self.writer.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.writer.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.writer.multicast_locator_list()
+    }
+
+    pub fn push_mode(&self) -> bool {
+        self.writer.push_mode()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.writer.heartbeat_period()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.writer.data_max_size_serialized()
+    }
+
+    pub fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
+        self.writer
+            .new_change(kind, data, inline_qos, handle, timestamp)
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.writer.change_list()
+    }
+
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        let sequence_number = change.sequence_number();
+        match self.writer.get_qos().durability.kind {
+            DurabilityQosPolicyKind::Volatile => {
+                if !self.matched_readers.is_empty() {
+                    self.writer.add_change(change);
+                }
+            }
+            DurabilityQosPolicyKind::TransientLocal => self.writer.add_change(change),
+        }
+
+        for reader_proxy in &mut self.matched_readers {
+            let status = if self.writer.push_mode() {
+                ChangeForReaderStatusKind::Unsent
+            } else {
+                ChangeForReaderStatusKind::Unacknowledged
+            };
+            reader_proxy
+                .changes_for_reader_mut()
+                .push(RtpsChangeForReader::new(status, true, sequence_number))
+        }
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        todo!();
+
+        self.writer.remove_change(f)
+    }
+
     pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
         if !self
             .matched_readers
@@ -133,29 +205,6 @@ impl RtpsStatefulWriter {
         Ok(())
     }
 
-    fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        let sequence_number = change.sequence_number();
-        match self.writer.get_qos().durability.kind {
-            DurabilityQosPolicyKind::Volatile => {
-                if !self.matched_readers.is_empty() {
-                    self.writer.add_change(change);
-                }
-            }
-            DurabilityQosPolicyKind::TransientLocal => self.writer.add_change(change),
-        }
-
-        for reader_proxy in &mut self.matched_readers {
-            let status = if self.writer.push_mode() {
-                ChangeForReaderStatusKind::Unsent
-            } else {
-                ChangeForReaderStatusKind::Unacknowledged
-            };
-            reader_proxy
-                .changes_for_reader_mut()
-                .push(RtpsChangeForReader::new(status, true, sequence_number))
-        }
-    }
-
     pub fn get_key_value(&self, handle: InstanceHandle) -> Option<&DdsSerializedKey> {
         self.writer.get_key_value(handle)
     }
@@ -235,28 +284,12 @@ impl RtpsStatefulWriter {
         self.writer.lookup_instance(instance_serialized_key)
     }
 
-    pub fn guid(&self) -> Guid {
-        self.writer.guid()
-    }
-
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        self.writer.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        self.writer.multicast_locator_list()
-    }
-
     pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
         self.writer.set_qos(qos)
     }
 
     pub fn get_qos(&self) -> &DataWriterQos {
         self.writer.get_qos()
-    }
-
-    pub fn writer_cache(&self) -> &WriterHistoryCache {
-        self.writer.writer_cache()
     }
 
     pub fn send_message(
