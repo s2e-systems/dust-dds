@@ -1,4 +1,12 @@
+use serde::Serialize;
+
 use crate::{
+    implementation::data_representation_inline_qos::{
+        parameter_id_values::PID_STATUS_INFO,
+        types::{
+            STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
+        },
+    },
     infrastructure::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
@@ -10,10 +18,11 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{AckNackSubmessage, NackFragSubmessage},
+        types::ParameterId,
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
@@ -159,9 +168,24 @@ impl RtpsStatefulWriter {
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let change = self
-            .writer
-            .new_dispose_change(instance_serialized_key, handle, timestamp)?;
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
+
+        let inline_qos = vec![RtpsParameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )];
+
+        let change = self.writer.new_change(
+            ChangeKind::NotAliveDisposed,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        );
+
         self.add_change(change);
 
         Ok(())
@@ -173,9 +197,35 @@ impl RtpsStatefulWriter {
         handle: InstanceHandle,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let change =
-            self.writer
-                .new_unregister_change(instance_serialized_key, handle, timestamp)?;
+        let mut serialized_status_info = Vec::new();
+        let mut serializer =
+            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
+        if self
+            .writer
+            .get_qos()
+            .writer_data_lifecycle
+            .autodispose_unregistered_instances
+        {
+            STATUS_INFO_DISPOSED_UNREGISTERED
+                .serialize(&mut serializer)
+                .unwrap();
+        } else {
+            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
+        }
+
+        let inline_qos = vec![RtpsParameter::new(
+            ParameterId(PID_STATUS_INFO),
+            serialized_status_info,
+        )];
+
+        let change = self.writer.new_change(
+            ChangeKind::NotAliveUnregistered,
+            instance_serialized_key,
+            inline_qos,
+            handle,
+            timestamp,
+        );
+
         self.add_change(change);
         Ok(())
     }
