@@ -26,4 +26,3 @@ pub mod subscription;
 pub mod topic_definition;
 
 mod implementation;
-pub mod without_discovery;
