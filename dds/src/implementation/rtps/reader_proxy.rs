@@ -616,6 +616,10 @@ impl RtpsChangeForReader {
         self.status
     }
 
+    pub fn set_status(&mut self, status: ChangeForReaderStatusKind) {
+        self.status = status;
+    }
+
     pub fn is_relevant(&self) -> bool {
         self.is_relevant
     }
@@ -686,8 +690,6 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.cache_change.timestamp()
     }
 }
-
-impl RtpsReaderProxy {}
 
 #[cfg(test)]
 mod tests {
