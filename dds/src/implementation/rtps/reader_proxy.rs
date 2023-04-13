@@ -19,7 +19,8 @@ use super::{
         ChangeKind, Count, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
         SequenceNumber,
     },
-    utils::clock::{StdTimer, Timer, TimerConstructor}, writer::RtpsWriter,
+    utils::clock::{StdTimer, Timer, TimerConstructor},
+    writer::RtpsWriter,
 };
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
@@ -604,6 +605,18 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
             writer,
             reader_proxy,
         }
+    }
+
+    pub fn remote_reader_guid(&self) -> Guid {
+        self.reader_proxy.remote_reader_guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.reader_proxy.unicast_locator_list()
+    }
+
+    pub fn reliability(&self) -> ReliabilityKind {
+        self.reader_proxy.reliability
     }
 
     pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
