@@ -28,6 +28,15 @@ jobs:
       - checkout
       - run: cargo --version
       - run: cargo clippy -- -D warnings
+  benchmark:
+    docker:
+      - image: cimg/rust:1.65.0
+    resource_class: large
+    steps:
+      - checkout
+      - run: cargo bench
+      - store_artifacts:
+          path: ./target/criterion
   build:
     docker:
       - image: cimg/rust:1.65.0
@@ -156,6 +165,7 @@ workflows:
       not: << pipeline.parameters.build_docker_image >>
     jobs:
       - build
+      - benchmark
       - clippy
       - interoperability_tests
       - multi_machine_tests
