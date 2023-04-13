@@ -1,14 +1,20 @@
 use crate::{
     infrastructure::{
-        error::DdsResult, instance::InstanceHandle, qos_policy::ReliabilityQosPolicyKind,
+        error::DdsResult,
+        instance::{InstanceHandle, HANDLE_NIL},
+        qos_policy::ReliabilityQosPolicyKind,
         time::Time,
     },
     topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
-    history_cache::RtpsWriterCacheChange, messages::overall_structure::RtpsMessageHeader,
-    reader_locator::RtpsReaderLocator, transport::TransportWrite, types::Count, writer::RtpsWriter,
+    history_cache::RtpsWriterCacheChange,
+    messages::overall_structure::RtpsMessageHeader,
+    reader_locator::RtpsReaderLocator,
+    transport::TransportWrite,
+    types::{ChangeKind, Count},
+    writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
@@ -50,15 +56,21 @@ impl RtpsStatelessWriter {
         &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let change = self.writer.new_write_change(
+        let handle = self
+            .writer
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.writer.new_change(
+            ChangeKind::Alive,
             serialized_data,
-            instance_serialized_key,
+            vec![],
             handle,
             timestamp,
-        )?;
+        );
+
         self.add_change(change);
 
         Ok(())

@@ -11,7 +11,7 @@ use crate::{
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::{InstanceHandle, HANDLE_NIL},
+        instance::InstanceHandle,
         qos::DataWriterQos,
         time::{Duration, DurationKind, Time},
     },
@@ -90,25 +90,24 @@ impl RtpsWriter {
         &mut self.writer_cache
     }
 
-    pub fn new_write_change(
+    pub fn new_change(
         &mut self,
-        serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
-        _handle: Option<InstanceHandle>,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
         timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange> {
-        let handle = self
-            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let change = self.new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
+    ) -> RtpsWriterCacheChange {
+        self.last_change_sequence_number += 1;
+        RtpsWriterCacheChange::new(
+            kind,
+            self.guid(),
             handle,
+            self.last_change_sequence_number,
             timestamp,
-        );
-
-        Ok(change)
+            data,
+            inline_qos,
+        )
     }
 
     pub fn new_dispose_change(
@@ -169,26 +168,6 @@ impl RtpsWriter {
             handle,
             timestamp,
         ))
-    }
-
-    fn new_change(
-        &mut self,
-        kind: ChangeKind,
-        data: Vec<u8>,
-        inline_qos: Vec<RtpsParameter>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> RtpsWriterCacheChange {
-        self.last_change_sequence_number += 1;
-        RtpsWriterCacheChange::new(
-            kind,
-            self.guid(),
-            handle,
-            self.last_change_sequence_number,
-            timestamp,
-            data,
-            inline_qos,
-        )
     }
 
     pub fn get_qos(&self) -> &DataWriterQos {

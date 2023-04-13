@@ -1,7 +1,7 @@
 use crate::{
     infrastructure::{
         error::DdsResult,
-        instance::InstanceHandle,
+        instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
         time::{Duration, Time, DURATION_ZERO},
@@ -17,7 +17,7 @@ use super::{
     },
     reader_proxy::{ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy},
     transport::TransportWrite,
-    types::{DurabilityKind, Guid, GuidPrefix, Locator},
+    types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator},
     writer::RtpsWriter,
 };
 
@@ -105,15 +105,20 @@ impl RtpsStatefulWriter {
         &mut self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
-        handle: Option<InstanceHandle>,
+        _handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        let change = self.writer.new_write_change(
+        let handle = self
+            .writer
+            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
+            .unwrap_or(HANDLE_NIL);
+        let change = self.writer.new_change(
+            ChangeKind::Alive,
             serialized_data,
-            instance_serialized_key,
+            vec![],
             handle,
             timestamp,
-        )?;
+        );
         self.add_change(change);
 
         Ok(())
