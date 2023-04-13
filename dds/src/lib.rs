@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![doc = include_str!("../../schema/schema.md")]
 #[forbid(unsafe_code)]
 
 /// Contains the built-in topics used by the service to propagate information needed for discovery and other data.
@@ -25,3 +26,4 @@ pub mod subscription;
 pub mod topic_definition;
 
 mod implementation;
+pub mod without_discovery;

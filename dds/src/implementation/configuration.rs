@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 #[serde(default)]
+/// Configuration that can be dynamically loaded
 pub struct DustDdsConfiguration {
     /// # Domain tag
     /// Domain tag to use for the participant
