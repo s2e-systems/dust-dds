@@ -19,7 +19,7 @@ use super::{
         ChangeKind, Count, DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
         SequenceNumber,
     },
-    utils::clock::{StdTimer, Timer, TimerConstructor},
+    utils::clock::{StdTimer, Timer, TimerConstructor}, writer::RtpsWriter,
 };
 
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
@@ -592,6 +592,63 @@ impl RtpsReaderProxy {
         }
     }
 }
+
+pub struct WriterAssociatedReaderProxy<'a> {
+    writer: &'a RtpsWriter,
+    reader_proxy: &'a mut RtpsReaderProxy,
+}
+
+impl<'a> WriterAssociatedReaderProxy<'a> {
+    pub fn new(writer: &'a RtpsWriter, reader_proxy: &'a mut RtpsReaderProxy) -> Self {
+        Self {
+            writer,
+            reader_proxy,
+        }
+    }
+
+    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
+        // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
+        self.reader_proxy
+            .changes_for_reader()
+            .iter()
+            .filter_map(|cc| {
+                if cc.status() == ChangeForReaderStatusKind::Unsent {
+                    Some(cc.sequence_number())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn next_unsent_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
+        // "next_seq_num := MIN { change.sequenceNumber
+        //     SUCH-THAT change IN this.unsent_changes() };
+        // return change IN this.unsent_changes()
+        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
+        let next_seq_num = self.unsent_changes().iter().min().cloned().unwrap();
+
+        let change = self
+            .reader_proxy
+            .changes_for_reader_mut()
+            .iter_mut()
+            .find(|c| c.sequence_number() == next_seq_num)
+            .unwrap();
+
+        // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
+        // a_change := the_reader_proxy.next_unsent_change();
+        // a_change.status := UNDERWAY;
+        // Note this is the only usage in the standard of next_unsent_change() as such
+        // the modification of the status is done always.
+        change.set_status(ChangeForReaderStatusKind::Underway);
+
+        // After ackNackSuppressionDuration = 0
+        change.set_status(ChangeForReaderStatusKind::Unacknowledged);
+
+        RtpsChangeForReaderCacheChange::new(change.clone(), self.writer.writer_cache())
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RtpsChangeForReader {
     status: ChangeForReaderStatusKind,

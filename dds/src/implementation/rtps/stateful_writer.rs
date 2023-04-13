@@ -1,5 +1,3 @@
-use std::slice::IterMut;
-
 use serde::Serialize;
 
 use crate::{
@@ -27,99 +25,17 @@ use super::{
         types::ParameterId,
     },
     reader_proxy::{
-        ChangeForReaderStatusKind, RtpsChangeForReader, RtpsChangeForReaderCacheChange,
-        RtpsReaderProxy,
+        ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy,
+        WriterAssociatedReaderProxy,
     },
     transport::TransportWrite,
-    types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator, SequenceNumber},
+    types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator},
     writer::RtpsWriter,
 };
 
 pub const DEFAULT_HEARTBEAT_PERIOD: Duration = Duration::new(2, 0);
 pub const DEFAULT_NACK_RESPONSE_DELAY: Duration = Duration::new(0, 200);
 pub const DEFAULT_NACK_SUPPRESSION_DURATION: Duration = DURATION_ZERO;
-
-pub struct WriterAssociatedReaderProxy<'a> {
-    writer: &'a RtpsWriter,
-    reader_proxy: &'a mut RtpsReaderProxy,
-}
-
-impl<'a> WriterAssociatedReaderProxy<'a> {
-    pub fn new(writer: &'a RtpsWriter, reader_proxy: &'a mut RtpsReaderProxy) -> Self {
-        Self {
-            writer,
-            reader_proxy,
-        }
-    }
-
-    pub fn unsent_changes(&self) -> Vec<SequenceNumber> {
-        // "return change IN this.changes_for_reader SUCH-THAT (change.status == UNSENT);"
-        self.reader_proxy
-            .changes_for_reader()
-            .iter()
-            .filter_map(|cc| {
-                if cc.status() == ChangeForReaderStatusKind::Unsent {
-                    Some(cc.sequence_number())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    pub fn next_unsent_change(&mut self) -> RtpsChangeForReaderCacheChange<'a> {
-        // "next_seq_num := MIN { change.sequenceNumber
-        //     SUCH-THAT change IN this.unsent_changes() };
-        // return change IN this.unsent_changes()
-        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
-        let next_seq_num = self.unsent_changes().iter().min().cloned().unwrap();
-
-        let change = self
-            .reader_proxy
-            .changes_for_reader_mut()
-            .iter_mut()
-            .find(|c| c.sequence_number() == next_seq_num)
-            .unwrap();
-
-        // Following 8.4.9.1.4 Transition T14 of BestEffort Stateful Writer Behavior:
-        // a_change := the_reader_proxy.next_unsent_change();
-        // a_change.status := UNDERWAY;
-        // Note this is the only usage in the standard of next_unsent_change() as such
-        // the modification of the status is done always.
-        change.set_status(ChangeForReaderStatusKind::Underway);
-
-        // After ackNackSuppressionDuration = 0
-        change.set_status(ChangeForReaderStatusKind::Unacknowledged);
-
-        RtpsChangeForReaderCacheChange::new(change.clone(), self.writer.writer_cache())
-    }
-}
-
-pub struct WriterAssociatedReaderProxyIterator<'a> {
-    writer: &'a RtpsWriter,
-    matched_reader_iter: IterMut<'a, RtpsReaderProxy>,
-}
-
-impl<'a> WriterAssociatedReaderProxyIterator<'a> {
-    pub fn new(writer: &'a RtpsWriter, matched_reader_iter: IterMut<'a, RtpsReaderProxy>) -> Self {
-        Self {
-            writer,
-            matched_reader_iter,
-        }
-    }
-
-    pub fn get(&'a mut self, index: usize) -> Option<WriterAssociatedReaderProxy<'a>> {
-        self.matched_reader_iter
-            .nth(index)
-            .map(|x| WriterAssociatedReaderProxy::new(self.writer, x))
-    }
-
-    pub fn next(&'a mut self) -> Option<WriterAssociatedReaderProxy<'a>> {
-        self.matched_reader_iter
-            .next()
-            .map(|x| WriterAssociatedReaderProxy::new(self.writer, x))
-    }
-}
 
 pub struct RtpsStatefulWriter {
     writer: RtpsWriter,

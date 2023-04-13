@@ -18,11 +18,8 @@ use crate::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
             },
-            reader_proxy::RtpsReaderProxy,
-            stateful_writer::{
-                RtpsStatefulWriter, WriterAssociatedReaderProxy,
-                WriterAssociatedReaderProxyIterator,
-            },
+            reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
+            stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
                 ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, Locator, ReliabilityKind,
