@@ -1,10 +1,7 @@
-use crate::infrastructure::{
-    instance::InstanceHandle,
-    time::{Duration, Time},
-};
+use crate::infrastructure::time::Duration;
 
 use super::{
-    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::{RtpsWriterCacheChange, WriterHistoryCache},
     messages::{
         submessages::{
             AckNackSubmessage, HeartbeatFragSubmessage, HeartbeatSubmessage, NackFragSubmessage,
@@ -12,9 +9,7 @@ use super::{
         types::FragmentNumber,
         RtpsSubmessageKind,
     },
-    types::{
-        ChangeKind, Count, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber,
-    },
+    types::{Count, DurabilityKind, EntityId, Guid, Locator, ReliabilityKind, SequenceNumber},
     utils::clock::{StdTimer, Timer, TimerConstructor},
     writer::RtpsWriter,
 };
@@ -357,7 +352,8 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
         &mut self.reader_proxy.heartbeat_machine
     }
 
-    // ReaderProxy operations defined in the Rtps Standard
+    // //////////////   ReaderProxy operations defined in the Rtps Standard
+
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         // "FOR_EACH change in this.changes_for_reader
         // SUCH-THAT (change.sequenceNumber <= committed_seq_num) DO
@@ -559,34 +555,6 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
     pub fn is_relevant(&self) -> bool {
         self.change_for_reader.is_relevant
     }
-
-    pub fn _kind(&self) -> ChangeKind {
-        self.cache_change.kind()
-    }
-
-    pub fn _writer_guid(&self) -> Guid {
-        self.cache_change.writer_guid()
-    }
-
-    pub fn _instance_handle(&self) -> InstanceHandle {
-        self.cache_change._instance_handle()
-    }
-
-    pub fn _sequence_number(&self) -> SequenceNumber {
-        self.cache_change.sequence_number()
-    }
-
-    pub fn data_value(&self) -> &[u8] {
-        self.cache_change.data_value()
-    }
-
-    pub fn _inline_qos(&self) -> &[RtpsParameter] {
-        self.cache_change.inline_qos()
-    }
-
-    pub fn timestamp(&self) -> Time {
-        self.cache_change.timestamp()
-    }
 }
 
 #[cfg(test)]
@@ -596,7 +564,7 @@ mod tests {
     use crate::{
         implementation::rtps::{
             history_cache::RtpsWriterCacheChange,
-            types::{ENTITYID_UNKNOWN, GUID_UNKNOWN},
+            types::{ChangeKind, ENTITYID_UNKNOWN, GUID_UNKNOWN},
         },
         infrastructure::{instance::HANDLE_NIL, time::TIME_INVALID},
     };

@@ -499,12 +499,12 @@ fn send_message_best_effort_reader_proxy(
         let change = reader_proxy.next_unsent_change();
 
         if change.is_relevant() {
-            let timestamp = change.timestamp();
+            let cache_change = change.cache_change();
+            let timestamp = cache_change.timestamp();
 
-            if change.data_value().len() > data_max_size_serialized {
-                let data_frag_submessage_list = change
-                    .cache_change()
-                    .as_data_frag_submessages(data_max_size_serialized, reader_id);
+            if cache_change.data_value().len() > data_max_size_serialized {
+                let data_frag_submessage_list =
+                    cache_change.as_data_frag_submessages(data_max_size_serialized, reader_id);
                 for data_frag_submessage in data_frag_submessage_list {
                     let info_dst =
                         info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
@@ -522,7 +522,7 @@ fn send_message_best_effort_reader_proxy(
             } else {
                 submessages.push(info_timestamp_submessage(timestamp));
                 submessages.push(RtpsSubmessageKind::Data(
-                    change.cache_change().as_data_submessage(reader_id),
+                    cache_change.as_data_submessage(reader_id),
                 ))
             }
         } else {
@@ -571,7 +571,8 @@ fn send_message_reliable_reader_proxy(
             // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
             // should be full-filled by next_unsent_change()
             if change.is_relevant() {
-                if change.data_value().len() > data_max_size_serialized {
+                let cache_change = change.cache_change();
+                if cache_change.data_value().len() > data_max_size_serialized {
                     todo!();
                     // directly_send_data_frag(
                     //     change.cache_change(),
@@ -583,9 +584,9 @@ fn send_message_reliable_reader_proxy(
                     // );
                     return;
                 } else {
-                    submessages.push(info_timestamp_submessage(change.timestamp()));
+                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
                     submessages.push(RtpsSubmessageKind::Data(
-                        change.cache_change().as_data_submessage(reader_id),
+                        cache_change.as_data_submessage(reader_id),
                     ))
                 }
             } else {
@@ -623,7 +624,8 @@ fn send_message_reliable_reader_proxy(
             // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
             // should be full-filled by next_requested_change()
             if change_for_reader.is_relevant() {
-                if change_for_reader.data_value().len() > data_max_size_serialized {
+                let cache_change = change_for_reader.cache_change();
+                if cache_change.data_value().len() > data_max_size_serialized {
                     todo!();
                     // directly_send_data_frag(
                     //     change_for_reader.cache_change(),
@@ -635,11 +637,9 @@ fn send_message_reliable_reader_proxy(
                     // );
                     return;
                 } else {
-                    submessages.push(info_timestamp_submessage(change_for_reader.timestamp()));
+                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
                     submessages.push(RtpsSubmessageKind::Data(
-                        change_for_reader
-                            .cache_change()
-                            .as_data_submessage(reader_id),
+                        cache_change.as_data_submessage(reader_id),
                     ))
                 }
             } else {
