@@ -262,8 +262,8 @@ impl UserDefinedDataWriter {
             .matched_reader_remove(a_reader_guid)
     }
 
-    pub fn matched_reader_list(&self) -> ReaderProxyList {
-        ReaderProxyList::new(self.rtps_writer.write_lock())
+    pub fn matched_reader_list(&self) -> ReaderProxyIntoIter {
+        ReaderProxyIntoIter::new(self.rtps_writer.write_lock())
     }
 
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
@@ -271,27 +271,42 @@ impl UserDefinedDataWriter {
     }
 }
 
-pub struct ReaderProxyList<'a> {
+pub struct ReaderProxyIntoIter<'a> {
     writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>,
-    index: usize,
 }
 
-impl<'a> ReaderProxyList<'a> {
-    pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>) -> Self {
-        Self {
-            writer_lock,
-            index: 0,
+impl<'a> IntoIterator for &'a mut ReaderProxyIntoIter<'_> {
+    type Item = WriterAssociatedReaderProxy<'a>;
+    type IntoIter = ReaderProxyIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let (writer, reader_proxy_list) = self.writer_lock.matched_reader_list();
+
+        ReaderProxyIter {
+            list: reader_proxy_list
+                .iter_mut()
+                .map(|r| WriterAssociatedReaderProxy::new(writer, r))
+                .collect::<Vec<WriterAssociatedReaderProxy>>()
+                .into_iter(),
         }
     }
+}
 
-    pub fn next(&mut self) -> Option<WriterAssociatedReaderProxy> {
-        let (writer, reader_proxy_list) = self.writer_lock.matched_reader_list();
-        if let Some(reader_proxy) = reader_proxy_list.get_mut(self.index) {
-            self.index += 1;
-            Some(WriterAssociatedReaderProxy::new(writer, reader_proxy))
-        } else {
-            None
-        }
+impl<'a> ReaderProxyIntoIter<'a> {
+    pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>) -> Self {
+        Self { writer_lock }
+    }
+}
+
+pub struct ReaderProxyIter<'a> {
+    list: std::vec::IntoIter<WriterAssociatedReaderProxy<'a>>,
+}
+
+impl<'a> Iterator for ReaderProxyIter<'a> {
+    type Item = WriterAssociatedReaderProxy<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.list.next()
     }
 }
 
