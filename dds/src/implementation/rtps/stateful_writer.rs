@@ -201,8 +201,6 @@ impl RtpsStatefulWriter {
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        todo!();
-
         self.writer.remove_change(f)
     }
 
@@ -242,8 +240,12 @@ impl RtpsStatefulWriter {
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
-    pub fn matched_reader_list(&mut self) -> (&RtpsWriter, &mut Vec<RtpsReaderProxy>) {
-        (&self.writer, &mut self.matched_readers)
+    pub fn matched_reader_list(&mut self) -> Vec<WriterAssociatedReaderProxy> {
+        let writer = &self.writer;
+        self.matched_readers
+            .iter_mut()
+            .map(|x| WriterAssociatedReaderProxy::new(writer, x))
+            .collect()
     }
 
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {

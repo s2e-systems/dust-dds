@@ -262,8 +262,8 @@ impl UserDefinedDataWriter {
             .matched_reader_remove(a_reader_guid)
     }
 
-    pub fn matched_reader_list(&self) -> ReaderProxyIntoIter {
-        ReaderProxyIntoIter::new(self.rtps_writer.write_lock())
+    pub fn matched_reader_list(&self) -> ReaderProxyListIntoIter {
+        ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
     }
 
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
@@ -271,38 +271,32 @@ impl UserDefinedDataWriter {
     }
 }
 
-pub struct ReaderProxyIntoIter<'a> {
+pub struct ReaderProxyListIntoIter<'a> {
     writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>,
 }
 
-impl<'a> IntoIterator for &'a mut ReaderProxyIntoIter<'_> {
+impl<'a> IntoIterator for &'a mut ReaderProxyListIntoIter<'_> {
     type Item = WriterAssociatedReaderProxy<'a>;
-    type IntoIter = ReaderProxyIter<'a>;
+    type IntoIter = ReaderProxyListIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let (writer, reader_proxy_list) = self.writer_lock.matched_reader_list();
-
-        ReaderProxyIter {
-            list: reader_proxy_list
-                .iter_mut()
-                .map(|r| WriterAssociatedReaderProxy::new(writer, r))
-                .collect::<Vec<WriterAssociatedReaderProxy>>()
-                .into_iter(),
+        ReaderProxyListIter {
+            list: self.writer_lock.matched_reader_list().into_iter(),
         }
     }
 }
 
-impl<'a> ReaderProxyIntoIter<'a> {
+impl<'a> ReaderProxyListIntoIter<'a> {
     pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>) -> Self {
         Self { writer_lock }
     }
 }
 
-pub struct ReaderProxyIter<'a> {
+pub struct ReaderProxyListIter<'a> {
     list: std::vec::IntoIter<WriterAssociatedReaderProxy<'a>>,
 }
 
-impl<'a> Iterator for ReaderProxyIter<'a> {
+impl<'a> Iterator for ReaderProxyListIter<'a> {
     type Item = WriterAssociatedReaderProxy<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
