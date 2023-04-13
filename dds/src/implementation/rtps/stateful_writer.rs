@@ -12,7 +12,7 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
-        time::{Duration, DurationKind, Time, DURATION_ZERO},
+        time::{Duration, Time, DURATION_ZERO},
     },
     topic_definition::type_support::DdsSerializedKey,
 };
@@ -20,7 +20,6 @@ use crate::{
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange},
     messages::{
-        overall_structure::RtpsMessageHeader,
         submessages::{AckNackSubmessage, NackFragSubmessage},
         types::ParameterId,
     },
@@ -28,7 +27,6 @@ use super::{
         ChangeForReaderStatusKind, RtpsChangeForReader, RtpsReaderProxy,
         WriterAssociatedReaderProxy,
     },
-    transport::TransportWrite,
     types::{ChangeKind, DurabilityKind, Guid, GuidPrefix, Locator},
     writer::RtpsWriter,
 };
@@ -299,29 +297,6 @@ impl RtpsStatefulWriter {
 
     pub fn get_qos(&self) -> &DataWriterQos {
         self.writer.get_qos()
-    }
-
-    pub fn send_message(
-        &mut self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        // Remove stale changes
-        let timespan_duration = self.writer.get_qos().lifespan.duration;
-        self.writer
-            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
-
-        for reader_proxy in self.matched_readers.iter_mut() {
-            reader_proxy.send_message(
-                self.writer.writer_cache(),
-                self.writer.guid().entity_id(),
-                self.writer.data_max_size_serialized(),
-                self.writer.heartbeat_period(),
-                header,
-                transport,
-            );
-        }
     }
 
     pub fn on_acknack_submessage_received(

@@ -14,13 +14,9 @@ use crate::{
         },
         rtps::{
             history_cache::{RtpsParameter, RtpsWriterCacheChange},
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessages::{AckNackSubmessage, NackFragSubmessage},
-            },
+            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,
-            transport::TransportWrite,
             types::{
                 ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, Locator, ReliabilityKind,
                 GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
@@ -216,7 +212,6 @@ impl UserDefinedDataWriter {
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
             announce_sender,
@@ -735,17 +730,6 @@ impl DdsShared<UserDefinedDataWriter> {
         }
     }
 
-    pub fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        self.rtps_writer
-            .write_lock()
-            .send_message(header, transport, now);
-    }
-
     fn on_offered_incompatible_qos(
         &self,
         incompatible_qos_policy_list: Vec<QosPolicyId>,
@@ -981,6 +965,7 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             messages::RtpsMessage,
+            transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
         },

@@ -207,8 +207,9 @@ impl DdsShared<BuiltinStatefulWriter> {
         transport: &mut impl TransportWrite,
         now: Time,
     ) {
-        self.rtps_writer
-            .write_lock()
-            .send_message(header, transport, now);
+        todo!()
+        // self.rtps_writer
+        //     .write_lock()
+        //     .send_message(header, transport, now);
     }
 }
