@@ -12,7 +12,7 @@ use crate::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::DataWriterQos,
         qos_policy::{DurabilityQosPolicyKind, ReliabilityQosPolicyKind},
-        time::{Duration, Time, DURATION_ZERO},
+        time::{Duration, DurationKind, Time, DURATION_ZERO},
     },
     topic_definition::type_support::DdsSerializedKey,
 };
@@ -64,7 +64,7 @@ impl RtpsStatefulWriter {
                 DurabilityKind::TransientLocal => true,
             };
 
-            for change in self.writer.writer_cache().change_list() {
+            for change in self.writer.change_list() {
                 a_reader_proxy
                     .changes_for_reader_mut()
                     .push(RtpsChangeForReader::new(
@@ -138,12 +138,10 @@ impl RtpsStatefulWriter {
         match self.writer.get_qos().durability.kind {
             DurabilityQosPolicyKind::Volatile => {
                 if !self.matched_readers.is_empty() {
-                    self.writer.writer_cache_mut().add_change(change);
+                    self.writer.add_change(change);
                 }
             }
-            DurabilityQosPolicyKind::TransientLocal => {
-                self.writer.writer_cache_mut().add_change(change)
-            }
+            DurabilityQosPolicyKind::TransientLocal => self.writer.add_change(change),
         }
 
         for reader_proxy in &mut self.matched_readers {
@@ -267,7 +265,10 @@ impl RtpsStatefulWriter {
         transport: &mut impl TransportWrite,
         now: Time,
     ) {
-        self.writer.remove_stale_changes(now);
+        // Remove stale changes
+        let timespan_duration = self.writer.get_qos().lifespan.duration;
+        self.writer
+            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 
         for reader_proxy in self.matched_readers.iter_mut() {
             reader_proxy.send_message(

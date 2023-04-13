@@ -35,7 +35,6 @@ impl RtpsStatelessWriter {
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
             .writer
-            .writer_cache()
             .change_list()
             .iter()
             .map(|c| c.sequence_number())
@@ -49,7 +48,7 @@ impl RtpsStatelessWriter {
                 .unsent_changes_mut()
                 .push(change.sequence_number());
         }
-        self.writer.writer_cache_mut().add_change(change);
+        self.writer.add_change(change);
     }
 
     pub fn write_w_timestamp(

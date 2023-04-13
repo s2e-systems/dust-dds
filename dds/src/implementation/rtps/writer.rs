@@ -5,7 +5,7 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::DataWriterQos,
-        time::{Duration, DurationKind, Time},
+        time::{Duration, Time},
     },
     topic_definition::type_support::DdsSerializedKey,
 };
@@ -81,10 +81,6 @@ impl RtpsWriter {
         &self.writer_cache
     }
 
-    pub fn writer_cache_mut(&mut self) -> &mut WriterHistoryCache {
-        &mut self.writer_cache
-    }
-
     pub fn new_change(
         &mut self,
         kind: ChangeKind,
@@ -103,6 +99,21 @@ impl RtpsWriter {
             data,
             inline_qos,
         )
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.writer_cache.change_list()
+    }
+
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        self.writer_cache.add_change(change)
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        self.writer_cache.remove_change(f)
     }
 
     pub fn get_qos(&self) -> &DataWriterQos {
@@ -147,11 +158,5 @@ impl RtpsWriter {
         } else {
             None
         }
-    }
-
-    pub fn remove_stale_changes(&mut self, now: Time) {
-        let timespan_duration = self.qos.lifespan.duration;
-        self.writer_cache
-            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration)
     }
 }
