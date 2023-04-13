@@ -46,6 +46,6 @@ harness = false
 
 
 # Tool to generate Json schema
-# [[bin]]
-# name = "configuration_schema_generator"
-# path = "src/implementation/configuration_schema_generator.rs"
+[[bin]]
+name = "configuration_schema_generator"
+path = "src/implementation/configuration_schema_generator.rs"

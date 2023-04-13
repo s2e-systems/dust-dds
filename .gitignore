@@ -13,4 +13,4 @@ interoperability_tests/build/
 interoperability_tests/hello_world.rs
 interoperability_tests/big_data.rs
 shapes_demo/src/shapes_type.rs
-/schema/
+dds/schema/schema.json
