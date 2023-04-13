@@ -72,7 +72,7 @@ impl RtpsReaderLocator {
         self.unsent_changes.retain(|c| *c != next_seq_num);
 
         let cache_change = writer_cache
-            .changes()
+            .change_list()
             .iter()
             .find(|c| c.sequence_number() == next_seq_num);
 

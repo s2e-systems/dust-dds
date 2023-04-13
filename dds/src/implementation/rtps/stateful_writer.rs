@@ -64,7 +64,7 @@ impl RtpsStatefulWriter {
                 DurabilityKind::TransientLocal => true,
             };
 
-            for change in self.writer.writer_cache().changes() {
+            for change in self.writer.writer_cache().change_list() {
                 a_reader_proxy
                     .changes_for_reader_mut()
                     .push(RtpsChangeForReader::new(

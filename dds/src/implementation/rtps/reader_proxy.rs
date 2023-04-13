@@ -636,7 +636,7 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         writer_cache: &'a WriterHistoryCache,
     ) -> Self {
         let cache_change = writer_cache
-            .changes()
+            .change_list()
             .iter()
             .find(|cc| cc.sequence_number() == change_for_reader.sequence_number)
             .unwrap();

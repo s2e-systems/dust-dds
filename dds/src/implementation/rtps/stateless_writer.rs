@@ -36,7 +36,7 @@ impl RtpsStatelessWriter {
         *a_locator.unsent_changes_mut() = self
             .writer
             .writer_cache()
-            .changes()
+            .change_list()
             .iter()
             .map(|c| c.sequence_number())
             .collect();

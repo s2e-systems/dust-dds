@@ -436,7 +436,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 // This is done in an inner scope such that the lock can be dropped and new acknowledgements
                 // can be processed when received
                 let rtps_writer_lock = self.rtps_writer.write_lock();
-                let changes = rtps_writer_lock.writer_cache().changes();
+                let changes = rtps_writer_lock.writer_cache().change_list();
 
                 if changes
                     .iter()
