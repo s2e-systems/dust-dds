@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::{mpsc::SyncSender, RwLockWriteGuard},
+    time::Instant,
+};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -9,16 +13,20 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
+            history_cache::{RtpsParameter, RtpsWriterCacheChange},
             messages::{
                 overall_structure::RtpsMessageHeader,
                 submessages::{AckNackSubmessage, NackFragSubmessage},
             },
             reader_proxy::RtpsReaderProxy,
-            stateful_writer::RtpsStatefulWriter,
+            stateful_writer::{
+                RtpsStatefulWriter, WriterAssociatedReaderProxy,
+                WriterAssociatedReaderProxyIterator,
+            },
             transport::TransportWrite,
             types::{
-                DurabilityKind, EntityId, EntityKey, Locator, ReliabilityKind, GUID_UNKNOWN,
-                USER_DEFINED_UNKNOWN,
+                ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, Locator, ReliabilityKind,
+                GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
         utils::{
@@ -183,6 +191,107 @@ impl UserDefinedDataWriter {
             acked_by_all_condvar: DdsCondvar::new(),
             announce_sender,
         })
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_writer.read_lock().guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        todo!()
+        // self.rtps_writer.read_lock().unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        todo!()
+        // self.rtps_writer.read_lock().multicast_locator_list()
+    }
+
+    pub fn push_mode(&self) -> bool {
+        self.rtps_writer.read_lock().push_mode()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.rtps_writer.read_lock().heartbeat_period()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.rtps_writer.read_lock().data_max_size_serialized()
+    }
+
+    pub fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
+        self.rtps_writer
+            .write_lock()
+            .new_change(kind, data, inline_qos, handle, timestamp)
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        todo!()
+        // self.rtps_writer.read_lock().change_list()
+    }
+
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        self.rtps_writer.write_lock().add_change(change)
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        todo!();
+
+        self.rtps_writer.write_lock().remove_change(f)
+    }
+
+    pub fn matched_reader_add(&mut self, mut a_reader_proxy: RtpsReaderProxy) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_add(a_reader_proxy)
+    }
+
+    pub fn matched_reader_remove(&mut self, a_reader_guid: Guid) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_remove(a_reader_guid)
+    }
+
+    pub fn matched_reader_list(&self) -> ReaderProxyList {
+        ReaderProxyList::new(self.rtps_writer.write_lock())
+    }
+
+    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
+        todo!()
+    }
+}
+
+pub struct ReaderProxyList<'a> {
+    writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>,
+    index: usize,
+}
+
+impl<'a> ReaderProxyList<'a> {
+    pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>) -> Self {
+        Self {
+            writer_lock,
+            index: 0,
+        }
+    }
+
+    pub fn next(&mut self) -> Option<WriterAssociatedReaderProxy> {
+        let (writer, reader_proxy_list) = self.writer_lock.matched_reader_list();
+        if let Some(reader_proxy) = reader_proxy_list.get_mut(self.index) {
+            self.index += 1;
+            Some(WriterAssociatedReaderProxy::new(writer, reader_proxy))
+        } else {
+            None
+        }
     }
 }
 

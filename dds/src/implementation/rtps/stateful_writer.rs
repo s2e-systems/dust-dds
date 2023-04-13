@@ -107,12 +107,14 @@ impl<'a> WriterAssociatedReaderProxyIterator<'a> {
             matched_reader_iter,
         }
     }
-}
 
-impl<'a> Iterator for WriterAssociatedReaderProxyIterator<'a> {
-    type Item = WriterAssociatedReaderProxy<'a>;
+    pub fn get(&'a mut self, index: usize) -> Option<WriterAssociatedReaderProxy<'a>> {
+        self.matched_reader_iter
+            .nth(index)
+            .map(|x| WriterAssociatedReaderProxy::new(self.writer, x))
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
+    pub fn next(&'a mut self) -> Option<WriterAssociatedReaderProxy<'a>> {
         self.matched_reader_iter
             .next()
             .map(|x| WriterAssociatedReaderProxy::new(self.writer, x))
@@ -240,8 +242,8 @@ impl RtpsStatefulWriter {
             .retain(|x| x.remote_reader_guid() != a_reader_guid)
     }
 
-    pub fn matched_reader_list(&mut self) -> WriterAssociatedReaderProxyIterator {
-        WriterAssociatedReaderProxyIterator::new(&self.writer, self.matched_readers.iter_mut())
+    pub fn matched_reader_list(&mut self) -> (&RtpsWriter, &mut Vec<RtpsReaderProxy>) {
+        (&self.writer, &mut self.matched_readers)
     }
 
     pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {

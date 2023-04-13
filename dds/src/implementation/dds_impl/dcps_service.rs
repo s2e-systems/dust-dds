@@ -234,6 +234,13 @@ impl DcpsService {
 
                 for publisher in domain_participant.publisher_list() {
                     for data_writer in publisher.data_writer_list() {
+                        {
+                            let mut reader_proxy_list = data_writer.matched_reader_list();
+                            while let Some(mut reader_proxy) = reader_proxy_list.next() {
+                                // reader_proxy.next_unsent_change();
+                            }
+                        }
+
                         data_writer.send_message(header, &mut default_unicast_transport_send, now)
                     }
                 }
