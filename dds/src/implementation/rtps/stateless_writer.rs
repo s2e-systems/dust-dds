@@ -3,17 +3,17 @@ use crate::{
         error::DdsResult,
         instance::{InstanceHandle, HANDLE_NIL},
         qos_policy::ReliabilityQosPolicyKind,
-        time::Time,
+        time::{Duration, Time},
     },
     topic_definition::type_support::DdsSerializedKey,
 };
 
 use super::{
-    history_cache::RtpsWriterCacheChange,
+    history_cache::{RtpsParameter, RtpsWriterCacheChange},
     messages::overall_structure::RtpsMessageHeader,
     reader_locator::RtpsReaderLocator,
     transport::TransportWrite,
-    types::{ChangeKind, Count},
+    types::{ChangeKind, Count, Guid, Locator},
     writer::RtpsWriter,
 };
 
@@ -32,6 +32,64 @@ impl RtpsStatelessWriter {
         }
     }
 
+    pub fn guid(&self) -> Guid {
+        self.writer.guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.writer.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.writer.multicast_locator_list()
+    }
+
+    pub fn push_mode(&self) -> bool {
+        self.writer.push_mode()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.writer.heartbeat_period()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.writer.data_max_size_serialized()
+    }
+
+    pub fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
+        self.writer
+            .new_change(kind, data, inline_qos, handle, timestamp)
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.writer.change_list()
+    }
+
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        for reader_locator in &mut self.reader_locators {
+            reader_locator
+                .unsent_changes_mut()
+                .push(change.sequence_number());
+        }
+        self.writer.add_change(change);
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        todo!();
+
+        self.writer.remove_change(f)
+    }
+
     pub fn reader_locator_add(&mut self, mut a_locator: RtpsReaderLocator) {
         *a_locator.unsent_changes_mut() = self
             .writer
@@ -42,13 +100,8 @@ impl RtpsStatelessWriter {
         self.reader_locators.push(a_locator);
     }
 
-    fn add_change(&mut self, change: RtpsWriterCacheChange) {
-        for reader_locator in &mut self.reader_locators {
-            reader_locator
-                .unsent_changes_mut()
-                .push(change.sequence_number());
-        }
-        self.writer.add_change(change);
+    pub fn reader_locator_remove(&mut self, a_locator: Locator) {
+        todo!()
     }
 
     pub fn write_w_timestamp(

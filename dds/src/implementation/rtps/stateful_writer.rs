@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
+    history_cache::{RtpsParameter, RtpsWriterCacheChange},
     messages::{
         overall_structure::RtpsMessageHeader,
         submessages::{AckNackSubmessage, NackFragSubmessage},
