@@ -3,10 +3,9 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema, Debug, PartialEq, Eq)]
 #[serde(default)]
-/// Configuration that can be dynamically loaded
+/// # Dust DDS Configuration
 /// The environment DUST_DDS_CONFIGURATION variable can be set
 /// as a json to modify the default configuration.
-///
 /// E.g. $Env:DUST_DDS_CONFIGURATION='{"interface_name":"Wi-Fi"}'
 pub struct DustDdsConfiguration {
     /// # Domain tag
