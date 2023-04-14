@@ -1,4 +1,4 @@
-use std::sync::mpsc::SyncSender;
+use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 
 use fnmatch_regex::glob_to_regex;
 
@@ -75,9 +75,7 @@ impl UserDefinedPublisher {
             announce_sender,
         })
     }
-}
 
-impl DdsShared<UserDefinedPublisher> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -150,6 +148,14 @@ impl DdsShared<UserDefinedPublisher> {
         DdsIterator::new(self.data_writer_list.read_lock())
     }
 
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {
+        self.status_listener.write_lock()
+    }
+}
+
+impl DdsShared<UserDefinedPublisher> {
     pub fn suspend_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);

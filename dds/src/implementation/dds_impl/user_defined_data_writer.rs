@@ -1,4 +1,8 @@
-use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
+use std::{
+    collections::HashMap,
+    sync::{mpsc::SyncSender, RwLockWriteGuard},
+    time::Instant,
+};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -37,6 +41,7 @@ use crate::{
         },
     },
     publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -288,6 +293,12 @@ impl UserDefinedDataWriter {
         mask: &[StatusKind],
     ) {
         *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
+    }
+
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataWriterListener + Send + Sync>> {
+        self.status_listener.write_lock()
     }
 }
 

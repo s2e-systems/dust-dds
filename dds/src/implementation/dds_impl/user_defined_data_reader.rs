@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::mpsc::SyncSender,
+    sync::{mpsc::SyncSender, RwLockWriteGuard},
 };
 
 use crate::{
@@ -233,6 +233,12 @@ impl UserDefinedDataReader {
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
             announce_sender,
         })
+    }
+
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataReaderListener + Send + Sync>> {
+        self.status_listener.write_lock()
     }
 }
 

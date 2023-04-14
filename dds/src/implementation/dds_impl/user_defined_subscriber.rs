@@ -1,4 +1,4 @@
-use std::sync::mpsc::SyncSender;
+use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 
 use fnmatch_regex::glob_to_regex;
 
@@ -86,6 +86,12 @@ impl UserDefinedSubscriber {
         _a_topic_qos: &TopicQos,
     ) -> DdsResult<()> {
         todo!()
+    }
+
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn SubscriberListener + Send + Sync>> {
+        self.status_listener.write_lock()
     }
 }
 
