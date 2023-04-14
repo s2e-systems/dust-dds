@@ -263,14 +263,18 @@ impl DcpsService {
                         let writer_id = data_writer.guid().entity_id();
                         let data_max_size_serialized = data_writer.data_max_size_serialized();
                         let heartbeat_period = data_writer.heartbeat_period();
-                        let first_sn = SequenceNumber::new(1);
-                        // data_writer.change_list() writer_cache
-                        // .get_seq_num_min()
-                        // .unwrap_or(SequenceNumber::new(1));
-                        let last_sn = SequenceNumber::new(0);
-                        // writer_cache
-                        //     .get_seq_num_max()
-                        //     .unwrap_or_else(|| SequenceNumber::new(0)),
+                        let first_sn = data_writer
+                            .change_list()
+                            .into_iter()
+                            .map(|x| x.sequence_number())
+                            .min()
+                            .unwrap_or(SequenceNumber::new(1));
+                        let last_sn = data_writer
+                            .change_list()
+                            .into_iter()
+                            .map(|x| x.sequence_number())
+                            .max()
+                            .unwrap_or_else(|| SequenceNumber::new(0));
                         remove_stale_writer_changes(&data_writer, now);
                         for mut reader_proxy in &mut data_writer.matched_reader_list() {
                             match reader_proxy.reliability() {
@@ -745,10 +749,20 @@ fn builtin_stateful_writer_send_message(
 ) {
     let data_max_size_serialized = writer.data_max_size_serialized();
     let writer_id = writer.guid().entity_id();
-    let first_sn = todo!();
-    let last_sn = todo!();
+    let first_sn = writer
+        .change_list()
+        .into_iter()
+        .map(|x| x.sequence_number())
+        .min()
+        .unwrap_or_else(|| SequenceNumber::new(1));
+    let last_sn = writer
+        .change_list()
+        .into_iter()
+        .map(|x| x.sequence_number())
+        .max()
+        .unwrap_or_else(|| SequenceNumber::new(0));
     let heartbeat_period = writer.heartbeat_period();
-    for reader_proxy in &mut writer.matched_reader_list() {
+    for mut reader_proxy in &mut writer.matched_reader_list() {
         send_message_reliable_reader_proxy(
             &mut reader_proxy,
             data_max_size_serialized,

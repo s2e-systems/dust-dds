@@ -1,7 +1,8 @@
-use std::sync::RwLockWriteGuard;
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::implementation::rtps::{
-    reader_proxy::WriterAssociatedReaderProxy, stateful_writer::RtpsStatefulWriter,
+    history_cache::RtpsWriterCacheChange, reader_proxy::WriterAssociatedReaderProxy,
+    stateful_writer::RtpsStatefulWriter,
 };
 
 pub struct ReaderProxyListIntoIter<'a> {
@@ -34,5 +35,25 @@ impl<'a> Iterator for ReaderProxyListIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.list.next()
+    }
+}
+
+pub struct WriterChangeListIntoIter<'a> {
+    lock: RwLockReadGuard<'a, RtpsStatefulWriter>,
+}
+
+impl<'a> WriterChangeListIntoIter<'a> {
+    pub fn new(lock: RwLockReadGuard<'a, RtpsStatefulWriter>) -> Self {
+        Self { lock }
+    }
+}
+
+impl<'a> IntoIterator for &'a WriterChangeListIntoIter<'_> {
+    type Item = &'a RtpsWriterCacheChange;
+
+    type IntoIter = std::slice::Iter<'a, RtpsWriterCacheChange>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.lock.change_list().iter()
     }
 }

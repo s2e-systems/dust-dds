@@ -40,7 +40,7 @@ use super::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
-    iterators::ReaderProxyListIntoIter,
+    iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     topic_impl::TopicImpl,
@@ -143,9 +143,8 @@ impl BuiltinStatefulWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        todo!()
-        // self.rtps_writer.read_lock().change_list()
+    pub fn change_list(&self) -> WriterChangeListIntoIter {
+        WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
     }
 
     pub fn add_change(&self, change: RtpsWriterCacheChange) {

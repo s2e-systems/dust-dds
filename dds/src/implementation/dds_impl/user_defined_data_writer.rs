@@ -49,9 +49,12 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    iterators::ReaderProxyListIntoIter, message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
+    any_data_writer_listener::AnyDataWriterListener,
+    domain_participant_impl::AnnounceKind,
+    iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
+    message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
 
@@ -222,9 +225,8 @@ impl UserDefinedDataWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
-        todo!()
-        // self.rtps_writer.read_lock().change_list()
+    pub fn change_list(&self) -> WriterChangeListIntoIter {
+        WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
     }
 
     pub fn add_change(&self, change: RtpsWriterCacheChange) {
