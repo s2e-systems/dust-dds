@@ -1,6 +1,6 @@
 # Dust DDS Configuration
 
-*Configuration that can be dynamically loaded The environment DUST_DDS_CONFIGURATION variable can be set as a json to modify the default configuration. E.g. $Env:DUST_DDS_CONFIGURATION='{"interface_name":"Wi-Fi"}'*
+*The environment DUST_DDS_CONFIGURATION variable can be set as a json to modify the default configuration. E.g. $Env:DUST_DDS_CONFIGURATION='{"interface_name":"Wi-Fi"}'*
 
 ## Properties
 
