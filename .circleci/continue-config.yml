@@ -52,6 +52,15 @@ jobs:
             export LLVM_PROFILE_FILE="test-%p-%m.profraw"
             cargo test --package dust_dds --package dust_dds_derive --jobs 4
       - run:
+          name: Check schema.md is up to date
+          command: |
+            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+            python3 get-pip.py
+            python3 -m pip install jsonschema2md
+            cargo run --bin configuration_schema_generator ./dds/schema/schema.json
+            jsonschema2md ./dds/schema/schema.json ./dds/schema/schema.md
+            git diff --exit-code
+      - run:
           name: Hello world example
           command: |
             export RUSTFLAGS="-Cinstrument-coverage -Dwarnings"
