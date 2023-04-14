@@ -13,3 +13,4 @@ workflows:
           config-path: .circleci/continue-config.yml
           mapping: |
             .circleci/Dockerfile build_docker_image true
+            dds/src/implementation/configuration.rs check_schema_md true
