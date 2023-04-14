@@ -1,3 +1,5 @@
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
     builtin_topics::BuiltInTopicKey,
     domain::{
@@ -639,7 +641,13 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.remove_matched_reader(handle, &mut self.status_listener.write_lock());
+            for data_writer in publisher.data_writer_list() {
+                data_writer.remove_matched_reader(
+                    handle,
+                    &mut publisher.get_status_listener_lock(),
+                    &mut self.status_listener.write_lock(),
+                )
+            }
         }
     }
 
@@ -1114,13 +1122,55 @@ impl DdsShared<DomainParticipantImpl> {
                                 .get(&reader_parent_participant_guid.into())
                             {
                                 for publisher in self.user_defined_publisher_list() {
-                                    publisher.add_matched_reader(
-                                        &discovered_reader_data,
-                                        discovered_participant_data.default_unicast_locator_list(),
-                                        discovered_participant_data
-                                            .default_multicast_locator_list(),
-                                        &mut self.status_listener.write_lock(),
-                                    );
+                                    let is_discovered_reader_regex_matched_to_publisher =
+                                        if let Ok(d) = glob_to_regex(
+                                            &discovered_reader_data
+                                                .subscription_builtin_topic_data
+                                                .partition
+                                                .name,
+                                        ) {
+                                            d.is_match(&publisher.get_qos().partition.name)
+                                        } else {
+                                            false
+                                        };
+
+                                    let is_publisher_regex_matched_to_discovered_reader =
+                                        if let Ok(d) =
+                                            glob_to_regex(&publisher.get_qos().partition.name)
+                                        {
+                                            d.is_match(
+                                                &discovered_reader_data
+                                                    .subscription_builtin_topic_data
+                                                    .partition
+                                                    .name,
+                                            )
+                                        } else {
+                                            false
+                                        };
+
+                                    let is_partition_string_matched = discovered_reader_data
+                                        .subscription_builtin_topic_data
+                                        .partition
+                                        .name
+                                        == publisher.get_qos().partition.name;
+
+                                    if is_discovered_reader_regex_matched_to_publisher
+                                        || is_publisher_regex_matched_to_discovered_reader
+                                        || is_partition_string_matched
+                                    {
+                                        for data_writer in publisher.data_writer_list() {
+                                            data_writer.add_matched_reader(
+                                                &discovered_reader_data,
+                                                discovered_participant_data
+                                                    .default_unicast_locator_list(),
+                                                discovered_participant_data
+                                                    .default_multicast_locator_list(),
+                                                &mut publisher.get_status_listener_lock(),
+                                                &mut self.get_status_listener_lock(),
+                                                &publisher.get_qos(),
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1128,11 +1178,13 @@ impl DdsShared<DomainParticipantImpl> {
                 }
                 InstanceStateKind::NotAliveDisposed => {
                     for publisher in self.user_defined_publisher_list() {
-                        for data_writer in publisher.data_writer_list() {}
-                        publisher.remove_matched_reader(
-                            discovered_reader_data_sample.sample_info.instance_handle,
-                            &mut self.status_listener.write_lock(),
-                        )
+                        for data_writer in publisher.data_writer_list() {
+                            data_writer.remove_matched_reader(
+                                discovered_reader_data_sample.sample_info.instance_handle,
+                                &mut publisher.get_status_listener_lock(),
+                                &mut self.status_listener.write_lock(),
+                            )
+                        }
                     }
                 }
 

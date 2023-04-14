@@ -1,11 +1,7 @@
 use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 
-use fnmatch_regex::glob_to_regex;
-
 use crate::{
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -259,77 +255,6 @@ impl DdsShared<UserDefinedPublisher> {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
-    }
-
-    pub fn add_matched_reader(
-        &self,
-        discovered_reader_data: &DiscoveredReaderData,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
-            &discovered_reader_data
-                .subscription_builtin_topic_data
-                .partition
-                .name,
-        ) {
-            d.is_match(&self.qos.read_lock().partition.name)
-        } else {
-            false
-        };
-
-        let is_publisher_regex_matched_to_discovered_reader =
-            if let Ok(d) = glob_to_regex(&self.qos.read_lock().partition.name) {
-                d.is_match(
-                    &discovered_reader_data
-                        .subscription_builtin_topic_data
-                        .partition
-                        .name,
-                )
-            } else {
-                false
-            };
-
-        let is_partition_string_matched = discovered_reader_data
-            .subscription_builtin_topic_data
-            .partition
-            .name
-            == self.qos.read_lock().partition.name;
-
-        if is_discovered_reader_regex_matched_to_publisher
-            || is_publisher_regex_matched_to_discovered_reader
-            || is_partition_string_matched
-        {
-            for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.add_matched_reader(
-                    discovered_reader_data,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    &mut self.status_listener.write_lock(),
-                    participant_status_listener,
-                    &self.qos.read_lock(),
-                )
-            }
-        }
-    }
-
-    pub fn remove_matched_reader(
-        &self,
-        discovered_reader_handle: InstanceHandle,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.remove_matched_reader(
-                discovered_reader_handle,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
-            )
-        }
     }
 }
 
