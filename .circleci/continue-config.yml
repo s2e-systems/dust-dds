@@ -31,15 +31,19 @@ jobs:
       - checkout
       - run: cargo --version
       - run: cargo clippy -- -D warnings
-      - run:
-          name: Check schema.md is up to date
-          command: |
-            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-            python3 get-pip.py
-            python3 -m pip install jsonschema2md
-            cargo run --bin configuration_schema_generator ./dds/schema/schema.json
-            jsonschema2md ./dds/schema/schema.json ./dds/schema/schema.md
-            git diff --ignore-space-at-eol --exit-code
+      - when:
+          condition:
+            equal: [ true, << pipeline.parameters.check_schema_md >> ]
+          steps:
+            - run:
+                name: Check schema.md is up to date
+                command: |
+                  curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+                  python3 get-pip.py
+                  python3 -m pip install jsonschema2md
+                  cargo run --bin configuration_schema_generator ./dds/schema/schema.json
+                  jsonschema2md ./dds/schema/schema.json ./dds/schema/schema.md
+                  git diff --ignore-space-at-eol --exit-code
   benchmark:
     docker:
       - image: cimg/rust:1.65.0
