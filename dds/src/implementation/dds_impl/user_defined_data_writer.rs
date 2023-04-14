@@ -250,7 +250,7 @@ impl UserDefinedDataWriter {
             .matched_reader_add(a_reader_proxy)
     }
 
-    pub fn _matched_reader_remove(&self, a_reader_guid: Guid) {
+    pub fn matched_reader_remove(&self, a_reader_guid: Guid) {
         self.rtps_writer
             .write_lock()
             .matched_reader_remove(a_reader_guid)
@@ -408,9 +408,7 @@ impl DdsShared<UserDefinedDataWriter> {
             .write_lock()
             .remove(&discovered_reader_handle)
         {
-            self.rtps_writer
-                .write_lock()
-                .matched_reader_remove(r.key.value.into());
+            self.matched_reader_remove(r.key.value.into());
 
             self.on_publication_matched(
                 discovered_reader_handle,
@@ -734,15 +732,15 @@ impl DdsShared<UserDefinedDataWriter> {
             .write_lock()
             .increment(instance_handle);
 
+        self.status_condition
+            .write_lock()
+            .add_communication_state(StatusKind::PublicationMatched);
+
         self.trigger_on_publication_matched_listener(
             &mut self.status_listener.write_lock(),
             publisher_status_listener,
             participant_status_listener,
         );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::PublicationMatched);
     }
 
     fn trigger_on_publication_matched_listener(

@@ -41,6 +41,7 @@ use crate::{
 use super::{
     builtin_stateful_writer::BuiltinStatefulWriter,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    message_receiver::MessageReceiver,
     user_defined_data_writer::UserDefinedDataWriter,
 };
 
@@ -95,9 +96,21 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    domain_participant
-                        .receive_built_in_data(locator, message)
+                    MessageReceiver::new(domain_participant.get_current_time())
+                        .process_message(
+                            domain_participant.guid().prefix(),
+                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+                            locator,
+                            &message,
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
                         .ok();
+
+                    domain_participant.discover_matched_participants().ok();
+                    domain_participant.discover_matched_readers().ok();
+                    domain_participant.discover_matched_writers().ok();
+                    domain_participant.discover_matched_topics().ok();
                 }
             }));
         }
@@ -153,9 +166,21 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    domain_participant
-                        .receive_built_in_data(locator, message)
+                    MessageReceiver::new(domain_participant.get_current_time())
+                        .process_message(
+                            domain_participant.guid().prefix(),
+                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+                            locator,
+                            &message,
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
                         .ok();
+
+                    domain_participant.discover_matched_participants().ok();
+                    domain_participant.discover_matched_readers().ok();
+                    domain_participant.discover_matched_writers().ok();
+                    domain_participant.discover_matched_topics().ok();
                 }
             }));
         }

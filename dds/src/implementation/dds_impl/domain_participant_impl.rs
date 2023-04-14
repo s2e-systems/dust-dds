@@ -315,6 +315,26 @@ impl DomainParticipantImpl {
         *self.enabled.read_lock()
     }
 
+    pub fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_participants.read_lock().contains(&handle)
+    }
+
+    pub fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_subcriptions.read_lock().contains(&handle)
+    }
+
+    pub fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_publications.read_lock().contains(&handle)
+    }
+
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
+    }
+
+    pub fn get_domain_tag(&self) -> &str {
+        &self.domain_tag
+    }
+
     pub fn get_status_listener_lock(
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn DomainParticipantListener + Send + Sync>> {
@@ -370,10 +390,8 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
         if self
-            .user_defined_publisher_list
-            .read_lock()
-            .iter()
-            .find(|&x| x.get_instance_handle() == a_publisher_handle)
+            .user_defined_publisher_list()
+            .find(|x| x.get_instance_handle() == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Publisher can only be deleted from its parent participant".to_string(),
@@ -651,14 +669,6 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
-    pub fn is_subcription_ignored(&self, handle: InstanceHandle) -> bool {
-        self.ignored_subcriptions.read_lock().contains(&handle)
-    }
-
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
-    }
-
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.write_lock().drain(..) {
             user_defined_publisher.delete_contained_entities()?;
@@ -885,13 +895,10 @@ impl DdsShared<DomainParticipantImpl> {
     ) {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
             &discovered_participant_data,
-            self.domain_id,
-            &self.domain_tag,
+            self.get_domain_id(),
+            self.get_domain_tag(),
         ) {
-            if !self
-                .ignored_participants
-                .read_lock()
-                .contains(&discovered_participant_data.get_serialized_key().into())
+            if !self.is_participant_ignored(discovered_participant_data.get_serialized_key().into())
             {
                 self.builtin_publisher
                     .sedp_builtin_publications_writer()
@@ -965,28 +972,6 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
-    pub fn receive_built_in_data(
-        &self,
-        source_locator: Locator,
-        message: RtpsMessage,
-    ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()).process_message(
-            self.rtps_participant.guid().prefix(),
-            core::slice::from_ref(&self.builtin_publisher),
-            core::slice::from_ref(&self.builtin_subscriber),
-            source_locator,
-            &message,
-            &mut self.status_listener.write_lock(),
-        )?;
-
-        self.discover_matched_participants().ok();
-        self.discover_matched_readers().ok();
-        self.discover_matched_writers().ok();
-        self.discover_matched_topics().ok();
-
-        Ok(())
-    }
-
     pub fn receive_user_defined_data(
         &self,
         source_locator: Locator,
@@ -1002,7 +987,7 @@ impl DdsShared<DomainParticipantImpl> {
         )
     }
 
-    fn discover_matched_participants(&self) -> DdsResult<()> {
+    pub fn discover_matched_participants(&self) -> DdsResult<()> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
@@ -1023,7 +1008,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn discover_matched_writers(&self) -> DdsResult<()> {
+    pub fn discover_matched_writers(&self) -> DdsResult<()> {
         let samples = self
             .builtin_subscriber
             .sedp_builtin_publications_reader()
@@ -1039,8 +1024,8 @@ impl DdsShared<DomainParticipantImpl> {
             match discovered_writer_data_sample.sample_info.instance_state {
                 InstanceStateKind::Alive => {
                     if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                        if !self.ignored_publications.read_lock().contains(
-                            &discovered_writer_data
+                        if !self.is_publication_ignored(
+                            discovered_writer_data
                                 .writer_proxy
                                 .remote_writer_guid
                                 .into(),
@@ -1057,9 +1042,7 @@ impl DdsShared<DomainParticipantImpl> {
                                 .read_lock()
                                 .get(&writer_parent_participant_guid.into())
                             {
-                                for subscriber in
-                                    self.user_defined_subscriber_list.read_lock().iter()
-                                {
+                                for subscriber in self.user_defined_subscriber_list() {
                                     subscriber.add_matched_writer(
                                         &discovered_writer_data,
                                         discovered_participant_data.default_unicast_locator_list(),
@@ -1087,7 +1070,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn discover_matched_readers(&self) -> DdsResult<()> {
+    pub fn discover_matched_readers(&self) -> DdsResult<()> {
         let samples = self
             .get_builtin_subscriber()
             .sedp_builtin_subscriptions_reader()
@@ -1103,7 +1086,7 @@ impl DdsShared<DomainParticipantImpl> {
             match discovered_reader_data_sample.sample_info.instance_state {
                 InstanceStateKind::Alive => {
                     if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
-                        if !self.is_subcription_ignored(
+                        if !self.is_subscription_ignored(
                             discovered_reader_data
                                 .reader_proxy
                                 .remote_reader_guid
@@ -1195,7 +1178,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn discover_matched_topics(&self) -> DdsResult<()> {
+    pub fn discover_matched_topics(&self) -> DdsResult<()> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()
