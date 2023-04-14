@@ -15,19 +15,34 @@ use crate::{
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
-        rtps::messages::{overall_structure::RtpsMessageHeader, types::ProtocolId},
+        rtps::{
+            history_cache::RtpsWriterCacheChange,
+            messages::{
+                overall_structure::RtpsMessageHeader,
+                submessages::{GapSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage},
+                types::{FragmentNumber, ProtocolId},
+                RtpsMessage, RtpsSubmessageKind,
+            },
+            reader_proxy::WriterAssociatedReaderProxy,
+            transport::TransportWrite,
+            types::{EntityId, GuidPrefix, ReliabilityKind, SequenceNumber},
+        },
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
-        time::Duration,
+        time::{Duration, DurationKind, Time},
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
 
-use super::domain_participant_impl::{AnnounceKind, DomainParticipantImpl};
+use super::{
+    builtin_stateful_writer::BuiltinStatefulWriter,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    user_defined_data_writer::UserDefinedDataWriter,
+};
 
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
@@ -166,24 +181,36 @@ impl DcpsService {
                     guid_prefix: domain_participant.guid().prefix(),
                 };
 
-                let now = domain_participant.get_current_time();
+                let _now = domain_participant.get_current_time();
 
                 domain_participant
                     .get_builtin_publisher()
                     .spdp_builtin_participant_writer()
                     .send_message(header, &mut metatraffic_unicast_transport_send);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_publications_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_subscriptions_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_topics_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
+
+                builtin_stateful_writer_send_message(
+                    domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_publications_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
+
+                builtin_stateful_writer_send_message(
+                    domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_subscriptions_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
+
+                builtin_stateful_writer_send_message(
+                    domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_topics_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
 
                 domain_participant
                     .get_builtin_subscriber()
@@ -234,7 +261,44 @@ impl DcpsService {
 
                 for publisher in domain_participant.publisher_list() {
                     for data_writer in publisher.data_writer_list() {
-                        data_writer.send_message(header, &mut default_unicast_transport_send, now)
+                        let writer_id = data_writer.guid().entity_id();
+                        let data_max_size_serialized = data_writer.data_max_size_serialized();
+                        let heartbeat_period = data_writer.heartbeat_period();
+                        let first_sn = data_writer
+                            .change_list()
+                            .into_iter()
+                            .map(|x| x.sequence_number())
+                            .min()
+                            .unwrap_or(SequenceNumber::new(1));
+                        let last_sn = data_writer
+                            .change_list()
+                            .into_iter()
+                            .map(|x| x.sequence_number())
+                            .max()
+                            .unwrap_or_else(|| SequenceNumber::new(0));
+                        remove_stale_writer_changes(&data_writer, now);
+                        for mut reader_proxy in &mut data_writer.matched_reader_list() {
+                            match reader_proxy.reliability() {
+                                ReliabilityKind::BestEffort => {
+                                    send_message_best_effort_reader_proxy(
+                                        &mut reader_proxy,
+                                        data_max_size_serialized,
+                                        header,
+                                        &mut default_unicast_transport_send,
+                                    )
+                                }
+                                ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
+                                    &mut reader_proxy,
+                                    data_max_size_serialized,
+                                    header,
+                                    &mut default_unicast_transport_send,
+                                    writer_id,
+                                    first_sn,
+                                    last_sn,
+                                    heartbeat_period,
+                                ),
+                            }
+                        }
                     }
                 }
 
@@ -430,4 +494,295 @@ fn announce_deleted_writer(
         .sedp_builtin_publications_writer()
         .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
         .expect("Should not fail to write built-in message");
+}
+
+fn remove_stale_writer_changes(writer: &UserDefinedDataWriter, now: Time) {
+    let timespan_duration = writer.get_qos().lifespan.duration;
+    writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
+}
+
+fn send_message_best_effort_reader_proxy(
+    reader_proxy: &mut WriterAssociatedReaderProxy,
+    data_max_size_serialized: usize,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+) {
+    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+    let mut submessages = vec![info_dst];
+
+    while !reader_proxy.unsent_changes().is_empty() {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+        let reader_id = reader_proxy.remote_reader_guid().entity_id();
+        let change = reader_proxy.next_unsent_change();
+
+        if change.is_relevant() {
+            let cache_change = change.cache_change();
+            let timestamp = cache_change.timestamp();
+
+            if cache_change.data_value().len() > data_max_size_serialized {
+                let data_frag_submessage_list =
+                    cache_change.as_data_frag_submessages(data_max_size_serialized, reader_id);
+                for data_frag_submessage in data_frag_submessage_list {
+                    let info_dst =
+                        info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+
+                    let into_timestamp = info_timestamp_submessage(timestamp);
+                    let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+
+                    let submessages = vec![info_dst, into_timestamp, data_frag];
+
+                    transport.write(
+                        &RtpsMessage::new(header, submessages),
+                        reader_proxy.unicast_locator_list(),
+                    )
+                }
+            } else {
+                submessages.push(info_timestamp_submessage(timestamp));
+                submessages.push(RtpsSubmessageKind::Data(
+                    cache_change.as_data_submessage(reader_id),
+                ))
+            }
+        } else {
+            let gap_submessage: GapSubmessage = change
+                .cache_change()
+                .as_gap_message(reader_proxy.remote_reader_guid().entity_id());
+            submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+        }
+    }
+
+    // Send messages only if more than INFO_DST is added
+    if submessages.len() > 1 {
+        transport.write(
+            &RtpsMessage::new(header, submessages),
+            reader_proxy.unicast_locator_list(),
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn send_message_reliable_reader_proxy(
+    reader_proxy: &mut WriterAssociatedReaderProxy,
+    data_max_size_serialized: usize,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    heartbeat_period: Duration,
+) {
+    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+
+    let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+
+    let mut submessages = vec![info_dst];
+
+    // Top part of the state machine - Figure 8.19 RTPS standard
+    if !reader_proxy.unsent_changes().is_empty() {
+        // Note: The readerId is set to the remote reader ID as described in 8.4.9.2.12 Transition T12
+        // in confront to ENTITYID_UNKNOWN as described in 8.4.9.2.4 Transition T4
+
+        while !reader_proxy.unsent_changes().is_empty() {
+            let change = reader_proxy.next_unsent_change();
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // "( a_change BELONGS-TO the_reader_proxy.unsent_changes() ) == FALSE"
+            // should be full-filled by next_unsent_change()
+            if change.is_relevant() {
+                let cache_change = change.cache_change();
+                if cache_change.data_value().len() > data_max_size_serialized {
+                    directly_send_data_frag(
+                        reader_proxy,
+                        cache_change,
+                        writer_id,
+                        data_max_size_serialized,
+                        header,
+                        first_sn,
+                        last_sn,
+                        transport,
+                    );
+                    return;
+                } else {
+                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
+                    submessages.push(RtpsSubmessageKind::Data(
+                        cache_change.as_data_submessage(reader_id),
+                    ))
+                }
+            } else {
+                let gap_submessage: GapSubmessage = change.cache_change().as_gap_message(reader_id);
+
+                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+            }
+        }
+
+        let heartbeat = reader_proxy
+            .heartbeat_machine()
+            .submessage(writer_id, first_sn, last_sn);
+        submessages.push(heartbeat);
+    } else if reader_proxy.unacked_changes().is_empty() {
+        // Idle
+    } else if reader_proxy
+        .heartbeat_machine()
+        .is_time_for_heartbeat(heartbeat_period)
+    {
+        let heartbeat = reader_proxy
+            .heartbeat_machine()
+            .submessage(writer_id, first_sn, last_sn);
+        submessages.push(heartbeat);
+    }
+
+    // Middle-part of the state-machine - Figure 8.19 RTPS standard
+    if !reader_proxy.requested_changes().is_empty() {
+        let reader_id = reader_proxy.remote_reader_guid().entity_id();
+
+        while !reader_proxy.requested_changes().is_empty() {
+            let change_for_reader = reader_proxy.next_requested_change();
+            // "a_change.status := UNDERWAY;" should be done by next_requested_change() as
+            // it's not done here to avoid the change being a mutable reference
+            // Also the post-condition:
+            // a_change BELONGS-TO the_reader_proxy.requested_changes() ) == FALSE
+            // should be full-filled by next_requested_change()
+            if change_for_reader.is_relevant() {
+                let cache_change = change_for_reader.cache_change();
+                if cache_change.data_value().len() > data_max_size_serialized {
+                    directly_send_data_frag(
+                        reader_proxy,
+                        cache_change,
+                        writer_id,
+                        data_max_size_serialized,
+                        header,
+                        first_sn,
+                        last_sn,
+                        transport,
+                    );
+                    return;
+                } else {
+                    submessages.push(info_timestamp_submessage(cache_change.timestamp()));
+                    submessages.push(RtpsSubmessageKind::Data(
+                        cache_change.as_data_submessage(reader_id),
+                    ))
+                }
+            } else {
+                let gap_submessage: GapSubmessage =
+                    change_for_reader.cache_change().as_gap_message(reader_id);
+
+                submessages.push(RtpsSubmessageKind::Gap(gap_submessage));
+            }
+        }
+        let heartbeat = reader_proxy
+            .heartbeat_machine()
+            .submessage(writer_id, first_sn, last_sn);
+        submessages.push(heartbeat);
+    }
+    // Send messages only if more or equal than INFO_DST and HEARTBEAT is added
+    if submessages.len() >= 2 {
+        transport.write(
+            &RtpsMessage::new(header, submessages),
+            reader_proxy.unicast_locator_list(),
+        )
+    }
+}
+
+fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
+        endianness_flag: true,
+        invalidate_flag: false,
+        timestamp: crate::implementation::rtps::messages::types::Time::new(
+            timestamp.sec(),
+            timestamp.nanosec(),
+        ),
+    })
+}
+fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
+        endianness_flag: true,
+        guid_prefix,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn directly_send_data_frag(
+    reader_proxy: &mut WriterAssociatedReaderProxy,
+    cache_change: &RtpsWriterCacheChange,
+    writer_id: EntityId,
+    data_max_size_serialized: usize,
+    header: RtpsMessageHeader,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    transport: &mut impl TransportWrite,
+) {
+    let reader_id = reader_proxy.remote_reader_guid().entity_id();
+    let timestamp = cache_change.timestamp();
+
+    let mut data_frag_submessage_list = cache_change
+        .as_data_frag_submessages(data_max_size_serialized, reader_id)
+        .into_iter()
+        .peekable();
+
+    while let Some(data_frag_submessage) = data_frag_submessage_list.next() {
+        let writer_sn = data_frag_submessage.writer_sn;
+        let last_fragment_num = FragmentNumber::new(
+            u32::from(data_frag_submessage.fragment_starting_num)
+                + u16::from(data_frag_submessage.fragments_in_submessage) as u32
+                - 1,
+        );
+
+        let info_dst = info_destination_submessage(reader_proxy.remote_reader_guid().prefix());
+        let into_timestamp = info_timestamp_submessage(timestamp);
+        let data_frag = RtpsSubmessageKind::DataFrag(data_frag_submessage);
+
+        let is_last_fragment = data_frag_submessage_list.peek().is_none();
+        let submessages = if is_last_fragment {
+            let heartbeat_frag = reader_proxy.heartbeat_frag_machine().submessage(
+                writer_id,
+                writer_sn,
+                last_fragment_num,
+            );
+            vec![info_dst, into_timestamp, data_frag, heartbeat_frag]
+        } else {
+            let heartbeat = reader_proxy
+                .heartbeat_machine()
+                .submessage(writer_id, first_sn, last_sn);
+            vec![info_dst, into_timestamp, data_frag, heartbeat]
+        };
+        transport.write(
+            &RtpsMessage::new(header, submessages),
+            reader_proxy.unicast_locator_list(),
+        )
+    }
+}
+
+fn builtin_stateful_writer_send_message(
+    writer: &BuiltinStatefulWriter,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+) {
+    let data_max_size_serialized = writer.data_max_size_serialized();
+    let writer_id = writer.guid().entity_id();
+    let first_sn = writer
+        .change_list()
+        .into_iter()
+        .map(|x| x.sequence_number())
+        .min()
+        .unwrap_or_else(|| SequenceNumber::new(1));
+    let last_sn = writer
+        .change_list()
+        .into_iter()
+        .map(|x| x.sequence_number())
+        .max()
+        .unwrap_or_else(|| SequenceNumber::new(0));
+    let heartbeat_period = writer.heartbeat_period();
+    for mut reader_proxy in &mut writer.matched_reader_list() {
+        send_message_reliable_reader_proxy(
+            &mut reader_proxy,
+            data_max_size_serialized,
+            header,
+            transport,
+            writer_id,
+            first_sn,
+            last_sn,
+            heartbeat_period,
+        )
+    }
 }

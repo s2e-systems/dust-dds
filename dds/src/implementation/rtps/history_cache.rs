@@ -223,7 +223,7 @@ impl WriterHistoryCache {
         }
     }
 
-    pub fn changes(&self) -> &[RtpsWriterCacheChange] {
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
         &self.changes
     }
 
@@ -270,7 +270,7 @@ mod tests {
         );
         hc.add_change(change);
         hc.remove_change(|cc| cc.sequence_number() == SequenceNumber::new(1));
-        assert!(hc.changes().is_empty());
+        assert!(hc.change_list().is_empty());
     }
 
     #[test]

@@ -9,16 +9,13 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy},
         },
         rtps::{
-            messages::{
-                overall_structure::RtpsMessageHeader,
-                submessages::{AckNackSubmessage, NackFragSubmessage},
-            },
+            history_cache::{RtpsParameter, RtpsWriterCacheChange},
+            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
-            transport::TransportWrite,
             types::{
-                DurabilityKind, EntityId, EntityKey, Locator, ReliabilityKind, GUID_UNKNOWN,
-                USER_DEFINED_UNKNOWN,
+                ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, Locator, ReliabilityKind,
+                GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
         utils::{
@@ -52,9 +49,13 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    any_data_writer_listener::AnyDataWriterListener,
+    domain_participant_impl::AnnounceKind,
+    iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
+    message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 impl PublicationMatchedStatus {
@@ -178,15 +179,87 @@ impl UserDefinedDataWriter {
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
             announce_sender,
         })
     }
-}
 
-impl DdsShared<UserDefinedDataWriter> {
+    pub fn guid(&self) -> Guid {
+        self.rtps_writer.read_lock().guid()
+    }
+
+    pub fn _unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer.read_lock().unicast_locator_list().to_vec()
+    }
+
+    pub fn _multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer
+            .read_lock()
+            .multicast_locator_list()
+            .to_vec()
+    }
+
+    pub fn _push_mode(&self) -> bool {
+        self.rtps_writer.read_lock().push_mode()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.rtps_writer.read_lock().heartbeat_period()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.rtps_writer.read_lock().data_max_size_serialized()
+    }
+
+    pub fn _new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
+        self.rtps_writer
+            .write_lock()
+            .new_change(kind, data, inline_qos, handle, timestamp)
+    }
+
+    pub fn change_list(&self) -> WriterChangeListIntoIter {
+        WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
+    }
+
+    pub fn _add_change(&self, change: RtpsWriterCacheChange) {
+        self.rtps_writer.write_lock().add_change(change)
+    }
+
+    pub fn remove_change<F>(&self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        self.rtps_writer.write_lock().remove_change(f)
+    }
+
+    pub fn _matched_reader_add(&self, a_reader_proxy: RtpsReaderProxy) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_add(a_reader_proxy)
+    }
+
+    pub fn _matched_reader_remove(&self, a_reader_guid: Guid) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_remove(a_reader_guid)
+    }
+
+    pub fn matched_reader_list(&self) -> ReaderProxyListIntoIter {
+        ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
+    }
+
+    pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
+        self.rtps_writer.read_lock().is_acked_by_all(a_change)
+    }
+
     pub fn get_topic_name(&self) -> &str {
         &self.topic_name
     }
@@ -195,10 +268,30 @@ impl DdsShared<UserDefinedDataWriter> {
         self.type_name
     }
 
+    pub fn enable(&self) -> DdsResult<()> {
+        *self.enabled.write_lock() = true;
+
+        Ok(())
+    }
+
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
 
+    pub fn get_qos(&self) -> DataWriterQos {
+        self.rtps_writer.read_lock().get_qos().clone()
+    }
+
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
+    }
+}
+
+impl DdsShared<UserDefinedDataWriter> {
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
@@ -436,7 +529,7 @@ impl DdsShared<UserDefinedDataWriter> {
                 // This is done in an inner scope such that the lock can be dropped and new acknowledgements
                 // can be processed when received
                 let rtps_writer_lock = self.rtps_writer.write_lock();
-                let changes = rtps_writer_lock.writer_cache().changes();
+                let changes = rtps_writer_lock.change_list();
 
                 if changes
                     .iter()
@@ -538,30 +631,12 @@ impl DdsShared<UserDefinedDataWriter> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DataWriterQos {
-        self.rtps_writer.read_lock().get_qos().clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
 
     pub fn get_status_changes(&self) -> Vec<StatusKind> {
         self.status_condition.read_lock().get_status_changes()
-    }
-
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
-
-        Ok(())
     }
 
     pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
@@ -620,17 +695,6 @@ impl DdsShared<UserDefinedDataWriter> {
                 group_data: publisher_qos.group_data.clone(),
             },
         }
-    }
-
-    pub fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        self.rtps_writer
-            .write_lock()
-            .send_message(header, transport, now);
     }
 
     fn on_offered_incompatible_qos(
@@ -868,6 +932,7 @@ mod test {
         implementation::rtps::{
             endpoint::RtpsEndpoint,
             messages::RtpsMessage,
+            transport::TransportWrite,
             types::{TopicKind, GUID_UNKNOWN},
             writer::RtpsWriter,
         },

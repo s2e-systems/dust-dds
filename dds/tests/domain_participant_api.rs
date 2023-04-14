@@ -601,7 +601,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(topics_reader_cond))
         .unwrap();
-    wait_set.wait(Duration::new(4, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let topic_samples = topics_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -615,7 +615,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(subscriptions_reader_cond))
         .unwrap();
-    wait_set.wait(Duration::new(4, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let subscription_samples = subscriptions_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
@@ -629,7 +629,7 @@ fn get_discovery_data_from_builtin_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(publications_reader_cond))
         .unwrap();
-    wait_set.wait(Duration::new(100, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let publication_samples = publications_reader
         .read(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

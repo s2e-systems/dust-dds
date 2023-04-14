@@ -1,19 +1,11 @@
 use std::collections::HashMap;
 
-use serde::Serialize;
-
 use crate::{
-    implementation::data_representation_inline_qos::{
-        parameter_id_values::PID_STATUS_INFO,
-        types::{
-            STATUS_INFO_DISPOSED, STATUS_INFO_DISPOSED_UNREGISTERED, STATUS_INFO_UNREGISTERED,
-        },
-    },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::{InstanceHandle, HANDLE_NIL},
+        instance::InstanceHandle,
         qos::DataWriterQos,
-        time::{Duration, DurationKind, Time},
+        time::{Duration, Time},
     },
     topic_definition::type_support::DdsSerializedKey,
 };
@@ -21,7 +13,6 @@ use crate::{
 use super::{
     endpoint::RtpsEndpoint,
     history_cache::{RtpsParameter, RtpsWriterCacheChange, WriterHistoryCache},
-    messages::types::ParameterId,
     types::{ChangeKind, Guid, Locator, SequenceNumber},
 };
 
@@ -82,96 +73,15 @@ impl RtpsWriter {
         self.heartbeat_period
     }
 
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.data_max_size_serialized
+    }
+
     pub fn writer_cache(&self) -> &WriterHistoryCache {
         &self.writer_cache
     }
 
-    pub fn writer_cache_mut(&mut self) -> &mut WriterHistoryCache {
-        &mut self.writer_cache
-    }
-
-    pub fn new_write_change(
-        &mut self,
-        serialized_data: Vec<u8>,
-        instance_serialized_key: DdsSerializedKey,
-        _handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange> {
-        let handle = self
-            .register_instance_w_timestamp(instance_serialized_key, timestamp)?
-            .unwrap_or(HANDLE_NIL);
-        let change = self.new_change(
-            ChangeKind::Alive,
-            serialized_data,
-            vec![],
-            handle,
-            timestamp,
-        );
-
-        Ok(change)
-    }
-
-    pub fn new_dispose_change(
-        &mut self,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange> {
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-        STATUS_INFO_DISPOSED.serialize(&mut serializer).unwrap();
-
-        let inline_qos = vec![RtpsParameter::new(
-            ParameterId(PID_STATUS_INFO),
-            serialized_status_info,
-        )];
-
-        Ok(self.new_change(
-            ChangeKind::NotAliveDisposed,
-            instance_serialized_key,
-            inline_qos,
-            handle,
-            timestamp,
-        ))
-    }
-
-    pub fn new_unregister_change(
-        &mut self,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
-    ) -> DdsResult<RtpsWriterCacheChange> {
-        let mut serialized_status_info = Vec::new();
-        let mut serializer =
-            cdr::Serializer::<_, cdr::LittleEndian>::new(&mut serialized_status_info);
-        if self
-            .qos
-            .writer_data_lifecycle
-            .autodispose_unregistered_instances
-        {
-            STATUS_INFO_DISPOSED_UNREGISTERED
-                .serialize(&mut serializer)
-                .unwrap();
-        } else {
-            STATUS_INFO_UNREGISTERED.serialize(&mut serializer).unwrap();
-        }
-
-        let inline_qos = vec![RtpsParameter::new(
-            ParameterId(PID_STATUS_INFO),
-            serialized_status_info,
-        )];
-
-        Ok(self.new_change(
-            ChangeKind::NotAliveUnregistered,
-            instance_serialized_key,
-            inline_qos,
-            handle,
-            timestamp,
-        ))
-    }
-
-    fn new_change(
+    pub fn new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
@@ -189,6 +99,21 @@ impl RtpsWriter {
             data,
             inline_qos,
         )
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        self.writer_cache.change_list()
+    }
+
+    pub fn add_change(&mut self, change: RtpsWriterCacheChange) {
+        self.writer_cache.add_change(change)
+    }
+
+    pub fn remove_change<F>(&mut self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        self.writer_cache.remove_change(f)
     }
 
     pub fn get_qos(&self) -> &DataWriterQos {
@@ -233,15 +158,5 @@ impl RtpsWriter {
         } else {
             None
         }
-    }
-
-    pub fn data_max_size_serialized(&self) -> usize {
-        self.data_max_size_serialized
-    }
-
-    pub fn remove_stale_changes(&mut self, now: Time) {
-        let timespan_duration = self.qos.lifespan.duration;
-        self.writer_cache
-            .remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration)
     }
 }

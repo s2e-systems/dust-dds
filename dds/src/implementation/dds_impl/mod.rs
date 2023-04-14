@@ -9,6 +9,7 @@ pub mod builtin_stateless_writer;
 pub mod builtin_subscriber;
 pub mod dcps_service;
 pub mod domain_participant_impl;
+pub mod iterators;
 pub mod message_receiver;
 pub mod node_builtin_data_reader_stateful;
 pub mod node_builtin_data_reader_stateless;
