@@ -251,14 +251,6 @@ impl DdsShared<UserDefinedSubscriber> {
         self.qos.read_lock().clone()
     }
 
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }

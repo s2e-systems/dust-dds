@@ -14,7 +14,7 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -136,7 +136,7 @@ impl UserDefinedSubscriberNode {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 

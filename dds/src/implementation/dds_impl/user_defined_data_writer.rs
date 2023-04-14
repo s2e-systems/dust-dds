@@ -41,7 +41,6 @@ use crate::{
         },
     },
     publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -287,14 +286,6 @@ impl UserDefinedDataWriter {
         self.rtps_writer.read_lock().get_qos().clone()
     }
 
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
     pub fn get_status_listener_lock(
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn AnyDataWriterListener + Send + Sync>> {
@@ -353,11 +344,11 @@ impl DdsShared<UserDefinedDataWriter> {
         let is_matched_topic_name = discovered_reader_data
             .subscription_builtin_topic_data
             .topic_name
-            == self.topic_name;
+            == self.get_topic_name();
         let is_matched_type_name = discovered_reader_data
             .subscription_builtin_topic_data
             .type_name
-            == self.type_name;
+            == self.get_type_name();
 
         if is_matched_topic_name && is_matched_type_name {
             let add_matched_reader_result = add_discovered_reader(
@@ -836,12 +827,12 @@ impl DdsShared<UserDefinedDataWriter> {
 
 //// Helper functions
 fn get_discovered_reader_incompatible_qos_policy_list(
-    writer: &mut RtpsStatefulWriter,
+    writer_qos: &DataWriterQos,
     discovered_reader_data: &SubscriptionBuiltinTopicData,
     publisher_qos: &PublisherQos,
 ) -> Vec<QosPolicyId> {
     let mut incompatible_qos_policy_list = Vec::new();
-    if writer.get_qos().durability < discovered_reader_data.durability {
+    if writer_qos.durability < discovered_reader_data.durability {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
     if publisher_qos.presentation.access_scope < discovered_reader_data.presentation.access_scope
@@ -852,19 +843,19 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if writer.get_qos().deadline < discovered_reader_data.deadline {
+    if writer_qos.deadline < discovered_reader_data.deadline {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if writer.get_qos().latency_budget < discovered_reader_data.latency_budget {
+    if writer_qos.latency_budget < discovered_reader_data.latency_budget {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
-    if writer.get_qos().liveliness < discovered_reader_data.liveliness {
+    if writer_qos.liveliness < discovered_reader_data.liveliness {
         incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
     }
-    if writer.get_qos().reliability.kind < discovered_reader_data.reliability.kind {
+    if writer_qos.reliability.kind < discovered_reader_data.reliability.kind {
         incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
     }
-    if writer.get_qos().destination_order < discovered_reader_data.destination_order {
+    if writer_qos.destination_order < discovered_reader_data.destination_order {
         incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
     }
     incompatible_qos_policy_list
@@ -878,7 +869,7 @@ fn add_discovered_reader(
     default_multicast_locator_list: &[Locator],
 ) -> Result<(), Vec<QosPolicyId>> {
     let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
-        writer,
+        writer.get_qos(),
         &discovered_reader_data.subscription_builtin_topic_data,
         publisher_qos,
     );

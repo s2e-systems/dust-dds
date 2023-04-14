@@ -26,7 +26,7 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    user_defined_data_reader::UserDefinedDataReader,
+    status_listener::StatusListener, user_defined_data_reader::UserDefinedDataReader,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -240,7 +240,7 @@ impl UserDefinedDataReaderNode {
         a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 
