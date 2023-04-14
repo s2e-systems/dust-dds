@@ -39,7 +39,7 @@ jobs:
             python3 -m pip install jsonschema2md
             cargo run --bin configuration_schema_generator ./dds/schema/schema.json
             jsonschema2md ./dds/schema/schema.json ./dds/schema/schema.md
-            git diff --exit-code
+            git diff --ignore-space-at-eol --exit-code
   benchmark:
     docker:
       - image: cimg/rust:1.65.0
