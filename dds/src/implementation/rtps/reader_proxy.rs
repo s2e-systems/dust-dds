@@ -67,7 +67,7 @@ impl HeartbeatFragMachine {
             reader_id,
         }
     }
-    fn submessage<'a>(
+    pub fn submessage<'a>(
         &mut self,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -350,6 +350,10 @@ impl<'a> WriterAssociatedReaderProxy<'a> {
 
     pub fn heartbeat_machine(&mut self) -> &mut HeartbeatMachine {
         &mut self.reader_proxy.heartbeat_machine
+    }
+
+    pub fn heartbeat_frag_machine(&mut self) -> &mut HeartbeatFragMachine {
+        &mut self.reader_proxy.heartbeat_frag_machine
     }
 
     // //////////////   ReaderProxy operations defined in the Rtps Standard
