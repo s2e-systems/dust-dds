@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{mpsc::SyncSender, RwLockWriteGuard},
-    time::Instant,
-};
+use std::{collections::HashMap, sync::mpsc::SyncSender, time::Instant};
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
@@ -15,7 +11,7 @@ use crate::{
         rtps::{
             history_cache::{RtpsParameter, RtpsWriterCacheChange},
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
-            reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
+            reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             types::{
                 ChangeKind, DurabilityKind, EntityId, EntityKey, Guid, Locator, ReliabilityKind,
@@ -54,8 +50,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    iterators::ReaderProxyListIntoIter, message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 impl PublicationMatchedStatus {
@@ -137,39 +134,6 @@ impl OfferedIncompatibleQosStatus {
         self.total_count_change = 0;
 
         status
-    }
-}
-
-pub struct ReaderProxyListIntoIter<'a> {
-    writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>,
-}
-
-impl<'a> IntoIterator for &'a mut ReaderProxyListIntoIter<'_> {
-    type Item = WriterAssociatedReaderProxy<'a>;
-    type IntoIter = ReaderProxyListIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ReaderProxyListIter {
-            list: self.writer_lock.matched_reader_list().into_iter(),
-        }
-    }
-}
-
-impl<'a> ReaderProxyListIntoIter<'a> {
-    pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>) -> Self {
-        Self { writer_lock }
-    }
-}
-
-pub struct ReaderProxyListIter<'a> {
-    list: std::vec::IntoIter<WriterAssociatedReaderProxy<'a>>,
-}
-
-impl<'a> Iterator for ReaderProxyListIter<'a> {
-    type Item = WriterAssociatedReaderProxy<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.list.next()
     }
 }
 

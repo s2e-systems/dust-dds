@@ -7,13 +7,14 @@ use crate::{
         },
         rtps::{
             endpoint::RtpsEndpoint,
-            messages::{overall_structure::RtpsMessageHeader, submessages::AckNackSubmessage},
+            history_cache::{RtpsParameter, RtpsWriterCacheChange},
+            messages::submessages::AckNackSubmessage,
+            reader_proxy::RtpsReaderProxy,
             stateful_writer::{
                 RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
                 DEFAULT_NACK_SUPPRESSION_DURATION,
             },
-            transport::TransportWrite,
-            types::{Guid, GuidPrefix, TopicKind},
+            types::{ChangeKind, Guid, GuidPrefix, Locator, TopicKind},
             writer::RtpsWriter,
         },
         utils::{
@@ -29,7 +30,7 @@ use crate::{
             DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
             ReliabilityQosPolicy, ReliabilityQosPolicyKind,
         },
-        time::{DurationKind, Time, DURATION_ZERO},
+        time::{Duration, DurationKind, Time, DURATION_ZERO},
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
 };
@@ -39,6 +40,7 @@ use super::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
+    iterators::ReaderProxyListIntoIter,
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     topic_impl::TopicImpl,
@@ -99,6 +101,88 @@ impl BuiltinStatefulWriter {
             enabled: DdsRwLock::new(false),
             sedp_condvar,
         })
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_writer.read_lock().guid()
+    }
+
+    pub fn unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer.read_lock().unicast_locator_list().to_vec()
+    }
+
+    pub fn multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer
+            .read_lock()
+            .multicast_locator_list()
+            .to_vec()
+    }
+
+    pub fn push_mode(&self) -> bool {
+        self.rtps_writer.read_lock().push_mode()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.rtps_writer.read_lock().heartbeat_period()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.rtps_writer.read_lock().data_max_size_serialized()
+    }
+
+    pub fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Vec<u8>,
+        inline_qos: Vec<RtpsParameter>,
+        handle: InstanceHandle,
+        timestamp: Time,
+    ) -> RtpsWriterCacheChange {
+        self.rtps_writer
+            .write_lock()
+            .new_change(kind, data, inline_qos, handle, timestamp)
+    }
+
+    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+        todo!()
+        // self.rtps_writer.read_lock().change_list()
+    }
+
+    pub fn add_change(&self, change: RtpsWriterCacheChange) {
+        self.rtps_writer.write_lock().add_change(change)
+    }
+
+    pub fn remove_change<F>(&self, f: F)
+    where
+        F: FnMut(&RtpsWriterCacheChange) -> bool,
+    {
+        self.rtps_writer.write_lock().remove_change(f)
+    }
+
+    pub fn matched_reader_add(&self, mut a_reader_proxy: RtpsReaderProxy) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_add(a_reader_proxy)
+    }
+
+    pub fn matched_reader_remove(&self, a_reader_guid: Guid) {
+        self.rtps_writer
+            .write_lock()
+            .matched_reader_remove(a_reader_guid)
+    }
+
+    pub fn matched_reader_list(&self) -> ReaderProxyListIntoIter {
+        ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
+    }
+
+    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
+        todo!()
+    }
+
+    pub fn enable(&self) -> DdsResult<()> {
+        *self.enabled.write_lock() = true;
+
+        Ok(())
     }
 }
 
@@ -199,17 +283,5 @@ impl DdsShared<BuiltinStatefulWriter> {
         *self.enabled.write_lock() = true;
 
         Ok(())
-    }
-
-    pub fn send_message(
-        &self,
-        header: RtpsMessageHeader,
-        transport: &mut impl TransportWrite,
-        now: Time,
-    ) {
-        todo!()
-        // self.rtps_writer
-        //     .write_lock()
-        //     .send_message(header, transport, now);
     }
 }

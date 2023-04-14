@@ -38,6 +38,7 @@ use crate::{
 };
 
 use super::{
+    builtin_stateful_writer::BuiltinStatefulWriter,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     user_defined_data_writer::UserDefinedDataWriter,
 };
@@ -179,24 +180,36 @@ impl DcpsService {
                     guid_prefix: domain_participant.guid().prefix(),
                 };
 
-                let now = domain_participant.get_current_time();
+                let _now = domain_participant.get_current_time();
 
                 domain_participant
                     .get_builtin_publisher()
                     .spdp_builtin_participant_writer()
                     .send_message(header, &mut metatraffic_unicast_transport_send);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_publications_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_subscriptions_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
-                domain_participant
-                    .get_builtin_publisher()
-                    .sedp_builtin_topics_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send, now);
+
+                builtin_stateful_writer_send_message(
+                    &domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_publications_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
+
+                builtin_stateful_writer_send_message(
+                    &domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_subscriptions_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
+
+                builtin_stateful_writer_send_message(
+                    &domain_participant
+                        .get_builtin_publisher()
+                        .sedp_builtin_topics_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
 
                 domain_participant
                     .get_builtin_subscriber()
@@ -723,4 +736,28 @@ fn directly_send_data_frag(// &mut self,
     //         self.unicast_locator_list(),
     //     )
     // }
+}
+
+fn builtin_stateful_writer_send_message(
+    writer: &BuiltinStatefulWriter,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+) {
+    let data_max_size_serialized = writer.data_max_size_serialized();
+    let writer_id = writer.guid().entity_id();
+    let first_sn = todo!();
+    let last_sn = todo!();
+    let heartbeat_period = writer.heartbeat_period();
+    for reader_proxy in &mut writer.matched_reader_list() {
+        send_message_reliable_reader_proxy(
+            &mut reader_proxy,
+            data_max_size_serialized,
+            header,
+            transport,
+            writer_id,
+            first_sn,
+            last_sn,
+            heartbeat_period,
+        )
+    }
 }
