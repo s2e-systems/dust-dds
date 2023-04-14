@@ -548,10 +548,6 @@ impl<'a> RtpsChangeForReaderCacheChange<'a> {
         self.cache_change
     }
 
-    pub fn _status(&self) -> ChangeForReaderStatusKind {
-        self.change_for_reader.status
-    }
-
     pub fn is_relevant(&self) -> bool {
         self.change_for_reader.is_relevant
     }

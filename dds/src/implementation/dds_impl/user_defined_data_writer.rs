@@ -222,14 +222,15 @@ impl UserDefinedDataWriter {
         self.rtps_writer.read_lock().guid()
     }
 
-    pub fn unicast_locator_list(&self) -> &[Locator] {
-        todo!()
-        // self.rtps_writer.read_lock().unicast_locator_list()
+    pub fn unicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer.read_lock().unicast_locator_list().to_vec()
     }
 
-    pub fn multicast_locator_list(&self) -> &[Locator] {
-        todo!()
-        // self.rtps_writer.read_lock().multicast_locator_list()
+    pub fn multicast_locator_list(&self) -> Vec<Locator> {
+        self.rtps_writer
+            .read_lock()
+            .multicast_locator_list()
+            .to_vec()
     }
 
     pub fn push_mode(&self) -> bool {
