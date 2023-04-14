@@ -43,9 +43,3 @@ criterion = { version = "0.3", features = ["html_reports"] }
 [[bench]]
 name = "benchmark"
 harness = false
-
-
-# Tool to generate Json schema
-# [[bin]]
-# name = "configuration_schema_generator"
-# path = "src/implementation/configuration_schema_generator.rs"

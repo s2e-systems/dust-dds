@@ -4,4 +4,5 @@ members = [
     "dds",
     "dds_derive",
     "interoperability_tests",
+    "schema_generator",
 ]
