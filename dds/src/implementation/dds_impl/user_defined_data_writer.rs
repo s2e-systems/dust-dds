@@ -756,6 +756,8 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(publication_matched_status_kind) {
             writer_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_publication_matched(
                     ListenerDataWriterNode::new(),
                     self.get_publication_matched_status(),
@@ -763,6 +765,8 @@ impl DdsShared<UserDefinedDataWriter> {
         } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
             publisher_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_publication_matched(
                     &ListenerDataWriterNode::new(),
                     self.get_publication_matched_status(),
@@ -770,6 +774,8 @@ impl DdsShared<UserDefinedDataWriter> {
         } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_publication_matched(
                     &ListenerDataWriterNode::new(),
                     self.get_publication_matched_status(),
@@ -789,6 +795,8 @@ impl DdsShared<UserDefinedDataWriter> {
         if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             writer_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_offered_incompatible_qos(
                     ListenerDataWriterNode::new(),
                     self.get_offered_incompatible_qos_status(),
@@ -796,6 +804,8 @@ impl DdsShared<UserDefinedDataWriter> {
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_offered_incompatible_qos(
                     &ListenerDataWriterNode::new(),
                     self.get_offered_incompatible_qos_status(),
@@ -803,6 +813,8 @@ impl DdsShared<UserDefinedDataWriter> {
         } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_offered_incompatible_qos(
                     &ListenerDataWriterNode::new(),
                     self.get_offered_incompatible_qos_status(),

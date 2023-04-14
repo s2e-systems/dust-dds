@@ -22,7 +22,7 @@ use super::{
     node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode,
+    node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
@@ -276,7 +276,7 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 

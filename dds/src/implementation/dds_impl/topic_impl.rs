@@ -198,6 +198,8 @@ impl DdsShared<TopicImpl> {
         if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
             topic_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_inconsistent_topic(
                     ListenerTopicNode,
                     self.get_inconsistent_topic_status(),
@@ -205,6 +207,8 @@ impl DdsShared<TopicImpl> {
         } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_inconsistent_topic(&ListenerTopicNode, self.get_inconsistent_topic_status())
         }
     }

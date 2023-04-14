@@ -62,6 +62,7 @@ use std::{
     sync::{
         atomic::{AtomicU8, Ordering},
         mpsc::SyncSender,
+        RwLockWriteGuard,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -311,6 +312,12 @@ impl DomainParticipantImpl {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
+
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn DomainParticipantListener + Send + Sync>> {
+        self.status_listener.write_lock()
+    }
 }
 
 impl DdsShared<DomainParticipantImpl> {
@@ -386,7 +393,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn publisher_list(&self) -> DdsIterator<UserDefinedPublisher> {
+    pub fn user_defined_publisher_list(&self) -> DdsIterator<UserDefinedPublisher> {
         DdsIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
@@ -461,7 +468,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn subscriber_list(&self) -> DdsIterator<UserDefinedSubscriber> {
+    pub fn user_defined_subscriber_list(&self) -> DdsIterator<UserDefinedSubscriber> {
         DdsIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
@@ -636,6 +643,10 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
+    pub fn is_subcription_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_subcriptions.read_lock().contains(&handle)
+    }
+
     pub fn get_domain_id(&self) -> DomainId {
         self.domain_id
     }
@@ -760,14 +771,6 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn get_qos(&self) -> DomainParticipantQos {
         self.qos.read_lock().clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask)
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -1078,7 +1081,7 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn discover_matched_readers(&self) -> DdsResult<()> {
         let samples = self
-            .builtin_subscriber
+            .get_builtin_subscriber()
             .sedp_builtin_subscriptions_reader()
             .read::<DiscoveredReaderData>(
                 i32::MAX,
@@ -1092,8 +1095,8 @@ impl DdsShared<DomainParticipantImpl> {
             match discovered_reader_data_sample.sample_info.instance_state {
                 InstanceStateKind::Alive => {
                     if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
-                        if !self.ignored_subcriptions.read_lock().contains(
-                            &discovered_reader_data
+                        if !self.is_subcription_ignored(
+                            discovered_reader_data
                                 .reader_proxy
                                 .remote_reader_guid
                                 .into(),
@@ -1110,8 +1113,7 @@ impl DdsShared<DomainParticipantImpl> {
                                 .read_lock()
                                 .get(&reader_parent_participant_guid.into())
                             {
-                                for publisher in self.user_defined_publisher_list.read_lock().iter()
-                                {
+                                for publisher in self.user_defined_publisher_list() {
                                     publisher.add_matched_reader(
                                         &discovered_reader_data,
                                         discovered_participant_data.default_unicast_locator_list(),
@@ -1125,7 +1127,8 @@ impl DdsShared<DomainParticipantImpl> {
                     }
                 }
                 InstanceStateKind::NotAliveDisposed => {
-                    for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                    for publisher in self.user_defined_publisher_list() {
+                        for data_writer in publisher.data_writer_list() {}
                         publisher.remove_matched_reader(
                             discovered_reader_data_sample.sample_info.instance_handle,
                             &mut self.status_listener.write_lock(),

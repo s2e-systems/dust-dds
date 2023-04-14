@@ -914,12 +914,16 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(on_data_available_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
                     self.downgrade(),
                 )))
         } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
                     self.downgrade(),
                 )))
@@ -958,20 +962,30 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_lost_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_sample_lost(
                     ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_lost_status(),
                 )
         } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
-            subscriber_status_listener.listener_mut().on_sample_lost(
-                &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                self.get_sample_lost_status(),
-            )
+            subscriber_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_sample_lost(
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+                    self.get_sample_lost_status(),
+                )
         } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
-            participant_status_listener.listener_mut().on_sample_lost(
-                &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                self.get_sample_lost_status(),
-            )
+            participant_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_sample_lost(
+                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+                    self.get_sample_lost_status(),
+                )
         }
     }
 
@@ -1010,6 +1024,8 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(subscription_matched_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_subscription_matched(
                     ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
@@ -1017,6 +1033,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_subscription_matched(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
@@ -1024,6 +1042,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_subscription_matched(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_subscription_matched_status(),
@@ -1067,6 +1087,8 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(sample_rejected_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_sample_rejected(
                     ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
@@ -1074,6 +1096,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_sample_rejected(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
@@ -1081,6 +1105,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_sample_rejected(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_sample_rejected_status(),
@@ -1123,6 +1149,8 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_requested_deadline_missed(
                     ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
@@ -1130,6 +1158,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_requested_deadline_missed(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
@@ -1137,6 +1167,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if participant_status_listener.is_enabled(requested_deadline_missed_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_requested_deadline_missed(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_deadline_missed_status(),
@@ -1179,6 +1211,8 @@ impl DdsShared<UserDefinedDataReader> {
         if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             reader_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_requested_incompatible_qos(
                     ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),
@@ -1186,6 +1220,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_requested_incompatible_qos(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),
@@ -1193,6 +1229,8 @@ impl DdsShared<UserDefinedDataReader> {
         } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_requested_incompatible_qos(
                     &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
                     self.get_requested_incompatible_qos_status(),

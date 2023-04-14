@@ -381,12 +381,16 @@ impl DdsShared<UserDefinedSubscriber> {
         if subscriber_status_listener.is_enabled(data_on_readers_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
                     ListenerSubscriberNode::new(),
                 )))
         } else if participant_status_listener.is_enabled(data_on_readers_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
                     ListenerSubscriberNode::new(),
                 )))
