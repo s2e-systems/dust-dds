@@ -13,14 +13,13 @@ use super::{
     messages::overall_structure::RtpsMessageHeader,
     reader_locator::RtpsReaderLocator,
     transport::TransportWrite,
-    types::{ChangeKind, Count, Guid, Locator},
+    types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
 };
 
 pub struct RtpsStatelessWriter {
     writer: RtpsWriter,
     reader_locators: Vec<RtpsReaderLocator>,
-    _heartbeat_count: Count,
 }
 
 impl RtpsStatelessWriter {
@@ -28,35 +27,34 @@ impl RtpsStatelessWriter {
         Self {
             writer,
             reader_locators: Vec::new(),
-            _heartbeat_count: Count::new(0),
         }
     }
 
-    pub fn guid(&self) -> Guid {
+    pub fn _guid(&self) -> Guid {
         self.writer.guid()
     }
 
-    pub fn unicast_locator_list(&self) -> &[Locator] {
+    pub fn _unicast_locator_list(&self) -> &[Locator] {
         self.writer.unicast_locator_list()
     }
 
-    pub fn multicast_locator_list(&self) -> &[Locator] {
+    pub fn _multicast_locator_list(&self) -> &[Locator] {
         self.writer.multicast_locator_list()
     }
 
-    pub fn push_mode(&self) -> bool {
+    pub fn _push_mode(&self) -> bool {
         self.writer.push_mode()
     }
 
-    pub fn heartbeat_period(&self) -> Duration {
+    pub fn _heartbeat_period(&self) -> Duration {
         self.writer.heartbeat_period()
     }
 
-    pub fn data_max_size_serialized(&self) -> usize {
+    pub fn _data_max_size_serialized(&self) -> usize {
         self.writer.data_max_size_serialized()
     }
 
-    pub fn new_change(
+    pub fn _new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
@@ -68,7 +66,7 @@ impl RtpsStatelessWriter {
             .new_change(kind, data, inline_qos, handle, timestamp)
     }
 
-    pub fn change_list(&self) -> &[RtpsWriterCacheChange] {
+    pub fn _change_list(&self) -> &[RtpsWriterCacheChange] {
         self.writer.change_list()
     }
 
@@ -81,12 +79,10 @@ impl RtpsStatelessWriter {
         self.writer.add_change(change);
     }
 
-    pub fn remove_change<F>(&mut self, f: F)
+    pub fn _remove_change<F>(&mut self, f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
-        todo!();
-
         self.writer.remove_change(f)
     }
 
@@ -100,8 +96,9 @@ impl RtpsStatelessWriter {
         self.reader_locators.push(a_locator);
     }
 
-    pub fn reader_locator_remove(&mut self, a_locator: Locator) {
-        todo!()
+    pub fn _reader_locator_remove(&mut self, a_locator: Locator) {
+        self.reader_locators
+            .retain(|l| !(l._locator() == a_locator))
     }
 
     pub fn write_w_timestamp(

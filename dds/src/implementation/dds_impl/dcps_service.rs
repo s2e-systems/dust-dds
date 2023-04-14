@@ -189,7 +189,7 @@ impl DcpsService {
                     .send_message(header, &mut metatraffic_unicast_transport_send);
 
                 builtin_stateful_writer_send_message(
-                    &domain_participant
+                    domain_participant
                         .get_builtin_publisher()
                         .sedp_builtin_publications_writer(),
                     header,
@@ -197,7 +197,7 @@ impl DcpsService {
                 );
 
                 builtin_stateful_writer_send_message(
-                    &domain_participant
+                    domain_participant
                         .get_builtin_publisher()
                         .sedp_builtin_subscriptions_writer(),
                     header,
@@ -205,7 +205,7 @@ impl DcpsService {
                 );
 
                 builtin_stateful_writer_send_message(
-                    &domain_participant
+                    domain_participant
                         .get_builtin_publisher()
                         .sedp_builtin_topics_writer(),
                     header,
@@ -560,6 +560,7 @@ fn send_message_best_effort_reader_proxy(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn send_message_reliable_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     data_max_size_serialized: usize,
@@ -700,6 +701,7 @@ fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKin
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn directly_send_data_frag(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     cache_change: &RtpsWriterCacheChange,

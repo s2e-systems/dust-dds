@@ -107,18 +107,18 @@ impl BuiltinStatefulWriter {
         self.rtps_writer.read_lock().guid()
     }
 
-    pub fn unicast_locator_list(&self) -> Vec<Locator> {
+    pub fn _unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_writer.read_lock().unicast_locator_list().to_vec()
     }
 
-    pub fn multicast_locator_list(&self) -> Vec<Locator> {
+    pub fn _multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_writer
             .read_lock()
             .multicast_locator_list()
             .to_vec()
     }
 
-    pub fn push_mode(&self) -> bool {
+    pub fn _push_mode(&self) -> bool {
         self.rtps_writer.read_lock().push_mode()
     }
 
@@ -130,7 +130,7 @@ impl BuiltinStatefulWriter {
         self.rtps_writer.read_lock().data_max_size_serialized()
     }
 
-    pub fn new_change(
+    pub fn _new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
@@ -147,24 +147,24 @@ impl BuiltinStatefulWriter {
         WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
     }
 
-    pub fn add_change(&self, change: RtpsWriterCacheChange) {
+    pub fn _add_change(&self, change: RtpsWriterCacheChange) {
         self.rtps_writer.write_lock().add_change(change)
     }
 
-    pub fn remove_change<F>(&self, f: F)
+    pub fn _remove_change<F>(&self, f: F)
     where
         F: FnMut(&RtpsWriterCacheChange) -> bool,
     {
         self.rtps_writer.write_lock().remove_change(f)
     }
 
-    pub fn matched_reader_add(&self, mut a_reader_proxy: RtpsReaderProxy) {
+    pub fn _matched_reader_add(&self, a_reader_proxy: RtpsReaderProxy) {
         self.rtps_writer
             .write_lock()
             .matched_reader_add(a_reader_proxy)
     }
 
-    pub fn matched_reader_remove(&self, a_reader_guid: Guid) {
+    pub fn _matched_reader_remove(&self, a_reader_guid: Guid) {
         self.rtps_writer
             .write_lock()
             .matched_reader_remove(a_reader_guid)
@@ -174,14 +174,8 @@ impl BuiltinStatefulWriter {
         ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
     }
 
-    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        todo!()
-    }
-
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
-
-        Ok(())
+    pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
+        self.rtps_writer.read_lock().is_acked_by_all(a_change)
     }
 }
 

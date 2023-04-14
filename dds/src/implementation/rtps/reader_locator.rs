@@ -51,6 +51,10 @@ impl RtpsReaderLocator {
         }
     }
 
+    pub fn _locator(&self) -> Locator {
+        self.locator
+    }
+
     pub fn unsent_changes_mut(&mut self) -> &mut Vec<SequenceNumber> {
         &mut self.unsent_changes
     }

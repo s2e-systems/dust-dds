@@ -189,18 +189,18 @@ impl UserDefinedDataWriter {
         self.rtps_writer.read_lock().guid()
     }
 
-    pub fn unicast_locator_list(&self) -> Vec<Locator> {
+    pub fn _unicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_writer.read_lock().unicast_locator_list().to_vec()
     }
 
-    pub fn multicast_locator_list(&self) -> Vec<Locator> {
+    pub fn _multicast_locator_list(&self) -> Vec<Locator> {
         self.rtps_writer
             .read_lock()
             .multicast_locator_list()
             .to_vec()
     }
 
-    pub fn push_mode(&self) -> bool {
+    pub fn _push_mode(&self) -> bool {
         self.rtps_writer.read_lock().push_mode()
     }
 
@@ -212,7 +212,7 @@ impl UserDefinedDataWriter {
         self.rtps_writer.read_lock().data_max_size_serialized()
     }
 
-    pub fn new_change(
+    pub fn _new_change(
         &mut self,
         kind: ChangeKind,
         data: Vec<u8>,
@@ -229,7 +229,7 @@ impl UserDefinedDataWriter {
         WriterChangeListIntoIter::new(self.rtps_writer.read_lock())
     }
 
-    pub fn add_change(&self, change: RtpsWriterCacheChange) {
+    pub fn _add_change(&self, change: RtpsWriterCacheChange) {
         self.rtps_writer.write_lock().add_change(change)
     }
 
@@ -240,13 +240,13 @@ impl UserDefinedDataWriter {
         self.rtps_writer.write_lock().remove_change(f)
     }
 
-    pub fn matched_reader_add(&self, mut a_reader_proxy: RtpsReaderProxy) {
+    pub fn _matched_reader_add(&self, a_reader_proxy: RtpsReaderProxy) {
         self.rtps_writer
             .write_lock()
             .matched_reader_add(a_reader_proxy)
     }
 
-    pub fn matched_reader_remove(&self, a_reader_guid: Guid) {
+    pub fn _matched_reader_remove(&self, a_reader_guid: Guid) {
         self.rtps_writer
             .write_lock()
             .matched_reader_remove(a_reader_guid)
@@ -256,8 +256,8 @@ impl UserDefinedDataWriter {
         ReaderProxyListIntoIter::new(self.rtps_writer.write_lock())
     }
 
-    pub fn is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
-        todo!()
+    pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
+        self.rtps_writer.read_lock().is_acked_by_all(a_change)
     }
 
     pub fn get_topic_name(&self) -> &str {
