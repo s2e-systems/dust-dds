@@ -32,7 +32,8 @@ jobs:
       - run: cargo --version
       - run: cargo clippy -- -D warnings
       - when:
-        condition: << pipeline.parameters.check_schema_md >>
+        condition:
+          equal: [true, << pipeline.parameters.check_schema_md >>]
         steps:
           - run:
               name: Check schema.md is up to date
