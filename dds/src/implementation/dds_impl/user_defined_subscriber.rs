@@ -16,7 +16,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsIterator,
+            iterator::DdsListIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -173,8 +173,8 @@ impl DdsShared<UserDefinedSubscriber> {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
-        DdsIterator::new(self.data_reader_list.read_lock())
+    pub fn data_reader_list(&self) -> DdsListIterator<'_, UserDefinedDataReader> {
+        DdsListIterator::new(self.data_reader_list.read_lock())
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {

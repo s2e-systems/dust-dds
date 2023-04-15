@@ -29,7 +29,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsIterator,
+            iterator::{DdsListIterator, PairListIntoIter},
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
         },
@@ -71,11 +71,10 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber, iterators::PairListIntoIter,
-    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
-    user_defined_subscriber::UserDefinedSubscriber,
+    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
+    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener, topic_impl::TopicImpl,
+    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -428,8 +427,8 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn user_defined_publisher_list(&self) -> DdsIterator<UserDefinedPublisher> {
-        DdsIterator::new(self.user_defined_publisher_list.read_lock())
+    pub fn user_defined_publisher_list(&self) -> DdsListIterator<UserDefinedPublisher> {
+        DdsListIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
     pub fn create_subscriber(
@@ -503,8 +502,8 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn user_defined_subscriber_list(&self) -> DdsIterator<UserDefinedSubscriber> {
-        DdsIterator::new(self.user_defined_subscriber_list.read_lock())
+    pub fn user_defined_subscriber_list(&self) -> DdsListIterator<UserDefinedSubscriber> {
+        DdsListIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
     pub fn create_topic(
@@ -592,8 +591,8 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn topic_list(&self) -> DdsIterator<TopicImpl> {
-        DdsIterator::new(self.topic_list.read_lock())
+    pub fn topic_list(&self) -> DdsListIterator<TopicImpl> {
+        DdsListIterator::new(self.topic_list.read_lock())
     }
 
     pub fn find_topic(

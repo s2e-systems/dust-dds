@@ -1,14 +1,8 @@
-use std::{
-    collections::HashMap,
-    sync::{RwLockReadGuard, RwLockWriteGuard},
-};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
-use crate::{
-    implementation::rtps::{
-        history_cache::RtpsWriterCacheChange, reader_proxy::WriterAssociatedReaderProxy,
-        stateful_writer::RtpsStatefulWriter,
-    },
-    infrastructure::instance::InstanceHandle,
+use crate::implementation::rtps::{
+    history_cache::RtpsWriterCacheChange, reader_proxy::WriterAssociatedReaderProxy,
+    stateful_writer::RtpsStatefulWriter,
 };
 
 pub struct ReaderProxyListIntoIter<'a> {
@@ -61,24 +55,5 @@ impl<'a> IntoIterator for &'a WriterChangeListIntoIter<'_> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.lock.change_list().iter()
-    }
-}
-
-pub struct PairListIntoIter<'a, T> {
-    lock: RwLockReadGuard<'a, HashMap<InstanceHandle, T>>,
-}
-
-impl<'a, T> PairListIntoIter<'a, T> {
-    pub fn new(lock: RwLockReadGuard<'a, HashMap<InstanceHandle, T>>) -> Self {
-        Self { lock }
-    }
-}
-
-impl<'a, T> IntoIterator for &'a PairListIntoIter<'_, T> {
-    type Item = (&'a InstanceHandle, &'a T);
-    type IntoIter = std::collections::hash_map::Iter<'a, InstanceHandle, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.lock.iter()
     }
 }
