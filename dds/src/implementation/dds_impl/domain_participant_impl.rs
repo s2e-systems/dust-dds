@@ -71,10 +71,11 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
+    builtin_subscriber::BuiltInSubscriber, iterators::PairListIntoIter,
+    message_receiver::MessageReceiver, participant_discovery::ParticipantDiscovery,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -339,6 +340,26 @@ impl DomainParticipantImpl {
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn DomainParticipantListener + Send + Sync>> {
         self.status_listener.write_lock()
+    }
+
+    pub fn discovered_participant_add(
+        &self,
+        handle: InstanceHandle,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
+    ) {
+        self.discovered_participant_list
+            .write_lock()
+            .insert(handle, discovered_participant_data);
+    }
+
+    pub fn discovered_participant_remove(&self, handle: InstanceHandle) {
+        self.discovered_participant_list
+            .write_lock()
+            .remove(&handle);
+    }
+
+    pub fn discovered_participant_list(&self) -> PairListIntoIter<SpdpDiscoveredParticipantData> {
+        PairListIntoIter::new(self.discovered_participant_list.read_lock())
     }
 }
 
@@ -725,28 +746,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.default_topic_qos.read_lock().clone()
     }
 
-    pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self
-            .discovered_participant_list
-            .read_lock()
-            .iter()
-            .map(|(&key, _)| key)
-            .collect())
-    }
-
-    pub fn get_discovered_participant_data(
-        &self,
-        participant_handle: InstanceHandle,
-    ) -> DdsResult<ParticipantBuiltinTopicData> {
-        Ok(self
-            .discovered_participant_list
-            .read_lock()
-            .get(&participant_handle)
-            .ok_or(DdsError::BadParameter)?
-            .dds_participant_data
-            .clone())
-    }
-
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         Ok(self
             .discovered_topic_list
@@ -894,43 +893,31 @@ impl DdsShared<DomainParticipantImpl> {
         ) {
             if !self.is_participant_ignored(discovered_participant_data.get_serialized_key().into())
             {
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_publications_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_publication_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_publications_reader();
-                sedp_builtin_publication_reader_shared
+                self.get_builtin_subscriber()
+                    .sedp_builtin_publications_reader()
                     .add_matched_participant(&participant_discovery);
 
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_subscriptions_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_subscription_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_subscriptions_reader();
-                sedp_builtin_subscription_reader_shared
+                self.get_builtin_subscriber()
+                    .sedp_builtin_subscriptions_reader()
                     .add_matched_participant(&participant_discovery);
 
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_topics_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_topic_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_topics_reader();
-                sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
+                self.get_builtin_subscriber()
+                    .sedp_builtin_topics_reader()
+                    .add_matched_participant(&participant_discovery);
 
-                let this = self.clone();
-
-                let lease_duration = Duration::from(discovered_participant_data.lease_duration);
-                let handle = discovered_participant_data.get_serialized_key().into();
-                self.timer.write_lock().start_timer(
-                    DurationKind::Finite(lease_duration),
-                    discovered_participant_data.get_serialized_key().into(),
-                    move || this.remove_discovered_participant(handle),
-                );
-
-                self.discovered_participant_list.write_lock().insert(
+                self.discovered_participant_add(
                     discovered_participant_data.get_serialized_key().into(),
                     discovered_participant_data,
                 );
@@ -938,32 +925,34 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
-    pub fn remove_discovered_participant(&self, handle: InstanceHandle) {
-        if let Some(discovered_participant_data) = self
-            .discovered_participant_list
-            .write_lock()
-            .remove(&handle)
+    pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
+        if let Some((_, discovered_participant_data)) = self
+            .discovered_participant_list()
+            .into_iter()
+            .find(|&(h, _)| h == &participant_handle)
         {
             let participant_guid_prefix = discovered_participant_data.guid_prefix();
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_publications_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_subscriptions_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_topics_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_publications_writer()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_subscriptions_writer()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_topics_writer()
                 .remove_matched_participant(participant_guid_prefix);
         }
+
+        self.discovered_participant_remove(participant_handle);
     }
 
     pub fn receive_user_defined_data(

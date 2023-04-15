@@ -212,7 +212,13 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.get_discovered_participants()
+        Ok(self
+            .0
+            .get()?
+            .discovered_participant_list()
+            .into_iter()
+            .map(|(&key, _)| key)
+            .collect())
     }
 
     pub fn get_discovered_participant_data(
@@ -223,9 +229,16 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0
+        Ok(self
+            .0
             .get()?
-            .get_discovered_participant_data(participant_handle)
+            .discovered_participant_list()
+            .into_iter()
+            .find(|&(handle, _)| handle == &participant_handle)
+            .ok_or(DdsError::BadParameter)?
+            .1
+            .dds_participant_data
+            .clone())
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
