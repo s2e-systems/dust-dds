@@ -8,7 +8,10 @@ use std::{
     thread::JoinHandle,
 };
 
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -26,7 +29,8 @@ use crate::{
             reader_proxy::WriterAssociatedReaderProxy,
             transport::TransportWrite,
             types::{
-                EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT,
+                EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_PARTICIPANT,
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
@@ -47,7 +51,9 @@ use super::{
     builtin_stateful_writer::BuiltinStatefulWriter,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     message_receiver::MessageReceiver,
+    status_listener::StatusListener,
     user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub struct DcpsService {
@@ -854,7 +860,8 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
                             })
                         {
                             for subscriber in &domain_participant.user_defined_subscriber_list() {
-                                subscriber.add_matched_writer(
+                                subscriber_add_matched_writer(
+                                    subscriber,
                                     &discovered_writer_data,
                                     discovered_participant_data.default_unicast_locator_list(),
                                     discovered_participant_data.default_multicast_locator_list(),
@@ -867,10 +874,13 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
             }
             InstanceStateKind::NotAliveDisposed => {
                 for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    subscriber.remove_matched_writer(
-                        discovered_writer_data_sample.sample_info.instance_handle,
-                        &mut domain_participant.get_status_listener_lock(),
-                    );
+                    for data_reader in &subscriber.data_reader_list() {
+                        data_reader.remove_matched_writer(
+                            discovered_writer_data_sample.sample_info.instance_handle,
+                            &mut subscriber.get_status_listener_lock(),
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
+                    }
                 }
             }
             InstanceStateKind::NotAliveNoWriters => todo!(),
@@ -878,4 +888,57 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
     }
 
     Ok(())
+}
+
+pub fn subscriber_add_matched_writer(
+    user_defined_subscriber: &UserDefinedSubscriber,
+    discovered_writer_data: &DiscoveredWriterData,
+    default_unicast_locator_list: &[Locator],
+    default_multicast_locator_list: &[Locator],
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
+        &discovered_writer_data
+            .publication_builtin_topic_data
+            .partition
+            .name,
+    ) {
+        d.is_match(&user_defined_subscriber.get_qos().partition.name)
+    } else {
+        false
+    };
+
+    let is_subscriber_regex_matched_to_discovered_writer =
+        if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
+            d.is_match(
+                &discovered_writer_data
+                    .publication_builtin_topic_data
+                    .partition
+                    .name,
+            )
+        } else {
+            false
+        };
+
+    let is_partition_string_matched = discovered_writer_data
+        .publication_builtin_topic_data
+        .partition
+        .name
+        == user_defined_subscriber.get_qos().partition.name;
+
+    if is_discovered_writer_regex_matched_to_subscriber
+        || is_subscriber_regex_matched_to_discovered_writer
+        || is_partition_string_matched
+    {
+        for data_reader in &user_defined_subscriber.data_reader_list() {
+            data_reader.add_matched_writer(
+                discovered_writer_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                &mut user_defined_subscriber.get_status_listener_lock(),
+                participant_status_listener,
+                &user_defined_subscriber.get_qos(),
+            )
+        }
+    }
 }

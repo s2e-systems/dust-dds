@@ -678,7 +678,13 @@ impl DdsShared<DomainParticipantImpl> {
         self.ignored_publications.write_lock().insert(handle);
 
         for subscriber in &self.user_defined_subscriber_list() {
-            subscriber.remove_matched_writer(handle, &mut self.status_listener.write_lock());
+            for data_reader in &subscriber.data_reader_list() {
+                data_reader.remove_matched_writer(
+                    handle,
+                    &mut subscriber.get_status_listener_lock(),
+                    &mut self.get_status_listener_lock(),
+                )
+            }
         }
     }
 

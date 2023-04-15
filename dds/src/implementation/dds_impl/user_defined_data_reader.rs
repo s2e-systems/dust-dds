@@ -999,15 +999,15 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .increment(instance_handle);
 
-        self.trigger_on_subscription_matched_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
         self.status_condition
             .write_lock()
             .add_communication_state(StatusKind::SubscriptionMatched);
+
+        self.trigger_on_subscription_matched_listener(
+            &mut self.get_status_listener_lock(),
+            subscriber_status_listener,
+            participant_status_listener,
+        );
     }
 
     fn trigger_on_subscription_matched_listener(
