@@ -1,7 +1,5 @@
 use std::{collections::HashMap, sync::RwLockReadGuard};
 
-use crate::infrastructure::instance::InstanceHandle;
-
 use super::shared_object::DdsShared;
 
 pub struct DdsListIterator<'a, T> {
@@ -29,19 +27,19 @@ impl<'a, T> DdsListIterator<'a, T> {
     }
 }
 
-pub struct PairListIntoIter<'a, T> {
-    lock: RwLockReadGuard<'a, HashMap<InstanceHandle, T>>,
+pub struct DdsMapIntoIterator<'a, K, T> {
+    lock: RwLockReadGuard<'a, HashMap<K, T>>,
 }
 
-impl<'a, T> PairListIntoIter<'a, T> {
-    pub fn new(lock: RwLockReadGuard<'a, HashMap<InstanceHandle, T>>) -> Self {
+impl<'a, K, T> DdsMapIntoIterator<'a, K, T> {
+    pub fn new(lock: RwLockReadGuard<'a, HashMap<K, T>>) -> Self {
         Self { lock }
     }
 }
 
-impl<'a, T> IntoIterator for &'a PairListIntoIter<'_, T> {
-    type Item = (&'a InstanceHandle, &'a T);
-    type IntoIter = std::collections::hash_map::Iter<'a, InstanceHandle, T>;
+impl<'a, K, T> IntoIterator for &'a DdsMapIntoIterator<'_, K, T> {
+    type Item = (&'a K, &'a T);
+    type IntoIter = std::collections::hash_map::Iter<'a, K, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.lock.iter()

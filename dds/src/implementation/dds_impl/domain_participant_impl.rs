@@ -29,7 +29,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::{DdsListIterator, PairListIntoIter},
+            iterator::{DdsListIterator, DdsMapIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
         },
@@ -357,8 +357,10 @@ impl DomainParticipantImpl {
             .remove(&handle);
     }
 
-    pub fn discovered_participant_list(&self) -> PairListIntoIter<SpdpDiscoveredParticipantData> {
-        PairListIntoIter::new(self.discovered_participant_list.read_lock())
+    pub fn discovered_participant_list(
+        &self,
+    ) -> DdsMapIntoIterator<InstanceHandle, SpdpDiscoveredParticipantData> {
+        DdsMapIntoIterator::new(self.discovered_participant_list.read_lock())
     }
 }
 
