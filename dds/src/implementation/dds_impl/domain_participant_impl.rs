@@ -371,13 +371,7 @@ impl DdsShared<DomainParticipantImpl> {
             self.data_max_size_serialized,
             self.announce_sender.clone(),
         );
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
+        if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
             publisher_impl_shared.enable()?;
         }
 
@@ -1191,10 +1185,10 @@ impl DdsShared<DomainParticipantImpl> {
         ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
-                    for topic in self.topic_list.read_lock().iter() {
+                    for topic in self.topic_list() {
                         topic.process_discovered_topic(
                             topic_data,
-                            &mut self.status_listener.write_lock(),
+                            &mut self.get_status_listener_lock(),
                         );
                     }
 
