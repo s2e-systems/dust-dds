@@ -25,7 +25,9 @@ use crate::{
             },
             reader_proxy::WriterAssociatedReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, GuidPrefix, ReliabilityKind, SequenceNumber},
+            types::{
+                EntityId, Guid, GuidPrefix, ReliabilityKind, SequenceNumber, ENTITYID_PARTICIPANT,
+            },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
@@ -34,6 +36,9 @@ use crate::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         time::{Duration, DurationKind, Time},
+    },
+    subscription::sample_info::{
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
@@ -109,7 +114,7 @@ impl DcpsService {
 
                     domain_participant.discover_matched_participants().ok();
                     domain_participant.discover_matched_readers().ok();
-                    domain_participant.discover_matched_writers().ok();
+                    discover_matched_writers(&domain_participant).ok();
                     domain_participant.discover_matched_topics().ok();
                 }
             }));
@@ -179,7 +184,7 @@ impl DcpsService {
 
                     domain_participant.discover_matched_participants().ok();
                     domain_participant.discover_matched_readers().ok();
-                    domain_participant.discover_matched_writers().ok();
+                    discover_matched_writers(&domain_participant).ok();
                     domain_participant.discover_matched_topics().ok();
                 }
             }));
@@ -810,4 +815,67 @@ fn builtin_stateful_writer_send_message(
             heartbeat_period,
         )
     }
+}
+
+fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsResult<()> {
+    let samples = domain_participant
+        .get_builtin_subscriber()
+        .sedp_builtin_publications_reader()
+        .read::<DiscoveredWriterData>(
+            i32::MAX,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+            None,
+        )?;
+
+    for discovered_writer_data_sample in samples.into_iter() {
+        match discovered_writer_data_sample.sample_info.instance_state {
+            InstanceStateKind::Alive => {
+                if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+                    if !domain_participant.is_publication_ignored(
+                        discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid
+                            .into(),
+                    ) {
+                        let remote_writer_guid_prefix = discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid
+                            .prefix();
+                        let writer_parent_participant_guid =
+                            Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                        if let Some((_, discovered_participant_data)) = domain_participant
+                            .discovered_participant_list()
+                            .into_iter()
+                            .find(|&(h, _)| {
+                                h == &InstanceHandle::from(writer_parent_participant_guid)
+                            })
+                        {
+                            for subscriber in &domain_participant.user_defined_subscriber_list() {
+                                subscriber.add_matched_writer(
+                                    &discovered_writer_data,
+                                    discovered_participant_data.default_unicast_locator_list(),
+                                    discovered_participant_data.default_multicast_locator_list(),
+                                    &mut domain_participant.get_status_listener_lock(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                for subscriber in &domain_participant.user_defined_subscriber_list() {
+                    subscriber.remove_matched_writer(
+                        discovered_writer_data_sample.sample_info.instance_handle,
+                        &mut domain_participant.get_status_listener_lock(),
+                    );
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => todo!(),
+        }
+    }
+
+    Ok(())
 }

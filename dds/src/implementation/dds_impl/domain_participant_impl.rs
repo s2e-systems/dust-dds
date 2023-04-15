@@ -362,9 +362,7 @@ impl DomainParticipantImpl {
     ) -> DdsMapIntoIterator<InstanceHandle, SpdpDiscoveredParticipantData> {
         DdsMapIntoIterator::new(self.discovered_participant_list.read_lock())
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
@@ -431,7 +429,9 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn user_defined_publisher_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedPublisher>> {
+    pub fn user_defined_publisher_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<UserDefinedPublisher>> {
         DdsListIntoIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
@@ -601,6 +601,12 @@ impl DdsShared<DomainParticipantImpl> {
         DdsListIntoIterator::new(self.topic_list.read_lock())
     }
 
+    pub fn get_qos(&self) -> DomainParticipantQos {
+        self.qos.read_lock().clone()
+    }
+}
+
+impl DdsShared<DomainParticipantImpl> {
     pub fn find_topic(
         &self,
         topic_name: &str,
@@ -783,10 +789,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.announce_participant().ok();
 
         Ok(())
-    }
-
-    pub fn get_qos(&self) -> DomainParticipantQos {
-        self.qos.read_lock().clone()
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -990,68 +992,6 @@ impl DdsShared<DomainParticipantImpl> {
                 if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
                     self.add_discovered_participant(discovered_participant_data)
                 }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn discover_matched_writers(&self) -> DdsResult<()> {
-        let samples = self
-            .builtin_subscriber
-            .sedp_builtin_publications_reader()
-            .read::<DiscoveredWriterData>(
-            i32::MAX,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )?;
-
-        for discovered_writer_data_sample in samples.into_iter() {
-            match discovered_writer_data_sample.sample_info.instance_state {
-                InstanceStateKind::Alive => {
-                    if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                        if !self.is_publication_ignored(
-                            discovered_writer_data
-                                .writer_proxy
-                                .remote_writer_guid
-                                .into(),
-                        ) {
-                            let remote_writer_guid_prefix = discovered_writer_data
-                                .writer_proxy
-                                .remote_writer_guid
-                                .prefix();
-                            let writer_parent_participant_guid =
-                                Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
-
-                            if let Some(discovered_participant_data) = self
-                                .discovered_participant_list
-                                .read_lock()
-                                .get(&writer_parent_participant_guid.into())
-                            {
-                                for subscriber in &self.user_defined_subscriber_list() {
-                                    subscriber.add_matched_writer(
-                                        &discovered_writer_data,
-                                        discovered_participant_data.default_unicast_locator_list(),
-                                        discovered_participant_data
-                                            .default_multicast_locator_list(),
-                                        &mut self.status_listener.write_lock(),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-                InstanceStateKind::NotAliveDisposed => {
-                    for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                        subscriber.remove_matched_writer(
-                            discovered_writer_data_sample.sample_info.instance_handle,
-                            &mut self.status_listener.write_lock(),
-                        );
-                    }
-                }
-                InstanceStateKind::NotAliveNoWriters => todo!(),
             }
         }
 
