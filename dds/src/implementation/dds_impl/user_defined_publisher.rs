@@ -9,7 +9,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsListIterator,
+            iterator::DdsListIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -140,8 +140,8 @@ impl UserDefinedPublisher {
         Ok(())
     }
 
-    pub fn data_writer_list(&self) -> DdsListIterator<DdsShared<UserDefinedDataWriter>> {
-        DdsListIterator::new(self.data_writer_list.read_lock())
+    pub fn data_writer_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter>> {
+        DdsListIntoIterator::new(self.data_writer_list.read_lock())
     }
 
     pub fn get_status_listener_lock(

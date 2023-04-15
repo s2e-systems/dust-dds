@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::RwLockReadGuard};
 
-pub struct DdsListIterator<'a, T> {
+pub struct DdsListIntoIterator<'a, T> {
     lock: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<'a, T> IntoIterator for &'a DdsListIterator<'_, T> {
+impl<'a, T> IntoIterator for &'a DdsListIntoIterator<'_, T> {
     type Item = &'a T;
     type IntoIter = std::slice::Iter<'a, T>;
 
@@ -13,7 +13,7 @@ impl<'a, T> IntoIterator for &'a DdsListIterator<'_, T> {
     }
 }
 
-impl<'a, T> DdsListIterator<'a, T> {
+impl<'a, T> DdsListIntoIterator<'a, T> {
     pub fn new(lock: RwLockReadGuard<'a, Vec<T>>) -> Self {
         Self { lock }
     }
