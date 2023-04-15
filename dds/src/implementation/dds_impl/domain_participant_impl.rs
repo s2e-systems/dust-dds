@@ -431,7 +431,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn user_defined_publisher_list(&self) -> DdsListIterator<UserDefinedPublisher> {
+    pub fn user_defined_publisher_list(&self) -> DdsListIterator<DdsShared<UserDefinedPublisher>> {
         DdsListIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
@@ -506,7 +506,9 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn user_defined_subscriber_list(&self) -> DdsListIterator<UserDefinedSubscriber> {
+    pub fn user_defined_subscriber_list(
+        &self,
+    ) -> DdsListIterator<DdsShared<UserDefinedSubscriber>> {
         DdsListIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
@@ -595,7 +597,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn topic_list(&self) -> DdsListIterator<TopicImpl> {
+    pub fn topic_list(&self) -> DdsListIterator<DdsShared<TopicImpl>> {
         DdsListIterator::new(self.topic_list.read_lock())
     }
 

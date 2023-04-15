@@ -140,7 +140,7 @@ impl UserDefinedPublisher {
         Ok(())
     }
 
-    pub fn data_writer_list(&self) -> DdsListIterator<'_, UserDefinedDataWriter> {
+    pub fn data_writer_list(&self) -> DdsListIterator<DdsShared<UserDefinedDataWriter>> {
         DdsListIterator::new(self.data_writer_list.read_lock())
     }
 

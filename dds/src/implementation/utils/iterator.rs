@@ -1,14 +1,12 @@
 use std::{collections::HashMap, sync::RwLockReadGuard};
 
-use super::shared_object::DdsShared;
-
 pub struct DdsListIterator<'a, T> {
-    lock: RwLockReadGuard<'a, Vec<DdsShared<T>>>,
+    lock: RwLockReadGuard<'a, Vec<T>>,
 }
 
 impl<'a, T> IntoIterator for &'a DdsListIterator<'_, T> {
-    type Item = &'a DdsShared<T>;
-    type IntoIter = std::slice::Iter<'a, DdsShared<T>>;
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.lock.iter()
@@ -16,7 +14,7 @@ impl<'a, T> IntoIterator for &'a DdsListIterator<'_, T> {
 }
 
 impl<'a, T> DdsListIterator<'a, T> {
-    pub fn new(lock: RwLockReadGuard<'a, Vec<DdsShared<T>>>) -> Self {
+    pub fn new(lock: RwLockReadGuard<'a, Vec<T>>) -> Self {
         Self { lock }
     }
 }

@@ -173,7 +173,7 @@ impl DdsShared<UserDefinedSubscriber> {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsListIterator<'_, UserDefinedDataReader> {
+    pub fn data_reader_list(&self) -> DdsListIterator<DdsShared<UserDefinedDataReader>> {
         DdsListIterator::new(self.data_reader_list.read_lock())
     }
 
