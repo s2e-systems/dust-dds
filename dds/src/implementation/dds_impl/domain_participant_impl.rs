@@ -407,6 +407,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .user_defined_publisher_list()
+            .into_iter()
             .find(|x| x.get_instance_handle() == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
@@ -414,6 +415,7 @@ impl DdsShared<DomainParticipantImpl> {
                 )
             })?
             .data_writer_list()
+            .into_iter()
             .count()
             > 0
         {
@@ -479,9 +481,8 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
         if self
-            .user_defined_subscriber_list
-            .read_lock()
-            .iter()
+            .user_defined_subscriber_list()
+            .into_iter()
             .find(|&x| x.get_instance_handle() == a_subscriber_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
@@ -489,6 +490,7 @@ impl DdsShared<DomainParticipantImpl> {
                 )
             })?
             .data_reader_list()
+            .into_iter()
             .count()
             > 0
         {
@@ -567,8 +569,8 @@ impl DdsShared<DomainParticipantImpl> {
             })?
             .clone();
 
-        for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            if publisher.data_writer_list().any(|w| {
+        for publisher in &self.user_defined_publisher_list() {
+            if publisher.data_writer_list().into_iter().any(|w| {
                 w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -577,8 +579,8 @@ impl DdsShared<DomainParticipantImpl> {
             }
         }
 
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            if subscriber.data_reader_list().any(|r| {
+        for subscriber in &self.user_defined_subscriber_list() {
+            if subscriber.data_reader_list().into_iter().any(|r| {
                 r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -667,15 +669,15 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn ignore_publication(&self, handle: InstanceHandle) {
         self.ignored_publications.write_lock().insert(handle);
 
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+        for subscriber in &self.user_defined_subscriber_list() {
             subscriber.remove_matched_writer(handle, &mut self.status_listener.write_lock());
         }
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
-        for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            for data_writer in publisher.data_writer_list() {
+        for publisher in &self.user_defined_publisher_list() {
+            for data_writer in &publisher.data_writer_list() {
                 data_writer.remove_matched_reader(
                     handle,
                     &mut publisher.get_status_listener_lock(),
@@ -1026,7 +1028,7 @@ impl DdsShared<DomainParticipantImpl> {
                                 .read_lock()
                                 .get(&writer_parent_participant_guid.into())
                             {
-                                for subscriber in self.user_defined_subscriber_list() {
+                                for subscriber in &self.user_defined_subscriber_list() {
                                     subscriber.add_matched_writer(
                                         &discovered_writer_data,
                                         discovered_participant_data.default_unicast_locator_list(),
@@ -1088,7 +1090,7 @@ impl DdsShared<DomainParticipantImpl> {
                                 .read_lock()
                                 .get(&reader_parent_participant_guid.into())
                             {
-                                for publisher in self.user_defined_publisher_list() {
+                                for publisher in &self.user_defined_publisher_list() {
                                     let is_discovered_reader_regex_matched_to_publisher =
                                         if let Ok(d) = glob_to_regex(
                                             &discovered_reader_data
@@ -1125,7 +1127,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         || is_publisher_regex_matched_to_discovered_reader
                                         || is_partition_string_matched
                                     {
-                                        for data_writer in publisher.data_writer_list() {
+                                        for data_writer in &publisher.data_writer_list() {
                                             data_writer.add_matched_reader(
                                                 &discovered_reader_data,
                                                 discovered_participant_data
@@ -1144,8 +1146,8 @@ impl DdsShared<DomainParticipantImpl> {
                     }
                 }
                 InstanceStateKind::NotAliveDisposed => {
-                    for publisher in self.user_defined_publisher_list() {
-                        for data_writer in publisher.data_writer_list() {
+                    for publisher in &self.user_defined_publisher_list() {
+                        for data_writer in &publisher.data_writer_list() {
                             data_writer.remove_matched_reader(
                                 discovered_reader_data_sample.sample_info.instance_handle,
                                 &mut publisher.get_status_listener_lock(),
@@ -1175,7 +1177,7 @@ impl DdsShared<DomainParticipantImpl> {
         ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
-                    for topic in self.topic_list() {
+                    for topic in &self.topic_list() {
                         topic.process_discovered_topic(
                             topic_data,
                             &mut self.get_status_listener_lock(),

@@ -104,6 +104,7 @@ impl DomainParticipantNode {
             .0
             .get()?
             .topic_list()
+            .into_iter()
             .find_map(|topic| {
                 if topic.get_name() == topic_name && topic.get_type_name() == type_name {
                     Some(topic)

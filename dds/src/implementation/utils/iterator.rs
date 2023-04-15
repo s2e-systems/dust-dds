@@ -3,27 +3,21 @@ use std::{collections::HashMap, sync::RwLockReadGuard};
 use super::shared_object::DdsShared;
 
 pub struct DdsListIterator<'a, T> {
-    list: RwLockReadGuard<'a, Vec<DdsShared<T>>>,
-    index: usize,
+    lock: RwLockReadGuard<'a, Vec<DdsShared<T>>>,
 }
 
-impl<T> Iterator for DdsListIterator<'_, T> {
-    type Item = DdsShared<T>;
+impl<'a, T> IntoIterator for &'a DdsListIterator<'_, T> {
+    type Item = &'a DdsShared<T>;
+    type IntoIter = std::slice::Iter<'a, DdsShared<T>>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.list.get(self.index) {
-            Some(out) => {
-                self.index += 1;
-                Some(out.clone())
-            }
-            None => None,
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.lock.iter()
     }
 }
 
 impl<'a, T> DdsListIterator<'a, T> {
-    pub fn new(list: RwLockReadGuard<'a, Vec<DdsShared<T>>>) -> Self {
-        Self { list, index: 0 }
+    pub fn new(lock: RwLockReadGuard<'a, Vec<DdsShared<T>>>) -> Self {
+        Self { lock }
     }
 }
 

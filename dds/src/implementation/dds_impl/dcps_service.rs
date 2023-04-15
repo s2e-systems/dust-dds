@@ -284,8 +284,8 @@ impl DcpsService {
                 };
                 let now = domain_participant.get_current_time();
 
-                for publisher in domain_participant.user_defined_publisher_list() {
-                    for data_writer in publisher.data_writer_list() {
+                for publisher in &domain_participant.user_defined_publisher_list() {
+                    for data_writer in &publisher.data_writer_list() {
                         let writer_id = data_writer.guid().entity_id();
                         let data_max_size_serialized = data_writer.data_max_size_serialized();
                         let heartbeat_period = data_writer.heartbeat_period();
@@ -327,8 +327,8 @@ impl DcpsService {
                     }
                 }
 
-                for subscriber in domain_participant.user_defined_subscriber_list() {
-                    for data_reader in subscriber.data_reader_list() {
+                for subscriber in &domain_participant.user_defined_subscriber_list() {
+                    for data_reader in &subscriber.data_reader_list() {
                         data_reader.send_message(header, &mut default_unicast_transport_send)
                     }
                 }

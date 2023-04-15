@@ -83,6 +83,7 @@ impl UserDefinedSubscriberNode {
             .0
             .get()?
             .data_reader_list()
+            .into_iter()
             .find_map(|data_reader| {
                 if data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
@@ -92,6 +93,7 @@ impl UserDefinedSubscriberNode {
                     None
                 }
             })
+            .cloned()
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
         Ok(Some(UserDefinedDataReaderNode::new(ChildNode::new(
             reader.downgrade(),
@@ -161,17 +163,19 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_reader in self.0.get()?.data_reader_list() {
+                for data_reader in &self.0.get()?.data_reader_list() {
                     data_reader.enable()?;
                     let topic = self
                         .0
                         .parent()
                         .get()?
                         .topic_list()
+                        .into_iter()
                         .find(|t| {
                             t.get_name() == data_reader.get_topic_name()
                                 && t.get_type_name() == data_reader.get_type_name()
                         })
+                        .cloned()
                         .expect("Topic must exist");
                     data_reader.announce_reader(&topic.get_qos(), &self.0.get()?.get_qos());
                 }

@@ -87,6 +87,7 @@ impl UserDefinedPublisherNode {
             .0
             .get()?
             .data_writer_list()
+            .into_iter()
             .find_map(|data_writer| {
                 if data_writer.get_topic_name() == topic_name
                     && data_writer.get_type_name() == type_name
@@ -96,6 +97,7 @@ impl UserDefinedPublisherNode {
                     None
                 }
             })
+            .cloned()
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
 
         Ok(UserDefinedDataWriterNode::new(ChildNode::new(
@@ -190,17 +192,19 @@ impl UserDefinedPublisherNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_writer in self.0.get()?.data_writer_list() {
+                for data_writer in &self.0.get()?.data_writer_list() {
                     data_writer.enable()?;
                     let topic = self
                         .0
                         .parent()
                         .get()?
                         .topic_list()
+                        .into_iter()
                         .find(|t| {
                             t.get_name() == data_writer.get_topic_name()
                                 && t.get_type_name() == data_writer.get_type_name()
                         })
+                        .cloned()
                         .expect("Topic must exist");
                     data_writer.announce_writer(&topic.get_qos(), &self.0.get()?.get_qos());
                 }

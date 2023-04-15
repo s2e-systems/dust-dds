@@ -174,10 +174,12 @@ impl UserDefinedDataReaderNode {
             .parent()
             .get()?
             .topic_list()
+            .into_iter()
             .find(|t| {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
             })
+            .cloned()
             .expect("Topic must exist");
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
@@ -218,10 +220,12 @@ impl UserDefinedDataReaderNode {
                 .parent()
                 .get()?
                 .topic_list()
+                .into_iter()
                 .find(|t| {
                     t.get_name() == data_reader.get_topic_name()
                         && t.get_type_name() == data_reader.get_type_name()
                 })
+                .cloned()
                 .expect("Topic must exist");
             self.0
                 .get()?
@@ -269,10 +273,12 @@ impl UserDefinedDataReaderNode {
             .parent()
             .get()?
             .topic_list()
+            .into_iter()
             .find(|t| {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
             })
+            .cloned()
             .expect("Topic must exist");
         self.0
             .get()?
