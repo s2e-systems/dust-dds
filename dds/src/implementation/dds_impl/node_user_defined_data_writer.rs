@@ -231,7 +231,7 @@ impl UserDefinedDataWriterNode {
                 "Parent publisher disabled".to_string(),
             ));
         }
-        self.0.get()?.enable()?;
+        self.0.get()?.enable();
 
         let data_writer = self.0.get()?;
 

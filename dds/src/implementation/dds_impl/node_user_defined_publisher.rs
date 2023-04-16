@@ -193,7 +193,7 @@ impl UserDefinedPublisherNode {
                 .autoenable_created_entities
             {
                 for data_writer in &self.0.get()?.data_writer_list() {
-                    data_writer.enable()?;
+                    data_writer.enable();
                     let topic = self
                         .0
                         .parent()
