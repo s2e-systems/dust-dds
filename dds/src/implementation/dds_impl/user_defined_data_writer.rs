@@ -52,7 +52,7 @@ use super::{
     status_listener::StatusListener,
 };
 
-struct DataWriterMatchedSubscriptions {
+struct MatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
     total_count: i32,
     total_count_last_read: i32,
@@ -60,7 +60,7 @@ struct DataWriterMatchedSubscriptions {
     last_subscription_handle: InstanceHandle,
 }
 
-impl DataWriterMatchedSubscriptions {
+impl MatchedSubscriptions {
     fn new() -> Self {
         Self {
             matched_subscription_list: HashMap::new(),
@@ -117,7 +117,7 @@ impl DataWriterMatchedSubscriptions {
     }
 }
 
-struct DataWriterIncompatibleSubscriptions {
+struct IncompatibleSubscriptions {
     incompatible_subscription_list: HashSet<InstanceHandle>,
     total_count: i32,
     total_count_last_read: i32,
@@ -125,7 +125,7 @@ struct DataWriterIncompatibleSubscriptions {
     policies: Vec<QosPolicyCount>,
 }
 
-impl DataWriterIncompatibleSubscriptions {
+impl IncompatibleSubscriptions {
     fn new() -> Self {
         Self {
             incompatible_subscription_list: HashSet::new(),
@@ -186,8 +186,8 @@ pub struct UserDefinedDataWriter {
     rtps_writer: DdsRwLock<RtpsStatefulWriter>,
     type_name: &'static str,
     topic_name: String,
-    matched_subscriptions: DdsRwLock<DataWriterMatchedSubscriptions>,
-    incompatible_subscriptions: DdsRwLock<DataWriterIncompatibleSubscriptions>,
+    matched_subscriptions: DdsRwLock<MatchedSubscriptions>,
+    incompatible_subscriptions: DdsRwLock<IncompatibleSubscriptions>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -210,8 +210,8 @@ impl UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
             topic_name,
-            matched_subscriptions: DdsRwLock::new(DataWriterMatchedSubscriptions::new()),
-            incompatible_subscriptions: DdsRwLock::new(DataWriterIncompatibleSubscriptions::new()),
+            matched_subscriptions: DdsRwLock::new(MatchedSubscriptions::new()),
+            incompatible_subscriptions: DdsRwLock::new(IncompatibleSubscriptions::new()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
