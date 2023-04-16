@@ -586,10 +586,6 @@ impl DdsShared<UserDefinedDataWriter> {
             .ok();
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_writer.read_lock().guid().into()
-    }
-
     pub fn as_discovered_writer_data(
         &self,
         topic_qos: &TopicQos,
