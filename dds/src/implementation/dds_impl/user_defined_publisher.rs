@@ -120,7 +120,7 @@ impl UserDefinedPublisher {
         let data_writer_list = &mut self.data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
-            .position(|x| x.get_instance_handle() == data_writer_handle)
+            .position(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Data writer can only be deleted from its parent publisher".to_string(),
@@ -131,9 +131,7 @@ impl UserDefinedPublisher {
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
             self.announce_sender
-                .send(AnnounceKind::DeletedDataWriter(
-                    data_writer.get_instance_handle(),
-                ))
+                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
                 .ok();
         }
 
@@ -197,9 +195,7 @@ impl DdsShared<UserDefinedPublisher> {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
                 self.announce_sender
-                    .send(AnnounceKind::DeletedDataWriter(
-                        data_writer.get_instance_handle(),
-                    ))
+                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
                     .ok();
             }
         }
