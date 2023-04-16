@@ -29,8 +29,7 @@ use crate::{
         qos::{PublisherQos, QosKind, TopicQos},
         qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
-            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -52,37 +51,6 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
-
-impl LivelinessLostStatus {
-    fn _increment(&mut self) {
-        self.total_count += 1;
-        self.total_count_change += 1;
-    }
-
-    fn read_and_reset(&mut self) -> Self {
-        let status = self.clone();
-
-        self.total_count_change = 0;
-
-        status
-    }
-}
-
-impl OfferedDeadlineMissedStatus {
-    fn _increment(&mut self, instance_handle: InstanceHandle) {
-        self.total_count += 1;
-        self.total_count_change += 1;
-        self.last_instance_handle = instance_handle;
-    }
-
-    fn read_and_reset(&mut self) -> Self {
-        let status = self.clone();
-
-        self.total_count_change = 0;
-
-        status
-    }
-}
 
 struct DataWriterMatchedSubscriptions {
     matched_subscription_list: HashMap<InstanceHandle, SubscriptionBuiltinTopicData>,
@@ -220,8 +188,6 @@ pub struct UserDefinedDataWriter {
     topic_name: String,
     matched_subscriptions: DdsRwLock<DataWriterMatchedSubscriptions>,
     incompatible_subscriptions: DdsRwLock<DataWriterIncompatibleSubscriptions>,
-    offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
-    liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -246,8 +212,6 @@ impl UserDefinedDataWriter {
             topic_name,
             matched_subscriptions: DdsRwLock::new(DataWriterMatchedSubscriptions::new()),
             incompatible_subscriptions: DdsRwLock::new(DataWriterIncompatibleSubscriptions::new()),
-            offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
-            liveliness_lost_status: DdsRwLock::new(LivelinessLostStatus::default()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -604,16 +568,6 @@ impl DdsShared<UserDefinedDataWriter> {
                 .ok();
         }
         Err(DdsError::Timeout)
-    }
-
-    pub fn get_liveliness_lost_status(&self) -> LivelinessLostStatus {
-        self.liveliness_lost_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_offered_deadline_missed_status(&self) -> OfferedDeadlineMissedStatus {
-        self.offered_deadline_missed_status
-            .write_lock()
-            .read_and_reset()
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {

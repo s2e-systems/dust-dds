@@ -107,11 +107,11 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        Ok(self.0.get()?.get_liveliness_lost_status())
+        todo!()
     }
 
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        Ok(self.0.get()?.get_offered_deadline_missed_status())
+        todo!()
     }
 
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
