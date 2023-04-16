@@ -1,7 +1,7 @@
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    builtin_topics::BuiltInTopicKey,
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -20,11 +20,12 @@ use crate::{
             group::RtpsGroup,
             messages::RtpsMessage,
             participant::RtpsParticipant,
+            reader_proxy::RtpsReaderProxy,
             types::{
-                Count, EntityId, EntityKey, Guid, Locator, ProtocolVersion, VendorId,
-                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_WITH_KEY,
-                ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
+                Count, DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
+                ReliabilityKind, VendorId, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
@@ -36,7 +37,12 @@ use crate::{
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::QosKind,
+        qos::{DataWriterQos, QosKind},
+        qos_policy::{
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+        },
         status::{StatusKind, NO_STATUS},
         time::DurationKind,
     },
@@ -72,8 +78,9 @@ use std::{
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
+    node_listener_data_writer::ListenerDataWriterNode, participant_discovery::ParticipantDiscovery,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
     user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -692,7 +699,8 @@ impl DdsShared<DomainParticipantImpl> {
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in &self.user_defined_publisher_list() {
             for data_writer in &publisher.data_writer_list() {
-                data_writer.remove_matched_reader(
+                remove_writer_matched_reader(
+                    data_writer,
                     handle,
                     &mut publisher.get_status_listener_lock(),
                     &mut self.status_listener.write_lock(),
@@ -1076,7 +1084,8 @@ impl DdsShared<DomainParticipantImpl> {
                                         || is_partition_string_matched
                                     {
                                         for data_writer in &publisher.data_writer_list() {
-                                            data_writer.add_matched_reader(
+                                            add_matched_reader(
+                                                data_writer,
                                                 &discovered_reader_data,
                                                 discovered_participant_data
                                                     .default_unicast_locator_list(),
@@ -1096,7 +1105,8 @@ impl DdsShared<DomainParticipantImpl> {
                 InstanceStateKind::NotAliveDisposed => {
                     for publisher in &self.user_defined_publisher_list() {
                         for data_writer in &publisher.data_writer_list() {
-                            data_writer.remove_matched_reader(
+                            remove_writer_matched_reader(
+                                &data_writer,
                                 discovered_reader_data_sample.sample_info.instance_handle,
                                 &mut publisher.get_status_listener_lock(),
                                 &mut self.status_listener.write_lock(),
@@ -1164,5 +1174,217 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn cancel_timers(&self) {
         self.timer.write_lock().cancel_timers()
+    }
+}
+
+fn add_matched_reader(
+    writer: &UserDefinedDataWriter,
+    discovered_reader_data: &DiscoveredReaderData,
+    default_unicast_locator_list: &[Locator],
+    default_multicast_locator_list: &[Locator],
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    publisher_qos: &PublisherQos,
+) {
+    let is_matched_topic_name = discovered_reader_data
+        .subscription_builtin_topic_data
+        .topic_name
+        == writer.get_topic_name();
+    let is_matched_type_name = discovered_reader_data
+        .subscription_builtin_topic_data
+        .type_name
+        == writer.get_type_name();
+
+    if is_matched_topic_name && is_matched_type_name {
+        let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+            &writer.get_qos(),
+            &discovered_reader_data.subscription_builtin_topic_data,
+            publisher_qos,
+        );
+
+        if incompatible_qos_policy_list.is_empty() {
+            let unicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .unicast_locator_list
+                .is_empty()
+            {
+                default_unicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .unicast_locator_list
+                    .as_ref()
+            };
+
+            let multicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .multicast_locator_list
+                .is_empty()
+            {
+                default_multicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .multicast_locator_list
+                    .as_ref()
+            };
+
+            let proxy_reliability = match discovered_reader_data
+                .subscription_builtin_topic_data
+                .reliability
+                .kind
+            {
+                ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+            };
+
+            let proxy_durability = match discovered_reader_data
+                .subscription_builtin_topic_data
+                .durability
+                .kind
+            {
+                DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+            };
+
+            let reader_proxy = RtpsReaderProxy::new(
+                discovered_reader_data.reader_proxy.remote_reader_guid,
+                discovered_reader_data.reader_proxy.remote_group_entity_id,
+                unicast_locator_list,
+                multicast_locator_list,
+                discovered_reader_data.reader_proxy.expects_inline_qos,
+                true,
+                proxy_reliability,
+                proxy_durability,
+            );
+
+            writer.matched_reader_add(reader_proxy);
+
+            let instance_handle = discovered_reader_data.get_serialized_key().into();
+            if !writer
+                .get_matched_subscriptions()
+                .contains(&instance_handle)
+                || writer
+                    .get_matched_subscription_data(instance_handle)
+                    .as_ref()
+                    != Some(&discovered_reader_data.subscription_builtin_topic_data)
+            {
+                writer.add_matched_publication(
+                    instance_handle,
+                    discovered_reader_data
+                        .subscription_builtin_topic_data
+                        .clone(),
+                );
+                on_writer_publication_matched(
+                    writer,
+                    publisher_status_listener,
+                    participant_status_listener,
+                )
+            }
+        } else {
+            todo!()
+            // self.on_offered_incompatible_qos(
+            //     incompatible_qos_policy_list,
+            //     publisher_status_listener,
+            //     participant_status_listener,
+            // );
+        }
+    }
+}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer_qos: &DataWriterQos,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if writer_qos.durability < discovered_reader_data.durability {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation.access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation.coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation.ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if writer_qos.deadline < discovered_reader_data.deadline {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if writer_qos.latency_budget < discovered_reader_data.latency_budget {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if writer_qos.liveliness < discovered_reader_data.liveliness {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer_qos.reliability.kind < discovered_reader_data.reliability.kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if writer_qos.destination_order < discovered_reader_data.destination_order {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    incompatible_qos_policy_list
+}
+
+fn on_writer_publication_matched(
+    writer: &UserDefinedDataWriter,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    writer.add_communication_state(StatusKind::PublicationMatched);
+
+    let publication_matched_status_kind = &StatusKind::PublicationMatched;
+
+    if writer
+        .get_status_listener_lock()
+        .is_enabled(publication_matched_status_kind)
+    {
+        writer
+            .get_status_listener_lock()
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .trigger_on_publication_matched(
+                ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
+        publisher_status_listener
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .on_publication_matched(
+                &ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
+        participant_status_listener
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .on_publication_matched(
+                &ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    }
+}
+
+pub fn remove_writer_matched_reader(
+    writer: &UserDefinedDataWriter,
+    discovered_reader_handle: InstanceHandle,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
+        let handle = r.key.value.into();
+        writer.matched_reader_remove(handle);
+        writer.remove_matched_subscription(handle.into());
+
+        on_writer_publication_matched(
+            writer,
+            publisher_status_listener,
+            participant_status_listener,
+        )
     }
 }

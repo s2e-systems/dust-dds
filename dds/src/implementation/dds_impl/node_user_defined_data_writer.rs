@@ -119,6 +119,9 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
+        self.0
+            .get()?
+            .remove_communication_state(StatusKind::PublicationMatched);
         Ok(self.0.get()?.get_publication_matched_status())
     }
 
@@ -157,13 +160,22 @@ impl UserDefinedDataWriterNode {
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0
             .get()?
             .get_matched_subscription_data(subscription_handle)
+            .ok_or(DdsError::BadParameter)
     }
 
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.get()?.get_matched_subscriptions()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        Ok(self.0.get()?.get_matched_subscriptions())
     }
 
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
