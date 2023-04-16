@@ -84,14 +84,9 @@ impl UserDefinedSubscriberNode {
             .get()?
             .data_reader_list()
             .into_iter()
-            .find_map(|data_reader| {
-                if data_reader.get_topic_name() == topic_name
+            .find(|data_reader| {
+                data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
-                {
-                    Some(data_reader)
-                } else {
-                    None
-                }
             })
             .cloned()
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;

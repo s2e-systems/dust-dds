@@ -105,13 +105,7 @@ impl DomainParticipantNode {
             .get()?
             .topic_list()
             .into_iter()
-            .find_map(|topic| {
-                if topic.get_name() == topic_name && topic.get_type_name() == type_name {
-                    Some(topic)
-                } else {
-                    None
-                }
-            })
+            .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
             .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
     }
 

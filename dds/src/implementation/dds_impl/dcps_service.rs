@@ -312,7 +312,7 @@ impl DcpsService {
                             .map(|x| x.sequence_number())
                             .max()
                             .unwrap_or_else(|| SequenceNumber::new(0));
-                        remove_stale_writer_changes(&data_writer, now);
+                        remove_stale_writer_changes(data_writer, now);
                         for mut reader_proxy in &mut data_writer.matched_reader_list() {
                             match reader_proxy.reliability() {
                                 ReliabilityKind::BestEffort => {

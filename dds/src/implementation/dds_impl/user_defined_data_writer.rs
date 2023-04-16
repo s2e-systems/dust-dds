@@ -304,7 +304,7 @@ impl UserDefinedDataWriter {
         self.type_name
     }
 
-    pub fn enable(&self) -> () {
+    pub fn enable(&self) {
         *self.enabled.write_lock() = true;
     }
 

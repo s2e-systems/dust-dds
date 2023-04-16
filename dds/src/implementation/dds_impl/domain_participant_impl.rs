@@ -1106,7 +1106,7 @@ impl DdsShared<DomainParticipantImpl> {
                     for publisher in &self.user_defined_publisher_list() {
                         for data_writer in &publisher.data_writer_list() {
                             remove_writer_matched_reader(
-                                &data_writer,
+                                data_writer,
                                 discovered_reader_data_sample.sample_info.instance_handle,
                                 &mut publisher.get_status_listener_lock(),
                                 &mut self.status_listener.write_lock(),

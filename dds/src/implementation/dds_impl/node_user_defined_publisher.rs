@@ -88,14 +88,9 @@ impl UserDefinedPublisherNode {
             .get()?
             .data_writer_list()
             .into_iter()
-            .find_map(|data_writer| {
-                if data_writer.get_topic_name() == topic_name
+            .find(|data_writer| {
+                data_writer.get_topic_name() == topic_name
                     && data_writer.get_type_name() == type_name
-                {
-                    Some(data_writer)
-                } else {
-                    None
-                }
             })
             .cloned()
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
