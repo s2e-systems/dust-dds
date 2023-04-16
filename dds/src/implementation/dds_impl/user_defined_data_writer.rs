@@ -1,12 +1,11 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{mpsc::SyncSender, RwLockWriteGuard},
     time::Instant,
 };
 
 use crate::{
     builtin_topics::BuiltInTopicKey,
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::{
             DiscoveredWriterData, WriterProxy,
@@ -28,13 +27,12 @@ use crate::{
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
         qos::{PublisherQos, QosKind, TopicQos},
-        qos_policy::{QosPolicyId, ReliabilityQosPolicyKind},
+        qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
-    publication::publisher_listener::PublisherListener,
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
         builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
@@ -51,23 +49,9 @@ use super::{
     domain_participant_impl::AnnounceKind,
     iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
     message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
-
-impl PublicationMatchedStatus {
-    fn read_and_reset(&mut self, current_count: i32) -> Self {
-        let last_current_count = self.current_count;
-        self.current_count = current_count;
-        self.current_count_change = current_count - last_current_count;
-        let status = self.clone();
-
-        self.total_count_change = 0;
-
-        status
-    }
-}
 
 impl LivelinessLostStatus {
     fn _increment(&mut self) {
@@ -89,36 +73,6 @@ impl OfferedDeadlineMissedStatus {
         self.total_count += 1;
         self.total_count_change += 1;
         self.last_instance_handle = instance_handle;
-    }
-
-    fn read_and_reset(&mut self) -> Self {
-        let status = self.clone();
-
-        self.total_count_change = 0;
-
-        status
-    }
-}
-
-impl OfferedIncompatibleQosStatus {
-    fn increment(&mut self, incompatible_qos_policy_list: Vec<QosPolicyId>) {
-        self.total_count += 1;
-        self.total_count_change += 1;
-        self.last_policy_id = incompatible_qos_policy_list[0];
-        for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
-            if let Some(policy_count) = self
-                .policies
-                .iter_mut()
-                .find(|x| x.policy_id == incompatible_qos_policy)
-            {
-                policy_count.count += 1;
-            } else {
-                self.policies.push(QosPolicyCount {
-                    policy_id: incompatible_qos_policy,
-                    count: 1,
-                })
-            }
-        }
     }
 
     fn read_and_reset(&mut self) -> Self {
@@ -171,6 +125,13 @@ impl DataWriterMatchedSubscriptions {
             .collect()
     }
 
+    pub fn get_matched_subscription_data(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<&SubscriptionBuiltinTopicData> {
+        self.matched_subscription_list.get(&handle)
+    }
+
     fn get_publication_matched_status(&mut self) -> PublicationMatchedStatus {
         let current_count = self.matched_subscription_list.len() as i32;
         let status = PublicationMatchedStatus {
@@ -186,12 +147,70 @@ impl DataWriterMatchedSubscriptions {
 
         status
     }
+}
 
-    pub fn get_matched_subscription_data(
-        &self,
+struct DataWriterIncompatibleSubscriptions {
+    incompatible_subscription_list: HashSet<InstanceHandle>,
+    total_count: i32,
+    total_count_last_read: i32,
+    last_policy_id: QosPolicyId,
+    policies: Vec<QosPolicyCount>,
+}
+
+impl DataWriterIncompatibleSubscriptions {
+    fn new() -> Self {
+        Self {
+            incompatible_subscription_list: HashSet::new(),
+            total_count: 0,
+            total_count_last_read: 0,
+            last_policy_id: INVALID_QOS_POLICY_ID,
+            policies: Vec::new(),
+        }
+    }
+
+    fn add_offered_incompatible_qos(
+        &mut self,
         handle: InstanceHandle,
-    ) -> Option<&SubscriptionBuiltinTopicData> {
-        self.matched_subscription_list.get(&handle)
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+    ) {
+        self.total_count += 1;
+        self.last_policy_id = incompatible_qos_policy_list[0];
+
+        self.incompatible_subscription_list.insert(handle);
+        for incompatible_qos_policy in incompatible_qos_policy_list.into_iter() {
+            if let Some(policy_count) = self
+                .policies
+                .iter_mut()
+                .find(|x| x.policy_id == incompatible_qos_policy)
+            {
+                policy_count.count += 1;
+            } else {
+                self.policies.push(QosPolicyCount {
+                    policy_id: incompatible_qos_policy,
+                    count: 1,
+                })
+            }
+        }
+    }
+
+    fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
+        self.incompatible_subscription_list
+            .iter()
+            .cloned()
+            .collect()
+    }
+
+    fn get_offered_incompatible_qos_status(&mut self) -> OfferedIncompatibleQosStatus {
+        let status = OfferedIncompatibleQosStatus {
+            total_count: self.total_count,
+            total_count_change: self.total_count - self.total_count_last_read,
+            last_policy_id: self.last_policy_id,
+            policies: self.policies.clone(),
+        };
+
+        self.total_count_last_read = self.total_count;
+
+        status
     }
 }
 
@@ -200,11 +219,9 @@ pub struct UserDefinedDataWriter {
     type_name: &'static str,
     topic_name: String,
     matched_subscriptions: DdsRwLock<DataWriterMatchedSubscriptions>,
-    publication_matched_status: DdsRwLock<PublicationMatchedStatus>,
+    incompatible_subscriptions: DdsRwLock<DataWriterIncompatibleSubscriptions>,
     offered_deadline_missed_status: DdsRwLock<OfferedDeadlineMissedStatus>,
-    offered_incompatible_qos_status: DdsRwLock<OfferedIncompatibleQosStatus>,
     liveliness_lost_status: DdsRwLock<LivelinessLostStatus>,
-    matched_subscription_list: DdsRwLock<HashMap<InstanceHandle, SubscriptionBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -228,11 +245,9 @@ impl UserDefinedDataWriter {
             type_name,
             topic_name,
             matched_subscriptions: DdsRwLock::new(DataWriterMatchedSubscriptions::new()),
-            publication_matched_status: DdsRwLock::new(PublicationMatchedStatus::default()),
+            incompatible_subscriptions: DdsRwLock::new(DataWriterIncompatibleSubscriptions::new()),
             offered_deadline_missed_status: DdsRwLock::new(OfferedDeadlineMissedStatus::default()),
-            offered_incompatible_qos_status: DdsRwLock::new(OfferedIncompatibleQosStatus::default()),
             liveliness_lost_status: DdsRwLock::new(LivelinessLostStatus::default()),
-            matched_subscription_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -383,6 +398,28 @@ impl UserDefinedDataWriter {
             .cloned()
     }
 
+    pub fn add_offered_incompatible_qos(
+        &self,
+        handle: InstanceHandle,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+    ) {
+        self.incompatible_subscriptions
+            .write_lock()
+            .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
+    }
+
+    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
+        self.incompatible_subscriptions
+            .write_lock()
+            .get_offered_incompatible_qos_status()
+    }
+
+    pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
+        self.incompatible_subscriptions
+            .read_lock()
+            .get_incompatible_subscriptions()
+    }
+
     pub fn add_communication_state(&self, state: StatusKind) {
         self.status_condition
             .write_lock()
@@ -393,6 +430,10 @@ impl UserDefinedDataWriter {
         self.status_condition
             .write_lock()
             .remove_communication_state(state)
+    }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
     }
 }
 
@@ -577,21 +618,6 @@ impl DdsShared<UserDefinedDataWriter> {
             .read_and_reset()
     }
 
-    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
-        self.offered_incompatible_qos_status
-            .write_lock()
-            .read_and_reset()
-    }
-
-    pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::PublicationMatched);
-        self.publication_matched_status
-            .write_lock()
-            .read_and_reset(self.matched_subscription_list.read_lock().len() as i32)
-    }
-
     pub fn assert_liveliness(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -620,10 +646,6 @@ impl DdsShared<UserDefinedDataWriter> {
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
@@ -681,68 +703,6 @@ impl DdsShared<UserDefinedDataWriter> {
                 topic_data: topic_qos.topic_data.clone(),
                 group_data: publisher_qos.group_data.clone(),
             },
-        }
-    }
-
-    fn on_offered_incompatible_qos(
-        &self,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        self.offered_incompatible_qos_status
-            .write_lock()
-            .increment(incompatible_qos_policy_list);
-
-        self.trigger_on_offered_incompatible_qos_listener(
-            &mut self.status_listener.write_lock(),
-            publisher_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::OfferedIncompatibleQos);
-    }
-
-    fn trigger_on_offered_incompatible_qos_listener(
-        &self,
-        writer_status_listener: &mut StatusListener<dyn AnyDataWriterListener + Send + Sync>,
-        publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
-        if writer_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
-            writer_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_offered_incompatible_qos(
-                    ListenerDataWriterNode::new(),
-                    self.get_offered_incompatible_qos_status(),
-                )
-        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
-            publisher_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_offered_incompatible_qos(
-                    &ListenerDataWriterNode::new(),
-                    self.get_offered_incompatible_qos_status(),
-                )
-        } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_offered_incompatible_qos(
-                    &ListenerDataWriterNode::new(),
-                    self.get_offered_incompatible_qos_status(),
-                )
         }
     }
 }

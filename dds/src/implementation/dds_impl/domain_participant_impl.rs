@@ -1201,6 +1201,7 @@ fn add_matched_reader(
             &discovered_reader_data.subscription_builtin_topic_data,
             publisher_qos,
         );
+        let instance_handle = discovered_reader_data.get_serialized_key().into();
 
         if incompatible_qos_policy_list.is_empty() {
             let unicast_locator_list = if discovered_reader_data
@@ -1260,7 +1261,6 @@ fn add_matched_reader(
 
             writer.matched_reader_add(reader_proxy);
 
-            let instance_handle = discovered_reader_data.get_serialized_key().into();
             if !writer
                 .get_matched_subscriptions()
                 .contains(&instance_handle)
@@ -1282,12 +1282,13 @@ fn add_matched_reader(
                 )
             }
         } else {
-            todo!()
-            // self.on_offered_incompatible_qos(
-            //     incompatible_qos_policy_list,
-            //     publisher_status_listener,
-            //     participant_status_listener,
-            // );
+            writer_on_offered_incompatible_qos(
+                writer,
+                instance_handle,
+                incompatible_qos_policy_list,
+                publisher_status_listener,
+                participant_status_listener,
+            );
         }
     }
 }
@@ -1386,5 +1387,53 @@ pub fn remove_writer_matched_reader(
             publisher_status_listener,
             participant_status_listener,
         )
+    }
+}
+
+fn writer_on_offered_incompatible_qos(
+    writer: &UserDefinedDataWriter,
+    handle: InstanceHandle,
+    incompatible_qos_policy_list: Vec<QosPolicyId>,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    if !writer.get_incompatible_subscriptions().contains(&handle) {
+        writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
+
+        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
+        if writer
+            .get_status_listener_lock()
+            .is_enabled(offerered_incompatible_qos_status_kind)
+        {
+            writer
+                .get_status_listener_lock()
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .trigger_on_offered_incompatible_qos(
+                    ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            publisher_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            participant_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        }
+
+        writer.add_communication_state(StatusKind::OfferedIncompatibleQos);
     }
 }
