@@ -153,7 +153,11 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.0.get()?.assert_liveliness()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        todo!()
     }
 
     pub fn get_matched_subscription_data(
@@ -179,11 +183,21 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)?;
-
         let data_writer = self.0.get()?;
 
+        let qos = match qos {
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
         if self.0.get()?.is_enabled() {
+            if self.0.get()?.is_enabled() {
+                self.0.get()?.get_qos().check_immutability(&qos)?;
+            }
+
+            self.0.get()?.set_qos(qos);
+
             let topic = self
                 .0
                 .parent()
@@ -200,6 +214,8 @@ impl UserDefinedDataWriterNode {
             self.0
                 .get()?
                 .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        } else {
+            self.0.get()?.set_qos(qos);
         }
         Ok(())
     }

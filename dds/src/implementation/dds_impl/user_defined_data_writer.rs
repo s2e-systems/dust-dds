@@ -26,7 +26,7 @@ use crate::{
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
-        qos::{PublisherQos, QosKind, TopicQos},
+        qos::{PublisherQos, TopicQos},
         qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
             OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
@@ -316,6 +316,14 @@ impl UserDefinedDataWriter {
         self.rtps_writer.read_lock().get_qos().clone()
     }
 
+    pub fn set_qos(&self, qos: DataWriterQos) {
+        self.rtps_writer.write_lock().set_qos(qos);
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
     pub fn get_status_listener_lock(
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn AnyDataWriterListener + Send + Sync>> {
@@ -568,36 +576,6 @@ impl DdsShared<UserDefinedDataWriter> {
                 .ok();
         }
         Err(DdsError::Timeout)
-    }
-
-    pub fn assert_liveliness(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        let qos = match qos {
-            QosKind::Default => Default::default(),
-            QosKind::Specific(q) => q,
-        };
-
-        if self.is_enabled() {
-            self.rtps_writer
-                .write_lock()
-                .get_qos()
-                .check_immutability(&qos)?;
-        }
-
-        self.rtps_writer.write_lock().set_qos(qos)?;
-
-        Ok(())
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
     }
 
     pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
