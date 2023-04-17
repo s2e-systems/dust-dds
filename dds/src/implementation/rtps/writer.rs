@@ -120,10 +120,8 @@ impl RtpsWriter {
         &self.qos
     }
 
-    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
-        qos.is_consistent()?;
+    pub fn set_qos(&mut self, qos: DataWriterQos) {
         self.qos = qos;
-        Ok(())
     }
 
     pub fn register_instance_w_timestamp(

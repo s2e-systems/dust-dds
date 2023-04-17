@@ -1,5 +1,7 @@
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
-    builtin_topics::BuiltInTopicKey,
+    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -18,23 +20,29 @@ use crate::{
             group::RtpsGroup,
             messages::RtpsMessage,
             participant::RtpsParticipant,
+            reader_proxy::RtpsReaderProxy,
             types::{
-                Count, EntityId, EntityKey, Guid, Locator, ProtocolVersion, VendorId,
-                BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC, BUILT_IN_WRITER_WITH_KEY,
-                ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP, USER_DEFINED_TOPIC,
-                USER_DEFINED_WRITER_GROUP,
+                Count, DurabilityKind, EntityId, EntityKey, Guid, Locator, ProtocolVersion,
+                ReliabilityKind, VendorId, BUILT_IN_READER_WITH_KEY, BUILT_IN_TOPIC,
+                BUILT_IN_WRITER_WITH_KEY, ENTITYID_PARTICIPANT, USER_DEFINED_READER_GROUP,
+                USER_DEFINED_TOPIC, USER_DEFINED_WRITER_GROUP,
             },
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsIterator,
+            iterator::{DdsListIntoIterator, DdsMapIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
             timer_factory::{Timer, TimerFactory},
         },
     },
     infrastructure::{
         instance::InstanceHandle,
-        qos::QosKind,
+        qos::{DataWriterQos, QosKind},
+        qos_policy::{
+            DurabilityQosPolicyKind, QosPolicyId, ReliabilityQosPolicyKind, DEADLINE_QOS_POLICY_ID,
+            DESTINATIONORDER_QOS_POLICY_ID, DURABILITY_QOS_POLICY_ID, LATENCYBUDGET_QOS_POLICY_ID,
+            LIVELINESS_QOS_POLICY_ID, PRESENTATION_QOS_POLICY_ID, RELIABILITY_QOS_POLICY_ID,
+        },
         status::{StatusKind, NO_STATUS},
         time::DurationKind,
     },
@@ -62,6 +70,7 @@ use std::{
     sync::{
         atomic::{AtomicU8, Ordering},
         mpsc::SyncSender,
+        RwLockWriteGuard,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -69,8 +78,9 @@ use std::{
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
+    node_listener_data_writer::ListenerDataWriterNode, participant_discovery::ParticipantDiscovery,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
     user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -311,9 +321,55 @@ impl DomainParticipantImpl {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
-}
 
-impl DdsShared<DomainParticipantImpl> {
+    pub fn is_participant_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_participants.read_lock().contains(&handle)
+    }
+
+    pub fn is_subscription_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_subcriptions.read_lock().contains(&handle)
+    }
+
+    pub fn is_publication_ignored(&self, handle: InstanceHandle) -> bool {
+        self.ignored_publications.read_lock().contains(&handle)
+    }
+
+    pub fn get_domain_id(&self) -> DomainId {
+        self.domain_id
+    }
+
+    pub fn get_domain_tag(&self) -> &str {
+        &self.domain_tag
+    }
+
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn DomainParticipantListener + Send + Sync>> {
+        self.status_listener.write_lock()
+    }
+
+    pub fn discovered_participant_add(
+        &self,
+        handle: InstanceHandle,
+        discovered_participant_data: SpdpDiscoveredParticipantData,
+    ) {
+        self.discovered_participant_list
+            .write_lock()
+            .insert(handle, discovered_participant_data);
+    }
+
+    pub fn discovered_participant_remove(&self, handle: InstanceHandle) {
+        self.discovered_participant_list
+            .write_lock()
+            .remove(&handle);
+    }
+
+    pub fn discovered_participant_list(
+        &self,
+    ) -> DdsMapIntoIterator<InstanceHandle, SpdpDiscoveredParticipantData> {
+        DdsMapIntoIterator::new(self.discovered_participant_list.read_lock())
+    }
+
     pub fn create_publisher(
         &self,
         qos: QosKind<PublisherQos>,
@@ -342,13 +398,7 @@ impl DdsShared<DomainParticipantImpl> {
             self.data_max_size_serialized,
             self.announce_sender.clone(),
         );
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
+        if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
             publisher_impl_shared.enable()?;
         }
 
@@ -361,16 +411,16 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
         if self
-            .user_defined_publisher_list
-            .read_lock()
-            .iter()
-            .find(|&x| x.get_instance_handle() == a_publisher_handle)
+            .user_defined_publisher_list()
+            .into_iter()
+            .find(|x| x.get_instance_handle() == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Publisher can only be deleted from its parent participant".to_string(),
                 )
             })?
             .data_writer_list()
+            .into_iter()
             .count()
             > 0
         {
@@ -386,8 +436,10 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn publisher_list(&self) -> DdsIterator<UserDefinedPublisher> {
-        DdsIterator::new(self.user_defined_publisher_list.read_lock())
+    pub fn user_defined_publisher_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<UserDefinedPublisher>> {
+        DdsListIntoIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
     pub fn create_subscriber(
@@ -436,9 +488,8 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
         if self
-            .user_defined_subscriber_list
-            .read_lock()
-            .iter()
+            .user_defined_subscriber_list()
+            .into_iter()
             .find(|&x| x.get_instance_handle() == a_subscriber_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
@@ -446,6 +497,7 @@ impl DdsShared<DomainParticipantImpl> {
                 )
             })?
             .data_reader_list()
+            .into_iter()
             .count()
             > 0
         {
@@ -461,8 +513,10 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn subscriber_list(&self) -> DdsIterator<UserDefinedSubscriber> {
-        DdsIterator::new(self.user_defined_subscriber_list.read_lock())
+    pub fn user_defined_subscriber_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<UserDefinedSubscriber>> {
+        DdsListIntoIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
     pub fn create_topic(
@@ -524,8 +578,8 @@ impl DdsShared<DomainParticipantImpl> {
             })?
             .clone();
 
-        for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            if publisher.data_writer_list().any(|w| {
+        for publisher in &self.user_defined_publisher_list() {
+            if publisher.data_writer_list().into_iter().any(|w| {
                 w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -534,8 +588,8 @@ impl DdsShared<DomainParticipantImpl> {
             }
         }
 
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            if subscriber.data_reader_list().any(|r| {
+        for subscriber in &self.user_defined_subscriber_list() {
+            if subscriber.data_reader_list().into_iter().any(|r| {
                 r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -550,10 +604,16 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    pub fn topic_list(&self) -> DdsIterator<TopicImpl> {
-        DdsIterator::new(self.topic_list.read_lock())
+    pub fn topic_list(&self) -> DdsListIntoIterator<DdsShared<TopicImpl>> {
+        DdsListIntoIterator::new(self.topic_list.read_lock())
     }
 
+    pub fn get_qos(&self) -> DomainParticipantQos {
+        self.qos.read_lock().clone()
+    }
+}
+
+impl DdsShared<DomainParticipantImpl> {
     pub fn find_topic(
         &self,
         topic_name: &str,
@@ -624,20 +684,29 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn ignore_publication(&self, handle: InstanceHandle) {
         self.ignored_publications.write_lock().insert(handle);
 
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-            subscriber.remove_matched_writer(handle, &mut self.status_listener.write_lock());
+        for subscriber in &self.user_defined_subscriber_list() {
+            for data_reader in &subscriber.data_reader_list() {
+                data_reader.remove_matched_writer(
+                    handle,
+                    &mut subscriber.get_status_listener_lock(),
+                    &mut self.get_status_listener_lock(),
+                )
+            }
         }
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
-        for publisher in self.user_defined_publisher_list.read_lock().iter() {
-            publisher.remove_matched_reader(handle, &mut self.status_listener.write_lock());
+        for publisher in &self.user_defined_publisher_list() {
+            for data_writer in &publisher.data_writer_list() {
+                remove_writer_matched_reader(
+                    data_writer,
+                    handle,
+                    &mut publisher.get_status_listener_lock(),
+                    &mut self.status_listener.write_lock(),
+                )
+            }
         }
-    }
-
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
@@ -702,28 +771,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.default_topic_qos.read_lock().clone()
     }
 
-    pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self
-            .discovered_participant_list
-            .read_lock()
-            .iter()
-            .map(|(&key, _)| key)
-            .collect())
-    }
-
-    pub fn get_discovered_participant_data(
-        &self,
-        participant_handle: InstanceHandle,
-    ) -> DdsResult<ParticipantBuiltinTopicData> {
-        Ok(self
-            .discovered_participant_list
-            .read_lock()
-            .get(&participant_handle)
-            .ok_or(DdsError::BadParameter)?
-            .dds_participant_data
-            .clone())
-    }
-
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
         Ok(self
             .discovered_topic_list
@@ -756,18 +803,6 @@ impl DdsShared<DomainParticipantImpl> {
         self.announce_participant().ok();
 
         Ok(())
-    }
-
-    pub fn get_qos(&self) -> DomainParticipantQos {
-        self.qos.read_lock().clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask)
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
@@ -874,51 +909,36 @@ impl DdsShared<DomainParticipantImpl> {
     ) {
         if let Ok(participant_discovery) = ParticipantDiscovery::new(
             &discovered_participant_data,
-            self.domain_id,
-            &self.domain_tag,
+            self.get_domain_id(),
+            self.get_domain_tag(),
         ) {
-            if !self
-                .ignored_participants
-                .read_lock()
-                .contains(&discovered_participant_data.get_serialized_key().into())
+            if !self.is_participant_ignored(discovered_participant_data.get_serialized_key().into())
             {
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_publications_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_publication_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_publications_reader();
-                sedp_builtin_publication_reader_shared
+                self.get_builtin_subscriber()
+                    .sedp_builtin_publications_reader()
                     .add_matched_participant(&participant_discovery);
 
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_subscriptions_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_subscription_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_subscriptions_reader();
-                sedp_builtin_subscription_reader_shared
+                self.get_builtin_subscriber()
+                    .sedp_builtin_subscriptions_reader()
                     .add_matched_participant(&participant_discovery);
 
-                self.builtin_publisher
+                self.get_builtin_publisher()
                     .sedp_builtin_topics_writer()
                     .add_matched_participant(&participant_discovery);
 
-                let sedp_builtin_topic_reader_shared =
-                    self.builtin_subscriber.sedp_builtin_topics_reader();
-                sedp_builtin_topic_reader_shared.add_matched_participant(&participant_discovery);
+                self.get_builtin_subscriber()
+                    .sedp_builtin_topics_reader()
+                    .add_matched_participant(&participant_discovery);
 
-                let this = self.clone();
-
-                let lease_duration = Duration::from(discovered_participant_data.lease_duration);
-                let handle = discovered_participant_data.get_serialized_key().into();
-                self.timer.write_lock().start_timer(
-                    DurationKind::Finite(lease_duration),
-                    discovered_participant_data.get_serialized_key().into(),
-                    move || this.remove_discovered_participant(handle),
-                );
-
-                self.discovered_participant_list.write_lock().insert(
+                self.discovered_participant_add(
                     discovered_participant_data.get_serialized_key().into(),
                     discovered_participant_data,
                 );
@@ -926,54 +946,34 @@ impl DdsShared<DomainParticipantImpl> {
         }
     }
 
-    pub fn remove_discovered_participant(&self, handle: InstanceHandle) {
-        if let Some(discovered_participant_data) = self
-            .discovered_participant_list
-            .write_lock()
-            .remove(&handle)
+    pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
+        if let Some((_, discovered_participant_data)) = self
+            .discovered_participant_list()
+            .into_iter()
+            .find(|&(h, _)| h == &participant_handle)
         {
             let participant_guid_prefix = discovered_participant_data.guid_prefix();
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_publications_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_subscriptions_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_subscriber
+            self.get_builtin_subscriber()
                 .sedp_builtin_topics_reader()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_publications_writer()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_subscriptions_writer()
                 .remove_matched_participant(participant_guid_prefix);
-            self.builtin_publisher
+            self.get_builtin_publisher()
                 .sedp_builtin_topics_writer()
                 .remove_matched_participant(participant_guid_prefix);
         }
-    }
 
-    pub fn receive_built_in_data(
-        &self,
-        source_locator: Locator,
-        message: RtpsMessage,
-    ) -> DdsResult<()> {
-        MessageReceiver::new(self.get_current_time()).process_message(
-            self.rtps_participant.guid().prefix(),
-            core::slice::from_ref(&self.builtin_publisher),
-            core::slice::from_ref(&self.builtin_subscriber),
-            source_locator,
-            &message,
-            &mut self.status_listener.write_lock(),
-        )?;
-
-        self.discover_matched_participants().ok();
-        self.discover_matched_readers().ok();
-        self.discover_matched_writers().ok();
-        self.discover_matched_topics().ok();
-
-        Ok(())
+        self.discovered_participant_remove(participant_handle);
     }
 
     pub fn receive_user_defined_data(
@@ -991,7 +991,7 @@ impl DdsShared<DomainParticipantImpl> {
         )
     }
 
-    fn discover_matched_participants(&self) -> DdsResult<()> {
+    pub fn discover_matched_participants(&self) -> DdsResult<()> {
         let spdp_builtin_participant_data_reader =
             self.builtin_subscriber.spdp_builtin_participant_reader();
 
@@ -1012,73 +1012,9 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn discover_matched_writers(&self) -> DdsResult<()> {
+    pub fn discover_matched_readers(&self) -> DdsResult<()> {
         let samples = self
-            .builtin_subscriber
-            .sedp_builtin_publications_reader()
-            .read::<DiscoveredWriterData>(
-            i32::MAX,
-            ANY_SAMPLE_STATE,
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        )?;
-
-        for discovered_writer_data_sample in samples.into_iter() {
-            match discovered_writer_data_sample.sample_info.instance_state {
-                InstanceStateKind::Alive => {
-                    if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                        if !self.ignored_publications.read_lock().contains(
-                            &discovered_writer_data
-                                .writer_proxy
-                                .remote_writer_guid
-                                .into(),
-                        ) {
-                            let remote_writer_guid_prefix = discovered_writer_data
-                                .writer_proxy
-                                .remote_writer_guid
-                                .prefix();
-                            let writer_parent_participant_guid =
-                                Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
-
-                            if let Some(discovered_participant_data) = self
-                                .discovered_participant_list
-                                .read_lock()
-                                .get(&writer_parent_participant_guid.into())
-                            {
-                                for subscriber in
-                                    self.user_defined_subscriber_list.read_lock().iter()
-                                {
-                                    subscriber.add_matched_writer(
-                                        &discovered_writer_data,
-                                        discovered_participant_data.default_unicast_locator_list(),
-                                        discovered_participant_data
-                                            .default_multicast_locator_list(),
-                                        &mut self.status_listener.write_lock(),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
-                InstanceStateKind::NotAliveDisposed => {
-                    for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
-                        subscriber.remove_matched_writer(
-                            discovered_writer_data_sample.sample_info.instance_handle,
-                            &mut self.status_listener.write_lock(),
-                        );
-                    }
-                }
-                InstanceStateKind::NotAliveNoWriters => todo!(),
-            }
-        }
-
-        Ok(())
-    }
-
-    fn discover_matched_readers(&self) -> DdsResult<()> {
-        let samples = self
-            .builtin_subscriber
+            .get_builtin_subscriber()
             .sedp_builtin_subscriptions_reader()
             .read::<DiscoveredReaderData>(
                 i32::MAX,
@@ -1092,8 +1028,8 @@ impl DdsShared<DomainParticipantImpl> {
             match discovered_reader_data_sample.sample_info.instance_state {
                 InstanceStateKind::Alive => {
                     if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
-                        if !self.ignored_subcriptions.read_lock().contains(
-                            &discovered_reader_data
+                        if !self.is_subscription_ignored(
+                            discovered_reader_data
                                 .reader_proxy
                                 .remote_reader_guid
                                 .into(),
@@ -1110,26 +1046,72 @@ impl DdsShared<DomainParticipantImpl> {
                                 .read_lock()
                                 .get(&reader_parent_participant_guid.into())
                             {
-                                for publisher in self.user_defined_publisher_list.read_lock().iter()
-                                {
-                                    publisher.add_matched_reader(
-                                        &discovered_reader_data,
-                                        discovered_participant_data.default_unicast_locator_list(),
-                                        discovered_participant_data
-                                            .default_multicast_locator_list(),
-                                        &mut self.status_listener.write_lock(),
-                                    );
+                                for publisher in &self.user_defined_publisher_list() {
+                                    let is_discovered_reader_regex_matched_to_publisher =
+                                        if let Ok(d) = glob_to_regex(
+                                            &discovered_reader_data
+                                                .subscription_builtin_topic_data
+                                                .partition
+                                                .name,
+                                        ) {
+                                            d.is_match(&publisher.get_qos().partition.name)
+                                        } else {
+                                            false
+                                        };
+
+                                    let is_publisher_regex_matched_to_discovered_reader =
+                                        if let Ok(d) =
+                                            glob_to_regex(&publisher.get_qos().partition.name)
+                                        {
+                                            d.is_match(
+                                                &discovered_reader_data
+                                                    .subscription_builtin_topic_data
+                                                    .partition
+                                                    .name,
+                                            )
+                                        } else {
+                                            false
+                                        };
+
+                                    let is_partition_string_matched = discovered_reader_data
+                                        .subscription_builtin_topic_data
+                                        .partition
+                                        .name
+                                        == publisher.get_qos().partition.name;
+
+                                    if is_discovered_reader_regex_matched_to_publisher
+                                        || is_publisher_regex_matched_to_discovered_reader
+                                        || is_partition_string_matched
+                                    {
+                                        for data_writer in &publisher.data_writer_list() {
+                                            add_matched_reader(
+                                                data_writer,
+                                                &discovered_reader_data,
+                                                discovered_participant_data
+                                                    .default_unicast_locator_list(),
+                                                discovered_participant_data
+                                                    .default_multicast_locator_list(),
+                                                &mut publisher.get_status_listener_lock(),
+                                                &mut self.get_status_listener_lock(),
+                                                &publisher.get_qos(),
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
                 InstanceStateKind::NotAliveDisposed => {
-                    for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                        publisher.remove_matched_reader(
-                            discovered_reader_data_sample.sample_info.instance_handle,
-                            &mut self.status_listener.write_lock(),
-                        )
+                    for publisher in &self.user_defined_publisher_list() {
+                        for data_writer in &publisher.data_writer_list() {
+                            remove_writer_matched_reader(
+                                data_writer,
+                                discovered_reader_data_sample.sample_info.instance_handle,
+                                &mut publisher.get_status_listener_lock(),
+                                &mut self.status_listener.write_lock(),
+                            )
+                        }
                     }
                 }
 
@@ -1140,7 +1122,7 @@ impl DdsShared<DomainParticipantImpl> {
         Ok(())
     }
 
-    fn discover_matched_topics(&self) -> DdsResult<()> {
+    pub fn discover_matched_topics(&self) -> DdsResult<()> {
         while let Ok(samples) = self
             .builtin_subscriber
             .sedp_builtin_topics_reader()
@@ -1153,10 +1135,10 @@ impl DdsShared<DomainParticipantImpl> {
         ) {
             for sample in samples {
                 if let Some(topic_data) = sample.data.as_ref() {
-                    for topic in self.topic_list.read_lock().iter() {
+                    for topic in &self.topic_list() {
                         topic.process_discovered_topic(
                             topic_data,
-                            &mut self.status_listener.write_lock(),
+                            &mut self.get_status_listener_lock(),
                         );
                     }
 
@@ -1192,5 +1174,266 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn cancel_timers(&self) {
         self.timer.write_lock().cancel_timers()
+    }
+}
+
+fn add_matched_reader(
+    writer: &UserDefinedDataWriter,
+    discovered_reader_data: &DiscoveredReaderData,
+    default_unicast_locator_list: &[Locator],
+    default_multicast_locator_list: &[Locator],
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+    publisher_qos: &PublisherQos,
+) {
+    let is_matched_topic_name = discovered_reader_data
+        .subscription_builtin_topic_data
+        .topic_name
+        == writer.get_topic_name();
+    let is_matched_type_name = discovered_reader_data
+        .subscription_builtin_topic_data
+        .type_name
+        == writer.get_type_name();
+
+    if is_matched_topic_name && is_matched_type_name {
+        let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
+            &writer.get_qos(),
+            &discovered_reader_data.subscription_builtin_topic_data,
+            publisher_qos,
+        );
+        let instance_handle = discovered_reader_data.get_serialized_key().into();
+
+        if incompatible_qos_policy_list.is_empty() {
+            let unicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .unicast_locator_list
+                .is_empty()
+            {
+                default_unicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .unicast_locator_list
+                    .as_ref()
+            };
+
+            let multicast_locator_list = if discovered_reader_data
+                .reader_proxy
+                .multicast_locator_list
+                .is_empty()
+            {
+                default_multicast_locator_list
+            } else {
+                discovered_reader_data
+                    .reader_proxy
+                    .multicast_locator_list
+                    .as_ref()
+            };
+
+            let proxy_reliability = match discovered_reader_data
+                .subscription_builtin_topic_data
+                .reliability
+                .kind
+            {
+                ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
+                ReliabilityQosPolicyKind::Reliable => ReliabilityKind::Reliable,
+            };
+
+            let proxy_durability = match discovered_reader_data
+                .subscription_builtin_topic_data
+                .durability
+                .kind
+            {
+                DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
+                DurabilityQosPolicyKind::TransientLocal => DurabilityKind::TransientLocal,
+            };
+
+            let reader_proxy = RtpsReaderProxy::new(
+                discovered_reader_data.reader_proxy.remote_reader_guid,
+                discovered_reader_data.reader_proxy.remote_group_entity_id,
+                unicast_locator_list,
+                multicast_locator_list,
+                discovered_reader_data.reader_proxy.expects_inline_qos,
+                true,
+                proxy_reliability,
+                proxy_durability,
+            );
+
+            writer.matched_reader_add(reader_proxy);
+
+            if !writer
+                .get_matched_subscriptions()
+                .contains(&instance_handle)
+                || writer
+                    .get_matched_subscription_data(instance_handle)
+                    .as_ref()
+                    != Some(&discovered_reader_data.subscription_builtin_topic_data)
+            {
+                writer.add_matched_publication(
+                    instance_handle,
+                    discovered_reader_data
+                        .subscription_builtin_topic_data
+                        .clone(),
+                );
+                on_writer_publication_matched(
+                    writer,
+                    publisher_status_listener,
+                    participant_status_listener,
+                )
+            }
+        } else {
+            writer_on_offered_incompatible_qos(
+                writer,
+                instance_handle,
+                incompatible_qos_policy_list,
+                publisher_status_listener,
+                participant_status_listener,
+            );
+        }
+    }
+}
+
+fn get_discovered_reader_incompatible_qos_policy_list(
+    writer_qos: &DataWriterQos,
+    discovered_reader_data: &SubscriptionBuiltinTopicData,
+    publisher_qos: &PublisherQos,
+) -> Vec<QosPolicyId> {
+    let mut incompatible_qos_policy_list = Vec::new();
+    if writer_qos.durability < discovered_reader_data.durability {
+        incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
+    }
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation.access_scope
+        || publisher_qos.presentation.coherent_access
+            != discovered_reader_data.presentation.coherent_access
+        || publisher_qos.presentation.ordered_access
+            != discovered_reader_data.presentation.ordered_access
+    {
+        incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
+    }
+    if writer_qos.deadline < discovered_reader_data.deadline {
+        incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
+    }
+    if writer_qos.latency_budget < discovered_reader_data.latency_budget {
+        incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
+    }
+    if writer_qos.liveliness < discovered_reader_data.liveliness {
+        incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
+    }
+    if writer_qos.reliability.kind < discovered_reader_data.reliability.kind {
+        incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
+    }
+    if writer_qos.destination_order < discovered_reader_data.destination_order {
+        incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
+    }
+    incompatible_qos_policy_list
+}
+
+fn on_writer_publication_matched(
+    writer: &UserDefinedDataWriter,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    writer.add_communication_state(StatusKind::PublicationMatched);
+
+    let publication_matched_status_kind = &StatusKind::PublicationMatched;
+
+    if writer
+        .get_status_listener_lock()
+        .is_enabled(publication_matched_status_kind)
+    {
+        writer
+            .get_status_listener_lock()
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .trigger_on_publication_matched(
+                ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
+        publisher_status_listener
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .on_publication_matched(
+                &ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    } else if participant_status_listener.is_enabled(publication_matched_status_kind) {
+        participant_status_listener
+            .listener_mut()
+            .as_mut()
+            .expect("Listener should be some")
+            .on_publication_matched(
+                &ListenerDataWriterNode::new(),
+                writer.get_publication_matched_status(),
+            )
+    }
+}
+
+pub fn remove_writer_matched_reader(
+    writer: &UserDefinedDataWriter,
+    discovered_reader_handle: InstanceHandle,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
+        let handle = r.key.value.into();
+        writer.matched_reader_remove(handle);
+        writer.remove_matched_subscription(handle.into());
+
+        on_writer_publication_matched(
+            writer,
+            publisher_status_listener,
+            participant_status_listener,
+        )
+    }
+}
+
+fn writer_on_offered_incompatible_qos(
+    writer: &UserDefinedDataWriter,
+    handle: InstanceHandle,
+    incompatible_qos_policy_list: Vec<QosPolicyId>,
+    publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    if !writer.get_incompatible_subscriptions().contains(&handle) {
+        writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
+
+        let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
+        if writer
+            .get_status_listener_lock()
+            .is_enabled(offerered_incompatible_qos_status_kind)
+        {
+            writer
+                .get_status_listener_lock()
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .trigger_on_offered_incompatible_qos(
+                    ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            publisher_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        } else if participant_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
+            participant_status_listener
+                .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
+                .on_offered_incompatible_qos(
+                    &ListenerDataWriterNode::new(),
+                    writer.get_offered_incompatible_qos_status(),
+                )
+        }
+
+        writer.add_communication_state(StatusKind::OfferedIncompatibleQos);
     }
 }

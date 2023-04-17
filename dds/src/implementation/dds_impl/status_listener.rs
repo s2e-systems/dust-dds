@@ -17,7 +17,7 @@ impl<T: ?Sized> StatusListener<T> {
         self.listener.is_some() && self.status_kind.contains(status_kind)
     }
 
-    pub fn listener_mut(&mut self) -> &mut Box<T> {
-        self.listener.as_mut().expect("Listener should be Some")
+    pub fn listener_mut(&mut self) -> &mut Option<Box<T>> {
+        &mut self.listener
     }
 }

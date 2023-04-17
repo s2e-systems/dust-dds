@@ -18,7 +18,8 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    status_condition_impl::StatusConditionImpl, user_defined_publisher::UserDefinedPublisher,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -86,15 +87,12 @@ impl UserDefinedPublisherNode {
             .0
             .get()?
             .data_writer_list()
-            .find_map(|data_writer| {
-                if data_writer.get_topic_name() == topic_name
+            .into_iter()
+            .find(|data_writer| {
+                data_writer.get_topic_name() == topic_name
                     && data_writer.get_type_name() == type_name
-                {
-                    Some(data_writer)
-                } else {
-                    None
-                }
             })
+            .cloned()
             .ok_or_else(|| DdsError::PreconditionNotMet("Not found".to_string()))?;
 
         Ok(UserDefinedDataWriterNode::new(ChildNode::new(
@@ -160,7 +158,7 @@ impl UserDefinedPublisherNode {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 
@@ -189,17 +187,19 @@ impl UserDefinedPublisherNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_writer in self.0.get()?.data_writer_list() {
-                    data_writer.enable()?;
+                for data_writer in &self.0.get()?.data_writer_list() {
+                    data_writer.enable();
                     let topic = self
                         .0
                         .parent()
                         .get()?
                         .topic_list()
+                        .into_iter()
                         .find(|t| {
                             t.get_name() == data_writer.get_topic_name()
                                 && t.get_type_name() == data_writer.get_type_name()
                         })
+                        .cloned()
                         .expect("Topic must exist");
                     data_writer.announce_writer(&topic.get_qos(), &self.0.get()?.get_qos());
                 }

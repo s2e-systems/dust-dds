@@ -22,7 +22,7 @@ use super::{
     node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode,
+    node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
@@ -104,13 +104,8 @@ impl DomainParticipantNode {
             .0
             .get()?
             .topic_list()
-            .find_map(|topic| {
-                if topic.get_name() == topic_name && topic.get_type_name() == type_name {
-                    Some(topic)
-                } else {
-                    None
-                }
-            })
+            .into_iter()
+            .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
             .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
     }
 
@@ -212,7 +207,13 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0.get()?.get_discovered_participants()
+        Ok(self
+            .0
+            .get()?
+            .discovered_participant_list()
+            .into_iter()
+            .map(|(&key, _)| key)
+            .collect())
     }
 
     pub fn get_discovered_participant_data(
@@ -223,9 +224,16 @@ impl DomainParticipantNode {
             return Err(DdsError::NotEnabled);
         }
 
-        self.0
+        Ok(self
+            .0
             .get()?
-            .get_discovered_participant_data(participant_handle)
+            .discovered_participant_list()
+            .into_iter()
+            .find(|&(handle, _)| handle == &participant_handle)
+            .ok_or(DdsError::BadParameter)?
+            .1
+            .dds_participant_data
+            .clone())
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
@@ -276,7 +284,7 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 

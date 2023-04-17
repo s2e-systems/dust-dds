@@ -1,11 +1,7 @@
-use std::sync::mpsc::SyncSender;
-
-use fnmatch_regex::glob_to_regex;
+use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 
 use crate::{
-    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::DiscoveredReaderData,
         rtps::{
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -13,7 +9,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsIterator,
+            iterator::DdsListIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -75,9 +71,7 @@ impl UserDefinedPublisher {
             announce_sender,
         })
     }
-}
 
-impl DdsShared<UserDefinedPublisher> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
@@ -126,7 +120,7 @@ impl DdsShared<UserDefinedPublisher> {
         let data_writer_list = &mut self.data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
-            .position(|x| x.get_instance_handle() == data_writer_handle)
+            .position(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Data writer can only be deleted from its parent publisher".to_string(),
@@ -137,19 +131,25 @@ impl DdsShared<UserDefinedPublisher> {
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
             self.announce_sender
-                .send(AnnounceKind::DeletedDataWriter(
-                    data_writer.get_instance_handle(),
-                ))
+                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
                 .ok();
         }
 
         Ok(())
     }
 
-    pub fn data_writer_list(&self) -> DdsIterator<'_, UserDefinedDataWriter> {
-        DdsIterator::new(self.data_writer_list.read_lock())
+    pub fn data_writer_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter>> {
+        DdsListIntoIterator::new(self.data_writer_list.read_lock())
     }
 
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {
+        self.status_listener.write_lock()
+    }
+}
+
+impl DdsShared<UserDefinedPublisher> {
     pub fn suspend_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -195,9 +195,7 @@ impl DdsShared<UserDefinedPublisher> {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
                 self.announce_sender
-                    .send(AnnounceKind::DeletedDataWriter(
-                        data_writer.get_instance_handle(),
-                    ))
+                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
                     .ok();
             }
         }
@@ -237,14 +235,6 @@ impl DdsShared<UserDefinedPublisher> {
         self.qos.read_lock().clone()
     }
 
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -261,77 +251,6 @@ impl DdsShared<UserDefinedPublisher> {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
-    }
-
-    pub fn add_matched_reader(
-        &self,
-        discovered_reader_data: &DiscoveredReaderData,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let is_discovered_reader_regex_matched_to_publisher = if let Ok(d) = glob_to_regex(
-            &discovered_reader_data
-                .subscription_builtin_topic_data
-                .partition
-                .name,
-        ) {
-            d.is_match(&self.qos.read_lock().partition.name)
-        } else {
-            false
-        };
-
-        let is_publisher_regex_matched_to_discovered_reader =
-            if let Ok(d) = glob_to_regex(&self.qos.read_lock().partition.name) {
-                d.is_match(
-                    &discovered_reader_data
-                        .subscription_builtin_topic_data
-                        .partition
-                        .name,
-                )
-            } else {
-                false
-            };
-
-        let is_partition_string_matched = discovered_reader_data
-            .subscription_builtin_topic_data
-            .partition
-            .name
-            == self.qos.read_lock().partition.name;
-
-        if is_discovered_reader_regex_matched_to_publisher
-            || is_publisher_regex_matched_to_discovered_reader
-            || is_partition_string_matched
-        {
-            for data_writer in self.data_writer_list.read_lock().iter() {
-                data_writer.add_matched_reader(
-                    discovered_reader_data,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    &mut self.status_listener.write_lock(),
-                    participant_status_listener,
-                    &self.qos.read_lock(),
-                )
-            }
-        }
-    }
-
-    pub fn remove_matched_reader(
-        &self,
-        discovered_reader_handle: InstanceHandle,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
-            data_writer.remove_matched_reader(
-                discovered_reader_handle,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
-            )
-        }
     }
 }
 

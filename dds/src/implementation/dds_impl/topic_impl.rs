@@ -169,20 +169,20 @@ impl DdsShared<TopicImpl> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        if discovered_topic_data.topic_builtin_topic_data.type_name == self.type_name
-            && discovered_topic_data.topic_builtin_topic_data.name == self.topic_name
+        if discovered_topic_data.topic_builtin_topic_data.type_name == self.get_type_name()
+            && discovered_topic_data.topic_builtin_topic_data.name == self.get_name()
             && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
         {
             self.inconsistent_topic_status.write_lock().increment();
+
+            self.status_condition
+                .write_lock()
+                .add_communication_state(StatusKind::InconsistentTopic);
 
             self.trigger_on_inconsistent_topic_listener(
                 &mut self.status_listener.write_lock(),
                 participant_status_listener,
             );
-
-            self.status_condition
-                .write_lock()
-                .add_communication_state(StatusKind::InconsistentTopic);
         }
     }
 
@@ -198,6 +198,8 @@ impl DdsShared<TopicImpl> {
         if topic_status_listener.is_enabled(inconsistent_topic_status_kind) {
             topic_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .trigger_on_inconsistent_topic(
                     ListenerTopicNode,
                     self.get_inconsistent_topic_status(),
@@ -205,6 +207,8 @@ impl DdsShared<TopicImpl> {
         } else if participant_status_listener.is_enabled(inconsistent_topic_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_inconsistent_topic(&ListenerTopicNode, self.get_inconsistent_topic_status())
         }
     }

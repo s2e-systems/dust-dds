@@ -291,7 +291,7 @@ impl RtpsStatefulWriter {
         self.writer.lookup_instance(instance_serialized_key)
     }
 
-    pub fn set_qos(&mut self, qos: DataWriterQos) -> DdsResult<()> {
+    pub fn set_qos(&mut self, qos: DataWriterQos) {
         self.writer.set_qos(qos)
     }
 

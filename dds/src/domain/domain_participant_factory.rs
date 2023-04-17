@@ -310,15 +310,22 @@ impl DomainParticipantFactory {
 
         let is_participant_empty = participant_list[index]
             .participant()
-            .publisher_list()
+            .user_defined_publisher_list()
+            .into_iter()
             .count()
             == 0
             && participant_list[index]
                 .participant()
-                .subscriber_list()
+                .user_defined_subscriber_list()
+                .into_iter()
                 .count()
                 == 0
-            && participant_list[index].participant().topic_list().count() == 0;
+            && participant_list[index]
+                .participant()
+                .topic_list()
+                .into_iter()
+                .count()
+                == 0;
 
         if is_participant_empty {
             participant_list[index].participant().cancel_timers();

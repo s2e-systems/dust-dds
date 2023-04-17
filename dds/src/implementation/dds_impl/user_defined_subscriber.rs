@@ -1,11 +1,8 @@
-use std::sync::mpsc::SyncSender;
-
-use fnmatch_regex::glob_to_regex;
+use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             group::RtpsGroup,
             messages::submessages::{
@@ -16,7 +13,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::DdsIterator,
+            iterator::DdsListIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -87,11 +84,19 @@ impl UserDefinedSubscriber {
     ) -> DdsResult<()> {
         todo!()
     }
-}
 
-impl DdsShared<UserDefinedSubscriber> {
+    pub fn get_status_listener_lock(
+        &self,
+    ) -> RwLockWriteGuard<StatusListener<dyn SubscriberListener + Send + Sync>> {
+        self.status_listener.write_lock()
+    }
+
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
+    }
+
+    pub fn get_qos(&self) -> SubscriberQos {
+        self.qos.read_lock().clone()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -167,10 +172,12 @@ impl DdsShared<UserDefinedSubscriber> {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsIterator<'_, UserDefinedDataReader> {
-        DdsIterator::new(self.data_reader_list.read_lock())
+    pub fn data_reader_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataReader>> {
+        DdsListIntoIterator::new(self.data_reader_list.read_lock())
     }
+}
 
+impl DdsShared<UserDefinedSubscriber> {
     pub fn notify_datareaders(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -241,18 +248,6 @@ impl DdsShared<UserDefinedSubscriber> {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> SubscriberQos {
-        self.qos.read_lock().clone()
-    }
-
-    pub fn set_listener(
-        &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) {
-        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
-    }
-
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
         self.status_condition.clone()
     }
@@ -280,77 +275,6 @@ impl DdsShared<UserDefinedSubscriber> {
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
-    }
-
-    pub fn add_matched_writer(
-        &self,
-        discovered_writer_data: &DiscoveredWriterData,
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
-            &discovered_writer_data
-                .publication_builtin_topic_data
-                .partition
-                .name,
-        ) {
-            d.is_match(&self.qos.read_lock().partition.name)
-        } else {
-            false
-        };
-
-        let is_subscriber_regex_matched_to_discovered_writer =
-            if let Ok(d) = glob_to_regex(&self.qos.read_lock().partition.name) {
-                d.is_match(
-                    &discovered_writer_data
-                        .publication_builtin_topic_data
-                        .partition
-                        .name,
-                )
-            } else {
-                false
-            };
-
-        let is_partition_string_matched = discovered_writer_data
-            .publication_builtin_topic_data
-            .partition
-            .name
-            == self.qos.read_lock().partition.name;
-
-        if is_discovered_writer_regex_matched_to_subscriber
-            || is_subscriber_regex_matched_to_discovered_writer
-            || is_partition_string_matched
-        {
-            for data_reader in self.data_reader_list.read_lock().iter() {
-                data_reader.add_matched_writer(
-                    discovered_writer_data,
-                    default_unicast_locator_list,
-                    default_multicast_locator_list,
-                    &mut self.status_listener.write_lock(),
-                    participant_status_listener,
-                    &self.qos.read_lock(),
-                )
-            }
-        }
-    }
-
-    pub fn remove_matched_writer(
-        &self,
-        discovered_writer_handle: InstanceHandle,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
-            data_reader.remove_matched_writer(
-                discovered_writer_handle,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
-            )
-        }
     }
 
     fn on_data_on_readers(
@@ -381,12 +305,16 @@ impl DdsShared<UserDefinedSubscriber> {
         if subscriber_status_listener.is_enabled(data_on_readers_status_kind) {
             subscriber_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
                     ListenerSubscriberNode::new(),
                 )))
         } else if participant_status_listener.is_enabled(data_on_readers_status_kind) {
             participant_status_listener
                 .listener_mut()
+                .as_mut()
+                .expect("Listener should be some")
                 .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
                     ListenerSubscriberNode::new(),
                 )))

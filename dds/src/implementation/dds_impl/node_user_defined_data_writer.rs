@@ -22,7 +22,8 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
+    status_listener::StatusListener, user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -106,11 +107,11 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
-        Ok(self.0.get()?.get_liveliness_lost_status())
+        todo!()
     }
 
     pub fn get_offered_deadline_missed_status(&self) -> DdsResult<OfferedDeadlineMissedStatus> {
-        Ok(self.0.get()?.get_offered_deadline_missed_status())
+        todo!()
     }
 
     pub fn get_offered_incompatible_qos_status(&self) -> DdsResult<OfferedIncompatibleQosStatus> {
@@ -118,6 +119,9 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
+        self.0
+            .get()?
+            .remove_communication_state(StatusKind::PublicationMatched);
         Ok(self.0.get()?.get_publication_matched_status())
     }
 
@@ -130,10 +134,12 @@ impl UserDefinedDataWriterNode {
             .parent()
             .get()?
             .topic_list()
+            .into_iter()
             .find(|t| {
                 t.get_name() == data_writer.get_topic_name()
                     && t.get_type_name() == data_writer.get_type_name()
             })
+            .cloned()
             .expect("Topic must exist");
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
@@ -147,42 +153,69 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        self.0.get()?.assert_liveliness()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        todo!()
     }
 
     pub fn get_matched_subscription_data(
         &self,
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
         self.0
             .get()?
             .get_matched_subscription_data(subscription_handle)
+            .ok_or(DdsError::BadParameter)
     }
 
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        self.0.get()?.get_matched_subscriptions()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        Ok(self.0.get()?.get_matched_subscriptions())
     }
 
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)?;
-
         let data_writer = self.0.get()?;
 
+        let qos = match qos {
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
         if self.0.get()?.is_enabled() {
+            if self.0.get()?.is_enabled() {
+                self.0.get()?.get_qos().check_immutability(&qos)?;
+            }
+
+            self.0.get()?.set_qos(qos);
+
             let topic = self
                 .0
                 .parent()
                 .parent()
                 .get()?
                 .topic_list()
+                .into_iter()
                 .find(|t| {
                     t.get_name() == data_writer.get_topic_name()
                         && t.get_type_name() == data_writer.get_type_name()
                 })
+                .cloned()
                 .expect("Topic must exist");
             self.0
                 .get()?
                 .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        } else {
+            self.0.get()?.set_qos(qos);
         }
         Ok(())
     }
@@ -196,7 +229,7 @@ impl UserDefinedDataWriterNode {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        self.0.get()?.set_listener(a_listener, mask);
+        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         Ok(())
     }
 
@@ -214,7 +247,7 @@ impl UserDefinedDataWriterNode {
                 "Parent publisher disabled".to_string(),
             ));
         }
-        self.0.get()?.enable()?;
+        self.0.get()?.enable();
 
         let data_writer = self.0.get()?;
 
@@ -224,10 +257,12 @@ impl UserDefinedDataWriterNode {
             .parent()
             .get()?
             .topic_list()
+            .into_iter()
             .find(|t| {
                 t.get_name() == data_writer.get_topic_name()
                     && t.get_type_name() == data_writer.get_type_name()
             })
+            .cloned()
             .expect("Topic must exist");
         self.0
             .get()?
@@ -237,6 +272,6 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(self.0.get()?.guid().into())
     }
 }

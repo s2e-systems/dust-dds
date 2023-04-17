@@ -1,28 +1,39 @@
-use std::sync::RwLockReadGuard;
+use std::{collections::HashMap, sync::RwLockReadGuard};
 
-use super::shared_object::DdsShared;
-
-pub struct DdsIterator<'a, T> {
-    list: RwLockReadGuard<'a, Vec<DdsShared<T>>>,
-    index: usize,
+pub struct DdsListIntoIterator<'a, T> {
+    lock: RwLockReadGuard<'a, Vec<T>>,
 }
 
-impl<T> Iterator for DdsIterator<'_, T> {
-    type Item = DdsShared<T>;
+impl<'a, T> IntoIterator for &'a DdsListIntoIterator<'_, T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.list.get(self.index) {
-            Some(out) => {
-                self.index += 1;
-                Some(out.clone())
-            }
-            None => None,
-        }
+    fn into_iter(self) -> Self::IntoIter {
+        self.lock.iter()
     }
 }
 
-impl<'a, T> DdsIterator<'a, T> {
-    pub fn new(list: RwLockReadGuard<'a, Vec<DdsShared<T>>>) -> Self {
-        Self { list, index: 0 }
+impl<'a, T> DdsListIntoIterator<'a, T> {
+    pub fn new(lock: RwLockReadGuard<'a, Vec<T>>) -> Self {
+        Self { lock }
+    }
+}
+
+pub struct DdsMapIntoIterator<'a, K, T> {
+    lock: RwLockReadGuard<'a, HashMap<K, T>>,
+}
+
+impl<'a, K, T> DdsMapIntoIterator<'a, K, T> {
+    pub fn new(lock: RwLockReadGuard<'a, HashMap<K, T>>) -> Self {
+        Self { lock }
+    }
+}
+
+impl<'a, K, T> IntoIterator for &'a DdsMapIntoIterator<'_, K, T> {
+    type Item = (&'a K, &'a T);
+    type IntoIter = std::collections::hash_map::Iter<'a, K, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.lock.iter()
     }
 }

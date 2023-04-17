@@ -8,7 +8,10 @@ use std::{
     thread::JoinHandle,
 };
 
+use fnmatch_regex::glob_to_regex;
+
 use crate::{
+    domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
@@ -25,7 +28,10 @@ use crate::{
             },
             reader_proxy::WriterAssociatedReaderProxy,
             transport::TransportWrite,
-            types::{EntityId, GuidPrefix, ReliabilityKind, SequenceNumber},
+            types::{
+                EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
+                ENTITYID_PARTICIPANT,
+            },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{condvar::DdsCondvar, shared_object::DdsShared},
@@ -35,13 +41,19 @@ use crate::{
         instance::InstanceHandle,
         time::{Duration, DurationKind, Time},
     },
+    subscription::sample_info::{
+        InstanceStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+    },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
 };
 
 use super::{
     builtin_stateful_writer::BuiltinStatefulWriter,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    message_receiver::MessageReceiver,
+    status_listener::StatusListener,
     user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub struct DcpsService {
@@ -95,9 +107,21 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    domain_participant
-                        .receive_built_in_data(locator, message)
+                    MessageReceiver::new(domain_participant.get_current_time())
+                        .process_message(
+                            domain_participant.guid().prefix(),
+                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+                            locator,
+                            &message,
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
                         .ok();
+
+                    domain_participant.discover_matched_participants().ok();
+                    domain_participant.discover_matched_readers().ok();
+                    discover_matched_writers(&domain_participant).ok();
+                    domain_participant.discover_matched_topics().ok();
                 }
             }));
         }
@@ -153,9 +177,21 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    domain_participant
-                        .receive_built_in_data(locator, message)
+                    MessageReceiver::new(domain_participant.get_current_time())
+                        .process_message(
+                            domain_participant.guid().prefix(),
+                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+                            locator,
+                            &message,
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
                         .ok();
+
+                    domain_participant.discover_matched_participants().ok();
+                    domain_participant.discover_matched_readers().ok();
+                    discover_matched_writers(&domain_participant).ok();
+                    domain_participant.discover_matched_topics().ok();
                 }
             }));
         }
@@ -259,8 +295,8 @@ impl DcpsService {
                 };
                 let now = domain_participant.get_current_time();
 
-                for publisher in domain_participant.publisher_list() {
-                    for data_writer in publisher.data_writer_list() {
+                for publisher in &domain_participant.user_defined_publisher_list() {
+                    for data_writer in &publisher.data_writer_list() {
                         let writer_id = data_writer.guid().entity_id();
                         let data_max_size_serialized = data_writer.data_max_size_serialized();
                         let heartbeat_period = data_writer.heartbeat_period();
@@ -276,7 +312,7 @@ impl DcpsService {
                             .map(|x| x.sequence_number())
                             .max()
                             .unwrap_or_else(|| SequenceNumber::new(0));
-                        remove_stale_writer_changes(&data_writer, now);
+                        remove_stale_writer_changes(data_writer, now);
                         for mut reader_proxy in &mut data_writer.matched_reader_list() {
                             match reader_proxy.reliability() {
                                 ReliabilityKind::BestEffort => {
@@ -302,8 +338,8 @@ impl DcpsService {
                     }
                 }
 
-                for subscriber in domain_participant.subscriber_list() {
-                    for data_reader in subscriber.data_reader_list() {
+                for subscriber in &domain_participant.user_defined_subscriber_list() {
+                    for data_reader in &subscriber.data_reader_list() {
                         data_reader.send_message(header, &mut default_unicast_transport_send)
                     }
                 }
@@ -784,5 +820,125 @@ fn builtin_stateful_writer_send_message(
             last_sn,
             heartbeat_period,
         )
+    }
+}
+
+fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsResult<()> {
+    let samples = domain_participant
+        .get_builtin_subscriber()
+        .sedp_builtin_publications_reader()
+        .read::<DiscoveredWriterData>(
+            i32::MAX,
+            ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+            ANY_INSTANCE_STATE,
+            None,
+        )?;
+
+    for discovered_writer_data_sample in samples.into_iter() {
+        match discovered_writer_data_sample.sample_info.instance_state {
+            InstanceStateKind::Alive => {
+                if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
+                    if !domain_participant.is_publication_ignored(
+                        discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid
+                            .into(),
+                    ) {
+                        let remote_writer_guid_prefix = discovered_writer_data
+                            .writer_proxy
+                            .remote_writer_guid
+                            .prefix();
+                        let writer_parent_participant_guid =
+                            Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
+
+                        if let Some((_, discovered_participant_data)) = domain_participant
+                            .discovered_participant_list()
+                            .into_iter()
+                            .find(|&(h, _)| {
+                                h == &InstanceHandle::from(writer_parent_participant_guid)
+                            })
+                        {
+                            for subscriber in &domain_participant.user_defined_subscriber_list() {
+                                subscriber_add_matched_writer(
+                                    subscriber,
+                                    &discovered_writer_data,
+                                    discovered_participant_data.default_unicast_locator_list(),
+                                    discovered_participant_data.default_multicast_locator_list(),
+                                    &mut domain_participant.get_status_listener_lock(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            InstanceStateKind::NotAliveDisposed => {
+                for subscriber in &domain_participant.user_defined_subscriber_list() {
+                    for data_reader in &subscriber.data_reader_list() {
+                        data_reader.remove_matched_writer(
+                            discovered_writer_data_sample.sample_info.instance_handle,
+                            &mut subscriber.get_status_listener_lock(),
+                            &mut domain_participant.get_status_listener_lock(),
+                        )
+                    }
+                }
+            }
+            InstanceStateKind::NotAliveNoWriters => todo!(),
+        }
+    }
+
+    Ok(())
+}
+
+pub fn subscriber_add_matched_writer(
+    user_defined_subscriber: &UserDefinedSubscriber,
+    discovered_writer_data: &DiscoveredWriterData,
+    default_unicast_locator_list: &[Locator],
+    default_multicast_locator_list: &[Locator],
+    participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
+) {
+    let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
+        &discovered_writer_data
+            .publication_builtin_topic_data
+            .partition
+            .name,
+    ) {
+        d.is_match(&user_defined_subscriber.get_qos().partition.name)
+    } else {
+        false
+    };
+
+    let is_subscriber_regex_matched_to_discovered_writer =
+        if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
+            d.is_match(
+                &discovered_writer_data
+                    .publication_builtin_topic_data
+                    .partition
+                    .name,
+            )
+        } else {
+            false
+        };
+
+    let is_partition_string_matched = discovered_writer_data
+        .publication_builtin_topic_data
+        .partition
+        .name
+        == user_defined_subscriber.get_qos().partition.name;
+
+    if is_discovered_writer_regex_matched_to_subscriber
+        || is_subscriber_regex_matched_to_discovered_writer
+        || is_partition_string_matched
+    {
+        for data_reader in &user_defined_subscriber.data_reader_list() {
+            data_reader.add_matched_writer(
+                discovered_writer_data,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                &mut user_defined_subscriber.get_status_listener_lock(),
+                participant_status_listener,
+                &user_defined_subscriber.get_qos(),
+            )
+        }
     }
 }
