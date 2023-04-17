@@ -5,6 +5,7 @@ use crate::{
         rtps::{
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            stateful_writer::RtpsStatefulWriter,
             types::Locator,
         },
         utils::{
@@ -37,7 +38,7 @@ use super::{
 pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
-    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -86,7 +87,7 @@ impl UserDefinedPublisher {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
+    ) -> DdsResult<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>>
     where
         Foo: DdsType,
     {
@@ -138,7 +139,9 @@ impl UserDefinedPublisher {
         Ok(())
     }
 
-    pub fn data_writer_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter>> {
+    pub fn data_writer_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>> {
         DdsListIntoIterator::new(self.data_writer_list.read_lock())
     }
 

@@ -27,6 +27,7 @@ use crate::{
                 RtpsMessage, RtpsSubmessageKind,
             },
             reader_proxy::WriterAssociatedReaderProxy,
+            stateful_writer::RtpsStatefulWriter,
             transport::TransportWrite,
             types::{
                 EntityId, Guid, GuidPrefix, Locator, ReliabilityKind, SequenceNumber,
@@ -532,7 +533,7 @@ fn announce_deleted_writer(
         .expect("Should not fail to write built-in message");
 }
 
-fn remove_stale_writer_changes(writer: &UserDefinedDataWriter, now: Time) {
+fn remove_stale_writer_changes(writer: &UserDefinedDataWriter<RtpsStatefulWriter>, now: Time) {
     let timespan_duration = writer.get_qos().lifespan.duration;
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }

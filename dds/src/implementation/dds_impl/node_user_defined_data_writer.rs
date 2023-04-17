@@ -1,8 +1,11 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::stateful_writer::RtpsStatefulWriter,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -28,7 +31,7 @@ use super::{
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode(
     ChildNode<
-        UserDefinedDataWriter,
+        UserDefinedDataWriter<RtpsStatefulWriter>,
         ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
     >,
 );
@@ -36,7 +39,7 @@ pub struct UserDefinedDataWriterNode(
 impl UserDefinedDataWriterNode {
     pub fn new(
         node: ChildNode<
-            UserDefinedDataWriter,
+            UserDefinedDataWriter<RtpsStatefulWriter>,
             ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
         >,
     ) -> Self {
