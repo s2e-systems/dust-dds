@@ -9,7 +9,6 @@ use crate::{
             types::Locator,
         },
         utils::{
-            condvar::DdsCondvar,
             iterator::DdsListIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
@@ -41,7 +40,6 @@ pub struct UserDefinedPublisher {
     data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
-    user_defined_data_send_condvar: DdsCondvar,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -55,7 +53,6 @@ impl UserDefinedPublisher {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-        user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -65,7 +62,6 @@ impl UserDefinedPublisher {
             data_writer_list: DdsRwLock::new(Vec::new()),
             data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
-            user_defined_data_send_condvar,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -100,14 +96,8 @@ impl UserDefinedPublisher {
             self.data_max_size_serialized,
         )?;
 
-        let data_writer_shared = UserDefinedDataWriter::new(
-            rtps_writer_impl,
-            a_listener,
-            mask,
-            type_name,
-            topic_name,
-            self.user_defined_data_send_condvar.clone(),
-        );
+        let data_writer_shared =
+            UserDefinedDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
 
         self.data_writer_list
             .write_lock()

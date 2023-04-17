@@ -395,7 +395,6 @@ impl DomainParticipantImpl {
             rtps_group,
             a_listener,
             mask,
-            self.user_defined_data_send_condvar.clone(),
             self.data_max_size_serialized,
             self.announce_sender.clone(),
         );

@@ -411,7 +411,7 @@ impl DcpsService {
         }
     }
 
-    pub fn sedp_condvar(&self) -> &DdsCondvar {
+    pub fn _sedp_condvar(&self) -> &DdsCondvar {
         &self.sedp_condvar
     }
 
