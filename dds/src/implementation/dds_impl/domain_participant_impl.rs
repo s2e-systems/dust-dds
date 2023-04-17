@@ -1337,19 +1337,11 @@ fn on_writer_publication_matched(
 
     let publication_matched_status_kind = &StatusKind::PublicationMatched;
 
-    if writer
-        .get_status_listener_lock()
-        .is_enabled(publication_matched_status_kind)
-    {
-        writer
-            .get_status_listener_lock()
-            .listener_mut()
-            .as_mut()
-            .expect("Listener should be some")
-            .trigger_on_publication_matched(
-                ListenerDataWriterNode::new(),
-                writer.get_publication_matched_status(),
-            )
+    if writer.is_listener_enabled(publication_matched_status_kind) {
+        writer.trigger_on_publication_matched(
+            ListenerDataWriterNode::new(),
+            writer.get_publication_matched_status(),
+        )
     } else if publisher_status_listener.is_enabled(publication_matched_status_kind) {
         publisher_status_listener
             .listener_mut()
@@ -1401,19 +1393,11 @@ fn writer_on_offered_incompatible_qos(
         writer.add_offered_incompatible_qos(handle, incompatible_qos_policy_list);
 
         let offerered_incompatible_qos_status_kind = &StatusKind::OfferedIncompatibleQos;
-        if writer
-            .get_status_listener_lock()
-            .is_enabled(offerered_incompatible_qos_status_kind)
-        {
-            writer
-                .get_status_listener_lock()
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_offered_incompatible_qos(
-                    ListenerDataWriterNode::new(),
-                    writer.get_offered_incompatible_qos_status(),
-                )
+        if writer.is_listener_enabled(offerered_incompatible_qos_status_kind) {
+            writer.trigger_on_offered_incompatible_qos(
+                ListenerDataWriterNode::new(),
+                writer.get_offered_incompatible_qos_status(),
+            )
         } else if publisher_status_listener.is_enabled(offerered_incompatible_qos_status_kind) {
             publisher_status_listener
                 .listener_mut()

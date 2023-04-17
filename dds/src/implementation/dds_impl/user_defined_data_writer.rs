@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::SyncSender, RwLockWriteGuard},
+    sync::mpsc::SyncSender,
     time::Instant,
 };
 
@@ -29,7 +29,8 @@ use crate::{
         qos::{PublisherQos, TopicQos},
         qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -48,6 +49,7 @@ use super::{
     domain_participant_impl::AnnounceKind,
     iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
     message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
@@ -324,10 +326,56 @@ impl UserDefinedDataWriter {
         self.status_condition.clone()
     }
 
-    pub fn get_status_listener_lock(
+    pub fn set_listener(
         &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataWriterListener + Send + Sync>> {
-        self.status_listener.write_lock()
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
+    }
+
+    pub fn is_listener_enabled(&self, status_kind: &StatusKind) -> bool {
+        self.status_listener.read_lock().is_enabled(status_kind)
+    }
+
+    pub fn _trigger_on_liveliness_lost(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: LivelinessLostStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_liveliness_lost(the_writer, status)
+        }
+    }
+
+    pub fn _trigger_on_offered_deadline_missed(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: OfferedDeadlineMissedStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_offered_deadline_missed(the_writer, status)
+        }
+    }
+
+    pub fn trigger_on_offered_incompatible_qos(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: OfferedIncompatibleQosStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_offered_incompatible_qos(the_writer, status)
+        }
+    }
+
+    pub fn trigger_on_publication_matched(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: PublicationMatchedStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_publication_matched(the_writer, status)
+        }
     }
 
     pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
