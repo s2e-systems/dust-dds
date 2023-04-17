@@ -19,10 +19,15 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, node::RootNode, shared_object::DdsRwLock},
+        utils::{
+            condvar::DdsCondvar,
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
+        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -138,7 +143,7 @@ fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfigu
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
 pub struct DomainParticipantFactory {
-    participant_list: DdsRwLock<Vec<DcpsService>>,
+    participant_list: DdsRwLock<Vec<DdsShared<DcpsService>>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
 }
@@ -265,17 +270,18 @@ impl DomainParticipantFactory {
             announce_sender.clone(),
         );
 
-        let dcps_service = DcpsService::new(
+        let dcps_service = DdsShared::new(DcpsService::new(
             participant,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
             announce_sender,
             announce_receiver,
-        )?;
+        )?);
 
-        let participant = DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
+        let participant = DomainParticipant::new(DomainParticipantNode::new(ChildNode::new(
             dcps_service.participant().downgrade(),
+            RootNode::new(dcps_service.downgrade()),
         )));
 
         if self
@@ -296,16 +302,12 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
+        let participant_handle = participant.get_instance_handle()?;
         let mut participant_list = THE_PARTICIPANT_FACTORY.participant_list.write_lock();
 
         let index = participant_list
             .iter()
-            .position(|pm| {
-                DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
-                    pm.participant().downgrade(),
-                )))
-                .eq(participant)
-            })
+            .position(|pm| InstanceHandle::from(pm.participant().guid()) == participant_handle)
             .ok_or(DdsError::AlreadyDeleted)?;
 
         let is_participant_empty = participant_list[index]
@@ -357,8 +359,9 @@ impl DomainParticipantFactory {
             .iter()
             .find(|dp| dp.participant().get_domain_id() == domain_id)
             .map(|dp| {
-                DomainParticipant::new(DomainParticipantNode::new(RootNode::new(
+                DomainParticipant::new(DomainParticipantNode::new(ChildNode::new(
                     dp.participant().downgrade(),
+                    RootNode::new(dp.downgrade()),
                 )))
             })
     }

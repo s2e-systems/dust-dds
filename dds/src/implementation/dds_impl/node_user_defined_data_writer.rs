@@ -21,7 +21,7 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
+    any_data_writer_listener::AnyDataWriterListener, dcps_service::DcpsService,
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
@@ -32,7 +32,7 @@ use super::{
 pub struct UserDefinedDataWriterNode(
     ChildNode<
         UserDefinedDataWriter<RtpsStatefulWriter>,
-        ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
+        ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     >,
 );
 
@@ -40,7 +40,10 @@ impl UserDefinedDataWriterNode {
     pub fn new(
         node: ChildNode<
             UserDefinedDataWriter<RtpsStatefulWriter>,
-            ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
+            ChildNode<
+                UserDefinedPublisher,
+                ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
+            >,
         >,
     ) -> Self {
         Self(node)

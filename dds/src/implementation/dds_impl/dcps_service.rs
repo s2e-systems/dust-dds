@@ -35,7 +35,10 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, shared_object::DdsShared},
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -60,7 +63,7 @@ use super::{
 pub struct DcpsService {
     participant: DdsShared<DomainParticipantImpl>,
     quit: Arc<AtomicBool>,
-    threads: Vec<JoinHandle<()>>,
+    threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     sender_socket: UdpSocket,
@@ -354,7 +357,7 @@ impl DcpsService {
         Ok(DcpsService {
             participant,
             quit,
-            threads,
+            threads: DdsRwLock::new(threads),
             sedp_condvar,
             user_defined_data_send_condvar,
             sender_socket,
@@ -366,7 +369,7 @@ impl DcpsService {
         &self.participant
     }
 
-    pub fn shutdown_tasks(&mut self) {
+    pub fn shutdown_tasks(&self) {
         self.quit.store(true, atomic::Ordering::SeqCst);
 
         self.sedp_condvar.notify_all();
@@ -403,7 +406,7 @@ impl DcpsService {
             self.sender_socket.send_to(&[0], addr).ok();
         }
 
-        while let Some(thread) = self.threads.pop() {
+        while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();
         }
     }

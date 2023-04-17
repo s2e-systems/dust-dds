@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
+    any_data_reader_listener::AnyDataReaderListener, dcps_service::DcpsService,
     domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
     user_defined_subscriber::UserDefinedSubscriber,
@@ -20,11 +20,16 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedSubscriberNode(
-    ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
+    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedSubscriberNode {
-    pub fn new(node: ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(
+        node: ChildNode<
+            UserDefinedSubscriber,
+            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
+        >,
+    ) -> Self {
         Self(node)
     }
 
