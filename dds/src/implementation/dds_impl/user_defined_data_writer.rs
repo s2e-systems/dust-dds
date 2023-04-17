@@ -191,7 +191,6 @@ pub struct UserDefinedDataWriter<T> {
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
 }
 
@@ -202,7 +201,6 @@ impl<T> UserDefinedDataWriter<T> {
         mask: &[StatusKind],
         type_name: &'static str,
         topic_name: String,
-        user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
@@ -213,7 +211,6 @@ impl<T> UserDefinedDataWriter<T> {
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
         })
     }
@@ -555,18 +552,12 @@ impl DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.rtps_writer.write_lock().write_w_timestamp(
             serialized_data,
             instance_serialized_key,
             handle,
             timestamp,
         )?;
-
-        self.user_defined_data_send_condvar.notify_all();
 
         Ok(())
     }
@@ -752,14 +743,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(
-            rtps_writer,
-            None,
-            &[],
-            "",
-            String::from(""),
-            DdsCondvar::new(),
-        );
+        let data_writer = UserDefinedDataWriter::new(rtps_writer, None, &[], "", String::from(""));
         *data_writer.enabled.write_lock() = true;
         data_writer
     }

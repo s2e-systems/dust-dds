@@ -94,9 +94,26 @@ impl UserDefinedDataWriterNode {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.write_w_timestamp(
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
+
         self.0
+            .parent()
+            .parent()
+            .parent()
             .get()?
-            .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)
+            .user_defined_data_send_condvar()
+            .notify_all();
+
+        Ok(())
     }
 
     pub fn dispose_w_timestamp(
