@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::mpsc::SyncSender,
     time::Instant,
 };
 
@@ -46,7 +45,6 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::AnnounceKind,
     iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
     message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode,
@@ -195,7 +193,6 @@ pub struct UserDefinedDataWriter<T> {
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl<T> UserDefinedDataWriter<T> {
@@ -206,7 +203,6 @@ impl<T> UserDefinedDataWriter<T> {
         type_name: &'static str,
         topic_name: String,
         user_defined_data_send_condvar: DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(UserDefinedDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
@@ -219,7 +215,6 @@ impl<T> UserDefinedDataWriter<T> {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
-            announce_sender,
         })
     }
 
@@ -628,14 +623,6 @@ impl DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
         Err(DdsError::Timeout)
     }
 
-    pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
-        self.announce_sender
-            .send(AnnounceKind::CreatedDataWriter(
-                self.as_discovered_writer_data(topic_qos, publisher_qos),
-            ))
-            .ok();
-    }
-
     pub fn as_discovered_writer_data(
         &self,
         topic_qos: &TopicQos,
@@ -755,8 +742,6 @@ mod test {
     }
 
     fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
-        let (sender, _) = std::sync::mpsc::sync_channel(1);
-
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
@@ -774,7 +759,6 @@ mod test {
             "",
             String::from(""),
             DdsCondvar::new(),
-            sender,
         );
         *data_writer.enabled.write_lock() = true;
         data_writer

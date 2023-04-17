@@ -107,7 +107,6 @@ impl UserDefinedPublisher {
             type_name,
             topic_name,
             self.user_defined_data_send_condvar.clone(),
-            self.announce_sender.clone(),
         );
 
         self.data_writer_list

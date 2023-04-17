@@ -410,6 +410,18 @@ impl DcpsService {
             thread.join().unwrap();
         }
     }
+
+    pub fn sedp_condvar(&self) -> &DdsCondvar {
+        &self.sedp_condvar
+    }
+
+    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
+        &self.user_defined_data_send_condvar
+    }
+
+    pub fn announce_sender(&self) -> &SyncSender<AnnounceKind> {
+        &self.announce_sender
+    }
 }
 
 fn announce_created_data_reader(

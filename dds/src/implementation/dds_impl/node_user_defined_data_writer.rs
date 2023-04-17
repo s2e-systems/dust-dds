@@ -21,11 +21,14 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl,
+    any_data_writer_listener::AnyDataWriterListener,
+    dcps_service::DcpsService,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
+    node_user_defined_topic::UserDefinedTopicNode,
+    status_condition_impl::StatusConditionImpl,
+    user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -217,8 +220,18 @@ impl UserDefinedDataWriterNode {
                 .cloned()
                 .expect("Topic must exist");
             self.0
+                .parent()
+                .parent()
+                .parent()
                 .get()?
-                .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+                .announce_sender()
+                .send(AnnounceKind::CreatedDataWriter(
+                    self.0.get()?.as_discovered_writer_data(
+                        &topic.get_qos(),
+                        &self.0.parent().get()?.get_qos(),
+                    ),
+                ))
+                .ok();
         } else {
             self.0.get()?.set_qos(qos);
         }
@@ -270,8 +283,17 @@ impl UserDefinedDataWriterNode {
             .cloned()
             .expect("Topic must exist");
         self.0
+            .parent()
+            .parent()
+            .parent()
             .get()?
-            .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            .announce_sender()
+            .send(AnnounceKind::CreatedDataWriter(
+                self.0
+                    .get()?
+                    .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos()),
+            ))
+            .ok();
 
         Ok(())
     }
