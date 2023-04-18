@@ -11,7 +11,7 @@ use crate::{
 use super::{
     history_cache::{RtpsParameter, RtpsWriterCacheChange},
     messages::overall_structure::RtpsMessageHeader,
-    reader_locator::RtpsReaderLocator,
+    reader_locator::{RtpsReaderLocator, WriterAssociatedReaderLocator},
     transport::TransportWrite,
     types::{ChangeKind, Guid, Locator},
     writer::RtpsWriter,
@@ -97,13 +97,15 @@ impl RtpsStatelessWriter {
     }
 
     pub fn reader_locator_remove(&mut self, a_locator: Locator) {
-        self.reader_locators
-            .retain(|l| !(l._locator() == a_locator))
+        self.reader_locators.retain(|l| !(l.locator() == a_locator))
     }
 
-    pub fn reader_locator_list(&mut self) -> () {
+    pub fn reader_locator_list(&mut self) -> Vec<WriterAssociatedReaderLocator> {
         let writer = &self.writer;
-        self.reader_locators.iter_mut().map(|_| ());
+        self.reader_locators
+            .iter_mut()
+            .map(|l| WriterAssociatedReaderLocator::new(writer, l))
+            .collect()
     }
 
     pub fn write_w_timestamp(

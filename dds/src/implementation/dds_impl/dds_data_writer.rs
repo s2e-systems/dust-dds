@@ -48,7 +48,8 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     iterators::{
-        ReaderProxyListIntoIter, StatelessWriterChangeListIntoIter, WriterChangeListIntoIter,
+        ReaderLocatorListIntoIter, ReaderProxyListIntoIter, StatelessWriterChangeListIntoIter,
+        WriterChangeListIntoIter,
     },
     message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode,
@@ -664,7 +665,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 }
 
 impl DdsDataWriter<RtpsStatelessWriter> {
-    pub fn _guid(&self) -> Guid {
+    pub fn guid(&self) -> Guid {
         self.rtps_writer.read_lock().guid()
     }
 
@@ -727,6 +728,10 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         self.rtps_writer
             .write_lock()
             .reader_locator_remove(a_locator)
+    }
+
+    pub fn reader_locator_list(&self) -> ReaderLocatorListIntoIter {
+        ReaderLocatorListIntoIter::new(self.rtps_writer.write_lock())
     }
 
     pub fn write_w_timestamp(

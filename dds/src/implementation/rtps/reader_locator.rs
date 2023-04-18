@@ -10,6 +10,7 @@ use super::{
     },
     transport::TransportWrite,
     types::{EntityId, Locator, SequenceNumber, ENTITYID_UNKNOWN},
+    writer::RtpsWriter,
 };
 
 pub struct RtpsReaderLocator {
@@ -51,7 +52,7 @@ impl RtpsReaderLocator {
         }
     }
 
-    pub fn _locator(&self) -> Locator {
+    pub fn locator(&self) -> Locator {
         self.locator
     }
 
@@ -115,9 +116,64 @@ impl RtpsReaderLocator {
     }
 }
 
-struct RtpsReaderLocatorCacheChange<'a> {
+pub struct WriterAssociatedReaderLocator<'a> {
+    writer: &'a RtpsWriter,
+    reader_locator: &'a mut RtpsReaderLocator,
+}
+
+impl<'a> WriterAssociatedReaderLocator<'a> {
+    pub fn new(writer: &'a RtpsWriter, reader_locator: &'a mut RtpsReaderLocator) -> Self {
+        Self {
+            writer,
+            reader_locator,
+        }
+    }
+
+    pub fn locator(&self) -> Locator {
+        self.reader_locator.locator()
+    }
+
+    pub fn next_unsent_change(&mut self) -> Option<RtpsReaderLocatorCacheChange<'a>> {
+        // "next_seq_num := MIN { change.sequenceNumber
+        //     SUCH-THAT change IN this.unsent_changes() };
+        // return change IN this.unsent_changes()
+        //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
+
+        let next_seq_num = self.reader_locator.unsent_changes.iter().min()?.clone();
+
+        // 8.4.8.2.10 Transition T10
+        // "After the transition, the following post-conditions hold:
+        //   ( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+        self.reader_locator
+            .unsent_changes
+            .retain(|c| *c != next_seq_num);
+
+        let cache_change = self
+            .writer
+            .change_list()
+            .iter()
+            .find(|c| c.sequence_number() == next_seq_num);
+
+        Some(RtpsReaderLocatorCacheChange {
+            sequence_number: next_seq_num,
+            cache_change,
+        })
+    }
+}
+
+pub struct RtpsReaderLocatorCacheChange<'a> {
     sequence_number: SequenceNumber,
     cache_change: Option<&'a RtpsWriterCacheChange>,
+}
+
+impl<'a> RtpsReaderLocatorCacheChange<'a> {
+    pub fn cache_change(&self) -> Option<&'a RtpsWriterCacheChange> {
+        self.cache_change
+    }
+
+    pub fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
+    }
 }
 
 #[cfg(test)]

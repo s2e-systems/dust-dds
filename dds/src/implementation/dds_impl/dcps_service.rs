@@ -24,10 +24,12 @@ use crate::{
             history_cache::RtpsWriterCacheChange,
             messages::{
                 overall_structure::RtpsMessageHeader,
+                submessage_elements::SequenceNumberSet,
                 submessages::{GapSubmessage, InfoDestinationSubmessage, InfoTimestampSubmessage},
                 types::{FragmentNumber, ProtocolId},
                 RtpsMessage, RtpsSubmessageKind,
             },
+            reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
@@ -561,6 +563,35 @@ fn remove_stale_writer_changes(writer: &DdsDataWriter<RtpsStatefulWriter>, now: 
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }
 
+fn send_message_best_effort_reader_locator(
+    reader_locator: &mut WriterAssociatedReaderLocator,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+    writer_id: EntityId,
+) {
+    let mut submessages = Vec::new();
+    while let Some(change) = reader_locator.next_unsent_change() {
+        // The post-condition:
+        // "( a_change BELONGS-TO the_reader_locator.unsent_changes() ) == FALSE"
+        // should be full-filled by next_unsent_change()
+        if let Some(cache_change) = change.cache_change() {
+            let info_ts_submessage = info_timestamp_submessage(cache_change.timestamp());
+            let data_submessage = cache_change.as_data_submessage(ENTITYID_UNKNOWN);
+            submessages.push(info_ts_submessage);
+            submessages.push(RtpsSubmessageKind::Data(data_submessage));
+        } else {
+            let gap_submessage = gap_submessage(writer_id, change.sequence_number());
+            submessages.push(gap_submessage);
+        }
+    }
+    if !submessages.is_empty() {
+        transport.write(
+            &RtpsMessage::new(header, submessages),
+            &[reader_locator.locator()],
+        )
+    }
+}
+
 fn send_message_best_effort_reader_proxy(
     reader_proxy: &mut WriterAssociatedReaderProxy,
     data_max_size_serialized: usize,
@@ -744,6 +775,22 @@ fn send_message_reliable_reader_proxy(
     }
 }
 
+fn gap_submessage<'a>(
+    writer_id: EntityId,
+    gap_sequence_number: SequenceNumber,
+) -> RtpsSubmessageKind<'a> {
+    RtpsSubmessageKind::Gap(GapSubmessage {
+        endianness_flag: true,
+        reader_id: ENTITYID_UNKNOWN,
+        writer_id,
+        gap_start: gap_sequence_number,
+        gap_list: SequenceNumberSet {
+            base: gap_sequence_number,
+            set: vec![],
+        },
+    })
+}
+
 fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
     RtpsSubmessageKind::InfoTimestamp(InfoTimestampSubmessage {
         endianness_flag: true,
@@ -754,6 +801,7 @@ fn info_timestamp_submessage<'a>(timestamp: Time) -> RtpsSubmessageKind<'a> {
         ),
     })
 }
+
 fn info_destination_submessage<'a>(guid_prefix: GuidPrefix) -> RtpsSubmessageKind<'a> {
     RtpsSubmessageKind::InfoDestination(InfoDestinationSubmessage {
         endianness_flag: true,
@@ -818,16 +866,10 @@ fn stateless_writer_send_message(
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
-    for rl in &mut writer.reader_locator_list().into_iter() {
-        todo!()
-        // rl.send_message(
-        //     self.writer.writer_cache(),
-        //     self.writer.guid().entity_id(),
-        //     header,
-        //     transport,
-        // );
+    let writer_id = writer.guid().entity_id();
+    for mut rl in &mut writer.reader_locator_list().into_iter() {
+        send_message_best_effort_reader_locator(&mut rl, header, transport, writer_id);
     }
-    todo!()
 }
 
 fn user_defined_stateful_writer_send_message(

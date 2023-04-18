@@ -1,9 +1,43 @@
 use std::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::implementation::rtps::{
-    history_cache::RtpsWriterCacheChange, reader_proxy::WriterAssociatedReaderProxy,
-    stateful_writer::RtpsStatefulWriter, stateless_writer::RtpsStatelessWriter,
+    history_cache::RtpsWriterCacheChange, reader_locator::WriterAssociatedReaderLocator,
+    reader_proxy::WriterAssociatedReaderProxy, stateful_writer::RtpsStatefulWriter,
+    stateless_writer::RtpsStatelessWriter,
 };
+
+pub struct ReaderLocatorListIter<'a> {
+    list: std::vec::IntoIter<WriterAssociatedReaderLocator<'a>>,
+}
+
+impl<'a> Iterator for ReaderLocatorListIter<'a> {
+    type Item = WriterAssociatedReaderLocator<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.list.next()
+    }
+}
+
+pub struct ReaderLocatorListIntoIter<'a> {
+    writer_lock: RwLockWriteGuard<'a, RtpsStatelessWriter>,
+}
+
+impl<'a> IntoIterator for &'a mut ReaderLocatorListIntoIter<'_> {
+    type Item = WriterAssociatedReaderLocator<'a>;
+    type IntoIter = ReaderLocatorListIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ReaderLocatorListIter {
+            list: self.writer_lock.reader_locator_list().into_iter(),
+        }
+    }
+}
+
+impl<'a> ReaderLocatorListIntoIter<'a> {
+    pub fn new(writer_lock: RwLockWriteGuard<'a, RtpsStatelessWriter>) -> Self {
+        Self { writer_lock }
+    }
+}
 
 pub struct ReaderProxyListIntoIter<'a> {
     writer_lock: RwLockWriteGuard<'a, RtpsStatefulWriter>,
