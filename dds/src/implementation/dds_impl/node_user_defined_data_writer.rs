@@ -31,24 +31,16 @@ use super::{
     user_defined_publisher::UserDefinedPublisher,
 };
 
+type UserDefinedDataWriterNodeType = ChildNode<
+    UserDefinedDataWriter<RtpsStatefulWriter>,
+    ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+>;
+
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedDataWriterNode(
-    ChildNode<
-        UserDefinedDataWriter<RtpsStatefulWriter>,
-        ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
-    >,
-);
+pub struct UserDefinedDataWriterNode(UserDefinedDataWriterNodeType);
 
 impl UserDefinedDataWriterNode {
-    pub fn new(
-        node: ChildNode<
-            UserDefinedDataWriter<RtpsStatefulWriter>,
-            ChildNode<
-                UserDefinedPublisher,
-                ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-            >,
-        >,
-    ) -> Self {
+    pub fn new(node: UserDefinedDataWriterNodeType) -> Self {
         Self(node)
     }
 

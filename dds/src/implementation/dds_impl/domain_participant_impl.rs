@@ -222,9 +222,9 @@ impl DomainParticipantImpl {
         let builtin_subscriber = BuiltInSubscriber::new(
             guid_prefix,
             spdp_topic_participant,
-            sedp_topic_topics.clone(),
-            sedp_topic_publications.clone(),
-            sedp_topic_subscriptions.clone(),
+            sedp_topic_topics,
+            sedp_topic_publications,
+            sedp_topic_subscriptions,
         );
 
         let builtin_publisher = BuiltinPublisher::new(guid_prefix, spdp_discovery_locator_list);
