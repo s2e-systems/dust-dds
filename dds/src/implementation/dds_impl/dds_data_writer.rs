@@ -447,9 +447,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn set_qos(&self, qos: DataWriterQos) {
         self.rtps_writer.write_lock().set_qos(qos);
     }
-}
 
-impl DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
