@@ -119,17 +119,16 @@ impl<'de> ParameterListDeserializer<'de> {
             parameter_id
         )))
     }
-    pub fn get_or_default<T, U>(&self, parameter_id: u16) -> DdsResult<U>
+    pub fn get_or_default<T>(&self, parameter_id: u16) -> DdsResult<T>
     where
         T: serde::Deserialize<'de> + Default,
-        U: From<T>,
     {
-        for parameter in self.parameter.iter() {
+        for parameter in &self.parameter {
             if parameter.parameter_id == parameter_id {
-                return Ok(self.deserialize_parameter::<T>(parameter)?.into());
+                return self.deserialize_parameter::<T>(parameter);
             }
         }
-        Ok(T::default().into())
+        Ok(T::default())
     }
 
     pub fn get_list<T>(&self, parameter_id: u16) -> DdsResult<Vec<T>>

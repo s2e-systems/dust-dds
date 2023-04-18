@@ -6,19 +6,12 @@ use crate::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
             parameter_list_serializer::ParameterListSerializer,
-            serde_remote_rtps_pim::ExpectsInlineQosDeserialize,
         },
         rtps::types::{EntityId, Guid, Locator},
     },
     infrastructure::{
         error::DdsResult,
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, PartitionQosPolicy,
-            PresentationQosPolicy, ReliabilityQosPolicy, TimeBasedFilterQosPolicy,
-            TopicDataQosPolicy, UserDataQosPolicy,
-            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
@@ -194,40 +187,32 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // reader_proxy
-        let remote_group_entity_id =
-            param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id = param_list.get_or_default(PID_GROUP_ENTITYID)?;
         let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
-        let expects_inline_qos =
-            param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_MULTICAST_LOCATOR)?;
+        let expects_inline_qos = param_list.get_or_default(PID_MULTICAST_LOCATOR)?;
 
         // subscription_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
-        let participant_key =
-            param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get(PID_TOPIC_NAME)?;
         let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
-        let latency_budget =
-            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
+        let durability = param_list.get_or_default(PID_DURABILITY)?;
+        let deadline = param_list.get_or_default(PID_DEADLINE)?;
+        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
-                PID_RELIABILITY,
-            )?;
-        let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
-        let destination_order =
-            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
-        let time_based_filter =
-            param_list.get_or_default::<TimeBasedFilterQosPolicy, _>(PID_TIME_BASED_FILTER)?;
-        let presentation =
-            param_list.get_or_default::<PresentationQosPolicy, _>(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default::<PartitionQosPolicy, _>(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
+            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
+            .into();
+        let user_data = param_list.get_or_default(PID_USER_DATA)?;
+        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
+        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
+        let time_based_filter = param_list.get_or_default(PID_TIME_BASED_FILTER)?;
+        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
+        let partition = param_list.get_or_default(PID_PARTITION)?;
+        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
+        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
 
         let remote_reader_guid = key.value.into();
 
@@ -265,7 +250,9 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::parameter_list_serde::serde_remote_rtps_pim::ExpectsInlineQosSerialize;
+    use crate::implementation::parameter_list_serde::serde_remote_rtps_pim::{
+        ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize,
+    };
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
         USER_DEFINED_UNKNOWN,

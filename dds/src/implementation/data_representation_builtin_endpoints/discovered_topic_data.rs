@@ -6,12 +6,7 @@ use crate::{
     },
     infrastructure::{
         error::DdsResult,
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
@@ -143,25 +138,20 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
         let key = param_list.get(PID_ENDPOINT_GUID)?;
         let name = param_list.get(PID_TOPIC_NAME)?;
         let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
-        let latency_budget =
-            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
+        let durability = param_list.get_or_default(PID_DURABILITY)?;
+        let deadline = param_list.get_or_default(PID_DEADLINE)?;
+        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
-                PID_RELIABILITY,
-            )?;
-        let transport_priority =
-            param_list.get_or_default::<TransportPriorityQosPolicy, _>(PID_TRANSPORT_PRIORITY)?;
-        let lifespan = param_list.get_or_default::<LifespanQosPolicy, _>(PID_LIFESPAN)?;
-        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
-        let destination_order =
-            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
-        let history = param_list.get_or_default::<HistoryQosPolicy, _>(PID_HISTORY)?;
-        let resource_limits =
-            param_list.get_or_default::<ResourceLimitsQosPolicy, _>(PID_RESOURCE_LIMITS)?;
-        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
+            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
+            .into();
+        let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
+        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
+        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
+        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
+        let history = param_list.get_or_default(PID_HISTORY)?;
+        let resource_limits = param_list.get_or_default(PID_RESOURCE_LIMITS)?;
+        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
 
         Ok(Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {

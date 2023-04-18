@@ -12,10 +12,7 @@ use crate::{
     infrastructure::{
         error::DdsResult,
         qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
-            UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+            ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
     topic_definition::type_support::{
@@ -195,32 +192,32 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id =
-            param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
+            param_list.get_or_default(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let participant_key =
-            param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+            param_list.get_or_default(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get(PID_TOPIC_NAME)?;
         let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
+        let durability = param_list.get_or_default(PID_DURABILITY)?;
+        let deadline = param_list.get_or_default(PID_DEADLINE)?;
         let latency_budget =
-            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
+            param_list.get_or_default(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataWriterDeserialize, _>(PID_RELIABILITY)?;
-        let lifespan = param_list.get_or_default::<LifespanQosPolicy, _>(PID_LIFESPAN)?;
-        let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
+            .get_or_default::<ReliabilityQosPolicyDataWriterDeserialize>(PID_RELIABILITY)?.into();
+        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
+        let user_data = param_list.get_or_default(PID_USER_DATA)?;
+        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
         let destination_order =
-            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
+            param_list.get_or_default(PID_DESTINATION_ORDER)?;
         let presentation =
-            param_list.get_or_default::<PresentationQosPolicy, _>(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default::<PartitionQosPolicy, _>(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default::<GroupDataQosPolicy, _>(PID_GROUP_DATA)?;
+            param_list.get_or_default(PID_PRESENTATION)?;
+        let partition = param_list.get_or_default(PID_PARTITION)?;
+        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
+        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
 
         let remote_writer_guid = key.value.into();
         Ok(Self {
