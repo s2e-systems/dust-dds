@@ -1,11 +1,18 @@
 use crate::{
     implementation::dds_impl::message_receiver::MessageReceiver,
     infrastructure::{
+        error::DdsResult,
         instance::InstanceHandle,
+        qos::DataReaderQos,
         qos_policy::ReliabilityQosPolicyKind,
         status::SampleRejectedStatusKind,
-        time::{Duration, DURATION_ZERO},
+        time::{Duration, Time, DURATION_ZERO},
     },
+    subscription::{
+        data_reader::Sample,
+        sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
+    },
+    topic_definition::type_support::DdsDeserialize,
 };
 
 use super::{
@@ -16,7 +23,10 @@ use super::{
             HeartbeatSubmessage,
         },
     },
-    reader::{convert_data_frag_to_cache_change, RtpsReader, RtpsReaderError},
+    reader::{
+        convert_data_frag_to_cache_change, RtpsReader, RtpsReaderCacheChange, RtpsReaderError,
+        RtpsReaderResult,
+    },
     transport::TransportWrite,
     types::{Guid, GuidPrefix, SequenceNumber},
     writer_proxy::RtpsWriterProxy,
@@ -70,12 +80,118 @@ impl RtpsStatefulReader {
         }
     }
 
-    pub fn reader(&self) -> &RtpsReader {
-        &self.reader
+    pub fn guid(&self) -> Guid {
+        self.reader.guid()
     }
 
-    pub fn reader_mut(&mut self) -> &mut RtpsReader {
-        &mut self.reader
+    pub fn _convert_data_to_cache_change(
+        &self,
+        data_submessage: &DataSubmessage,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
+    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
+        self.reader.convert_data_to_cache_change(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        )
+    }
+
+    pub fn _add_change(
+        &mut self,
+        change: RtpsReaderCacheChange,
+    ) -> RtpsReaderResult<InstanceHandle> {
+        self.reader.add_change(change)
+    }
+
+    pub fn get_qos(&self) -> &DataReaderQos {
+        self.reader.get_qos()
+    }
+
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+        self.reader.set_qos(qos)
+    }
+
+    pub fn read<Foo>(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.reader.read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn take<Foo>(
+        &mut self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.reader.take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn read_next_instance<Foo>(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.reader.read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
+    }
+
+    pub fn take_next_instance<Foo>(
+        &mut self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.reader.take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     pub fn matched_writer_add(&mut self, a_writer_proxy: RtpsWriterProxy) {

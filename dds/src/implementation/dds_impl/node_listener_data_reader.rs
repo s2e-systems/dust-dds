@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::node::RootNode,
+    implementation::{rtps::stateful_reader::RtpsStatefulReader, utils::node::RootNode},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     subscription::{
         data_reader::{AnyDataReader, Sample},
@@ -8,13 +8,13 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::user_defined_data_reader::UserDefinedDataReader;
+use super::dds_data_reader::DdsDataReader;
 
 #[derive(PartialEq, Debug)]
-pub struct ListenerDataReaderNode(RootNode<UserDefinedDataReader>);
+pub struct ListenerDataReaderNode(RootNode<DdsDataReader<RtpsStatefulReader>>);
 
 impl ListenerDataReaderNode {
-    pub fn new(node: RootNode<UserDefinedDataReader>) -> Self {
+    pub fn new(node: RootNode<DdsDataReader<RtpsStatefulReader>>) -> Self {
         Self(node)
     }
 

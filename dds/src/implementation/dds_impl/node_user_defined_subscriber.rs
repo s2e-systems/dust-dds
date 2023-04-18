@@ -12,9 +12,12 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener,
+    dcps_service::DcpsService,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    node_domain_participant::DomainParticipantNode,
+    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_listener::StatusListener,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -177,7 +180,18 @@ impl UserDefinedSubscriberNode {
                         })
                         .cloned()
                         .expect("Topic must exist");
-                    data_reader.announce_reader(&topic.get_qos(), &self.0.get()?.get_qos());
+                    self.0
+                        .parent()
+                        .parent()
+                        .get()?
+                        .announce_sender()
+                        .send(AnnounceKind::CreatedDataReader(
+                            data_reader.as_discovered_reader_data(
+                                &topic.get_qos(),
+                                &self.0.get()?.get_qos(),
+                            ),
+                        ))
+                        .ok();
                 }
             }
         }

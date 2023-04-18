@@ -31,6 +31,7 @@ use crate::{
             },
             reader_locator::WriterAssociatedReaderLocator,
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
+            stateful_reader::RtpsStatefulReader,
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
             transport::TransportWrite,
@@ -38,6 +39,7 @@ use crate::{
                 DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
                 SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
             },
+            writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransport,
         utils::{
@@ -57,10 +59,13 @@ use crate::{
 };
 
 use super::{
+    dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter,
     domain_participant_impl::{
-        AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+        AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
@@ -1092,64 +1097,96 @@ fn add_discovered_participant(
     domain_participant: &DomainParticipantImpl,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
-    if let Ok(participant_discovery) = ParticipantDiscovery::new(
+    if ParticipantDiscovery::new(
         &discovered_participant_data,
         domain_participant.get_domain_id(),
         domain_participant.get_domain_tag(),
-    ) {
-        if !domain_participant
+    )
+    .is_ok()
+        && !domain_participant
             .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
-        {
-            add_matched_publications_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+    {
+        add_matched_publications_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
+        add_matched_publications_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_publications_reader()
-                .add_matched_participant(&participant_discovery);
+                .sedp_builtin_publications_reader(),
+            &discovered_participant_data,
+        );
 
-            add_matched_subscriptions_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+        add_matched_subscriptions_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
+        add_matched_subscriptions_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_subscriptions_reader()
-                .add_matched_participant(&participant_discovery);
+                .sedp_builtin_subscriptions_reader(),
+            &discovered_participant_data,
+        );
 
-            add_matched_topics_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+        add_matched_topics_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
+        add_matched_topics_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_topics_reader()
-                .add_matched_participant(&participant_discovery);
+                .sedp_builtin_topics_reader(),
+            &discovered_participant_data,
+        );
 
-            domain_participant.discovered_participant_add(
-                discovered_participant_data.get_serialized_key().into(),
-                discovered_participant_data,
-            );
-        }
+        domain_participant.discovered_participant_add(
+            discovered_participant_data.get_serialized_key().into(),
+            discovered_participant_data,
+        );
+    }
+}
+
+fn add_matched_subscriptions_announcer(
+    reader: &DdsDataReader<RtpsStatefulReader>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data.guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data.metatraffic_unicast_locator_list(),
+            discovered_participant_data.metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy);
     }
 }
 
@@ -1181,6 +1218,33 @@ fn add_matched_subscriptions_detector(
     }
 }
 
+fn add_matched_publications_announcer(
+    reader: &DdsDataReader<RtpsStatefulReader>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data.guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data.metatraffic_unicast_locator_list(),
+            discovered_participant_data.metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+
+        reader.matched_writer_add(proxy);
+    }
+}
+
 fn add_matched_publications_detector(
     writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
@@ -1206,6 +1270,32 @@ fn add_matched_publications_detector(
             DurabilityKind::TransientLocal,
         );
         writer.matched_reader_add(proxy);
+    }
+}
+
+fn add_matched_topics_announcer(
+    reader: &DdsDataReader<RtpsStatefulReader>,
+    discovered_participant_data: &SpdpDiscoveredParticipantData,
+) {
+    if discovered_participant_data
+        .available_builtin_endpoints()
+        .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
+    {
+        let remote_writer_guid = Guid::new(
+            discovered_participant_data.guid_prefix(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        );
+        let remote_group_entity_id = ENTITYID_UNKNOWN;
+        let data_max_size_serialized = None;
+
+        let proxy = RtpsWriterProxy::new(
+            remote_writer_guid,
+            discovered_participant_data.metatraffic_unicast_locator_list(),
+            discovered_participant_data.metatraffic_multicast_locator_list(),
+            data_max_size_serialized,
+            remote_group_entity_id,
+        );
+        reader.matched_writer_add(proxy);
     }
 }
 
