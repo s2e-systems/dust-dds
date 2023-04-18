@@ -1097,70 +1097,70 @@ fn add_discovered_participant(
     domain_participant: &DomainParticipantImpl,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
-    if let Ok(_) = ParticipantDiscovery::new(
+    if ParticipantDiscovery::new(
         &discovered_participant_data,
         domain_participant.get_domain_id(),
         domain_participant.get_domain_tag(),
-    ) {
-        if !domain_participant
+    )
+    .is_ok()
+        && !domain_participant
             .is_participant_ignored(discovered_participant_data.get_serialized_key().into())
-        {
-            add_matched_publications_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+    {
+        add_matched_publications_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
-            add_matched_publications_announcer(
-                domain_participant
-                    .get_builtin_subscriber()
-                    .sedp_builtin_publications_reader(),
-                &discovered_participant_data,
-            );
+        add_matched_publications_announcer(
+            domain_participant
+                .get_builtin_subscriber()
+                .sedp_builtin_publications_reader(),
+            &discovered_participant_data,
+        );
 
-            add_matched_subscriptions_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+        add_matched_subscriptions_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
-            add_matched_subscriptions_announcer(
-                domain_participant
-                    .get_builtin_subscriber()
-                    .sedp_builtin_subscriptions_reader(),
-                &discovered_participant_data,
-            );
+        add_matched_subscriptions_announcer(
+            domain_participant
+                .get_builtin_subscriber()
+                .sedp_builtin_subscriptions_reader(),
+            &discovered_participant_data,
+        );
 
-            add_matched_topics_detector(
-                domain_participant
-                    .get_builtin_publisher()
-                    .stateful_data_writer_list()
-                    .into_iter()
-                    .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-                    .unwrap(),
-                &discovered_participant_data,
-            );
+        add_matched_topics_detector(
+            domain_participant
+                .get_builtin_publisher()
+                .stateful_data_writer_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .unwrap(),
+            &discovered_participant_data,
+        );
 
-            add_matched_topics_announcer(
-                domain_participant
-                    .get_builtin_subscriber()
-                    .sedp_builtin_topics_reader(),
-                &discovered_participant_data,
-            );
+        add_matched_topics_announcer(
+            domain_participant
+                .get_builtin_subscriber()
+                .sedp_builtin_topics_reader(),
+            &discovered_participant_data,
+        );
 
-            domain_participant.discovered_participant_add(
-                discovered_participant_data.get_serialized_key().into(),
-                discovered_participant_data,
-            );
-        }
+        domain_participant.discovered_participant_add(
+            discovered_participant_data.get_serialized_key().into(),
+            discovered_participant_data,
+        );
     }
 }
 

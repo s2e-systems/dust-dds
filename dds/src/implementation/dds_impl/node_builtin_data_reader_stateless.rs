@@ -20,21 +20,16 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
+type BuiltinDataReaderStatelessNodeType = ChildNode<
+    DdsDataReader<RtpsStatelessReader>,
+    ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+>;
+
 #[derive(PartialEq, Debug)]
-pub struct BuiltinDataReaderStatelessNode(
-    ChildNode<
-        DdsDataReader<RtpsStatelessReader>,
-        ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
-    >,
-);
+pub struct BuiltinDataReaderStatelessNode(BuiltinDataReaderStatelessNodeType);
 
 impl BuiltinDataReaderStatelessNode {
-    pub fn new(
-        node: ChildNode<
-            DdsDataReader<RtpsStatelessReader>,
-            ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
-        >,
-    ) -> Self {
+    pub fn new(node: BuiltinDataReaderStatelessNodeType) -> Self {
         Self(node)
     }
 
