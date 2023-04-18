@@ -10,7 +10,7 @@ use crate::{
                 HeartbeatSubmessage,
             },
             stateful_reader::RtpsStatefulReader,
-            types::{GuidPrefix, Locator},
+            types::{Guid, GuidPrefix},
         },
         utils::{
             iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
@@ -25,16 +25,13 @@ use crate::{
         time::Time,
     },
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
     dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
     node_listener_subscriber::ListenerSubscriberNode,
-    reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
@@ -43,11 +40,12 @@ pub struct DdsSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
     data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
-    reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn SubscriberListener + Send + Sync>>,
+    user_defined_data_reader_counter: DdsRwLock<u8>,
+    default_data_reader_qos: DdsRwLock<DataReaderQos>,
 }
 
 impl DdsSubscriber {
@@ -61,12 +59,17 @@ impl DdsSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
-            reader_factory: DdsRwLock::new(ReaderFactory::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
+            user_defined_data_reader_counter: DdsRwLock::new(0),
+            default_data_reader_qos: DdsRwLock::new(Default::default()),
         })
+    }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_group.guid()
     }
 
     pub fn copy_from_topic_qos(
@@ -90,49 +93,18 @@ impl DdsSubscriber {
         self.qos.read_lock().clone()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_datareader<Foo>(
-        &self,
-        type_name: &'static str,
-        topic_name: String,
-        qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<DdsDataReader<RtpsStatefulReader>>>
-    where
-        Foo: DdsType + for<'de> DdsDeserialize<'de>,
-    {
-        let rtps_reader = self.reader_factory.write_lock().create_reader::<Foo>(
-            &self.rtps_group,
-            Foo::has_key(),
-            qos,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-        )?;
-
-        let data_reader_shared =
-            DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
-
-        self.data_reader_list
-            .write_lock()
-            .push(data_reader_shared.clone());
-
-        if *self.enabled.read_lock()
-            && self
-                .qos
-                .read_lock()
-                .entity_factory
-                .autoenable_created_entities
-        {
-            data_reader_shared.enable()?;
-        }
-
-        Ok(data_reader_shared)
+    pub fn get_unique_reader_id(&self) -> u8 {
+        let mut counter_lock = self.user_defined_data_reader_counter.write_lock();
+        let counter = *counter_lock;
+        *counter_lock += 1;
+        counter
     }
 
-    pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) {
+    pub fn data_reader_add(&self, data_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>) {
+        self.data_reader_list.write_lock().push(data_reader)
+    }
+
+    pub fn datareader_delete(&self, a_datareader_handle: InstanceHandle) {
         self.data_reader_list
             .write_lock()
             .retain(|x| x.get_instance_handle() != a_datareader_handle)
@@ -151,16 +123,20 @@ impl DdsSubscriber {
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
-        self.reader_factory
-            .write_lock()
-            .set_default_datareader_qos(qos)
+        match qos {
+            QosKind::Default => {
+                *self.default_data_reader_qos.write_lock() = DataReaderQos::default()
+            }
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                *self.default_data_reader_qos.write_lock() = q;
+            }
+        }
+        Ok(())
     }
 
     pub fn get_default_datareader_qos(&self) -> DataReaderQos {
-        self.reader_factory
-            .read_lock()
-            .get_default_datareader_qos()
-            .clone()
+        self.default_data_reader_qos.read_lock().clone()
     }
 }
 
