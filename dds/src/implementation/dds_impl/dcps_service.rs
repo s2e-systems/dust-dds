@@ -469,7 +469,7 @@ fn announce_created_data_reader(
         .get_builtin_publisher()
         .stateful_data_writer_list()
         .into_iter()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .write_w_timestamp(
             serialized_data,
@@ -504,7 +504,7 @@ fn announce_created_data_writer(
         .get_builtin_publisher()
         .stateful_data_writer_list()
         .into_iter()
-        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(
             serialized_data,
