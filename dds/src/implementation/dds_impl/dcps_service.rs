@@ -61,6 +61,7 @@ use crate::{
 use super::{
     dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter,
+    dds_subscriber::DdsSubscriber,
     domain_participant_impl::{
         AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -70,7 +71,6 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    dds_subscriber::DdsSubscriber,
 };
 
 pub struct DcpsService {
@@ -279,9 +279,13 @@ impl DcpsService {
                     &mut metatraffic_unicast_transport_send,
                 );
 
-                domain_participant
+                for stateful_readers in domain_participant
                     .get_builtin_subscriber()
-                    .send_message(header, &mut metatraffic_unicast_transport_send);
+                    .stateful_data_reader_list()
+                    .into_iter()
+                {
+                    stateful_readers.send_message(header, &mut metatraffic_unicast_transport_send)
+                }
             }));
         }
 
@@ -949,7 +953,10 @@ fn user_defined_stateful_writer_send_message(
 fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsResult<()> {
     let samples = domain_participant
         .get_builtin_subscriber()
-        .sedp_builtin_publications_reader()
+        .stateful_data_reader_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .unwrap()
         .read::<DiscoveredWriterData>(
             i32::MAX,
             ANY_SAMPLE_STATE,
@@ -1072,7 +1079,10 @@ fn discover_matched_participants(
 ) -> DdsResult<()> {
     let spdp_builtin_participant_data_reader = domain_participant
         .get_builtin_subscriber()
-        .spdp_builtin_participant_reader()
+        .stateless_data_reader_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+        .unwrap()
         .clone();
 
     while let Ok(samples) = spdp_builtin_participant_data_reader.read(
@@ -1119,7 +1129,10 @@ fn add_discovered_participant(
         add_matched_publications_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_publications_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .unwrap(),
             &discovered_participant_data,
         );
 
@@ -1136,7 +1149,10 @@ fn add_discovered_participant(
         add_matched_subscriptions_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_subscriptions_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .unwrap(),
             &discovered_participant_data,
         );
 
@@ -1153,7 +1169,10 @@ fn add_discovered_participant(
         add_matched_topics_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_topics_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .unwrap(),
             &discovered_participant_data,
         );
 

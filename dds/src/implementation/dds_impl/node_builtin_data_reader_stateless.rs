@@ -15,14 +15,13 @@ use crate::{
 };
 
 use super::{
-    builtin_subscriber::BuiltInSubscriber, dcps_service::DcpsService,
-    dds_data_reader::DdsDataReader, domain_participant_impl::DomainParticipantImpl,
-    status_condition_impl::StatusConditionImpl,
+    dcps_service::DcpsService, dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber,
+    domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
 };
 
 type BuiltinDataReaderStatelessNodeType = ChildNode<
     DdsDataReader<RtpsStatelessReader>,
-    ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 >;
 
 #[derive(PartialEq, Debug)]

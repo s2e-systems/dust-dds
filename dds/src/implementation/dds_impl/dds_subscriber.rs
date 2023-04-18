@@ -118,7 +118,7 @@ impl DdsSubscriber {
             .retain(|x| x._get_instance_handle() != a_datareader_handle)
     }
 
-    pub fn _stateless_data_reader_list(
+    pub fn stateless_data_reader_list(
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatelessReader>>> {
         DdsListIntoIterator::new(self.stateless_data_reader_list.read_lock())
@@ -317,6 +317,10 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
+        for stateless_data_reader in self.stateless_data_reader_list.read_lock().iter() {
+            stateless_data_reader.on_data_submessage_received(data_submessage, message_receiver);
+        }
+
         for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             let data_submessage_received_result = data_reader.on_data_submessage_received(
                 data_submessage,
