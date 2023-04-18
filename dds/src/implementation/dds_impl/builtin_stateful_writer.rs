@@ -209,7 +209,7 @@ impl DdsShared<BuiltinStatefulWriter> {
         self.sedp_condvar.notify_all();
     }
 
-    pub fn remove_matched_participant(&self, participant_guid_prefix: GuidPrefix) {
+    pub fn _remove_matched_participant(&self, participant_guid_prefix: GuidPrefix) {
         let type_name = self.topic.get_type_name();
         if type_name == DiscoveredWriterData::type_name() {
             self.rtps_writer

@@ -79,10 +79,10 @@ use std::{
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode, participant_discovery::ParticipantDiscovery,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl, user_defined_data_writer::UserDefinedDataWriter,
-    user_defined_publisher::UserDefinedPublisher, user_defined_subscriber::UserDefinedSubscriber,
+    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener, topic_impl::TopicImpl,
+    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -231,7 +231,6 @@ impl DomainParticipantImpl {
             guid_prefix,
             sedp_topic_topics,
             sedp_topic_publications,
-            sedp_topic_subscriptions,
             spdp_discovery_locator_list,
             sedp_condvar.clone(),
         );
@@ -359,7 +358,7 @@ impl DomainParticipantImpl {
             .insert(handle, discovered_participant_data);
     }
 
-    pub fn discovered_participant_remove(&self, handle: InstanceHandle) {
+    pub fn _discovered_participant_remove(&self, handle: InstanceHandle) {
         self.discovered_participant_list
             .write_lock()
             .remove(&handle);
@@ -674,7 +673,6 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn ignore_participant(&self, handle: InstanceHandle) {
         self.ignored_participants.write_lock().insert(handle);
-        self.remove_discovered_participant(handle);
     }
 
     pub fn ignore_topic(&self, _handle: InstanceHandle) {
@@ -903,78 +901,35 @@ impl DdsShared<DomainParticipantImpl> {
             )
     }
 
-    pub fn add_discovered_participant(
-        &self,
-        discovered_participant_data: SpdpDiscoveredParticipantData,
-    ) {
-        if let Ok(participant_discovery) = ParticipantDiscovery::new(
-            &discovered_participant_data,
-            self.get_domain_id(),
-            self.get_domain_tag(),
-        ) {
-            if !self.is_participant_ignored(discovered_participant_data.get_serialized_key().into())
-            {
-                self.get_builtin_publisher()
-                    .sedp_builtin_publications_writer()
-                    .add_matched_participant(&participant_discovery);
+    // pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
+    //     if let Some((_, discovered_participant_data)) = self
+    //         .discovered_participant_list()
+    //         .into_iter()
+    //         .find(|&(h, _)| h == &participant_handle)
+    //     {
+    //         let participant_guid_prefix = discovered_participant_data.guid_prefix();
+    //         self.get_builtin_subscriber()
+    //             .sedp_builtin_publications_reader()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //         self.get_builtin_subscriber()
+    //             .sedp_builtin_subscriptions_reader()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //         self.get_builtin_subscriber()
+    //             .sedp_builtin_topics_reader()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //         self.get_builtin_publisher()
+    //             .sedp_builtin_publications_writer()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //         self.get_builtin_publisher()
+    //             .sedp_builtin_subscriptions_writer()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //         self.get_builtin_publisher()
+    //             .sedp_builtin_topics_writer()
+    //             .remove_matched_participant(participant_guid_prefix);
+    //     }
 
-                self.get_builtin_subscriber()
-                    .sedp_builtin_publications_reader()
-                    .add_matched_participant(&participant_discovery);
-
-                self.get_builtin_publisher()
-                    .sedp_builtin_subscriptions_writer()
-                    .add_matched_participant(&participant_discovery);
-
-                self.get_builtin_subscriber()
-                    .sedp_builtin_subscriptions_reader()
-                    .add_matched_participant(&participant_discovery);
-
-                self.get_builtin_publisher()
-                    .sedp_builtin_topics_writer()
-                    .add_matched_participant(&participant_discovery);
-
-                self.get_builtin_subscriber()
-                    .sedp_builtin_topics_reader()
-                    .add_matched_participant(&participant_discovery);
-
-                self.discovered_participant_add(
-                    discovered_participant_data.get_serialized_key().into(),
-                    discovered_participant_data,
-                );
-            }
-        }
-    }
-
-    pub fn remove_discovered_participant(&self, participant_handle: InstanceHandle) {
-        if let Some((_, discovered_participant_data)) = self
-            .discovered_participant_list()
-            .into_iter()
-            .find(|&(h, _)| h == &participant_handle)
-        {
-            let participant_guid_prefix = discovered_participant_data.guid_prefix();
-            self.get_builtin_subscriber()
-                .sedp_builtin_publications_reader()
-                .remove_matched_participant(participant_guid_prefix);
-            self.get_builtin_subscriber()
-                .sedp_builtin_subscriptions_reader()
-                .remove_matched_participant(participant_guid_prefix);
-            self.get_builtin_subscriber()
-                .sedp_builtin_topics_reader()
-                .remove_matched_participant(participant_guid_prefix);
-            self.get_builtin_publisher()
-                .sedp_builtin_publications_writer()
-                .remove_matched_participant(participant_guid_prefix);
-            self.get_builtin_publisher()
-                .sedp_builtin_subscriptions_writer()
-                .remove_matched_participant(participant_guid_prefix);
-            self.get_builtin_publisher()
-                .sedp_builtin_topics_writer()
-                .remove_matched_participant(participant_guid_prefix);
-        }
-
-        self.discovered_participant_remove(participant_handle);
-    }
+    //     self.discovered_participant_remove(participant_handle);
+    // }
 
     pub fn receive_user_defined_data(
         &self,
@@ -989,27 +944,6 @@ impl DdsShared<DomainParticipantImpl> {
             &message,
             &mut self.status_listener.write_lock(),
         )
-    }
-
-    pub fn discover_matched_participants(&self) -> DdsResult<()> {
-        let spdp_builtin_participant_data_reader =
-            self.builtin_subscriber.spdp_builtin_participant_reader();
-
-        while let Ok(samples) = spdp_builtin_participant_data_reader.read(
-            1,
-            &[SampleStateKind::NotRead],
-            ANY_VIEW_STATE,
-            ANY_INSTANCE_STATE,
-            None,
-        ) {
-            for discovered_participant_data_sample in samples.into_iter() {
-                if let Some(discovered_participant_data) = discovered_participant_data_sample.data {
-                    self.add_discovered_participant(discovered_participant_data)
-                }
-            }
-        }
-
-        Ok(())
     }
 
     pub fn discover_matched_readers(&self) -> DdsResult<()> {
