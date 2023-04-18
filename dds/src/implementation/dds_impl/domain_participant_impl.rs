@@ -192,7 +192,7 @@ impl DomainParticipantImpl {
 
         let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
         let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let sedp_topic_topics = TopicImpl::new(
+        let _sedp_topic_topics = TopicImpl::new(
             sedp_topics_guid,
             TopicQos::default(),
             DiscoveredTopicData::type_name(),
@@ -204,7 +204,7 @@ impl DomainParticipantImpl {
 
         let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
         let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let sedp_topic_publications = TopicImpl::new(
+        let _sedp_topic_publications = TopicImpl::new(
             sedp_publications_guid,
             TopicQos::default(),
             DiscoveredWriterData::type_name(),
@@ -216,7 +216,7 @@ impl DomainParticipantImpl {
 
         let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
         let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let sedp_topic_subscriptions = TopicImpl::new(
+        let _sedp_topic_subscriptions = TopicImpl::new(
             sedp_subscriptions_guid,
             TopicQos::default(),
             DiscoveredReaderData::type_name(),
@@ -226,12 +226,7 @@ impl DomainParticipantImpl {
             announce_sender.clone(),
         );
 
-        let builtin_subscriber = BuiltInSubscriber::new(
-            guid_prefix,
-            sedp_topic_topics,
-            sedp_topic_publications,
-            sedp_topic_subscriptions,
-        );
+        let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
 
         let spdp_builtin_participant_writer = DdsDataWriter::new(
             create_builtin_stateless_writer(Guid::new(

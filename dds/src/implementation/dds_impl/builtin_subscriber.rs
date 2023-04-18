@@ -2,9 +2,9 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::DiscoveredReaderData,
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::DiscoveredWriterData,
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         rtps::{
@@ -18,6 +18,10 @@ use crate::{
                 },
             },
             reader::RtpsReader,
+            stateful_reader::{
+                RtpsStatefulReader, DEFAULT_HEARTBEAT_RESPONSE_DELAY,
+                DEFAULT_HEARTBEAT_SUPPRESSION_DURATION,
+            },
             stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
             transport::TransportWrite,
             types::{EntityId, EntityKey, Guid, GuidPrefix, TopicKind, BUILT_IN_READER_GROUP},
@@ -40,36 +44,27 @@ use crate::{
 };
 
 use super::{
-    builtin_stateful_reader::{
-        BuiltInStatefulReaderDataSubmessageReceivedResult, BuiltinStatefulReader,
-    },
-    dds_data_reader::DdsDataReader,
+    dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
     },
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     status_listener::StatusListener,
-    topic_impl::TopicImpl,
 };
 
 pub struct BuiltInSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
     spdp_builtin_participant_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
-    sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
-    sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader>,
-    sedp_builtin_subscriptions_reader: DdsShared<BuiltinStatefulReader>,
+    sedp_builtin_topics_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>,
+    sedp_builtin_publications_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>,
+    sedp_builtin_subscriptions_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>,
     enabled: DdsRwLock<bool>,
 }
 
 impl BuiltInSubscriber {
-    pub fn new(
-        guid_prefix: GuidPrefix,
-        sedp_topic_topics: DdsShared<TopicImpl>,
-        sedp_topic_publications: DdsShared<TopicImpl>,
-        sedp_topic_subscriptions: DdsShared<TopicImpl>,
-    ) -> DdsShared<Self> {
+    pub fn new(guid_prefix: GuidPrefix) -> DdsShared<Self> {
         let qos = SubscriberQos::default();
 
         let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_READER_GROUP);
@@ -91,23 +86,34 @@ impl BuiltInSubscriber {
 
         let sedp_builtin_topics_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        let sedp_builtin_topics_reader = BuiltinStatefulReader::new::<DiscoveredTopicData>(
-            sedp_builtin_topics_guid,
-            sedp_topic_topics,
+        let sedp_builtin_topics_reader = DdsDataReader::new(
+            create_builtin_stateful_reader::<DiscoveredTopicData>(sedp_builtin_topics_guid),
+            DiscoveredTopicData::type_name(),
+            String::from(DCPS_TOPIC),
+            None,
+            NO_STATUS,
         );
 
         let sedp_builtin_publications_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let sedp_builtin_publications_reader = BuiltinStatefulReader::new::<DiscoveredWriterData>(
-            sedp_builtin_publications_guid,
-            sedp_topic_publications,
+        let sedp_builtin_publications_reader = DdsDataReader::new(
+            create_builtin_stateful_reader::<DiscoveredWriterData>(sedp_builtin_publications_guid),
+            DiscoveredWriterData::type_name(),
+            String::from(DCPS_PUBLICATION),
+            None,
+            NO_STATUS,
         );
 
-        let sedp_builtin_subscriptions_reader =
+        let sedp_builtin_subscriptions_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let sedp_builtin_subscriptions_reader = BuiltinStatefulReader::new::<DiscoveredReaderData>(
-            sedp_builtin_subscriptions_reader,
-            sedp_topic_subscriptions,
+        let sedp_builtin_subscriptions_reader = DdsDataReader::new(
+            create_builtin_stateful_reader::<DiscoveredWriterData>(
+                sedp_builtin_subscriptions_reader_guid,
+            ),
+            DiscoveredReaderData::type_name(),
+            String::from(DCPS_SUBSCRIPTION),
+            None,
+            NO_STATUS,
         );
 
         DdsShared::new(BuiltInSubscriber {
@@ -129,15 +135,19 @@ impl DdsShared<BuiltInSubscriber> {
         &self.spdp_builtin_participant_reader
     }
 
-    pub fn sedp_builtin_topics_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
+    pub fn sedp_builtin_topics_reader(&self) -> &DdsShared<DdsDataReader<RtpsStatefulReader>> {
         &self.sedp_builtin_topics_reader
     }
 
-    pub fn sedp_builtin_publications_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
+    pub fn sedp_builtin_publications_reader(
+        &self,
+    ) -> &DdsShared<DdsDataReader<RtpsStatefulReader>> {
         &self.sedp_builtin_publications_reader
     }
 
-    pub fn sedp_builtin_subscriptions_reader(&self) -> &DdsShared<BuiltinStatefulReader> {
+    pub fn sedp_builtin_subscriptions_reader(
+        &self,
+    ) -> &DdsShared<DdsDataReader<RtpsStatefulReader>> {
         &self.sedp_builtin_subscriptions_reader
     }
 
@@ -205,42 +215,68 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
-        _participant_status_listener: &mut StatusListener<
+        participant_status_listener: &mut StatusListener<
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        if self
-            .sedp_builtin_topics_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
-            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
-        {
-            self.sedp_builtin_topics_reader.on_data_available();
-            return;
+        match self
+            .sedp_builtin_topics_reader()
+            .on_data_submessage_received(
+                data_submessage,
+                message_receiver,
+                &mut StatusListener::new(None, NO_STATUS),
+                participant_status_listener,
+            ) {
+            UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
+            UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
+                self.sedp_builtin_topics_reader()
+                    .get_statuscondition()
+                    .write_lock()
+                    .add_communication_state(StatusKind::DataAvailable);
+                return;
+            }
         }
 
-        if self
-            .sedp_builtin_publications_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
-            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
-        {
-            self.sedp_builtin_publications_reader.on_data_available();
-            return;
+        match self
+            .sedp_builtin_publications_reader()
+            .on_data_submessage_received(
+                data_submessage,
+                message_receiver,
+                &mut StatusListener::new(None, NO_STATUS),
+                participant_status_listener,
+            ) {
+            UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
+            UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
+                self.sedp_builtin_publications_reader()
+                    .get_statuscondition()
+                    .write_lock()
+                    .add_communication_state(StatusKind::DataAvailable);
+                return;
+            }
         }
 
-        if self
-            .sedp_builtin_subscriptions_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
-            == BuiltInStatefulReaderDataSubmessageReceivedResult::NewDataAvailable
-        {
-            self.sedp_builtin_subscriptions_reader.on_data_available();
-            return;
+        match self
+            .sedp_builtin_subscriptions_reader()
+            .on_data_submessage_received(
+                data_submessage,
+                message_receiver,
+                &mut StatusListener::new(None, NO_STATUS),
+                participant_status_listener,
+            ) {
+            UserDefinedReaderDataSubmessageReceivedResult::NoChange => (),
+            UserDefinedReaderDataSubmessageReceivedResult::NewDataAvailable => {
+                self.sedp_builtin_subscriptions_reader()
+                    .get_statuscondition()
+                    .write_lock()
+                    .add_communication_state(StatusKind::DataAvailable);
+                return;
+            }
         }
 
-        let r = self
-            .spdp_builtin_participant_reader
-            .on_data_submessage_received(data_submessage, message_receiver);
-
-        match r {
+        match self
+            .spdp_builtin_participant_reader()
+            .on_data_submessage_received(data_submessage, message_receiver)
+        {
             StatelessReaderDataReceivedResult::NotForThisReader
             | StatelessReaderDataReceivedResult::SampleRejected(_, _)
             | StatelessReaderDataReceivedResult::InvalidData(_) => (),
@@ -310,4 +346,42 @@ where
         qos,
     );
     RtpsStatelessReader::new(reader)
+}
+
+fn create_builtin_stateful_reader<Foo>(guid: Guid) -> RtpsStatefulReader
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+{
+    let qos = DataReaderQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::Reliable,
+            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+        },
+        ..Default::default()
+    };
+    let topic_kind = TopicKind::WithKey;
+    let heartbeat_response_delay = DEFAULT_HEARTBEAT_RESPONSE_DELAY;
+    let heartbeat_suppression_duration = DEFAULT_HEARTBEAT_SUPPRESSION_DURATION;
+    let expects_inline_qos = false;
+    let unicast_locator_list = &[];
+    let multicast_locator_list = &[];
+
+    RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+        RtpsEndpoint::new(
+            guid,
+            topic_kind,
+            unicast_locator_list,
+            multicast_locator_list,
+        ),
+        heartbeat_response_delay,
+        heartbeat_suppression_duration,
+        expects_inline_qos,
+        qos,
+    ))
 }

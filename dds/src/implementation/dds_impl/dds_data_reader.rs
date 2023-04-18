@@ -1203,6 +1203,20 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     }
 }
 
+impl DdsDataReader<RtpsStatefulReader> {
+    pub fn matched_writer_add(&self, a_writer_proxy: RtpsWriterProxy) {
+        self.rtps_reader
+            .write_lock()
+            .matched_writer_add(a_writer_proxy)
+    }
+
+    pub fn _matched_writer_remove(&self, a_writer_guid: Guid) {
+        self.rtps_reader
+            .write_lock()
+            .matched_writer_remove(a_writer_guid)
+    }
+}
+
 impl DdsDataReader<RtpsStatelessReader> {
     pub fn guid(&self) -> Guid {
         self.rtps_reader.read_lock().guid()
@@ -1215,7 +1229,7 @@ impl DdsDataReader<RtpsStatelessReader> {
         source_guid_prefix: GuidPrefix,
         reception_timestamp: Time,
     ) -> RtpsReaderResult<RtpsReaderCacheChange> {
-        self.rtps_reader.read_lock().convert_data_to_cache_change(
+        self.rtps_reader.read_lock()._convert_data_to_cache_change(
             data_submessage,
             source_timestamp,
             source_guid_prefix,
@@ -1224,7 +1238,7 @@ impl DdsDataReader<RtpsStatelessReader> {
     }
 
     pub fn _add_change(&self, change: RtpsReaderCacheChange) -> RtpsReaderResult<InstanceHandle> {
-        self.rtps_reader.write_lock().add_change(change)
+        self.rtps_reader.write_lock()._add_change(change)
     }
 
     pub fn get_qos(&self) -> DataReaderQos {
@@ -1232,7 +1246,7 @@ impl DdsDataReader<RtpsStatelessReader> {
     }
 
     pub fn _set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
-        self.rtps_reader.write_lock().set_qos(qos)
+        self.rtps_reader.write_lock()._set_qos(qos)
     }
 
     pub fn read<Foo>(
@@ -1266,7 +1280,7 @@ impl DdsDataReader<RtpsStatelessReader> {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.rtps_reader.write_lock().take(
+        self.rtps_reader.write_lock()._take(
             max_samples,
             sample_states,
             view_states,
@@ -1306,7 +1320,7 @@ impl DdsDataReader<RtpsStatelessReader> {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.rtps_reader.write_lock().take_next_instance(
+        self.rtps_reader.write_lock()._take_next_instance(
             max_samples,
             previous_handle,
             sample_states,
