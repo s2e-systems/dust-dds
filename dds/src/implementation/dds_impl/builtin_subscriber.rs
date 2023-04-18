@@ -5,9 +5,10 @@ use crate::{
             discovered_reader_data::DiscoveredReaderData,
             discovered_topic_data::DiscoveredTopicData,
             discovered_writer_data::DiscoveredWriterData,
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         rtps::{
+            endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::{
                 overall_structure::RtpsMessageHeader,
@@ -16,24 +17,33 @@ use crate::{
                     HeartbeatSubmessage,
                 },
             },
+            reader::RtpsReader,
+            stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
             transport::TransportWrite,
-            types::{EntityId, EntityKey, Guid, GuidPrefix, BUILT_IN_READER_GROUP},
+            types::{EntityId, EntityKey, Guid, GuidPrefix, TopicKind, BUILT_IN_READER_GROUP},
         },
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
-        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
-        status::StatusKind,
+        condition::StatusCondition,
+        error::DdsResult,
+        instance::InstanceHandle,
+        qos::{DataReaderQos, SubscriberQos},
+        qos_policy::{
+            DurabilityQosPolicy, DurabilityQosPolicyKind, HistoryQosPolicy, HistoryQosPolicyKind,
+            ReliabilityQosPolicy, ReliabilityQosPolicyKind,
+        },
+        status::{StatusKind, NO_STATUS},
+        time::{DurationKind, DURATION_ZERO},
     },
+    topic_definition::type_support::{DdsDeserialize, DdsType},
 };
 
 use super::{
     builtin_stateful_reader::{
         BuiltInStatefulReaderDataSubmessageReceivedResult, BuiltinStatefulReader,
     },
-    builtin_stateless_reader::{
-        BuiltInStatelessReaderDataSubmessageReceivedResult, BuiltinStatelessReader,
-    },
+    dds_data_reader::DdsDataReader,
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
@@ -46,7 +56,7 @@ use super::{
 pub struct BuiltInSubscriber {
     qos: SubscriberQos,
     rtps_group: RtpsGroup,
-    spdp_builtin_participant_reader: DdsShared<BuiltinStatelessReader>,
+    spdp_builtin_participant_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
     sedp_builtin_topics_reader: DdsShared<BuiltinStatefulReader>,
     sedp_builtin_publications_reader: DdsShared<BuiltinStatefulReader>,
     sedp_builtin_subscriptions_reader: DdsShared<BuiltinStatefulReader>,
@@ -56,7 +66,6 @@ pub struct BuiltInSubscriber {
 impl BuiltInSubscriber {
     pub fn new(
         guid_prefix: GuidPrefix,
-        spdp_topic_participant: DdsShared<TopicImpl>,
         sedp_topic_topics: DdsShared<TopicImpl>,
         sedp_topic_publications: DdsShared<TopicImpl>,
         sedp_topic_subscriptions: DdsShared<TopicImpl>,
@@ -69,11 +78,16 @@ impl BuiltInSubscriber {
 
         let spdp_builtin_participant_reader_guid =
             Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
-        let spdp_builtin_participant_reader =
-            BuiltinStatelessReader::new::<SpdpDiscoveredParticipantData>(
+
+        let spdp_builtin_participant_reader = DdsDataReader::new(
+            create_builtin_stateless_reader::<SpdpDiscoveredParticipantData>(
                 spdp_builtin_participant_reader_guid,
-                spdp_topic_participant,
-            );
+            ),
+            SpdpDiscoveredParticipantData::type_name(),
+            String::from(DCPS_PARTICIPANT),
+            None,
+            NO_STATUS,
+        );
 
         let sedp_builtin_topics_guid =
             Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
@@ -109,7 +123,9 @@ impl BuiltInSubscriber {
 }
 
 impl DdsShared<BuiltInSubscriber> {
-    pub fn spdp_builtin_participant_reader(&self) -> &DdsShared<BuiltinStatelessReader> {
+    pub fn spdp_builtin_participant_reader(
+        &self,
+    ) -> &DdsShared<DdsDataReader<RtpsStatelessReader>> {
         &self.spdp_builtin_participant_reader
     }
 
@@ -220,13 +236,21 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
             return;
         }
 
-        if self
+        let r = self
             .spdp_builtin_participant_reader
-            .on_data_submessage_received(data_submessage, message_receiver)
-            == BuiltInStatelessReaderDataSubmessageReceivedResult::NewDataAvailable
-        {
-            self.spdp_builtin_participant_reader.on_data_available();
-        }
+            .on_data_submessage_received(data_submessage, message_receiver);
+
+        match r {
+            StatelessReaderDataReceivedResult::NotForThisReader
+            | StatelessReaderDataReceivedResult::SampleRejected(_, _)
+            | StatelessReaderDataReceivedResult::InvalidData(_) => (),
+            StatelessReaderDataReceivedResult::NewSampleAdded(_) => {
+                self.spdp_builtin_participant_reader
+                    .get_statuscondition()
+                    .write_lock()
+                    .add_communication_state(StatusKind::DataAvailable);
+            }
+        };
     }
 
     fn on_data_frag_submessage_received(
@@ -252,4 +276,38 @@ impl SubscriberSubmessageReceiver for DdsShared<BuiltInSubscriber> {
         self.sedp_builtin_subscriptions_reader
             .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
     }
+}
+
+fn create_builtin_stateless_reader<Foo>(guid: Guid) -> RtpsStatelessReader
+where
+    Foo: DdsType + for<'de> DdsDeserialize<'de>,
+{
+    let unicast_locator_list = &[];
+    let multicast_locator_list = &[];
+    let qos = DataReaderQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+        },
+        ..Default::default()
+    };
+    let reader = RtpsReader::new::<Foo>(
+        RtpsEndpoint::new(
+            guid,
+            TopicKind::WithKey,
+            unicast_locator_list,
+            multicast_locator_list,
+        ),
+        DURATION_ZERO,
+        DURATION_ZERO,
+        false,
+        qos,
+    );
+    RtpsStatelessReader::new(reader)
 }

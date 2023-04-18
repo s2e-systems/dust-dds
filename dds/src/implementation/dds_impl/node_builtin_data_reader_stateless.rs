@@ -1,7 +1,10 @@
 use crate::{
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::stateless_reader::RtpsStatelessReader,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{error::DdsResult, instance::InstanceHandle, qos::DataReaderQos},
     subscription::{
@@ -12,15 +15,15 @@ use crate::{
 };
 
 use super::{
-    builtin_stateless_reader::BuiltinStatelessReader, builtin_subscriber::BuiltInSubscriber,
-    dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl,
+    builtin_subscriber::BuiltInSubscriber, dcps_service::DcpsService,
+    dds_data_reader::DdsDataReader, domain_participant_impl::DomainParticipantImpl,
     status_condition_impl::StatusConditionImpl,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct BuiltinDataReaderStatelessNode(
     ChildNode<
-        BuiltinStatelessReader,
+        DdsDataReader<RtpsStatelessReader>,
         ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     >,
 );
@@ -28,7 +31,7 @@ pub struct BuiltinDataReaderStatelessNode(
 impl BuiltinDataReaderStatelessNode {
     pub fn new(
         node: ChildNode<
-            BuiltinStatelessReader,
+            DdsDataReader<RtpsStatelessReader>,
             ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
         >,
     ) -> Self {
@@ -84,6 +87,6 @@ impl BuiltinDataReaderStatelessNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(InstanceHandle::from(self.0.get()?.guid()))
     }
 }

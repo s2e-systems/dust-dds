@@ -180,7 +180,7 @@ impl DomainParticipantImpl {
 
         let spdp_topic_entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let spdp_topic_participant = TopicImpl::new(
+        let _spdp_topic_participant = TopicImpl::new(
             spdp_topic_guid,
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
@@ -228,7 +228,6 @@ impl DomainParticipantImpl {
 
         let builtin_subscriber = BuiltInSubscriber::new(
             guid_prefix,
-            spdp_topic_participant,
             sedp_topic_topics,
             sedp_topic_publications,
             sedp_topic_subscriptions,

@@ -279,6 +279,23 @@ impl<T> DdsDataReader<T> {
             .write_lock()
             .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
     }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
+    pub fn enable(&self) -> DdsResult<()> {
+        *self.enabled.write_lock() = true;
+        Ok(())
+    }
 }
 
 impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
@@ -743,23 +760,6 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
 
     pub fn get_qos(&self) -> DataReaderQos {
         self.rtps_reader.read_lock().get_qos().clone()
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
-    }
-
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
-        Ok(())
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
@@ -1231,7 +1231,7 @@ impl DdsDataReader<RtpsStatelessReader> {
         self.rtps_reader.read_lock().get_qos().clone()
     }
 
-    pub fn set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
+    pub fn _set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
         self.rtps_reader.write_lock().set_qos(qos)
     }
 
