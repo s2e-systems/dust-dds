@@ -98,11 +98,11 @@ impl DdsSerialize for DiscoveredWriterData {
 
         // writer_proxy.remote_writer_guid omitted as of table 9.10
 
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_UNICAST_LOCATOR,
             &self.writer_proxy.unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_MULTICAST_LOCATOR,
             &self.writer_proxy.multicast_locator_list,
         )?;

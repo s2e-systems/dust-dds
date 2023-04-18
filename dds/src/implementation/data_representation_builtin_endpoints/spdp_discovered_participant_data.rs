@@ -5,10 +5,7 @@ use crate::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
             parameter_list_serializer::ParameterListSerializer,
-            serde_remote_rtps_pim::{
-                DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
-                ExpectsInlineQosSerialize,
-            },
+            serde_remote_rtps_pim::{DomainTag, DomainTagDeserialize, ExpectsInlineQosDeserialize},
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -152,28 +149,26 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
-        parameter_list_serializer
-            .serialize_parameter(PID_PARTICIPANT_GUID, &participant_key)?;
+        parameter_list_serializer.serialize_parameter(PID_PARTICIPANT_GUID, &participant_key)?;
         parameter_list_serializer
             .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default(
-                PID_EXPECTS_INLINE_QOS,
-                &self.participant_proxy.expects_inline_qos,
-            )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.participant_proxy.expects_inline_qos,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector(
             PID_METATRAFFIC_UNICAST_LOCATOR,
             &self.participant_proxy.metatraffic_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_METATRAFFIC_MULTICAST_LOCATOR,
             &self.participant_proxy.metatraffic_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_DEFAULT_UNICAST_LOCATOR,
             &self.participant_proxy.default_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_DEFAULT_MULTICAST_LOCATOR,
             &self.participant_proxy.default_multicast_locator_list,
         )?;
@@ -189,10 +184,8 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
         )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_PARTICIPANT_LEASE_DURATION,
-            &self.lease_duration,
-        )?;
+        parameter_list_serializer
+            .serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_USER_DATA,
             &self.dds_participant_data.user_data,

@@ -35,11 +35,7 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter<'a, T>(
-        &mut self,
-        parameter_id: u16,
-        value: &'a T,
-    ) -> DdsResult<()>
+    pub fn serialize_parameter<'a, T>(&mut self, parameter_id: u16, value: &'a T) -> DdsResult<()>
     where
         T: serde::Serialize,
     {
@@ -82,17 +78,16 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter_vector<'a, T, U>(
+    pub fn serialize_parameter_vector<T>(
         &mut self,
         parameter_id: u16,
-        value: &'a [U],
+        value: &[T],
     ) -> DdsResult<()>
     where
-        T: serde::Serialize + From<&'a U>,
-        U: serde::Serialize
+        T: serde::Serialize,
     {
-        for value_i in value.iter() {
-            self.serialize_parameter::<U>(parameter_id, value_i)?;
+        for value_i in value {
+            self.serialize_parameter(parameter_id, value_i)?;
         }
         Ok(())
     }

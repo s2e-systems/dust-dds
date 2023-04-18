@@ -6,7 +6,7 @@ use crate::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
             parameter_list_serializer::ParameterListSerializer,
-            serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+            serde_remote_rtps_pim::ExpectsInlineQosDeserialize,
         },
         rtps::types::{EntityId, Guid, Locator},
     },
@@ -101,11 +101,11 @@ impl DdsSerialize for DiscoveredReaderData {
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
 
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_UNICAST_LOCATOR,
             &self.reader_proxy.unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_MULTICAST_LOCATOR,
             &self.reader_proxy.multicast_locator_list,
         )?;
@@ -113,11 +113,10 @@ impl DdsSerialize for DiscoveredReaderData {
             PID_GROUP_ENTITYID,
             &self.reader_proxy.remote_group_entity_id,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default(
-                PID_EXPECTS_INLINE_QOS,
-                &self.reader_proxy.expects_inline_qos,
-            )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.reader_proxy.expects_inline_qos,
+        )?;
         parameter_list_serializer
             .serialize_parameter(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
         parameter_list_serializer.serialize_parameter_if_not_default(
@@ -266,6 +265,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::implementation::parameter_list_serde::serde_remote_rtps_pim::ExpectsInlineQosSerialize;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
         USER_DEFINED_UNKNOWN,
