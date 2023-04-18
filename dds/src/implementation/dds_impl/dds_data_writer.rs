@@ -350,6 +350,14 @@ impl<T> DdsDataWriter<T> {
     pub fn get_status_changes(&self) -> Vec<StatusKind> {
         self.status_condition.read_lock().get_status_changes()
     }
+
+    pub fn enable(&self) {
+        *self.enabled.write_lock() = true;
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
 }
 
 impl DdsDataWriter<RtpsStatefulWriter> {
@@ -434,14 +442,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
 
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
-    }
-
-    pub fn enable(&self) {
-        *self.enabled.write_lock() = true;
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
     }
 
     pub fn get_qos(&self) -> DataWriterQos {
@@ -719,7 +719,7 @@ impl DdsDataWriter<RtpsStatelessWriter> {
         self.rtps_writer.write_lock().remove_change(f)
     }
 
-    pub fn _reader_locator_add(&self, a_locator: RtpsReaderLocator) {
+    pub fn reader_locator_add(&self, a_locator: RtpsReaderLocator) {
         self.rtps_writer.write_lock().reader_locator_add(a_locator)
     }
 
@@ -729,7 +729,7 @@ impl DdsDataWriter<RtpsStatelessWriter> {
             .reader_locator_remove(a_locator)
     }
 
-    pub fn _write_w_timestamp(
+    pub fn write_w_timestamp(
         &self,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,

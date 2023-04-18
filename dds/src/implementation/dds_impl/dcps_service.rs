@@ -30,6 +30,7 @@ use crate::{
             },
             reader_proxy::{RtpsReaderProxy, WriterAssociatedReaderProxy},
             stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter,
             transport::TransportWrite,
             types::{
                 DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
@@ -54,6 +55,7 @@ use crate::{
 };
 
 use super::{
+    dds_data_writer::DdsDataWriter,
     domain_participant_impl::{
         AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
@@ -61,7 +63,6 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    dds_data_writer::DdsDataWriter,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -227,11 +228,13 @@ impl DcpsService {
                 };
 
                 let _now = domain_participant.get_current_time();
-
-                domain_participant
-                    .get_builtin_publisher()
-                    .spdp_builtin_participant_writer()
-                    .send_message(header, &mut metatraffic_unicast_transport_send);
+                stateless_writer_send_message(
+                    domain_participant
+                        .get_builtin_publisher()
+                        .spdp_builtin_participant_writer(),
+                    header,
+                    &mut metatraffic_unicast_transport_send,
+                );
 
                 user_defined_stateful_writer_send_message(
                     domain_participant
@@ -808,6 +811,23 @@ fn directly_send_data_frag(
             reader_proxy.unicast_locator_list(),
         )
     }
+}
+
+fn stateless_writer_send_message(
+    writer: &DdsDataWriter<RtpsStatelessWriter>,
+    header: RtpsMessageHeader,
+    transport: &mut impl TransportWrite,
+) {
+    for rl in &mut writer.reader_locator_list().into_iter() {
+        todo!()
+        // rl.send_message(
+        //     self.writer.writer_cache(),
+        //     self.writer.guid().entity_id(),
+        //     header,
+        //     transport,
+        // );
+    }
+    todo!()
 }
 
 fn user_defined_stateful_writer_send_message(

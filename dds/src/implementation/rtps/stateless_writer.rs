@@ -101,6 +101,11 @@ impl RtpsStatelessWriter {
             .retain(|l| !(l._locator() == a_locator))
     }
 
+    pub fn reader_locator_list(&mut self) -> () {
+        let writer = &self.writer;
+        self.reader_locators.iter_mut().map(|_| ());
+    }
+
     pub fn write_w_timestamp(
         &mut self,
         serialized_data: Vec<u8>,

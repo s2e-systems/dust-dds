@@ -9,10 +9,12 @@ use crate::{
             endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::submessages::AckNackSubmessage,
+            reader_locator::RtpsReaderLocator,
             stateful_writer::{
                 RtpsStatefulWriter, DEFAULT_HEARTBEAT_PERIOD, DEFAULT_NACK_RESPONSE_DELAY,
                 DEFAULT_NACK_SUPPRESSION_DURATION,
             },
+            stateless_writer::RtpsStatelessWriter,
             types::{
                 EntityId, EntityKey, Guid, GuidPrefix, Locator, TopicKind, BUILT_IN_WRITER_GROUP,
             },
@@ -34,20 +36,19 @@ use crate::{
 };
 
 use super::{
-    builtin_stateless_writer::BuiltinStatelessWriter,
+    dds_data_writer::DdsDataWriter,
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
-    dds_data_writer::DdsDataWriter,
 };
 
 pub struct BuiltinPublisher {
     _qos: PublisherQos,
     _rtps_group: RtpsGroup,
-    spdp_builtin_participant_writer: DdsShared<BuiltinStatelessWriter>,
+    spdp_builtin_participant_writer: DdsShared<DdsDataWriter<RtpsStatelessWriter>>,
     sedp_builtin_topics_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
     sedp_builtin_publications_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
     sedp_builtin_subscriptions_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
@@ -63,12 +64,23 @@ impl BuiltinPublisher {
         let guid = Guid::new(guid_prefix, entity_id);
         let rtps_group = RtpsGroup::new(guid);
 
-        let spdp_builtin_participant_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-        let spdp_builtin_participant_writer = BuiltinStatelessWriter::new(
-            spdp_builtin_participant_writer_guid,
-            spdp_discovery_locator_list,
+        let spdp_builtin_participant_writer = DdsDataWriter::new(
+            create_builtin_stateless_writer(Guid::new(
+                guid_prefix,
+                ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+            )),
+            None,
+            NO_STATUS,
+            DiscoveredTopicData::type_name(),
+            String::from(DCPS_TOPIC),
         );
+
+        for reader_locator in spdp_discovery_locator_list
+            .iter()
+            .map(|&locator| RtpsReaderLocator::new(locator, false))
+        {
+            spdp_builtin_participant_writer.reader_locator_add(reader_locator);
+        }
 
         let sedp_builtin_topics_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
@@ -116,13 +128,13 @@ impl BuiltinPublisher {
 }
 
 impl DdsShared<BuiltinPublisher> {
-    pub fn spdp_builtin_participant_writer(&self) -> &DdsShared<BuiltinStatelessWriter> {
+    pub fn spdp_builtin_participant_writer(
+        &self,
+    ) -> &DdsShared<DdsDataWriter<RtpsStatelessWriter>> {
         &self.spdp_builtin_participant_writer
     }
 
-    pub fn sedp_builtin_topics_writer(
-        &self,
-    ) -> &DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
+    pub fn sedp_builtin_topics_writer(&self) -> &DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_topics_writer
     }
 
@@ -141,7 +153,7 @@ impl DdsShared<BuiltinPublisher> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
 
-        self.spdp_builtin_participant_writer.enable()?;
+        self.spdp_builtin_participant_writer.enable();
         self.sedp_builtin_publications_writer.enable();
         self.sedp_builtin_topics_writer.enable();
         self.sedp_builtin_subscriptions_writer.enable();
@@ -208,6 +220,38 @@ fn create_builtin_stateful_writer(guid: Guid) -> RtpsStatefulWriter {
         nack_response_delay,
         nack_suppression_duration,
         data_max_size_serialized,
+        qos,
+    ))
+}
+
+fn create_builtin_stateless_writer(guid: Guid) -> RtpsStatelessWriter {
+    let unicast_locator_list = &[];
+    let multicast_locator_list = &[];
+    let qos = DataWriterQos {
+        durability: DurabilityQosPolicy {
+            kind: DurabilityQosPolicyKind::TransientLocal,
+        },
+        history: HistoryQosPolicy {
+            kind: HistoryQosPolicyKind::KeepLast(1),
+        },
+        reliability: ReliabilityQosPolicy {
+            kind: ReliabilityQosPolicyKind::BestEffort,
+            max_blocking_time: DurationKind::Finite(DURATION_ZERO),
+        },
+        ..Default::default()
+    };
+    RtpsStatelessWriter::new(RtpsWriter::new(
+        RtpsEndpoint::new(
+            guid,
+            TopicKind::WithKey,
+            unicast_locator_list,
+            multicast_locator_list,
+        ),
+        true,
+        DURATION_ZERO,
+        DURATION_ZERO,
+        DURATION_ZERO,
+        usize::MAX,
         qos,
     ))
 }
