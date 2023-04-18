@@ -30,14 +30,14 @@ use super::{
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_data_writer::DdsDataWriter,
     writer_factory::WriterFactory,
 };
 
 pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
-    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
@@ -83,7 +83,7 @@ impl UserDefinedPublisher {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>>
+    ) -> DdsResult<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>
     where
         Foo: DdsType,
     {
@@ -97,7 +97,7 @@ impl UserDefinedPublisher {
         )?;
 
         let data_writer_shared =
-            UserDefinedDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
+            DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
 
         self.data_writer_list
             .write_lock()
@@ -130,7 +130,7 @@ impl UserDefinedPublisher {
 
     pub fn data_writer_list(
         &self,
-    ) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>> {
+    ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
         DdsListIntoIterator::new(self.data_writer_list.read_lock())
     }
 

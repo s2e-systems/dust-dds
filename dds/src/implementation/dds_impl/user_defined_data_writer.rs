@@ -182,7 +182,7 @@ impl IncompatibleSubscriptions {
     }
 }
 
-pub struct UserDefinedDataWriter<T> {
+pub struct DdsDataWriter<T> {
     rtps_writer: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
@@ -194,7 +194,7 @@ pub struct UserDefinedDataWriter<T> {
     acked_by_all_condvar: DdsCondvar,
 }
 
-impl<T> UserDefinedDataWriter<T> {
+impl<T> DdsDataWriter<T> {
     pub fn new(
         rtps_writer: T,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
@@ -202,7 +202,7 @@ impl<T> UserDefinedDataWriter<T> {
         type_name: &'static str,
         topic_name: String,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataWriter {
+        DdsShared::new(DdsDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
             topic_name,
@@ -348,7 +348,7 @@ impl<T> UserDefinedDataWriter<T> {
     }
 }
 
-impl UserDefinedDataWriter<RtpsStatefulWriter> {
+impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn guid(&self) -> Guid {
         self.rtps_writer.read_lock().guid()
     }
@@ -449,7 +449,7 @@ impl UserDefinedDataWriter<RtpsStatefulWriter> {
     }
 }
 
-impl DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
+impl DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
@@ -732,7 +732,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
+    fn create_data_writer_test_fixture() -> DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
@@ -743,7 +743,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(rtps_writer, None, &[], "", String::from(""));
+        let data_writer = DdsDataWriter::new(rtps_writer, None, &[], "", String::from(""));
         *data_writer.enabled.write_lock() = true;
         data_writer
     }

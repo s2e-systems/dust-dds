@@ -81,7 +81,7 @@ use super::{
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_data_writer::UserDefinedDataWriter, user_defined_publisher::UserDefinedPublisher,
+    user_defined_data_writer::DdsDataWriter, user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -1106,7 +1106,7 @@ impl DdsShared<DomainParticipantImpl> {
 }
 
 fn add_matched_reader(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_data: &DiscoveredReaderData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
@@ -1257,7 +1257,7 @@ fn get_discovered_reader_incompatible_qos_policy_list(
 }
 
 fn on_writer_publication_matched(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
     participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
 ) {
@@ -1292,7 +1292,7 @@ fn on_writer_publication_matched(
 }
 
 pub fn remove_writer_matched_reader(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_reader_handle: InstanceHandle,
     publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,
     participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
@@ -1311,7 +1311,7 @@ pub fn remove_writer_matched_reader(
 }
 
 fn writer_on_offered_incompatible_qos(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     handle: InstanceHandle,
     incompatible_qos_policy_list: Vec<QosPolicyId>,
     publisher_status_listener: &mut StatusListener<dyn PublisherListener + Send + Sync>,

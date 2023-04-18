@@ -41,16 +41,16 @@ use super::{
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
-    user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_data_writer::DdsDataWriter,
 };
 
 pub struct BuiltinPublisher {
     _qos: PublisherQos,
     _rtps_group: RtpsGroup,
     spdp_builtin_participant_writer: DdsShared<BuiltinStatelessWriter>,
-    sedp_builtin_topics_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
-    sedp_builtin_publications_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
-    sedp_builtin_subscriptions_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
+    sedp_builtin_topics_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
+    sedp_builtin_publications_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
+    sedp_builtin_subscriptions_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
     enabled: DdsRwLock<bool>,
 }
 
@@ -70,7 +70,7 @@ impl BuiltinPublisher {
             spdp_discovery_locator_list,
         );
 
-        let sedp_builtin_topics_writer = UserDefinedDataWriter::new(
+        let sedp_builtin_topics_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
@@ -81,7 +81,7 @@ impl BuiltinPublisher {
             String::from(DCPS_TOPIC),
         );
 
-        let sedp_builtin_publications_writer = UserDefinedDataWriter::new(
+        let sedp_builtin_publications_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -92,7 +92,7 @@ impl BuiltinPublisher {
             String::from(DCPS_PUBLICATION),
         );
 
-        let sedp_builtin_subscriptions_writer = UserDefinedDataWriter::new(
+        let sedp_builtin_subscriptions_writer = DdsDataWriter::new(
             create_builtin_stateful_writer(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -122,19 +122,19 @@ impl DdsShared<BuiltinPublisher> {
 
     pub fn sedp_builtin_topics_writer(
         &self,
-    ) -> &DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
+    ) -> &DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_topics_writer
     }
 
     pub fn sedp_builtin_publications_writer(
         &self,
-    ) -> &DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
+    ) -> &DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_publications_writer
     }
 
     pub fn sedp_builtin_subscriptions_writer(
         &self,
-    ) -> &DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
+    ) -> &DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_subscriptions_writer
     }
 

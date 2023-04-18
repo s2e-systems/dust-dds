@@ -61,7 +61,7 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    user_defined_data_writer::UserDefinedDataWriter,
+    user_defined_data_writer::DdsDataWriter,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -553,7 +553,7 @@ fn announce_deleted_writer(
         .expect("Should not fail to write built-in message");
 }
 
-fn remove_stale_writer_changes(writer: &UserDefinedDataWriter<RtpsStatefulWriter>, now: Time) {
+fn remove_stale_writer_changes(writer: &DdsDataWriter<RtpsStatefulWriter>, now: Time) {
     let timespan_duration = writer.get_qos().lifespan.duration;
     writer.remove_change(|cc| DurationKind::Finite(now - cc.timestamp()) > timespan_duration);
 }
@@ -811,7 +811,7 @@ fn directly_send_data_frag(
 }
 
 fn user_defined_stateful_writer_send_message(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     header: RtpsMessageHeader,
     transport: &mut impl TransportWrite,
 ) {
@@ -1056,7 +1056,7 @@ fn add_discovered_participant(
 }
 
 fn add_matched_subscriptions_detector(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -1084,7 +1084,7 @@ fn add_matched_subscriptions_detector(
 }
 
 fn add_matched_publications_detector(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
@@ -1112,7 +1112,7 @@ fn add_matched_publications_detector(
 }
 
 fn add_matched_topics_detector(
-    writer: &UserDefinedDataWriter<RtpsStatefulWriter>,
+    writer: &DdsDataWriter<RtpsStatefulWriter>,
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
