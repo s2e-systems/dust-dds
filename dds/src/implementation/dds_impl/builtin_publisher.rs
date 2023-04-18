@@ -18,10 +18,7 @@ use crate::{
             },
             writer::RtpsWriter,
         },
-        utils::{
-            condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::DdsResult,
@@ -44,7 +41,6 @@ use super::{
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
-    topic_impl::TopicImpl,
     user_defined_data_writer::UserDefinedDataWriter,
 };
 
@@ -61,10 +57,7 @@ pub struct BuiltinPublisher {
 impl BuiltinPublisher {
     pub fn new(
         guid_prefix: GuidPrefix,
-        sedp_topic_topics: DdsShared<TopicImpl>,
-        sedp_topic_publications: DdsShared<TopicImpl>,
         spdp_discovery_locator_list: &[Locator],
-        sedp_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         let entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_WRITER_GROUP);
         let guid = Guid::new(guid_prefix, entity_id);

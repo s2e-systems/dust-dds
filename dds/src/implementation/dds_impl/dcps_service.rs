@@ -54,7 +54,6 @@ use crate::{
 };
 
 use super::{
-    builtin_stateful_writer::BuiltinStatefulWriter,
     domain_participant_impl::{
         AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
@@ -850,40 +849,6 @@ fn user_defined_stateful_writer_send_message(
                 heartbeat_period,
             ),
         }
-    }
-}
-
-fn builtin_stateful_writer_send_message(
-    writer: &BuiltinStatefulWriter,
-    header: RtpsMessageHeader,
-    transport: &mut impl TransportWrite,
-) {
-    let data_max_size_serialized = writer.data_max_size_serialized();
-    let writer_id = writer.guid().entity_id();
-    let first_sn = writer
-        .change_list()
-        .into_iter()
-        .map(|x| x.sequence_number())
-        .min()
-        .unwrap_or_else(|| SequenceNumber::new(1));
-    let last_sn = writer
-        .change_list()
-        .into_iter()
-        .map(|x| x.sequence_number())
-        .max()
-        .unwrap_or_else(|| SequenceNumber::new(0));
-    let heartbeat_period = writer.heartbeat_period();
-    for mut reader_proxy in &mut writer.matched_reader_list() {
-        send_message_reliable_reader_proxy(
-            &mut reader_proxy,
-            data_max_size_serialized,
-            header,
-            transport,
-            writer_id,
-            first_sn,
-            last_sn,
-            heartbeat_period,
-        )
     }
 }
 
