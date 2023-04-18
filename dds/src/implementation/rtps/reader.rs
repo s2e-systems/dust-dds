@@ -39,7 +39,7 @@ use super::{
     types::{ChangeKind, Guid, GuidPrefix},
 };
 
-type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
+pub type RtpsReaderResult<T> = Result<T, RtpsReaderError>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RtpsReaderError {

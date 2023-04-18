@@ -128,7 +128,7 @@ impl DdsShared<BuiltinStatelessReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader.write_lock().reader_mut().read(
+        self.rtps_reader.write_lock().read(
             max_samples,
             sample_states,
             view_states,
@@ -152,16 +152,13 @@ impl DdsShared<BuiltinStatelessReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader
-            .write_lock()
-            .reader_mut()
-            .read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            )
+        self.rtps_reader.write_lock().read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     pub fn enable(&self) -> DdsResult<()> {
@@ -171,11 +168,11 @@ impl DdsShared<BuiltinStatelessReader> {
     }
 
     pub fn get_qos(&self) -> DataReaderQos {
-        self.rtps_reader.read_lock().reader().get_qos().clone()
+        self.rtps_reader.read_lock().get_qos().clone()
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_reader.read_lock().reader().guid().into()
+        self.rtps_reader.read_lock().guid().into()
     }
 
     pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
