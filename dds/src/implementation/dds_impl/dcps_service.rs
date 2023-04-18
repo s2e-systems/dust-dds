@@ -310,7 +310,7 @@ impl DcpsService {
                 let now = domain_participant.get_current_time();
 
                 for publisher in &domain_participant.user_defined_publisher_list() {
-                    for data_writer in &publisher.data_writer_list() {
+                    for data_writer in &publisher.stateful_data_writer_list() {
                         let writer_id = data_writer.guid().entity_id();
                         let data_max_size_serialized = data_writer.data_max_size_serialized();
                         let heartbeat_period = data_writer.heartbeat_period();

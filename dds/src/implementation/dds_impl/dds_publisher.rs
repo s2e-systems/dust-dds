@@ -3,14 +3,19 @@ use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
 use crate::{
     implementation::{
         rtps::{
+            endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
-            types::Locator,
+            types::{
+                EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
         },
         utils::{
-            iterator::DdsListIntoIterator,
+            iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -19,6 +24,7 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
+        time::{Duration, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -31,7 +37,6 @@ use super::{
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    writer_factory::WriterFactory,
 };
 
 pub struct DdsPublisher {
@@ -39,12 +44,13 @@ pub struct DdsPublisher {
     rtps_group: RtpsGroup,
     stateless_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatelessWriter>>>>,
     stateful_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
-    data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
+    user_defined_data_writer_counter: DdsRwLock<u8>,
+    default_datawriter_qos: DdsRwLock<DataWriterQos>,
 }
 
 impl DdsPublisher {
@@ -62,12 +68,13 @@ impl DdsPublisher {
             rtps_group,
             stateless_data_writer_list: DdsRwLock::new(Vec::new()),
             stateful_data_writer_list: DdsRwLock::new(Vec::new()),
-            data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
+            user_defined_data_writer_counter: DdsRwLock::new(0),
+            default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
         })
     }
 
@@ -95,14 +102,46 @@ impl DdsPublisher {
     where
         Foo: DdsType,
     {
-        let rtps_writer_impl = self.data_writer_factory.write_lock().create_writer(
-            &self.rtps_group,
-            Foo::has_key(),
-            qos,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
+        let qos = match qos {
+            QosKind::Default => self.get_default_datawriter_qos(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
+        let entity_kind = match Foo::has_key() {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
+        };
+
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
+            self.get_unique_writer_id(),
+            0,
+        ]);
+
+        let entity_id = EntityId::new(entity_key, entity_kind);
+
+        let guid = Guid::new(self.rtps_group.guid().prefix(), entity_id);
+
+        let topic_kind = match Foo::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000),
+            DURATION_ZERO,
+            DURATION_ZERO,
             self.data_max_size_serialized,
-        )?;
+            qos,
+        ));
 
         let data_writer_shared =
             DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
@@ -114,13 +153,32 @@ impl DdsPublisher {
         Ok(data_writer_shared)
     }
 
-    pub fn delete_stateful_datawriter(&self, data_writer_handle: InstanceHandle) {
+    pub fn get_unique_writer_id(&self) -> u8 {
+        todo!()
+    }
+
+    pub fn stateful_datawriter_add(
+        &self,
+        data_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
+    ) {
+        self.stateful_data_writer_list
+            .write_lock()
+            .push(data_writer)
+    }
+
+    pub fn stateful_datawriter_drain(
+        &self,
+    ) -> DdsDrainIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
+        DdsDrainIntoIterator::new(self.stateful_data_writer_list.write_lock())
+    }
+
+    pub fn stateful_datawriter_delete(&self, data_writer_handle: InstanceHandle) {
         self.stateful_data_writer_list
             .write_lock()
             .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
     }
 
-    pub fn data_writer_list(
+    pub fn stateful_data_writer_list(
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
         DdsListIntoIterator::new(self.stateful_data_writer_list.read_lock())
@@ -131,33 +189,22 @@ impl DdsPublisher {
     ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {
         self.status_listener.write_lock()
     }
-}
 
-impl DdsShared<DdsPublisher> {
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for data_writer in self.stateful_data_writer_list.write_lock().drain(..) {
-            // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-            if data_writer.is_enabled() {
-                self.announce_sender
-                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                    .ok();
+    pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+        match qos {
+            QosKind::Default => {
+                *self.default_datawriter_qos.write_lock() = DataWriterQos::default()
+            }
+            QosKind::Specific(q) => {
+                q.is_consistent()?;
+                *self.default_datawriter_qos.write_lock() = q;
             }
         }
-
         Ok(())
     }
 
-    pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.data_writer_factory
-            .write_lock()
-            .set_default_datawriter_qos(qos)
-    }
-
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
-        self.data_writer_factory
-            .read_lock()
-            .get_default_datawriter_qos()
-            .clone()
+        self.default_datawriter_qos.read_lock().clone()
     }
 
     pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {

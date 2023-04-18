@@ -83,7 +83,7 @@ impl UserDefinedPublisherNode {
         let data_writer = self
             .0
             .get()?
-            .data_writer_list()
+            .stateful_data_writer_list()
             .into_iter()
             .find(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
             .ok_or_else(|| {
@@ -95,7 +95,7 @@ impl UserDefinedPublisherNode {
 
         self.0
             .get()?
-            .delete_stateful_datawriter(InstanceHandle::from(data_writer.guid()));
+            .stateful_datawriter_delete(InstanceHandle::from(data_writer.guid()));
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
@@ -119,7 +119,7 @@ impl UserDefinedPublisherNode {
         let writer = self
             .0
             .get()?
-            .data_writer_list()
+            .stateful_data_writer_list()
             .into_iter()
             .find(|data_writer| {
                 data_writer.get_topic_name() == topic_name
@@ -174,7 +174,19 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.get()?.delete_contained_entities()
+        for data_writer in self.0.get()?.stateful_datawriter_drain().into_iter() {
+            if data_writer.is_enabled() {
+                self.0
+                    .parent()
+                    .parent()
+                    .get()?
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                    .ok();
+            }
+        }
+
+        Ok(())
     }
 
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
@@ -235,7 +247,7 @@ impl UserDefinedPublisherNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_writer in &self.0.get()?.data_writer_list() {
+                for data_writer in &self.0.get()?.stateful_data_writer_list() {
                     data_writer.enable();
                     let topic = self
                         .0

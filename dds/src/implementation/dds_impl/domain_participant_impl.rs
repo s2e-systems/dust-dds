@@ -78,10 +78,10 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_publisher::BuiltinPublisher,
-    builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
+    builtin_subscriber::BuiltInSubscriber, dds_data_writer::DdsDataWriter,
+    dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -412,7 +412,7 @@ impl DomainParticipantImpl {
                     "Publisher can only be deleted from its parent participant".to_string(),
                 )
             })?
-            .data_writer_list()
+            .stateful_data_writer_list()
             .into_iter()
             .count()
             > 0
@@ -429,9 +429,7 @@ impl DomainParticipantImpl {
         Ok(())
     }
 
-    pub fn user_defined_publisher_list(
-        &self,
-    ) -> DdsListIntoIterator<DdsShared<DdsPublisher>> {
+    pub fn user_defined_publisher_list(&self) -> DdsListIntoIterator<DdsShared<DdsPublisher>> {
         DdsListIntoIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
@@ -572,7 +570,7 @@ impl DomainParticipantImpl {
             .clone();
 
         for publisher in &self.user_defined_publisher_list() {
-            if publisher.data_writer_list().into_iter().any(|w| {
+            if publisher.stateful_data_writer_list().into_iter().any(|w| {
                 w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -690,7 +688,7 @@ impl DdsShared<DomainParticipantImpl> {
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
         for publisher in &self.user_defined_publisher_list() {
-            for data_writer in &publisher.data_writer_list() {
+            for data_writer in &publisher.stateful_data_writer_list() {
                 remove_writer_matched_reader(
                     data_writer,
                     handle,
@@ -703,7 +701,16 @@ impl DdsShared<DomainParticipantImpl> {
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for user_defined_publisher in self.user_defined_publisher_list.write_lock().drain(..) {
-            user_defined_publisher.delete_contained_entities()?;
+            for data_writer in user_defined_publisher
+                .stateful_datawriter_drain()
+                .into_iter()
+            {
+                if data_writer.is_enabled() {
+                    self.announce_sender
+                        .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                        .ok();
+                }
+            }
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
@@ -1011,7 +1018,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         || is_publisher_regex_matched_to_discovered_reader
                                         || is_partition_string_matched
                                     {
-                                        for data_writer in &publisher.data_writer_list() {
+                                        for data_writer in &publisher.stateful_data_writer_list() {
                                             add_matched_reader(
                                                 data_writer,
                                                 &discovered_reader_data,
@@ -1032,7 +1039,7 @@ impl DdsShared<DomainParticipantImpl> {
                 }
                 InstanceStateKind::NotAliveDisposed => {
                     for publisher in &self.user_defined_publisher_list() {
-                        for data_writer in &publisher.data_writer_list() {
+                        for data_writer in &publisher.stateful_data_writer_list() {
                             remove_writer_matched_reader(
                                 data_writer,
                                 discovered_reader_data_sample.sample_info.instance_handle,
