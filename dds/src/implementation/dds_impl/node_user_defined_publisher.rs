@@ -80,7 +80,35 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_datawriter(data_writer_handle)
+        let data_writer = self
+            .0
+            .get()?
+            .data_writer_list()
+            .into_iter()
+            .find(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data writer can only be deleted from its parent publisher".to_string(),
+                )
+            })?
+            .clone();
+
+        self.0
+            .get()?
+            .delete_stateful_datawriter(InstanceHandle::from(data_writer.guid()));
+
+        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+        if data_writer.is_enabled() {
+            self.0
+                .parent()
+                .parent()
+                .get()?
+                .announce_sender()
+                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                .ok();
+        }
+
+        Ok(())
     }
 
     pub fn lookup_datawriter(
@@ -134,7 +162,7 @@ impl UserDefinedPublisherNode {
         todo!()
     }
 
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
         if !self.0.get()?.is_enabled() {
             return Err(DdsError::NotEnabled);
         }

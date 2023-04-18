@@ -15,7 +15,7 @@ use crate::{
         },
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
@@ -114,26 +114,10 @@ impl DdsPublisher {
         Ok(data_writer_shared)
     }
 
-    pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
-        let data_writer_list = &mut self.stateful_data_writer_list.write_lock();
-        let data_writer_list_position = data_writer_list
-            .iter()
-            .position(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Data writer can only be deleted from its parent publisher".to_string(),
-                )
-            })?;
-        let data_writer = data_writer_list.remove(data_writer_list_position);
-
-        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
-        if data_writer.is_enabled() {
-            self.announce_sender
-                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                .ok();
-        }
-
-        Ok(())
+    pub fn delete_stateful_datawriter(&self, data_writer_handle: InstanceHandle) {
+        self.stateful_data_writer_list
+            .write_lock()
+            .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
     }
 
     pub fn data_writer_list(

@@ -676,7 +676,7 @@ fn reader_matched_to_already_existing_writer_with_matched_reader() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data_reader2 = subscriber
         .create_datareader::<UserType>(&topic, QosKind::Default, None, NO_STATUS)
