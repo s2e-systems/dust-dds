@@ -106,6 +106,33 @@ impl DdsPublisher {
         DdsListIntoIterator::new(self.stateful_data_writer_list.read_lock())
     }
 
+    pub fn _stateless_datawriter_add(
+        &self,
+        data_writer: DdsShared<DdsDataWriter<RtpsStatelessWriter>>,
+    ) {
+        self.stateless_data_writer_list
+            .write_lock()
+            .push(data_writer)
+    }
+
+    pub fn _stateless_datawriter_drain(
+        &self,
+    ) -> DdsDrainIntoIterator<DdsShared<DdsDataWriter<RtpsStatelessWriter>>> {
+        DdsDrainIntoIterator::new(self.stateless_data_writer_list.write_lock())
+    }
+
+    pub fn _stateless_datawriter_delete(&self, data_writer_handle: InstanceHandle) {
+        self.stateless_data_writer_list
+            .write_lock()
+            .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
+    }
+
+    pub fn _stateless_data_writer_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatelessWriter>>> {
+        DdsListIntoIterator::new(self.stateless_data_writer_list.read_lock())
+    }
+
     pub fn get_status_listener_lock(
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {
