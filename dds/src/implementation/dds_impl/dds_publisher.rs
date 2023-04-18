@@ -62,10 +62,8 @@ impl DdsPublisher {
         })
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self) {
         *self.enabled.write_lock() = true;
-
-        Ok(())
     }
 
     pub fn is_enabled(&self) -> bool {

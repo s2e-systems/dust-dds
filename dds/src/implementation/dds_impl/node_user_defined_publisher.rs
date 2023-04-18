@@ -286,7 +286,7 @@ impl UserDefinedPublisherNode {
         }
 
         if !self.0.get()?.is_enabled() {
-            self.0.get()?.enable()?;
+            self.0.get()?.enable();
 
             if self
                 .0

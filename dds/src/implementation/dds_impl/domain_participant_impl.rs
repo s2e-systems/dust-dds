@@ -455,7 +455,7 @@ impl DomainParticipantImpl {
         let rtps_group = RtpsGroup::new(guid);
         let publisher_impl_shared = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
-            publisher_impl_shared.enable()?;
+            publisher_impl_shared.enable();
         }
 
         self.user_defined_publisher_list
@@ -884,7 +884,23 @@ impl DdsShared<DomainParticipantImpl> {
             *self.enabled.write_lock() = true;
 
             self.builtin_subscriber.enable()?;
-            self.builtin_publisher.enable()?;
+            self.builtin_publisher.enable();
+
+            for builtin_stateless_writer in self
+                .builtin_publisher
+                .stateless_data_writer_list()
+                .into_iter()
+            {
+                builtin_stateless_writer.enable();
+            }
+
+            for builtin_stateful_writer in self
+                .builtin_publisher
+                .stateful_data_writer_list()
+                .into_iter()
+            {
+                builtin_stateful_writer.enable()
+            }
 
             if self
                 .qos
@@ -893,7 +909,7 @@ impl DdsShared<DomainParticipantImpl> {
                 .autoenable_created_entities
             {
                 for publisher in self.user_defined_publisher_list.read_lock().iter() {
-                    publisher.enable()?;
+                    publisher.enable();
                 }
 
                 for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
