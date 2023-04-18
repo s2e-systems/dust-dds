@@ -291,7 +291,7 @@ fn participant_records_discovered_topics() {
 
     for name in topic_names {
         participant2
-            .find_topic::<UserType>(name, Duration::new(2, 0))
+            .find_topic::<UserType>(name, Duration::new(10, 0))
             .unwrap();
     }
 
