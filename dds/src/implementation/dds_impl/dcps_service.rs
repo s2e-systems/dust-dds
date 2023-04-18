@@ -370,7 +370,7 @@ impl DcpsService {
                 }
 
                 for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.data_reader_list() {
+                    for data_reader in &subscriber.stateful_data_reader_list() {
                         data_reader.send_message(header, &mut default_unicast_transport_send)
                     }
                 }
@@ -997,7 +997,7 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
             }
             InstanceStateKind::NotAliveDisposed => {
                 for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.data_reader_list() {
+                    for data_reader in &subscriber.stateful_data_reader_list() {
                         data_reader.remove_matched_writer(
                             discovered_writer_data_sample.sample_info.instance_handle,
                             &mut subscriber.get_status_listener_lock(),
@@ -1053,7 +1053,7 @@ pub fn subscriber_add_matched_writer(
         || is_subscriber_regex_matched_to_discovered_writer
         || is_partition_string_matched
     {
-        for data_reader in &user_defined_subscriber.data_reader_list() {
+        for data_reader in &user_defined_subscriber.stateful_data_reader_list() {
             data_reader.add_matched_writer(
                 discovered_writer_data,
                 default_unicast_locator_list,

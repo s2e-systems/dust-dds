@@ -1338,4 +1338,8 @@ impl DdsDataReader<RtpsStatelessReader> {
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver)
     }
+
+    pub fn _get_instance_handle(&self) -> InstanceHandle {
+        self.rtps_reader.read_lock().guid().into()
+    }
 }

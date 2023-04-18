@@ -102,7 +102,7 @@ impl UserDefinedSubscriberNode {
 
         let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
 
-        self.0.get()?.data_reader_add(data_reader.clone());
+        self.0.get()?.stateful_data_reader_add(data_reader.clone());
 
         let node =
             UserDefinedDataReaderNode::new(ChildNode::new(data_reader.downgrade(), self.0.clone()));
@@ -125,7 +125,7 @@ impl UserDefinedSubscriberNode {
         let data_reader = self
             .0
             .get()?
-            .data_reader_list()
+            .stateful_data_reader_list()
             .into_iter()
             .find(|x| x.get_instance_handle() == a_datareader_handle)
             .ok_or_else(|| {
@@ -135,7 +135,7 @@ impl UserDefinedSubscriberNode {
             })?
             .clone();
 
-        self.0.get()?.datareader_delete(a_datareader_handle);
+        self.0.get()?.stateful_data_reader_delete(a_datareader_handle);
 
         if data_reader.is_enabled() {
             self.0
@@ -160,7 +160,7 @@ impl UserDefinedSubscriberNode {
         let reader = self
             .0
             .get()?
-            .data_reader_list()
+            .stateful_data_reader_list()
             .into_iter()
             .find(|data_reader| {
                 data_reader.get_topic_name() == topic_name
@@ -187,7 +187,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for data_reader in self.0.get()?.data_reader_drain().into_iter() {
+        for data_reader in self.0.get()?.stateful_data_reader_drain().into_iter() {
             if data_reader.is_enabled() {
                 self.0
                     .parent()
@@ -249,7 +249,7 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_reader in &self.0.get()?.data_reader_list() {
+                for data_reader in &self.0.get()?.stateful_data_reader_list() {
                     data_reader.enable()?;
                     let topic = self
                         .0

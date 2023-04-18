@@ -10,6 +10,7 @@ use crate::{
                 HeartbeatSubmessage,
             },
             stateful_reader::RtpsStatefulReader,
+            stateless_reader::RtpsStatelessReader,
             types::{Guid, GuidPrefix},
         },
         utils::{
@@ -39,7 +40,8 @@ use super::{
 pub struct DdsSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
+    stateless_data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatelessReader>>>>,
+    stateful_data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
@@ -58,7 +60,8 @@ impl DdsSubscriber {
         DdsShared::new(DdsSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
-            data_reader_list: DdsRwLock::new(Vec::new()),
+            stateless_data_reader_list: DdsRwLock::new(Vec::new()),
+            stateful_data_reader_list: DdsRwLock::new(Vec::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
@@ -100,26 +103,58 @@ impl DdsSubscriber {
         counter
     }
 
-    pub fn data_reader_add(&self, data_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>) {
-        self.data_reader_list.write_lock().push(data_reader)
+    pub fn _stateless_data_reader_add(
+        &self,
+        data_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
+    ) {
+        self.stateless_data_reader_list
+            .write_lock()
+            .push(data_reader)
     }
 
-    pub fn datareader_delete(&self, a_datareader_handle: InstanceHandle) {
-        self.data_reader_list
+    pub fn _stateless_data_reader_delete(&self, a_datareader_handle: InstanceHandle) {
+        self.stateless_data_reader_list
+            .write_lock()
+            .retain(|x| x._get_instance_handle() != a_datareader_handle)
+    }
+
+    pub fn _stateless_data_reader_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatelessReader>>> {
+        DdsListIntoIterator::new(self.stateless_data_reader_list.read_lock())
+    }
+
+    pub fn _stateless_data_reader_drain(
+        &self,
+    ) -> DdsDrainIntoIterator<DdsShared<DdsDataReader<RtpsStatelessReader>>> {
+        DdsDrainIntoIterator::new(self.stateless_data_reader_list.write_lock())
+    }
+
+    pub fn stateful_data_reader_add(
+        &self,
+        data_reader: DdsShared<DdsDataReader<RtpsStatefulReader>>,
+    ) {
+        self.stateful_data_reader_list
+            .write_lock()
+            .push(data_reader)
+    }
+
+    pub fn stateful_data_reader_delete(&self, a_datareader_handle: InstanceHandle) {
+        self.stateful_data_reader_list
             .write_lock()
             .retain(|x| x.get_instance_handle() != a_datareader_handle)
     }
 
-    pub fn data_reader_list(
+    pub fn stateful_data_reader_list(
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
-        DdsListIntoIterator::new(self.data_reader_list.read_lock())
+        DdsListIntoIterator::new(self.stateful_data_reader_list.read_lock())
     }
 
-    pub fn data_reader_drain(
+    pub fn stateful_data_reader_drain(
         &self,
     ) -> DdsDrainIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
-        DdsDrainIntoIterator::new(self.data_reader_list.write_lock())
+        DdsDrainIntoIterator::new(self.stateful_data_reader_list.write_lock())
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -148,7 +183,7 @@ impl DdsShared<DdsSubscriber> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             data_reader.update_communication_status(
                 now,
                 &mut self.status_listener.write_lock(),
@@ -189,7 +224,7 @@ impl DdsShared<DdsSubscriber> {
             .entity_factory
             .autoenable_created_entities
         {
-            for data_reader in self.data_reader_list.read_lock().iter() {
+            for data_reader in self.stateful_data_reader_list.read_lock().iter() {
                 data_reader.enable()?;
             }
         }
@@ -243,7 +278,7 @@ impl DdsShared<DdsSubscriber> {
                     ListenerSubscriberNode::new(),
                 )))
         } else {
-            for data_reader in self.data_reader_list.read_lock().iter() {
+            for data_reader in self.stateful_data_reader_list.read_lock().iter() {
                 data_reader.on_data_available(participant_status_listener);
             }
         }
@@ -256,7 +291,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
     }
@@ -266,7 +301,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_frag_submessage_received(
                 heartbeat_frag_submessage,
                 source_guid_prefix,
@@ -282,7 +317,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             let data_submessage_received_result = data_reader.on_data_submessage_received(
                 data_submessage,
                 message_receiver,
@@ -309,7 +344,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             let data_submessage_received_result = data_reader.on_data_frag_submessage_received(
                 data_frag_submessage,
                 message_receiver,
@@ -333,7 +368,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         gap_submessage: &GapSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        for data_reader in self.data_reader_list.read_lock().iter() {
+        for data_reader in self.stateful_data_reader_list.read_lock().iter() {
             data_reader
                 .on_gap_submessage_received(gap_submessage, message_receiver.source_guid_prefix());
         }

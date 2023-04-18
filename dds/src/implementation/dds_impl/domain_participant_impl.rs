@@ -537,7 +537,7 @@ impl DomainParticipantImpl {
                     "Subscriber can only be deleted from its parent participant".to_string(),
                 )
             })?
-            .data_reader_list()
+            .stateful_data_reader_list()
             .into_iter()
             .count()
             > 0
@@ -628,7 +628,7 @@ impl DomainParticipantImpl {
         }
 
         for subscriber in &self.user_defined_subscriber_list() {
-            if subscriber.data_reader_list().into_iter().any(|r| {
+            if subscriber.stateful_data_reader_list().into_iter().any(|r| {
                 r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -727,7 +727,7 @@ impl DdsShared<DomainParticipantImpl> {
         self.ignored_publications.write_lock().insert(handle);
 
         for subscriber in &self.user_defined_subscriber_list() {
-            for data_reader in &subscriber.data_reader_list() {
+            for data_reader in &subscriber.stateful_data_reader_list() {
                 data_reader.remove_matched_writer(
                     handle,
                     &mut subscriber.get_status_listener_lock(),
@@ -766,7 +766,7 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
-            for data_reader in user_defined_subscriber.data_reader_drain().into_iter() {
+            for data_reader in user_defined_subscriber.stateful_data_reader_drain().into_iter() {
                 if data_reader.is_enabled() {
                     self.announce_sender
                         .send(AnnounceKind::DeletedDataReader(
