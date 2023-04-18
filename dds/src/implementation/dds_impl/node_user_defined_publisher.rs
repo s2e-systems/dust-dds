@@ -17,12 +17,12 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dcps_service::DcpsService,
+    dds_publisher::DdsPublisher,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    dds_publisher::DdsPublisher,
 };
 
 #[derive(PartialEq, Debug)]
@@ -32,10 +32,7 @@ pub struct UserDefinedPublisherNode(
 
 impl UserDefinedPublisherNode {
     pub fn new(
-        node: ChildNode<
-            DdsPublisher,
-            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-        >,
+        node: ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }
@@ -110,23 +107,38 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        self.0.get()?.suspend_publications()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn resume_publications(&self) -> DdsResult<()> {
-        self.0.get()?.resume_publications()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        self.0.get()?.begin_coherent_changes()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        self.0.get()?.end_coherent_changes()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.0.get()?.wait_for_acknowledgments(max_wait)
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {

@@ -6,6 +6,7 @@ use crate::{
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter,
             types::Locator,
         },
         utils::{
@@ -18,7 +19,6 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
-        time::Duration,
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -37,7 +37,8 @@ use super::{
 pub struct DdsPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
-    data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
+    stateless_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatelessWriter>>>>,
+    stateful_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
@@ -59,7 +60,8 @@ impl DdsPublisher {
         DdsShared::new(DdsPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
-            data_writer_list: DdsRwLock::new(Vec::new()),
+            stateless_data_writer_list: DdsRwLock::new(Vec::new()),
+            stateful_data_writer_list: DdsRwLock::new(Vec::new()),
             data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
@@ -67,6 +69,12 @@ impl DdsPublisher {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
         })
+    }
+
+    pub fn enable(&self) -> DdsResult<()> {
+        *self.enabled.write_lock() = true;
+
+        Ok(())
     }
 
     pub fn is_enabled(&self) -> bool {
@@ -99,7 +107,7 @@ impl DdsPublisher {
         let data_writer_shared =
             DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
 
-        self.data_writer_list
+        self.stateful_data_writer_list
             .write_lock()
             .push(data_writer_shared.clone());
 
@@ -107,7 +115,7 @@ impl DdsPublisher {
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
-        let data_writer_list = &mut self.data_writer_list.write_lock();
+        let data_writer_list = &mut self.stateful_data_writer_list.write_lock();
         let data_writer_list_position = data_writer_list
             .iter()
             .position(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
@@ -131,7 +139,7 @@ impl DdsPublisher {
     pub fn data_writer_list(
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
-        DdsListIntoIterator::new(self.data_writer_list.read_lock())
+        DdsListIntoIterator::new(self.stateful_data_writer_list.read_lock())
     }
 
     pub fn get_status_listener_lock(
@@ -142,48 +150,8 @@ impl DdsPublisher {
 }
 
 impl DdsShared<DdsPublisher> {
-    pub fn suspend_publications(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn resume_publications(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for data_writer in self.data_writer_list.write_lock().drain(..) {
+        for data_writer in self.stateful_data_writer_list.write_lock().drain(..) {
             // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
             if data_writer.is_enabled() {
                 self.announce_sender
@@ -235,12 +203,6 @@ impl DdsShared<DdsPublisher> {
         self.status_condition.read_lock().get_status_changes()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
-
-        Ok(())
-    }
-
     pub fn get_instance_handle(&self) -> InstanceHandle {
         self.rtps_group.guid().into()
     }
@@ -252,7 +214,7 @@ impl PublisherMessageReceiver for DdsShared<DdsPublisher> {
         acknack_submessage: &AckNackSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
+        for data_writer in self.stateful_data_writer_list.read_lock().iter() {
             data_writer.on_acknack_submessage_received(acknack_submessage, message_receiver);
         }
     }
@@ -262,7 +224,7 @@ impl PublisherMessageReceiver for DdsShared<DdsPublisher> {
         nackfrag_submessage: &NackFragSubmessage,
         message_receiver: &MessageReceiver,
     ) {
-        for data_writer in self.data_writer_list.read_lock().iter() {
+        for data_writer in self.stateful_data_writer_list.read_lock().iter() {
             data_writer.on_nack_frag_submessage_received(nackfrag_submessage, message_receiver);
         }
     }
