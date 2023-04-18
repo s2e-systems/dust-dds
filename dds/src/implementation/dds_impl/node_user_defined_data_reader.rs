@@ -26,7 +26,7 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, user_defined_data_reader::DdsDataReader,
+    status_listener::StatusListener, dds_data_reader::DdsDataReader,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 

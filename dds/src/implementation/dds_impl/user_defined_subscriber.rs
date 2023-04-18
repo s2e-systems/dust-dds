@@ -37,7 +37,7 @@ use super::{
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_data_reader::{
+    dds_data_reader::{
         DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult,
     },
 };

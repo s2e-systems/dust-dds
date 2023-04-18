@@ -8,7 +8,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::user_defined_data_reader::DdsDataReader;
+use super::dds_data_reader::DdsDataReader;
 
 #[derive(PartialEq, Debug)]
 pub struct ListenerDataReaderNode(RootNode<DdsDataReader>);
