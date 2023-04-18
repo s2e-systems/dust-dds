@@ -1,7 +1,9 @@
 use crate::{
     implementation::{
-        data_representation_builtin_endpoints::discovered_reader_data::{
-            DiscoveredReaderData, DCPS_SUBSCRIPTION,
+        data_representation_builtin_endpoints::{
+            discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
         },
         rtps::{
             endpoint::RtpsEndpoint,
@@ -35,7 +37,6 @@ use crate::{
 };
 
 use super::{
-    builtin_stateful_writer::BuiltinStatefulWriter,
     builtin_stateless_writer::BuiltinStatelessWriter,
     domain_participant_impl::{
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -51,8 +52,8 @@ pub struct BuiltinPublisher {
     _qos: PublisherQos,
     _rtps_group: RtpsGroup,
     spdp_builtin_participant_writer: DdsShared<BuiltinStatelessWriter>,
-    sedp_builtin_topics_writer: DdsShared<BuiltinStatefulWriter>,
-    sedp_builtin_publications_writer: DdsShared<BuiltinStatefulWriter>,
+    sedp_builtin_topics_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
+    sedp_builtin_publications_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
     sedp_builtin_subscriptions_writer: DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>>,
     enabled: DdsRwLock<bool>,
 }
@@ -76,20 +77,26 @@ impl BuiltinPublisher {
             spdp_discovery_locator_list,
         );
 
-        let sedp_builtin_topics_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-        let sedp_builtin_topics_writer = BuiltinStatefulWriter::new(
-            sedp_builtin_topics_writer_guid,
-            sedp_topic_topics,
-            sedp_condvar.clone(),
+        let sedp_builtin_topics_writer = UserDefinedDataWriter::new(
+            create_builtin_stateful_writer(Guid::new(
+                guid_prefix,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+            )),
+            None,
+            NO_STATUS,
+            DiscoveredTopicData::type_name(),
+            String::from(DCPS_TOPIC),
         );
 
-        let sedp_builtin_publications_writer_guid =
-            Guid::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
-        let sedp_builtin_publications_writer = BuiltinStatefulWriter::new(
-            sedp_builtin_publications_writer_guid,
-            sedp_topic_publications,
-            sedp_condvar.clone(),
+        let sedp_builtin_publications_writer = UserDefinedDataWriter::new(
+            create_builtin_stateful_writer(Guid::new(
+                guid_prefix,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+            )),
+            None,
+            NO_STATUS,
+            DiscoveredWriterData::type_name(),
+            String::from(DCPS_PUBLICATION),
         );
 
         let sedp_builtin_subscriptions_writer = UserDefinedDataWriter::new(
@@ -120,11 +127,15 @@ impl DdsShared<BuiltinPublisher> {
         &self.spdp_builtin_participant_writer
     }
 
-    pub fn sedp_builtin_topics_writer(&self) -> &DdsShared<BuiltinStatefulWriter> {
+    pub fn sedp_builtin_topics_writer(
+        &self,
+    ) -> &DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_topics_writer
     }
 
-    pub fn sedp_builtin_publications_writer(&self) -> &DdsShared<BuiltinStatefulWriter> {
+    pub fn sedp_builtin_publications_writer(
+        &self,
+    ) -> &DdsShared<UserDefinedDataWriter<RtpsStatefulWriter>> {
         &self.sedp_builtin_publications_writer
     }
 
@@ -138,8 +149,8 @@ impl DdsShared<BuiltinPublisher> {
         *self.enabled.write_lock() = true;
 
         self.spdp_builtin_participant_writer.enable()?;
-        self.sedp_builtin_publications_writer.enable()?;
-        self.sedp_builtin_topics_writer.enable()?;
+        self.sedp_builtin_publications_writer.enable();
+        self.sedp_builtin_topics_writer.enable();
         self.sedp_builtin_subscriptions_writer.enable();
 
         Ok(())
