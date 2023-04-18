@@ -4,7 +4,8 @@ use crate::{
     implementation::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer, serde_remote_rtps_pim::DomainTag,
+            parameter_list_serializer::ParameterListSerializer,
+            serde_remote_rtps_pim::{ExpectsInlineQosSerialize, ExpectsInlineQosDeserialize},
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -24,8 +25,25 @@ use super::parameter_id_values::{
     PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG,
     PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
     PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID, DEFAULT_DOMAIN_TAG,
 };
+
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize, derive_more::From)]
+pub struct DomainTagSerialize<'a>(pub &'a str);
+impl<'a> Default for DomainTagSerialize<'a> {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG)
+    }
+}
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
+pub struct DomainTagDeserialize(pub String);
+impl Default for DomainTagDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG.to_string())
+    }
+}
+
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantLeaseDuration(Duration);
@@ -142,7 +160,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DOMAIN_TAG,
-            &DomainTag(self.participant_proxy.domain_tag.as_str()),
+            &DomainTagSerialize(&self.participant_proxy.domain_tag),
         )?;
         parameter_list_serializer.serialize_parameter::<ProtocolVersion>(
             PID_PROTOCOL_VERSION,
@@ -153,7 +171,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_EXPECTS_INLINE_QOS,
-            &self.participant_proxy.expects_inline_qos,
+            &ExpectsInlineQosSerialize(&self.participant_proxy.expects_inline_qos),
         )?;
         parameter_list_serializer.serialize_parameter_vector(
             PID_METATRAFFIC_UNICAST_LOCATOR,
@@ -200,10 +218,12 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let participant_key = param_list.get::<BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
         let domain_id = param_list.get(PID_DOMAIN_ID)?;
-        let domain_tag = param_list.get_or_default(PID_DOMAIN_TAG)?;
+        let domain_tag = param_list.get_or_default::<DomainTagDeserialize>(PID_DOMAIN_TAG)?.into();
         let protocol_version = param_list.get(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get(PID_VENDORID)?;
-        let expects_inline_qos = param_list.get_or_default(PID_EXPECTS_INLINE_QOS)?;
+        let expects_inline_qos = param_list
+            .get_or_default::<ExpectsInlineQosDeserialize>(PID_EXPECTS_INLINE_QOS)?
+            .into();
         let metatraffic_unicast_locator_list =
             param_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR)?;
         let metatraffic_multicast_locator_list =
