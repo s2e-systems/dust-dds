@@ -18,7 +18,7 @@ use super::{
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     status_listener::StatusListener,
-    user_defined_subscriber::DdsSubscriber,
+    dds_subscriber::DdsSubscriber,
 };
 
 #[derive(PartialEq, Debug)]

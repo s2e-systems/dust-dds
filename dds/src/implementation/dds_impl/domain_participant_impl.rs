@@ -89,7 +89,7 @@ use super::{
     dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber::DdsSubscriber,
+    dds_subscriber::DdsSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =

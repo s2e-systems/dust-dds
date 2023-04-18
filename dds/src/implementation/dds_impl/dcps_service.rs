@@ -70,7 +70,7 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    user_defined_subscriber::DdsSubscriber,
+    dds_subscriber::DdsSubscriber,
 };
 
 pub struct DcpsService {

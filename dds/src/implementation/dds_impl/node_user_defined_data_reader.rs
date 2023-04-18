@@ -33,7 +33,7 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_subscriber::DdsSubscriber,
+    dds_subscriber::DdsSubscriber,
 };
 
 type UserDefinedDataReaderNodeType = ChildNode<
