@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    builtin_topics::TopicBuiltinTopicData,
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
@@ -140,9 +140,9 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
-        let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let key = param_list.get(PID_ENDPOINT_GUID)?;
+        let name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =
@@ -187,6 +187,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
+    use crate::builtin_topics::BuiltInTopicKey;
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,

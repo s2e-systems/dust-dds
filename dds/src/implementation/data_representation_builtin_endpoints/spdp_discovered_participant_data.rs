@@ -198,13 +198,12 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let participant_key =
-            param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
+        let participant_key = param_list.get::<BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
-        let domain_id = param_list.get::<i32, _>(PID_DOMAIN_ID)?;
+        let domain_id = param_list.get(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
-        let protocol_version = param_list.get::<ProtocolVersion, _>(PID_PROTOCOL_VERSION)?;
-        let vendor_id = param_list.get::<VendorId, _>(PID_VENDORID)?;
+        let protocol_version = param_list.get(PID_PROTOCOL_VERSION)?;
+        let vendor_id = param_list.get(PID_VENDORID)?;
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
@@ -213,15 +212,13 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
             param_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
         let default_unicast_locator_list = param_list.get_list(PID_DEFAULT_UNICAST_LOCATOR)?;
         let default_multicast_locator_list = param_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR)?;
-        let available_builtin_endpoints =
-            param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
+        let available_builtin_endpoints = param_list.get(PID_BUILTIN_ENDPOINT_SET)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let manual_liveliness_count =
             param_list.get_or_default::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos =
             param_list.get_or_default::<BuiltinEndpointQos, _>(PID_BUILTIN_ENDPOINT_QOS)?;
-        let lease_duration =
-            param_list.get::<ParticipantLeaseDuration, _>(PID_PARTICIPANT_LEASE_DURATION)?;
+        let lease_duration = param_list.get(PID_PARTICIPANT_LEASE_DURATION)?;
 
         let v = participant_key.value;
         let guid_prefix = GuidPrefix::new([

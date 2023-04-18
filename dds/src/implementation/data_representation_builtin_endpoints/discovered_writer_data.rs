@@ -193,17 +193,17 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         // writer_proxy
         let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
-        let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
+        let data_max_size_serialized = param_list.get(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id =
             param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let participant_key =
             param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let topic_name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =

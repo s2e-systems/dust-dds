@@ -47,7 +47,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let participant_key = param_list.get::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
+        let participant_key = param_list.get(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
 
         Ok(ParticipantBuiltinTopicData {
@@ -86,9 +86,9 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
-        let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        let name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =
@@ -163,12 +163,12 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // publication_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let participant_key =
             param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let topic_name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =
@@ -243,12 +243,12 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // subscription_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
+        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let participant_key =
             param_list.get_or_default::<BuiltInTopicKey, _>(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
+        let topic_name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
         let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
         let latency_budget =

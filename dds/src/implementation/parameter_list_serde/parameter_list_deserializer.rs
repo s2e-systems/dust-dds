@@ -105,14 +105,13 @@ impl<'de: 'a, 'a> ParameterListDeserializer<'a> {
 }
 
 impl<'de> ParameterListDeserializer<'de> {
-    pub fn get<T, U>(&self, parameter_id: u16) -> DdsResult<U>
+    pub fn get<T>(&self, parameter_id: u16) -> DdsResult<T>
     where
         T: serde::Deserialize<'de>,
-        U: From<T>,
     {
         for parameter in self.parameter.iter() {
             if parameter.parameter_id == parameter_id {
-                return Ok(self.deserialize_parameter::<T>(parameter)?.into());
+                return self.deserialize_parameter::<T>(parameter);
             }
         }
         Err(DdsError::PreconditionNotMet(format!(
