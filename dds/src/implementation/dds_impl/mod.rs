@@ -1,7 +1,6 @@
 pub mod any_data_reader_listener;
 pub mod any_data_writer_listener;
 pub mod any_topic_listener;
-pub mod builtin_publisher;
 pub mod builtin_stateful_reader;
 pub mod builtin_stateless_reader;
 pub mod builtin_subscriber;

@@ -106,7 +106,7 @@ impl DdsPublisher {
         DdsListIntoIterator::new(self.stateful_data_writer_list.read_lock())
     }
 
-    pub fn _stateless_datawriter_add(
+    pub fn stateless_datawriter_add(
         &self,
         data_writer: DdsShared<DdsDataWriter<RtpsStatelessWriter>>,
     ) {
@@ -127,7 +127,7 @@ impl DdsPublisher {
             .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
     }
 
-    pub fn _stateless_data_writer_list(
+    pub fn stateless_data_writer_list(
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatelessWriter>>> {
         DdsListIntoIterator::new(self.stateless_data_writer_list.read_lock())

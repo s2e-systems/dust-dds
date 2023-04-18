@@ -233,7 +233,10 @@ impl DcpsService {
                 stateless_writer_send_message(
                     domain_participant
                         .get_builtin_publisher()
-                        .spdp_builtin_participant_writer(),
+                        .stateless_data_writer_list()
+                        .into_iter()
+                        .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+                        .unwrap(),
                     header,
                     &mut metatraffic_unicast_transport_send,
                 );
@@ -241,7 +244,10 @@ impl DcpsService {
                 user_defined_stateful_writer_send_message(
                     domain_participant
                         .get_builtin_publisher()
-                        .sedp_builtin_publications_writer(),
+                        .stateful_data_writer_list()
+                        .into_iter()
+                        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                        .unwrap(),
                     header,
                     &mut metatraffic_unicast_transport_send,
                 );
@@ -249,7 +255,10 @@ impl DcpsService {
                 user_defined_stateful_writer_send_message(
                     domain_participant
                         .get_builtin_publisher()
-                        .sedp_builtin_subscriptions_writer(),
+                        .stateful_data_writer_list()
+                        .into_iter()
+                        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                        .unwrap(),
                     header,
                     &mut metatraffic_unicast_transport_send,
                 );
@@ -257,7 +266,10 @@ impl DcpsService {
                 user_defined_stateful_writer_send_message(
                     domain_participant
                         .get_builtin_publisher()
-                        .sedp_builtin_topics_writer(),
+                        .stateful_data_writer_list()
+                        .into_iter()
+                        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                        .unwrap(),
                     header,
                     &mut metatraffic_unicast_transport_send,
                 );
@@ -455,7 +467,10 @@ fn announce_created_data_reader(
     let timestamp = domain_participant.get_current_time();
     domain_participant
         .get_builtin_publisher()
-        .sedp_builtin_subscriptions_writer()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .unwrap()
         .write_w_timestamp(
             serialized_data,
             reader_data.get_serialized_key(),
@@ -487,7 +502,10 @@ fn announce_created_data_writer(
 
     domain_participant
         .get_builtin_publisher()
-        .sedp_builtin_publications_writer()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+        .unwrap()
         .write_w_timestamp(
             serialized_data,
             writer_data.get_serialized_key(),
@@ -510,7 +528,10 @@ fn announce_created_topic(
 
     domain_participant
         .get_builtin_publisher()
-        .sedp_builtin_topics_writer()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+        .unwrap()
         .write_w_timestamp(
             serialized_data,
             discovered_topic.get_serialized_key(),
@@ -534,7 +555,10 @@ fn announce_deleted_reader(
 
     domain_participant
         .get_builtin_publisher()
-        .sedp_builtin_subscriptions_writer()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+        .unwrap()
         .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
         .expect("Should not fail to write built-in message");
 }
@@ -553,7 +577,10 @@ fn announce_deleted_writer(
 
     domain_participant
         .get_builtin_publisher()
-        .sedp_builtin_publications_writer()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .unwrap()
         .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
         .expect("Should not fail to write built-in message");
 }
@@ -1076,7 +1103,10 @@ fn add_discovered_participant(
             add_matched_publications_detector(
                 domain_participant
                     .get_builtin_publisher()
-                    .sedp_builtin_publications_writer(),
+                    .stateful_data_writer_list()
+                    .into_iter()
+                    .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                    .unwrap(),
                 &discovered_participant_data,
             );
 
@@ -1088,7 +1118,10 @@ fn add_discovered_participant(
             add_matched_subscriptions_detector(
                 domain_participant
                     .get_builtin_publisher()
-                    .sedp_builtin_subscriptions_writer(),
+                    .stateful_data_writer_list()
+                    .into_iter()
+                    .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                    .unwrap(),
                 &discovered_participant_data,
             );
 
@@ -1100,7 +1133,10 @@ fn add_discovered_participant(
             add_matched_topics_detector(
                 domain_participant
                     .get_builtin_publisher()
-                    .sedp_builtin_topics_writer(),
+                    .stateful_data_writer_list()
+                    .into_iter()
+                    .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                    .unwrap(),
                 &discovered_participant_data,
             );
 
