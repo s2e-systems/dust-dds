@@ -9,6 +9,7 @@ use crate::{
                 DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
                 HeartbeatSubmessage,
             },
+            stateful_reader::RtpsStatefulReader,
             types::{GuidPrefix, Locator},
         },
         utils::{
@@ -43,7 +44,7 @@ use super::{
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader>>>,
+    data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -107,7 +108,7 @@ impl UserDefinedSubscriber {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<DdsDataReader>>
+    ) -> DdsResult<DdsShared<DdsDataReader<RtpsStatefulReader>>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -163,7 +164,9 @@ impl UserDefinedSubscriber {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsListIntoIterator<DdsShared<DdsDataReader>> {
+    pub fn data_reader_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
         DdsListIntoIterator::new(self.data_reader_list.read_lock())
     }
 }

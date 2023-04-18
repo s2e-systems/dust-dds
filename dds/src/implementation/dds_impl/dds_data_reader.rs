@@ -175,8 +175,8 @@ impl SubscriptionMatchedStatus {
     }
 }
 
-pub struct DdsDataReader {
-    rtps_reader: DdsRwLock<RtpsStatefulReader>,
+pub struct DdsDataReader<T> {
+    rtps_reader: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
@@ -195,9 +195,9 @@ pub struct DdsDataReader {
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
 }
 
-impl DdsDataReader {
+impl<T> DdsDataReader<T> {
     pub fn new(
-        rtps_reader: RtpsStatefulReader,
+        rtps_reader: T,
         type_name: &'static str,
         topic_name: String,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
@@ -233,9 +233,7 @@ impl DdsDataReader {
     ) -> RwLockWriteGuard<StatusListener<dyn AnyDataReaderListener + Send + Sync>> {
         self.status_listener.write_lock()
     }
-}
 
-impl DdsShared<DdsDataReader> {
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
     }
@@ -244,6 +242,44 @@ impl DdsShared<DdsDataReader> {
         &self.topic_name
     }
 
+    pub fn get_liveliness_changed_status(&self) -> LivelinessChangedStatus {
+        self.liveliness_changed_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_requested_deadline_missed_status(&self) -> RequestedDeadlineMissedStatus {
+        self.requested_deadline_missed_status
+            .write_lock()
+            .read_and_reset()
+    }
+
+    pub fn get_requested_incompatible_qos_status(&self) -> RequestedIncompatibleQosStatus {
+        self.requested_incompatible_qos_status
+            .write_lock()
+            .read_and_reset()
+    }
+
+    pub fn get_sample_lost_status(&self) -> SampleLostStatus {
+        self.sample_lost_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SampleRejected);
+        self.sample_rejected_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
+        self.subscription_matched_status
+            .write_lock()
+            .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
+    }
+}
+
+impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -640,42 +676,6 @@ impl DdsShared<DdsDataReader> {
 
     pub fn lookup_instance<Foo>(&self, _instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         todo!()
-    }
-
-    pub fn get_liveliness_changed_status(&self) -> LivelinessChangedStatus {
-        self.liveliness_changed_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_requested_deadline_missed_status(&self) -> RequestedDeadlineMissedStatus {
-        self.requested_deadline_missed_status
-            .write_lock()
-            .read_and_reset()
-    }
-
-    pub fn get_requested_incompatible_qos_status(&self) -> RequestedIncompatibleQosStatus {
-        self.requested_incompatible_qos_status
-            .write_lock()
-            .read_and_reset()
-    }
-
-    pub fn get_sample_lost_status(&self) -> SampleLostStatus {
-        self.sample_lost_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SampleRejected);
-        self.sample_rejected_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
-        self.subscription_matched_status
-            .write_lock()
-            .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
     }
 
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {

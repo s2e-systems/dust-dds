@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::node::RootNode,
+    implementation::{rtps::stateful_reader::RtpsStatefulReader, utils::node::RootNode},
     infrastructure::{error::DdsResult, instance::InstanceHandle},
     subscription::{
         data_reader::{AnyDataReader, Sample},
@@ -11,10 +11,10 @@ use crate::{
 use super::dds_data_reader::DdsDataReader;
 
 #[derive(PartialEq, Debug)]
-pub struct ListenerDataReaderNode(RootNode<DdsDataReader>);
+pub struct ListenerDataReaderNode(RootNode<DdsDataReader<RtpsStatefulReader>>);
 
 impl ListenerDataReaderNode {
-    pub fn new(node: RootNode<DdsDataReader>) -> Self {
+    pub fn new(node: RootNode<DdsDataReader<RtpsStatefulReader>>) -> Self {
         Self(node)
     }
 

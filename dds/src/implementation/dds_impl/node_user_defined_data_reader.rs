@@ -1,8 +1,11 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::stateful_reader::RtpsStatefulReader,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -33,24 +36,16 @@ use super::{
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
+type UserDefinedDataReaderNodeType = ChildNode<
+    DdsDataReader<RtpsStatefulReader>,
+    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+>;
+
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedDataReaderNode(
-    ChildNode<
-        DdsDataReader,
-        ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
-    >,
-);
+pub struct UserDefinedDataReaderNode(UserDefinedDataReaderNodeType);
 
 impl UserDefinedDataReaderNode {
-    pub fn new(
-        node: ChildNode<
-            DdsDataReader,
-            ChildNode<
-                UserDefinedSubscriber,
-                ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-            >,
-        >,
-    ) -> Self {
+    pub fn new(node: UserDefinedDataReaderNodeType) -> Self {
         Self(node)
     }
 
