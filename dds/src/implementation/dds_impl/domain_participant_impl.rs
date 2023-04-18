@@ -86,10 +86,10 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltInSubscriber,
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, topic_impl::TopicImpl,
-    dds_subscriber::DdsSubscriber,
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
+    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    topic_impl::TopicImpl,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -509,14 +509,7 @@ impl DomainParticipantImpl {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber_shared = DdsSubscriber::new(
-            subscriber_qos,
-            rtps_group,
-            a_listener,
-            mask,
-            self.user_defined_data_send_condvar.clone(),
-            self.announce_sender.clone(),
-        );
+        let subscriber_shared = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -561,9 +554,7 @@ impl DomainParticipantImpl {
         Ok(())
     }
 
-    pub fn user_defined_subscriber_list(
-        &self,
-    ) -> DdsListIntoIterator<DdsShared<DdsSubscriber>> {
+    pub fn user_defined_subscriber_list(&self) -> DdsListIntoIterator<DdsShared<DdsSubscriber>> {
         DdsListIntoIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
@@ -775,7 +766,15 @@ impl DdsShared<DomainParticipantImpl> {
         }
 
         for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
-            user_defined_subscriber.delete_contained_entities()?;
+            for data_reader in user_defined_subscriber.data_reader_drain().into_iter() {
+                if data_reader.is_enabled() {
+                    self.announce_sender
+                        .send(AnnounceKind::DeletedDataReader(
+                            data_reader.get_instance_handle(),
+                        ))
+                        .ok();
+                }
+            }
         }
 
         self.topic_list.write_lock().clear();
@@ -1024,7 +1023,9 @@ impl DdsShared<DomainParticipantImpl> {
             source_locator,
             &message,
             &mut self.status_listener.write_lock(),
-        )
+        )?;
+        self.user_defined_data_send_condvar.notify_all();
+        Ok(())
     }
 
     pub fn discover_matched_readers(&self) -> DdsResult<()> {

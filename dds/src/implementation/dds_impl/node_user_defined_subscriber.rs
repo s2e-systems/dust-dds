@@ -14,11 +14,11 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     dcps_service::DcpsService,
+    dds_subscriber::DdsSubscriber,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     status_listener::StatusListener,
-    dds_subscriber::DdsSubscriber,
 };
 
 #[derive(PartialEq, Debug)]
@@ -28,10 +28,7 @@ pub struct UserDefinedSubscriberNode(
 
 impl UserDefinedSubscriberNode {
     pub fn new(
-        node: ChildNode<
-            DdsSubscriber,
-            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-        >,
+        node: ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }
@@ -79,7 +76,34 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_datareader(a_datareader_handle)
+        let data_reader = self
+            .0
+            .get()?
+            .data_reader_list()
+            .into_iter()
+            .find(|x| x.get_instance_handle() == a_datareader_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data reader can only be deleted from its parent subscriber".to_string(),
+                )
+            })?
+            .clone();
+
+        self.0.get()?.delete_datareader(a_datareader_handle);
+
+        if data_reader.is_enabled() {
+            self.0
+                .parent()
+                .parent()
+                .get()?
+                .announce_sender()
+                .send(AnnounceKind::DeletedDataReader(
+                    data_reader.get_instance_handle(),
+                ))
+                .ok();
+        }
+
+        Ok(())
     }
 
     pub fn lookup_datareader(
@@ -105,7 +129,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
-        self.0.get()?.notify_datareaders()
+        todo!()
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
@@ -113,11 +137,24 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.0.get()?.get_sample_lost_status()
+        todo!()
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.get()?.delete_contained_entities()
+        for data_reader in self.0.get()?.data_reader_drain().into_iter() {
+            if data_reader.is_enabled() {
+                self.0
+                    .parent()
+                    .parent()
+                    .get()?
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataReader(
+                        data_reader.get_instance_handle(),
+                    ))
+                    .ok();
+            }
+        }
+        Ok(())
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {

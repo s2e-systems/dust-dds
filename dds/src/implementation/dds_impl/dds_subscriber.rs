@@ -1,4 +1,4 @@
-use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
+use std::sync::RwLockWriteGuard;
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
@@ -13,16 +13,15 @@ use crate::{
             types::{GuidPrefix, Locator},
         },
         utils::{
-            condvar::DdsCondvar,
-            iterator::DdsListIntoIterator,
+            iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
         },
     },
     infrastructure::{
-        error::{DdsError, DdsResult},
+        error::DdsResult,
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos, TopicQos},
-        status::{SampleLostStatus, StatusKind},
+        status::StatusKind,
         time::Time,
     },
     subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
@@ -32,7 +31,6 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
-    domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
     node_listener_subscriber::ListenerSubscriberNode,
@@ -47,11 +45,9 @@ pub struct DdsSubscriber {
     data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
-    user_defined_data_send_condvar: DdsCondvar,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     data_on_readers_status_changed_flag: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn SubscriberListener + Send + Sync>>,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl DdsSubscriber {
@@ -60,8 +56,6 @@ impl DdsSubscriber {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-        user_defined_data_send_condvar: DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(DdsSubscriber {
             qos: DdsRwLock::new(qos),
@@ -69,11 +63,9 @@ impl DdsSubscriber {
             data_reader_list: DdsRwLock::new(Vec::new()),
             reader_factory: DdsRwLock::new(ReaderFactory::new()),
             enabled: DdsRwLock::new(false),
-            user_defined_data_send_condvar,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             data_on_readers_status_changed_flag: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
-            announce_sender,
         })
     }
 
@@ -140,28 +132,10 @@ impl DdsSubscriber {
         Ok(data_reader_shared)
     }
 
-    pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
-        let data_reader_list = &mut self.data_reader_list.write_lock();
-        let data_reader_list_position = data_reader_list
-            .iter()
-            .position(|x| x.get_instance_handle() == a_datareader_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Data reader can only be deleted from its parent subscriber".to_string(),
-                )
-            })?;
-
-        let data_reader = data_reader_list.remove(data_reader_list_position);
-
-        if data_reader.is_enabled() {
-            self.announce_sender
-                .send(AnnounceKind::DeletedDataReader(
-                    data_reader.get_instance_handle(),
-                ))
-                .ok();
-        }
-
-        Ok(())
+    pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) {
+        self.data_reader_list
+            .write_lock()
+            .retain(|x| x.get_instance_handle() != a_datareader_handle)
     }
 
     pub fn data_reader_list(
@@ -169,33 +143,11 @@ impl DdsSubscriber {
     ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
         DdsListIntoIterator::new(self.data_reader_list.read_lock())
     }
-}
 
-impl DdsShared<DdsSubscriber> {
-    pub fn notify_datareaders(&self) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        todo!()
-    }
-
-    pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        todo!()
-    }
-
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for data_reader in self.data_reader_list.write_lock().drain(..) {
-            if data_reader.is_enabled() {
-                self.announce_sender
-                    .send(AnnounceKind::DeletedDataReader(
-                        data_reader.get_instance_handle(),
-                    ))
-                    .ok();
-            }
-        }
-
-        Ok(())
+    pub fn data_reader_drain(
+        &self,
+    ) -> DdsDrainIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
+        DdsDrainIntoIterator::new(self.data_reader_list.write_lock())
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -210,7 +162,9 @@ impl DdsShared<DdsSubscriber> {
             .get_default_datareader_qos()
             .clone()
     }
+}
 
+impl DdsShared<DdsSubscriber> {
     pub fn update_communication_status(
         &self,
         now: Time,
@@ -329,7 +283,6 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
-        self.user_defined_data_send_condvar.notify_all();
     }
 
     fn on_heartbeat_frag_submessage_received(
