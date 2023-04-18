@@ -44,6 +44,73 @@ struct LargeData {
     value: Vec<u8>,
 }
 
+
+
+#[test]
+fn best_effort_should_receive_all_samples_in_order_if_perfect_wire_loop() {
+    struct Listener {
+        sender: std::sync::mpsc::SyncSender<()>,
+    }
+    impl DataReaderListener for Listener {
+        type Foo = KeyedData;
+
+        fn on_data_available(&mut self, the_reader: &DataReader<Self::Foo>) {
+            if let Ok(_) = the_reader.take(1, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)
+            {
+                self.sender.send(()).unwrap();
+            }
+        }
+    }
+
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let participant_factory = DomainParticipantFactory::get_instance();
+    let participant = participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let topic = participant
+        .create_topic::<KeyedData>("TestTopic", QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let subscriber = participant
+        .create_subscriber(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+
+    let (sender, receiver) = std::sync::mpsc::sync_channel(1);
+
+    let listener = Box::new(Listener { sender });
+    let _reader = subscriber
+        .create_datareader(
+            &topic,
+            QosKind::Default,
+            Some(listener),
+            &[StatusKind::DataAvailable],
+        )
+        .unwrap();
+    let publisher = participant
+        .create_publisher(QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer = publisher
+        .create_datawriter(&topic, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    let writer_cond = writer.get_statuscondition().unwrap();
+    writer_cond
+        .set_enabled_statuses(&[StatusKind::PublicationMatched])
+        .unwrap();
+    let mut wait_set = WaitSet::new();
+    wait_set
+        .attach_condition(Condition::StatusCondition(writer_cond))
+        .unwrap();
+    wait_set.wait(Duration::new(60, 0)).unwrap();
+
+    for _ in 1..1000 {
+        writer.write(&KeyedData { id: 1, value: 10 }, None).unwrap();
+
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap();
+    }
+}
+
+
 #[test]
 fn large_data_should_be_fragmented() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();

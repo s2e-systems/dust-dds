@@ -143,21 +143,21 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
-            .serialize_parameter::<&i32, _>(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<DomainTagSerialize, _>(
+            .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DOMAIN_TAG,
             &DomainTag(self.participant_proxy.domain_tag.as_str()),
         )?;
-        parameter_list_serializer.serialize_parameter::<&ProtocolVersion, _>(
+        parameter_list_serializer.serialize_parameter::<ProtocolVersion>(
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
         parameter_list_serializer
-            .serialize_parameter::<&BuiltInTopicKey, _>(PID_PARTICIPANT_GUID, &participant_key)?;
+            .serialize_parameter(PID_PARTICIPANT_GUID, &participant_key)?;
         parameter_list_serializer
-            .serialize_parameter::<&VendorId, _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+            .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
         parameter_list_serializer
-            .serialize_parameter_if_not_default::<ExpectsInlineQosSerialize, _>(
+            .serialize_parameter_if_not_default(
                 PID_EXPECTS_INLINE_QOS,
                 &self.participant_proxy.expects_inline_qos,
             )?;
@@ -177,23 +177,23 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_DEFAULT_MULTICAST_LOCATOR,
             &self.participant_proxy.default_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter::<&BuiltinEndpointSet, _>(
+        parameter_list_serializer.serialize_parameter(
             PID_BUILTIN_ENDPOINT_SET,
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&Count, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?; // Default value is a deviation from the standard and is used for interoperability reasons
-        parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltinEndpointQos, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
         )?;
-        parameter_list_serializer.serialize_parameter::<&ParticipantLeaseDuration, _>(
+        parameter_list_serializer.serialize_parameter(
             PID_PARTICIPANT_LEASE_DURATION,
             &self.lease_duration,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&UserDataQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_USER_DATA,
             &self.dds_participant_data.user_data,
         )?;

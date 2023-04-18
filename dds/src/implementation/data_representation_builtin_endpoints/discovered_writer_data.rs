@@ -107,85 +107,78 @@ impl DdsSerialize for DiscoveredWriterData {
             &self.writer_proxy.multicast_locator_list,
         )?;
         if let Some(data_max_size_serialized) = &self.writer_proxy.data_max_size_serialized {
-            parameter_list_serializer.serialize_parameter::<&i32, _>(
-                PID_DATA_MAX_SIZE_SERIALIZED,
-                data_max_size_serialized,
-            )?;
+            parameter_list_serializer
+                .serialize_parameter(PID_DATA_MAX_SIZE_SERIALIZED, data_max_size_serialized)?;
         }
 
-        parameter_list_serializer.serialize_parameter_if_not_default::<&EntityId, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
         )?;
-        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
-            PID_ENDPOINT_GUID,
-            &self.publication_builtin_topic_data.key,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltInTopicKey, _>(
+        parameter_list_serializer
+            .serialize_parameter(PID_ENDPOINT_GUID, &self.publication_builtin_topic_data.key)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_GUID,
             &self.publication_builtin_topic_data.participant_key,
         )?; // Default value is a deviation from the standard and is used for interoperability reasons
-        parameter_list_serializer.serialize_parameter::<String, _>(
+        parameter_list_serializer.serialize_parameter(
             PID_TOPIC_NAME,
             &self.publication_builtin_topic_data.topic_name,
         )?;
-        parameter_list_serializer.serialize_parameter::<String, _>(
+        parameter_list_serializer.serialize_parameter(
             PID_TYPE_NAME,
             &self.publication_builtin_topic_data.type_name,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&DurabilityQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DURABILITY,
             &self.publication_builtin_topic_data.durability,
         )?;
 
-        parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DEADLINE,
             &self.publication_builtin_topic_data.deadline,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&LatencyBudgetQosPolicy, _>(
-                PID_LATENCY_BUDGET,
-                &self.publication_builtin_topic_data.latency_budget,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&LivelinessQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_LATENCY_BUDGET,
+            &self.publication_builtin_topic_data.latency_budget,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIVELINESS,
             &self.publication_builtin_topic_data.liveliness,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<ReliabilityQosPolicyDataWriterSerialize, _>(
-                PID_RELIABILITY,
-                &ReliabilityQosPolicyDataWriter(&self.publication_builtin_topic_data.reliability),
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&LifespanQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_RELIABILITY,
+            &ReliabilityQosPolicyDataWriter(&self.publication_builtin_topic_data.reliability),
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIFESPAN,
             &self.publication_builtin_topic_data.lifespan,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&UserDataQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_USER_DATA,
             &self.publication_builtin_topic_data.user_data,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&OwnershipQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_OWNERSHIP,
             &self.publication_builtin_topic_data.ownership,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&DestinationOrderQosPolicy, _>(
-                PID_DESTINATION_ORDER,
-                &self.publication_builtin_topic_data.destination_order,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&PresentationQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_DESTINATION_ORDER,
+            &self.publication_builtin_topic_data.destination_order,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PRESENTATION,
             &self.publication_builtin_topic_data.presentation,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&PartitionQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTITION,
             &self.publication_builtin_topic_data.partition,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&TopicDataQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TOPIC_DATA,
             &self.publication_builtin_topic_data.topic_data,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&GroupDataQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_GROUP_DATA,
             &self.publication_builtin_topic_data.group_data,
         )?;

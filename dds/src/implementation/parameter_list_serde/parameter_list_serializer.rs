@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
@@ -14,7 +12,6 @@ where
     E: Endianness,
 {
     serializer: cdr::Serializer<W, E::Endianness>,
-    phantom: PhantomData<E>,
 }
 
 impl<W, E> ParameterListSerializer<W, E>
@@ -25,7 +22,6 @@ where
     pub fn new(writer: W) -> Self {
         Self {
             serializer: cdr::Serializer::<_, E::Endianness>::new(writer),
-            phantom: PhantomData,
         }
     }
 
@@ -39,16 +35,16 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter<'a, T, U>(
+    pub fn serialize_parameter<'a, T>(
         &mut self,
         parameter_id: u16,
-        value: &'a U,
+        value: &'a T,
     ) -> DdsResult<()>
     where
-        T: serde::Serialize + From<&'a U>,
-        U: 'a,
+        T: serde::Serialize,
     {
-        let serializale_value = &T::from(value);
+        // let serializale_value = &T::from(value);
+        let serializale_value = value;
         let length_without_padding = cdr::size::calc_serialized_data_size(serializale_value) as i16;
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
@@ -72,17 +68,16 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter_if_not_default<'a, T, U>(
+    pub fn serialize_parameter_if_not_default<'a, T>(
         &mut self,
         parameter_id: u16,
-        value: &'a U,
+        value: &'a T,
     ) -> DdsResult<()>
     where
-        T: serde::Serialize + From<&'a U>,
-        U: PartialEq<U> + Default,
+        T: serde::Serialize + PartialEq + Default,
     {
-        if value != &U::default() {
-            self.serialize_parameter::<T, U>(parameter_id, value)?;
+        if value != &T::default() {
+            self.serialize_parameter::<T>(parameter_id, value)?;
         }
         Ok(())
     }
@@ -94,9 +89,10 @@ where
     ) -> DdsResult<()>
     where
         T: serde::Serialize + From<&'a U>,
+        U: serde::Serialize
     {
         for value_i in value.iter() {
-            self.serialize_parameter::<T, U>(parameter_id, value_i)?;
+            self.serialize_parameter::<U>(parameter_id, value_i)?;
         }
         Ok(())
     }
