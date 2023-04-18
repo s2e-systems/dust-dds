@@ -10,15 +10,20 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, domain_participant_impl::DomainParticipantImpl,
-    node_domain_participant::DomainParticipantNode, topic_impl::TopicImpl,
+    any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
+    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
+    topic_impl::TopicImpl,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedTopicNode(ChildNode<TopicImpl, RootNode<DomainParticipantImpl>>);
+pub struct UserDefinedTopicNode(
+    ChildNode<TopicImpl, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+);
 
 impl UserDefinedTopicNode {
-    pub fn new(node: ChildNode<TopicImpl, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(
+        node: ChildNode<TopicImpl, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ) -> Self {
         Self(node)
     }
 

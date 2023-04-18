@@ -15,17 +15,22 @@ use crate::{
 };
 
 use super::{
-    builtin_subscriber::BuiltInSubscriber, domain_participant_impl::DomainParticipantImpl,
+    builtin_subscriber::BuiltInSubscriber, dcps_service::DcpsService,
+    domain_participant_impl::DomainParticipantImpl,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_kind::DataReaderNodeKind,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct BuiltinSubscriberNode(ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>);
+pub struct BuiltinSubscriberNode(
+    ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+);
 
 impl BuiltinSubscriberNode {
-    pub fn new(node: ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(
+        node: ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ) -> Self {
         Self(node)
     }
 

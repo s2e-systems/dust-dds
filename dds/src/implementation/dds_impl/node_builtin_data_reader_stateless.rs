@@ -13,14 +13,15 @@ use crate::{
 
 use super::{
     builtin_stateless_reader::BuiltinStatelessReader, builtin_subscriber::BuiltInSubscriber,
-    domain_participant_impl::DomainParticipantImpl, status_condition_impl::StatusConditionImpl,
+    dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl,
+    status_condition_impl::StatusConditionImpl,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct BuiltinDataReaderStatelessNode(
     ChildNode<
         BuiltinStatelessReader,
-        ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>,
+        ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     >,
 );
 
@@ -28,7 +29,7 @@ impl BuiltinDataReaderStatelessNode {
     pub fn new(
         node: ChildNode<
             BuiltinStatelessReader,
-            ChildNode<BuiltInSubscriber, RootNode<DomainParticipantImpl>>,
+            ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
         >,
     ) -> Self {
         Self(node)

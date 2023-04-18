@@ -16,19 +16,27 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
+    dcps_service::DcpsService,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
     user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedPublisherNode(
-    ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
+    ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedPublisherNode {
-    pub fn new(node: ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>) -> Self {
+    pub fn new(
+        node: ChildNode<
+            UserDefinedPublisher,
+            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
+        >,
+    ) -> Self {
         Self(node)
     }
 
@@ -201,7 +209,18 @@ impl UserDefinedPublisherNode {
                         })
                         .cloned()
                         .expect("Topic must exist");
-                    data_writer.announce_writer(&topic.get_qos(), &self.0.get()?.get_qos());
+                    self.0
+                        .parent()
+                        .parent()
+                        .get()?
+                        .announce_sender()
+                        .send(AnnounceKind::CreatedDataWriter(
+                            data_writer.as_discovered_writer_data(
+                                &topic.get_qos(),
+                                &self.0.get()?.get_qos(),
+                            ),
+                        ))
+                        .ok();
                 }
             }
         }

@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::SyncSender, RwLockWriteGuard},
     time::Instant,
 };
 
@@ -29,7 +28,8 @@ use crate::{
         qos::{PublisherQos, TopicQos},
         qos_policy::{QosPolicyId, ReliabilityQosPolicyKind, INVALID_QOS_POLICY_ID},
         status::{
-            OfferedIncompatibleQosStatus, PublicationMatchedStatus, QosPolicyCount, StatusKind,
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, QosPolicyCount, StatusKind,
         },
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
@@ -45,9 +45,9 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::AnnounceKind,
     iterators::{ReaderProxyListIntoIter, WriterChangeListIntoIter},
     message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
@@ -182,8 +182,8 @@ impl IncompatibleSubscriptions {
     }
 }
 
-pub struct UserDefinedDataWriter {
-    rtps_writer: DdsRwLock<RtpsStatefulWriter>,
+pub struct DdsDataWriter<T> {
+    rtps_writer: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
     matched_subscriptions: DdsRwLock<MatchedSubscriptions>,
@@ -191,22 +191,18 @@ pub struct UserDefinedDataWriter {
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    user_defined_data_send_condvar: DdsCondvar,
     acked_by_all_condvar: DdsCondvar,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedDataWriter {
+impl<T> DdsDataWriter<T> {
     pub fn new(
-        rtps_writer: RtpsStatefulWriter,
+        rtps_writer: T,
         listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
         type_name: &'static str,
         topic_name: String,
-        user_defined_data_send_condvar: DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataWriter {
+        DdsShared::new(DdsDataWriter {
             rtps_writer: DdsRwLock::new(rtps_writer),
             type_name,
             topic_name,
@@ -215,12 +211,144 @@ impl UserDefinedDataWriter {
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            user_defined_data_send_condvar,
             acked_by_all_condvar: DdsCondvar::new(),
-            announce_sender,
         })
     }
 
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn set_listener(
+        &self,
+        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        *self.status_listener.write_lock() = StatusListener::new(a_listener, mask);
+    }
+
+    pub fn is_listener_enabled(&self, status_kind: &StatusKind) -> bool {
+        self.status_listener.read_lock().is_enabled(status_kind)
+    }
+
+    pub fn _trigger_on_liveliness_lost(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: LivelinessLostStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_liveliness_lost(the_writer, status)
+        }
+    }
+
+    pub fn _trigger_on_offered_deadline_missed(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: OfferedDeadlineMissedStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_offered_deadline_missed(the_writer, status)
+        }
+    }
+
+    pub fn trigger_on_offered_incompatible_qos(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: OfferedIncompatibleQosStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_offered_incompatible_qos(the_writer, status)
+        }
+    }
+
+    pub fn trigger_on_publication_matched(
+        &self,
+        the_writer: ListenerDataWriterNode,
+        status: PublicationMatchedStatus,
+    ) {
+        if let Some(l) = self.status_listener.write_lock().listener_mut() {
+            l.trigger_on_publication_matched(the_writer, status)
+        }
+    }
+
+    pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
+        self.matched_subscriptions
+            .write_lock()
+            .get_publication_matched_status()
+    }
+
+    pub fn add_matched_publication(
+        &self,
+        handle: InstanceHandle,
+        subscription_data: SubscriptionBuiltinTopicData,
+    ) {
+        self.matched_subscriptions
+            .write_lock()
+            .add_matched_subscription(handle, subscription_data)
+    }
+
+    pub fn remove_matched_subscription(&self, handle: InstanceHandle) {
+        self.matched_subscriptions
+            .write_lock()
+            .remove_matched_subscription(handle)
+    }
+
+    pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
+        self.matched_subscriptions
+            .read_lock()
+            .get_matched_subscriptions()
+    }
+
+    pub fn get_matched_subscription_data(
+        &self,
+        handle: InstanceHandle,
+    ) -> Option<SubscriptionBuiltinTopicData> {
+        self.matched_subscriptions
+            .read_lock()
+            .get_matched_subscription_data(handle)
+            .cloned()
+    }
+
+    pub fn add_offered_incompatible_qos(
+        &self,
+        handle: InstanceHandle,
+        incompatible_qos_policy_list: Vec<QosPolicyId>,
+    ) {
+        self.incompatible_subscriptions
+            .write_lock()
+            .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
+    }
+
+    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
+        self.incompatible_subscriptions
+            .write_lock()
+            .get_offered_incompatible_qos_status()
+    }
+
+    pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
+        self.incompatible_subscriptions
+            .read_lock()
+            .get_incompatible_subscriptions()
+    }
+
+    pub fn add_communication_state(&self, state: StatusKind) {
+        self.status_condition
+            .write_lock()
+            .add_communication_state(state)
+    }
+
+    pub fn remove_communication_state(&self, state: StatusKind) {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(state)
+    }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
+    }
+}
+
+impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn guid(&self) -> Guid {
         self.rtps_writer.read_lock().guid()
     }
@@ -319,95 +447,9 @@ impl UserDefinedDataWriter {
     pub fn set_qos(&self, qos: DataWriterQos) {
         self.rtps_writer.write_lock().set_qos(qos);
     }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_listener_lock(
-        &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataWriterListener + Send + Sync>> {
-        self.status_listener.write_lock()
-    }
-
-    pub fn get_publication_matched_status(&self) -> PublicationMatchedStatus {
-        self.matched_subscriptions
-            .write_lock()
-            .get_publication_matched_status()
-    }
-
-    pub fn add_matched_publication(
-        &self,
-        handle: InstanceHandle,
-        subscription_data: SubscriptionBuiltinTopicData,
-    ) {
-        self.matched_subscriptions
-            .write_lock()
-            .add_matched_subscription(handle, subscription_data)
-    }
-
-    pub fn remove_matched_subscription(&self, handle: InstanceHandle) {
-        self.matched_subscriptions
-            .write_lock()
-            .remove_matched_subscription(handle)
-    }
-
-    pub fn get_matched_subscriptions(&self) -> Vec<InstanceHandle> {
-        self.matched_subscriptions
-            .read_lock()
-            .get_matched_subscriptions()
-    }
-
-    pub fn get_matched_subscription_data(
-        &self,
-        handle: InstanceHandle,
-    ) -> Option<SubscriptionBuiltinTopicData> {
-        self.matched_subscriptions
-            .read_lock()
-            .get_matched_subscription_data(handle)
-            .cloned()
-    }
-
-    pub fn add_offered_incompatible_qos(
-        &self,
-        handle: InstanceHandle,
-        incompatible_qos_policy_list: Vec<QosPolicyId>,
-    ) {
-        self.incompatible_subscriptions
-            .write_lock()
-            .add_offered_incompatible_qos(handle, incompatible_qos_policy_list)
-    }
-
-    pub fn get_offered_incompatible_qos_status(&self) -> OfferedIncompatibleQosStatus {
-        self.incompatible_subscriptions
-            .write_lock()
-            .get_offered_incompatible_qos_status()
-    }
-
-    pub fn get_incompatible_subscriptions(&self) -> Vec<InstanceHandle> {
-        self.incompatible_subscriptions
-            .read_lock()
-            .get_incompatible_subscriptions()
-    }
-
-    pub fn add_communication_state(&self, state: StatusKind) {
-        self.status_condition
-            .write_lock()
-            .add_communication_state(state)
-    }
-
-    pub fn remove_communication_state(&self, state: StatusKind) {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(state)
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
-    }
 }
 
-impl DdsShared<UserDefinedDataWriter> {
+impl DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
     pub fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,
@@ -510,18 +552,12 @@ impl DdsShared<UserDefinedDataWriter> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
-
         self.rtps_writer.write_lock().write_w_timestamp(
             serialized_data,
             instance_serialized_key,
             handle,
             timestamp,
         )?;
-
-        self.user_defined_data_send_condvar.notify_all();
 
         Ok(())
     }
@@ -576,14 +612,6 @@ impl DdsShared<UserDefinedDataWriter> {
                 .ok();
         }
         Err(DdsError::Timeout)
-    }
-
-    pub fn announce_writer(&self, topic_qos: &TopicQos, publisher_qos: &PublisherQos) {
-        self.announce_sender
-            .send(AnnounceKind::CreatedDataWriter(
-                self.as_discovered_writer_data(topic_qos, publisher_qos),
-            ))
-            .ok();
     }
 
     pub fn as_discovered_writer_data(
@@ -704,9 +732,7 @@ mod test {
         }
     }
 
-    fn create_data_writer_test_fixture() -> DdsShared<UserDefinedDataWriter> {
-        let (sender, _) = std::sync::mpsc::sync_channel(1);
-
+    fn create_data_writer_test_fixture() -> DdsShared<DdsDataWriter<RtpsStatefulWriter>> {
         let rtps_writer = RtpsStatefulWriter::new(RtpsWriter::new(
             RtpsEndpoint::new(GUID_UNKNOWN, TopicKind::WithKey, &[], &[]),
             true,
@@ -717,15 +743,7 @@ mod test {
             DataWriterQos::default(),
         ));
 
-        let data_writer = UserDefinedDataWriter::new(
-            rtps_writer,
-            None,
-            &[],
-            "",
-            String::from(""),
-            DdsCondvar::new(),
-            sender,
-        );
+        let data_writer = DdsDataWriter::new(rtps_writer, None, &[], "", String::from(""));
         *data_writer.enabled.write_lock() = true;
         data_writer
     }

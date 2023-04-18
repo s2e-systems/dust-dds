@@ -22,7 +22,7 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
+    any_data_reader_listener::AnyDataReaderListener, dcps_service::DcpsService,
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
@@ -34,7 +34,7 @@ use super::{
 pub struct UserDefinedDataReaderNode(
     ChildNode<
         UserDefinedDataReader,
-        ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
+        ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     >,
 );
 
@@ -42,7 +42,10 @@ impl UserDefinedDataReaderNode {
     pub fn new(
         node: ChildNode<
             UserDefinedDataReader,
-            ChildNode<UserDefinedSubscriber, RootNode<DomainParticipantImpl>>,
+            ChildNode<
+                UserDefinedSubscriber,
+                ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
+            >,
         >,
     ) -> Self {
         Self(node)

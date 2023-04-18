@@ -1,8 +1,11 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::stateful_writer::RtpsStatefulWriter,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -19,28 +22,25 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
-    domain_participant_impl::DomainParticipantImpl,
+    dcps_service::DcpsService,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, user_defined_data_writer::UserDefinedDataWriter,
+    node_user_defined_topic::UserDefinedTopicNode,
+    status_condition_impl::StatusConditionImpl,
+    dds_data_writer::DdsDataWriter,
     user_defined_publisher::UserDefinedPublisher,
 };
 
+type UserDefinedDataWriterNodeType = ChildNode<
+    DdsDataWriter<RtpsStatefulWriter>,
+    ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+>;
+
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedDataWriterNode(
-    ChildNode<
-        UserDefinedDataWriter,
-        ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
-    >,
-);
+pub struct UserDefinedDataWriterNode(UserDefinedDataWriterNodeType);
 
 impl UserDefinedDataWriterNode {
-    pub fn new(
-        node: ChildNode<
-            UserDefinedDataWriter,
-            ChildNode<UserDefinedPublisher, RootNode<DomainParticipantImpl>>,
-        >,
-    ) -> Self {
+    pub fn new(node: UserDefinedDataWriterNodeType) -> Self {
         Self(node)
     }
 
@@ -86,9 +86,26 @@ impl UserDefinedDataWriterNode {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+
+        self.0.get()?.write_w_timestamp(
+            serialized_data,
+            instance_serialized_key,
+            handle,
+            timestamp,
+        )?;
+
         self.0
+            .parent()
+            .parent()
+            .parent()
             .get()?
-            .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)
+            .user_defined_data_send_condvar()
+            .notify_all();
+
+        Ok(())
     }
 
     pub fn dispose_w_timestamp(
@@ -212,8 +229,18 @@ impl UserDefinedDataWriterNode {
                 .cloned()
                 .expect("Topic must exist");
             self.0
+                .parent()
+                .parent()
+                .parent()
                 .get()?
-                .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+                .announce_sender()
+                .send(AnnounceKind::CreatedDataWriter(
+                    self.0.get()?.as_discovered_writer_data(
+                        &topic.get_qos(),
+                        &self.0.parent().get()?.get_qos(),
+                    ),
+                ))
+                .ok();
         } else {
             self.0.get()?.set_qos(qos);
         }
@@ -229,7 +256,7 @@ impl UserDefinedDataWriterNode {
         a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
+        self.0.get()?.set_listener(a_listener, mask);
         Ok(())
     }
 
@@ -265,8 +292,17 @@ impl UserDefinedDataWriterNode {
             .cloned()
             .expect("Topic must exist");
         self.0
+            .parent()
+            .parent()
+            .parent()
             .get()?
-            .announce_writer(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            .announce_sender()
+            .send(AnnounceKind::CreatedDataWriter(
+                self.0
+                    .get()?
+                    .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos()),
+            ))
+            .ok();
 
         Ok(())
     }

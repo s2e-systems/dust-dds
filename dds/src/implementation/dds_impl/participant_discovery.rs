@@ -4,19 +4,16 @@ use crate::{
         data_representation_builtin_endpoints::spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         rtps::{
             discovery_types::BuiltinEndpointSet,
-            reader_proxy::RtpsReaderProxy,
             stateful_reader::RtpsStatefulReader,
-            stateful_writer::RtpsStatefulWriter,
-            types::{DurabilityKind, Guid, ReliabilityKind, ENTITYID_UNKNOWN},
+            types::{Guid, ENTITYID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
     },
 };
 
 use super::domain_participant_impl::{
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
 };
 
 pub struct ParticipantDiscovery<'a> {
@@ -56,32 +53,6 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_publications_writer(&self, writer: &mut RtpsStatefulWriter) {
-        if self
-            .participant_data
-            .available_builtin_endpoints()
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                self.participant_data.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let proxy = RtpsReaderProxy::new(
-                remote_reader_guid,
-                remote_group_entity_id,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
-                expects_inline_qos,
-                true,
-                ReliabilityKind::Reliable,
-                DurabilityKind::TransientLocal,
-            );
-            writer.matched_reader_add(proxy);
-        }
-    }
-
     pub fn discovered_participant_add_publications_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
             .participant_data
@@ -107,32 +78,6 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_subscriptions_writer(&self, writer: &mut RtpsStatefulWriter) {
-        if self
-            .participant_data
-            .available_builtin_endpoints()
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                self.participant_data.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let proxy = RtpsReaderProxy::new(
-                remote_reader_guid,
-                remote_group_entity_id,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
-                expects_inline_qos,
-                true,
-                ReliabilityKind::Reliable,
-                DurabilityKind::TransientLocal,
-            );
-            writer.matched_reader_add(proxy);
-        }
-    }
-
     pub fn discovered_participant_add_subscriptions_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
             .participant_data
@@ -154,32 +99,6 @@ impl<'a> ParticipantDiscovery<'a> {
                 remote_group_entity_id,
             );
             reader.matched_writer_add(proxy);
-        }
-    }
-
-    pub fn discovered_participant_add_topics_writer(&self, writer: &mut RtpsStatefulWriter) {
-        if self
-            .participant_data
-            .available_builtin_endpoints()
-            .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-        {
-            let remote_reader_guid = Guid::new(
-                self.participant_data.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            );
-            let remote_group_entity_id = ENTITYID_UNKNOWN;
-            let expects_inline_qos = false;
-            let proxy = RtpsReaderProxy::new(
-                remote_reader_guid,
-                remote_group_entity_id,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
-                expects_inline_qos,
-                true,
-                ReliabilityKind::Reliable,
-                DurabilityKind::TransientLocal,
-            );
-            writer.matched_reader_add(proxy);
         }
     }
 

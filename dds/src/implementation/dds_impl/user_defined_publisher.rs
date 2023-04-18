@@ -5,10 +5,10 @@ use crate::{
         rtps::{
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
+            stateful_writer::RtpsStatefulWriter,
             types::Locator,
         },
         utils::{
-            condvar::DdsCondvar,
             iterator::DdsListIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
@@ -30,17 +30,16 @@ use super::{
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_data_writer::UserDefinedDataWriter,
+    dds_data_writer::DdsDataWriter,
     writer_factory::WriterFactory,
 };
 
 pub struct UserDefinedPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
-    data_writer_list: DdsRwLock<Vec<DdsShared<UserDefinedDataWriter>>>,
+    data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
     data_writer_factory: DdsRwLock<WriterFactory>,
     enabled: DdsRwLock<bool>,
-    user_defined_data_send_condvar: DdsCondvar,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -54,7 +53,6 @@ impl UserDefinedPublisher {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-        user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
@@ -64,7 +62,6 @@ impl UserDefinedPublisher {
             data_writer_list: DdsRwLock::new(Vec::new()),
             data_writer_factory: DdsRwLock::new(WriterFactory::new()),
             enabled: DdsRwLock::new(false),
-            user_defined_data_send_condvar,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -86,7 +83,7 @@ impl UserDefinedPublisher {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataWriter>>
+    ) -> DdsResult<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>
     where
         Foo: DdsType,
     {
@@ -99,15 +96,8 @@ impl UserDefinedPublisher {
             self.data_max_size_serialized,
         )?;
 
-        let data_writer_shared = UserDefinedDataWriter::new(
-            rtps_writer_impl,
-            a_listener,
-            mask,
-            type_name,
-            topic_name,
-            self.user_defined_data_send_condvar.clone(),
-            self.announce_sender.clone(),
-        );
+        let data_writer_shared =
+            DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
 
         self.data_writer_list
             .write_lock()
@@ -138,7 +128,9 @@ impl UserDefinedPublisher {
         Ok(())
     }
 
-    pub fn data_writer_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataWriter>> {
+    pub fn data_writer_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
         DdsListIntoIterator::new(self.data_writer_list.read_lock())
     }
 
