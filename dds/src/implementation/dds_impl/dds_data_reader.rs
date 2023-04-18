@@ -189,7 +189,6 @@ pub struct DdsDataReader {
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
     wait_for_historical_data_condvar: DdsCondvar,
@@ -203,7 +202,6 @@ impl DdsDataReader {
         topic_name: String,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-        user_defined_data_send_condvar: DdsCondvar,
     ) -> DdsShared<Self> {
         DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -223,7 +221,6 @@ impl DdsDataReader {
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             wait_for_historical_data_condvar: DdsCondvar::new(),
@@ -360,7 +357,6 @@ impl DdsShared<DdsDataReader> {
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.wait_for_historical_data_condvar.notify_all();
-        self.user_defined_data_send_condvar.notify_all();
     }
 
     pub fn on_heartbeat_frag_submessage_received(

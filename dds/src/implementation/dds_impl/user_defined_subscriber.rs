@@ -119,14 +119,8 @@ impl UserDefinedSubscriber {
             default_multicast_locator_list,
         )?;
 
-        let data_reader_shared = DdsDataReader::new(
-            rtps_reader,
-            type_name,
-            topic_name,
-            a_listener,
-            mask,
-            self.user_defined_data_send_condvar.clone(),
-        );
+        let data_reader_shared =
+            DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
 
         self.data_reader_list
             .write_lock()
@@ -332,6 +326,7 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
+        self.user_defined_data_send_condvar.notify_all();
     }
 
     fn on_heartbeat_frag_submessage_received(
