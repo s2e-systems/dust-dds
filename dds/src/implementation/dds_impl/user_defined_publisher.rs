@@ -26,15 +26,15 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
+    dds_data_writer::DdsDataWriter,
     domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    dds_data_writer::DdsDataWriter,
     writer_factory::WriterFactory,
 };
 
-pub struct UserDefinedPublisher {
+pub struct DdsPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
     data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
@@ -46,7 +46,7 @@ pub struct UserDefinedPublisher {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedPublisher {
+impl DdsPublisher {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
@@ -56,7 +56,7 @@ impl UserDefinedPublisher {
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedPublisher {
+        DdsShared::new(DdsPublisher {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_writer_list: DdsRwLock::new(Vec::new()),
@@ -141,7 +141,7 @@ impl UserDefinedPublisher {
     }
 }
 
-impl DdsShared<UserDefinedPublisher> {
+impl DdsShared<DdsPublisher> {
     pub fn suspend_publications(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -246,7 +246,7 @@ impl DdsShared<UserDefinedPublisher> {
     }
 }
 
-impl PublisherMessageReceiver for DdsShared<UserDefinedPublisher> {
+impl PublisherMessageReceiver for DdsShared<DdsPublisher> {
     fn on_acknack_submessage_received(
         &self,
         acknack_submessage: &AckNackSubmessage,

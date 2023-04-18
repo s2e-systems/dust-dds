@@ -28,12 +28,12 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
     dds_data_writer::DdsDataWriter,
-    user_defined_publisher::UserDefinedPublisher,
+    user_defined_publisher::DdsPublisher,
 };
 
 type UserDefinedDataWriterNodeType = ChildNode<
     DdsDataWriter<RtpsStatefulWriter>,
-    ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 >;
 
 #[derive(PartialEq, Debug)]

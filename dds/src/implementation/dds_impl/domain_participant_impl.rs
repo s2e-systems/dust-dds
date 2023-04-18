@@ -81,7 +81,7 @@ use super::{
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    dds_data_writer::DdsDataWriter, user_defined_publisher::UserDefinedPublisher,
+    dds_data_writer::DdsDataWriter, user_defined_publisher::DdsPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
@@ -128,7 +128,7 @@ pub struct DomainParticipantImpl {
     user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<UserDefinedPublisher>>>,
+    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<DdsPublisher>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: DdsRwLock<PublisherQos>,
     topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
@@ -369,7 +369,7 @@ impl DomainParticipantImpl {
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedPublisher>> {
+    ) -> DdsResult<DdsShared<DdsPublisher>> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -383,7 +383,7 @@ impl DomainParticipantImpl {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl_shared = UserDefinedPublisher::new(
+        let publisher_impl_shared = DdsPublisher::new(
             publisher_qos,
             rtps_group,
             a_listener,
@@ -431,7 +431,7 @@ impl DomainParticipantImpl {
 
     pub fn user_defined_publisher_list(
         &self,
-    ) -> DdsListIntoIterator<DdsShared<UserDefinedPublisher>> {
+    ) -> DdsListIntoIterator<DdsShared<DdsPublisher>> {
         DdsListIntoIterator::new(self.user_defined_publisher_list.read_lock())
     }
 
