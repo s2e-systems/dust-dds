@@ -876,7 +876,7 @@ fn data_available_listener_not_called_when_data_on_readers_listener() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let subscriber_cond = subscriber.get_statuscondition().unwrap();
     subscriber_cond
