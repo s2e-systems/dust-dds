@@ -175,7 +175,7 @@ impl SubscriptionMatchedStatus {
     }
 }
 
-pub struct UserDefinedDataReader {
+pub struct DdsDataReader {
     rtps_reader: DdsRwLock<RtpsStatefulReader>,
     type_name: &'static str,
     topic_name: String,
@@ -197,7 +197,7 @@ pub struct UserDefinedDataReader {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedDataReader {
+impl DdsDataReader {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsStatefulReader,
@@ -208,7 +208,7 @@ impl UserDefinedDataReader {
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataReader {
+        DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             type_name,
             topic_name,
@@ -242,7 +242,7 @@ impl UserDefinedDataReader {
     }
 }
 
-impl DdsShared<UserDefinedDataReader> {
+impl DdsShared<DdsDataReader> {
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
     }

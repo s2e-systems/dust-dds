@@ -8,13 +8,13 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::user_defined_data_reader::UserDefinedDataReader;
+use super::user_defined_data_reader::DdsDataReader;
 
 #[derive(PartialEq, Debug)]
-pub struct ListenerDataReaderNode(RootNode<UserDefinedDataReader>);
+pub struct ListenerDataReaderNode(RootNode<DdsDataReader>);
 
 impl ListenerDataReaderNode {
-    pub fn new(node: RootNode<UserDefinedDataReader>) -> Self {
+    pub fn new(node: RootNode<DdsDataReader>) -> Self {
         Self(node)
     }
 

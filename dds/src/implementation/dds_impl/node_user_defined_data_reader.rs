@@ -26,14 +26,14 @@ use super::{
     domain_participant_impl::DomainParticipantImpl,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, user_defined_data_reader::UserDefinedDataReader,
+    status_listener::StatusListener, user_defined_data_reader::DdsDataReader,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataReaderNode(
     ChildNode<
-        UserDefinedDataReader,
+        DdsDataReader,
         ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     >,
 );
@@ -41,7 +41,7 @@ pub struct UserDefinedDataReaderNode(
 impl UserDefinedDataReaderNode {
     pub fn new(
         node: ChildNode<
-            UserDefinedDataReader,
+            DdsDataReader,
             ChildNode<
                 UserDefinedSubscriber,
                 ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,

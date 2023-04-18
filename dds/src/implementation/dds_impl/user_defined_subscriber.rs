@@ -38,14 +38,14 @@ use super::{
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
     user_defined_data_reader::{
-        UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
+        DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult,
     },
 };
 
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
+    data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -109,7 +109,7 @@ impl UserDefinedSubscriber {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<DdsShared<DdsDataReader>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -121,7 +121,7 @@ impl UserDefinedSubscriber {
             default_multicast_locator_list,
         )?;
 
-        let data_reader_shared = UserDefinedDataReader::new(
+        let data_reader_shared = DdsDataReader::new(
             rtps_reader,
             type_name,
             topic_name,
@@ -172,7 +172,7 @@ impl UserDefinedSubscriber {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataReader>> {
+    pub fn data_reader_list(&self) -> DdsListIntoIterator<DdsShared<DdsDataReader>> {
         DdsListIntoIterator::new(self.data_reader_list.read_lock())
     }
 }
