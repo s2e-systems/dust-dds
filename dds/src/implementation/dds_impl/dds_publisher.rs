@@ -3,11 +3,8 @@ use std::sync::RwLockWriteGuard;
 use crate::{
     implementation::{
         rtps::{
-            group::RtpsGroup,
-            messages::submessages::{AckNackSubmessage, NackFragSubmessage},
-            stateful_writer::RtpsStatefulWriter,
-            stateless_writer::RtpsStatelessWriter,
-            types::Guid,
+            group::RtpsGroup, stateful_writer::RtpsStatefulWriter,
+            stateless_writer::RtpsStatelessWriter, types::Guid,
         },
         utils::{
             iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
@@ -24,9 +21,7 @@ use crate::{
 };
 
 use super::{
-    dds_data_writer::DdsDataWriter,
-    message_receiver::{MessageReceiver, PublisherMessageReceiver},
-    status_condition_impl::StatusConditionImpl,
+    dds_data_writer::DdsDataWriter, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
 
@@ -183,27 +178,5 @@ impl DdsPublisher {
 
     pub fn guid(&self) -> Guid {
         self.rtps_group.guid()
-    }
-}
-
-impl PublisherMessageReceiver for DdsShared<DdsPublisher> {
-    fn on_acknack_submessage_received(
-        &self,
-        acknack_submessage: &AckNackSubmessage,
-        message_receiver: &MessageReceiver,
-    ) {
-        for data_writer in self.stateful_data_writer_list.read_lock().iter() {
-            data_writer.on_acknack_submessage_received(acknack_submessage, message_receiver);
-        }
-    }
-
-    fn on_nack_frag_submessage_received(
-        &self,
-        nackfrag_submessage: &NackFragSubmessage,
-        message_receiver: &MessageReceiver,
-    ) {
-        for data_writer in self.stateful_data_writer_list.read_lock().iter() {
-            data_writer.on_nack_frag_submessage_received(nackfrag_submessage, message_receiver);
-        }
     }
 }
