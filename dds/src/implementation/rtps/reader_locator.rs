@@ -139,7 +139,7 @@ impl<'a> WriterAssociatedReaderLocator<'a> {
         // return change IN this.unsent_changes()
         //     SUCH-THAT (change.sequenceNumber == next_seq_num);"
 
-        let next_seq_num = self.reader_locator.unsent_changes.iter().min()?.clone();
+        let next_seq_num = *self.reader_locator.unsent_changes.iter().min()?;
 
         // 8.4.8.2.10 Transition T10
         // "After the transition, the following post-conditions hold:
