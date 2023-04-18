@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::SyncSender, RwLockWriteGuard},
+    sync::RwLockWriteGuard,
 };
 
 use crate::{
@@ -55,9 +55,9 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, node_listener_data_reader::ListenerDataReaderNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
+    node_listener_data_reader::ListenerDataReaderNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -194,11 +194,9 @@ pub struct DdsDataReader {
     data_available_status_changed_flag: DdsRwLock<bool>,
     wait_for_historical_data_condvar: DdsCondvar,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
 impl DdsDataReader {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_reader: RtpsStatefulReader,
         type_name: &'static str,
@@ -206,7 +204,6 @@ impl DdsDataReader {
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
         user_defined_data_send_condvar: DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
@@ -231,7 +228,6 @@ impl DdsDataReader {
             data_available_status_changed_flag: DdsRwLock::new(false),
             wait_for_historical_data_condvar: DdsCondvar::new(),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
-            announce_sender,
         })
     }
 
@@ -780,14 +776,6 @@ impl DdsShared<DdsDataReader> {
     pub fn enable(&self) -> DdsResult<()> {
         *self.enabled.write_lock() = true;
         Ok(())
-    }
-
-    pub fn announce_reader(&self, topic_qos: &TopicQos, subscriber_qos: &SubscriberQos) {
-        self.announce_sender
-            .send(AnnounceKind::CreatedDataReader(
-                self.as_discovered_reader_data(topic_qos, subscriber_qos),
-            ))
-            .ok();
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {

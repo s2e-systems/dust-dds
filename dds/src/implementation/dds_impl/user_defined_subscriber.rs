@@ -30,6 +30,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
+    dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
     domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
@@ -37,9 +38,6 @@ use super::{
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    dds_data_reader::{
-        DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult,
-    },
 };
 
 pub struct UserDefinedSubscriber {
@@ -128,7 +126,6 @@ impl UserDefinedSubscriber {
             a_listener,
             mask,
             self.user_defined_data_send_condvar.clone(),
-            self.announce_sender.clone(),
         );
 
         self.data_reader_list
