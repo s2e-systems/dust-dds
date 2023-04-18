@@ -18,18 +18,18 @@ use super::{
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_subscriber::DdsSubscriber,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedSubscriberNode(
-    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedSubscriberNode {
     pub fn new(
         node: ChildNode<
-            UserDefinedSubscriber,
+            DdsSubscriber,
             ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
         >,
     ) -> Self {

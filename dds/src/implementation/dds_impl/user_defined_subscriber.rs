@@ -41,7 +41,7 @@ use super::{
     status_listener::StatusListener,
 };
 
-pub struct UserDefinedSubscriber {
+pub struct DdsSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
     data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
@@ -54,7 +54,7 @@ pub struct UserDefinedSubscriber {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedSubscriber {
+impl DdsSubscriber {
     pub fn new(
         qos: SubscriberQos,
         rtps_group: RtpsGroup,
@@ -63,7 +63,7 @@ impl UserDefinedSubscriber {
         user_defined_data_send_condvar: DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedSubscriber {
+        DdsShared::new(DdsSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
             data_reader_list: DdsRwLock::new(Vec::new()),
@@ -171,7 +171,7 @@ impl UserDefinedSubscriber {
     }
 }
 
-impl DdsShared<UserDefinedSubscriber> {
+impl DdsShared<DdsSubscriber> {
     pub fn notify_datareaders(&self) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             return Err(DdsError::NotEnabled);
@@ -320,7 +320,7 @@ impl DdsShared<UserDefinedSubscriber> {
     }
 }
 
-impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
+impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
     fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,

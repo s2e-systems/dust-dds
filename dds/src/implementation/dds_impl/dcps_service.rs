@@ -70,7 +70,7 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_subscriber::DdsSubscriber,
 };
 
 pub struct DcpsService {
@@ -1014,7 +1014,7 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
 }
 
 pub fn subscriber_add_matched_writer(
-    user_defined_subscriber: &UserDefinedSubscriber,
+    user_defined_subscriber: &DdsSubscriber,
     discovered_writer_data: &DiscoveredWriterData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],

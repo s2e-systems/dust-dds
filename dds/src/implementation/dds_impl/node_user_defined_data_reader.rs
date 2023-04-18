@@ -33,12 +33,12 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_subscriber::DdsSubscriber,
 };
 
 type UserDefinedDataReaderNodeType = ChildNode<
     DdsDataReader<RtpsStatefulReader>,
-    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 >;
 
 #[derive(PartialEq, Debug)]

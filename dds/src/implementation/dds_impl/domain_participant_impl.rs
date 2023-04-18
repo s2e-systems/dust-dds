@@ -89,7 +89,7 @@ use super::{
     dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber::UserDefinedSubscriber,
+    user_defined_subscriber::DdsSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -132,7 +132,7 @@ pub struct DomainParticipantImpl {
     qos: DdsRwLock<DomainParticipantQos>,
     builtin_subscriber: DdsShared<BuiltInSubscriber>,
     builtin_publisher: DdsShared<DdsPublisher>,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<UserDefinedSubscriber>>>,
+    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<DdsSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<DdsPublisher>>>,
@@ -495,7 +495,7 @@ impl DomainParticipantImpl {
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<UserDefinedSubscriber>> {
+    ) -> DdsResult<DdsShared<DdsSubscriber>> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -509,7 +509,7 @@ impl DomainParticipantImpl {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber_shared = UserDefinedSubscriber::new(
+        let subscriber_shared = DdsSubscriber::new(
             subscriber_qos,
             rtps_group,
             a_listener,
@@ -563,7 +563,7 @@ impl DomainParticipantImpl {
 
     pub fn user_defined_subscriber_list(
         &self,
-    ) -> DdsListIntoIterator<DdsShared<UserDefinedSubscriber>> {
+    ) -> DdsListIntoIterator<DdsShared<DdsSubscriber>> {
         DdsListIntoIterator::new(self.user_defined_subscriber_list.read_lock())
     }
 
