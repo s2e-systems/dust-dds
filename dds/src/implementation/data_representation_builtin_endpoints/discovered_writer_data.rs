@@ -191,8 +191,8 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // writer_proxy
-        let unicast_locator_list = param_list.get_list::<Locator, _>(PID_UNICAST_LOCATOR)?;
-        let multicast_locator_list = param_list.get_list::<Locator, _>(PID_MULTICAST_LOCATOR)?;
+        let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
+        let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get::<i32, _>(PID_DATA_MAX_SIZE_SERIALIZED).ok();
         let remote_group_entity_id =
             param_list.get_or_default::<EntityId, _>(PID_GROUP_ENTITYID)?;

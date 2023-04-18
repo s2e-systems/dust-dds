@@ -133,14 +133,14 @@ impl<'de> ParameterListDeserializer<'de> {
         Ok(T::default().into())
     }
 
-    pub fn get_list<T, U>(&self, parameter_id: u16) -> DdsResult<Vec<U>>
+    pub fn get_list<T>(&self, parameter_id: u16) -> DdsResult<Vec<T>>
     where
-        T: serde::Deserialize<'de> + Into<U>,
+        T: serde::Deserialize<'de>,
     {
         let mut result = vec![];
-        for parameter in self.parameter.iter() {
+        for parameter in &self.parameter {
             if parameter.parameter_id == parameter_id {
-                result.push(self.deserialize_parameter::<T>(parameter)?.into());
+                result.push(self.deserialize_parameter::<T>(parameter)?);
             }
         }
         Ok(result)

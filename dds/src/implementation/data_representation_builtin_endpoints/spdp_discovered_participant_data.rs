@@ -208,13 +208,11 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let expects_inline_qos =
             param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_METATRAFFIC_UNICAST_LOCATOR)?;
+            param_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR)?;
         let metatraffic_multicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
-        let default_unicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_DEFAULT_UNICAST_LOCATOR)?;
-        let default_multicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
+            param_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
+        let default_unicast_locator_list = param_list.get_list(PID_DEFAULT_UNICAST_LOCATOR)?;
+        let default_multicast_locator_list = param_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR)?;
         let available_builtin_endpoints =
             param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
