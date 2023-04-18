@@ -30,6 +30,6 @@ pub mod status_condition_impl;
 pub mod status_listener;
 pub mod topic_impl;
 pub mod user_defined_data_reader;
-pub mod user_defined_publisher;
+pub mod dds_publisher;
 pub mod user_defined_subscriber;
 pub mod writer_factory;

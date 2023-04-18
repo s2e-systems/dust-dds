@@ -22,7 +22,7 @@ use super::{
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_publisher::DdsPublisher,
+    dds_publisher::DdsPublisher,
 };
 
 #[derive(PartialEq, Debug)]
