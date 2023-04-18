@@ -35,13 +35,11 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter<'a, T>(&mut self, parameter_id: u16, value: &'a T) -> DdsResult<()>
+    pub fn serialize_parameter<T>(&mut self, parameter_id: u16, value: &T) -> DdsResult<()>
     where
         T: serde::Serialize,
     {
-        // let serializale_value = &T::from(value);
-        let serializale_value = value;
-        let length_without_padding = cdr::size::calc_serialized_data_size(serializale_value) as i16;
+        let length_without_padding = cdr::size::calc_serialized_data_size(value) as i16;
         let padding_length = (4 - length_without_padding) & 3;
         let length = length_without_padding + padding_length;
 
@@ -53,7 +51,7 @@ where
             .serialize(&mut self.serializer)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
 
-        serializale_value
+        value
             .serialize(&mut self.serializer)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
 
@@ -64,10 +62,10 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter_if_not_default<'a, T>(
+    pub fn serialize_parameter_if_not_default<T>(
         &mut self,
         parameter_id: u16,
-        value: &'a T,
+        value: &T,
     ) -> DdsResult<()>
     where
         T: serde::Serialize + PartialEq + Default,
@@ -78,11 +76,7 @@ where
         Ok(())
     }
 
-    pub fn serialize_parameter_vector<T>(
-        &mut self,
-        parameter_id: u16,
-        value: &[T],
-    ) -> DdsResult<()>
+    pub fn serialize_parameter_vector<T>(&mut self, parameter_id: u16, value: &[T]) -> DdsResult<()>
     where
         T: serde::Serialize,
     {
