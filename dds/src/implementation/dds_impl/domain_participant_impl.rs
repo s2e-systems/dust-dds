@@ -383,14 +383,7 @@ impl DomainParticipantImpl {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl_shared = DdsPublisher::new(
-            publisher_qos,
-            rtps_group,
-            a_listener,
-            mask,
-            self.data_max_size_serialized,
-            self.announce_sender.clone(),
-        );
+        let publisher_impl_shared = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
             publisher_impl_shared.enable()?;
         }
@@ -406,7 +399,7 @@ impl DomainParticipantImpl {
         if self
             .user_defined_publisher_list()
             .into_iter()
-            .find(|x| x.get_instance_handle() == a_publisher_handle)
+            .find(|x| InstanceHandle::from(x.guid()) == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
                     "Publisher can only be deleted from its parent participant".to_string(),
@@ -424,7 +417,7 @@ impl DomainParticipantImpl {
 
         self.user_defined_publisher_list
             .write_lock()
-            .retain(|x| x.get_instance_handle() != a_publisher_handle);
+            .retain(|x| InstanceHandle::from(x.guid()) != a_publisher_handle);
 
         Ok(())
     }
@@ -601,6 +594,10 @@ impl DomainParticipantImpl {
 
     pub fn get_qos(&self) -> DomainParticipantQos {
         self.qos.read_lock().clone()
+    }
+
+    pub fn data_max_size_serialized(&self) -> usize {
+        self.data_max_size_serialized
     }
 }
 

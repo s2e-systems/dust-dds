@@ -1,18 +1,13 @@
-use std::sync::{mpsc::SyncSender, RwLockWriteGuard};
+use std::sync::RwLockWriteGuard;
 
 use crate::{
     implementation::{
         rtps::{
-            endpoint::RtpsEndpoint,
             group::RtpsGroup,
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
-            types::{
-                EntityId, EntityKey, Guid, Locator, TopicKind, USER_DEFINED_WRITER_NO_KEY,
-                USER_DEFINED_WRITER_WITH_KEY,
-            },
-            writer::RtpsWriter,
+            types::Guid,
         },
         utils::{
             iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
@@ -24,16 +19,12 @@ use crate::{
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind},
         status::StatusKind,
-        time::{Duration, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
-    topic_definition::type_support::DdsType,
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
     dds_data_writer::DdsDataWriter,
-    domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
@@ -46,22 +37,17 @@ pub struct DdsPublisher {
     stateful_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
-    data_max_size_serialized: usize,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    announce_sender: SyncSender<AnnounceKind>,
     user_defined_data_writer_counter: DdsRwLock<u8>,
     default_datawriter_qos: DdsRwLock<DataWriterQos>,
 }
 
 impl DdsPublisher {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         qos: PublisherQos,
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-        data_max_size_serialized: usize,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
         DdsShared::new(DdsPublisher {
             qos: DdsRwLock::new(qos),
@@ -70,9 +56,7 @@ impl DdsPublisher {
             stateful_data_writer_list: DdsRwLock::new(Vec::new()),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
-            data_max_size_serialized,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            announce_sender,
             user_defined_data_writer_counter: DdsRwLock::new(0),
             default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
         })
@@ -88,73 +72,11 @@ impl DdsPublisher {
         *self.enabled.read_lock()
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn create_datawriter<Foo>(
-        &self,
-        type_name: &'static str,
-        topic_name: String,
-        qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
-        default_unicast_locator_list: &[Locator],
-        default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>
-    where
-        Foo: DdsType,
-    {
-        let qos = match qos {
-            QosKind::Default => self.get_default_datawriter_qos(),
-            QosKind::Specific(q) => q,
-        };
-        qos.is_consistent()?;
-
-        let entity_kind = match Foo::has_key() {
-            true => USER_DEFINED_WRITER_WITH_KEY,
-            false => USER_DEFINED_WRITER_NO_KEY,
-        };
-
-        let entity_key = EntityKey::new([
-            <[u8; 3]>::from(self.rtps_group.guid().entity_id().entity_key())[0],
-            self.get_unique_writer_id(),
-            0,
-        ]);
-
-        let entity_id = EntityId::new(entity_key, entity_kind);
-
-        let guid = Guid::new(self.rtps_group.guid().prefix(), entity_id);
-
-        let topic_kind = match Foo::has_key() {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
-
-        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
-            RtpsEndpoint::new(
-                guid,
-                topic_kind,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-            ),
-            true,
-            Duration::new(0, 200_000_000),
-            DURATION_ZERO,
-            DURATION_ZERO,
-            self.data_max_size_serialized,
-            qos,
-        ));
-
-        let data_writer_shared =
-            DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
-
-        self.stateful_data_writer_list
-            .write_lock()
-            .push(data_writer_shared.clone());
-
-        Ok(data_writer_shared)
-    }
-
     pub fn get_unique_writer_id(&self) -> u8 {
-        todo!()
+        let mut counter_lock = self.user_defined_data_writer_counter.write_lock();
+        let counter = *counter_lock;
+        *counter_lock += 1;
+        counter
     }
 
     pub fn stateful_datawriter_add(
@@ -234,8 +156,8 @@ impl DdsPublisher {
         self.status_condition.read_lock().get_status_changes()
     }
 
-    pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_group.guid().into()
+    pub fn guid(&self) -> Guid {
+        self.rtps_group.guid()
     }
 }
 

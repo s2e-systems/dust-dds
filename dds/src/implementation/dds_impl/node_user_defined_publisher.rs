@@ -1,14 +1,25 @@
 use crate::{
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::{
+            endpoint::RtpsEndpoint,
+            stateful_writer::RtpsStatefulWriter,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
-        time::Duration,
+        time::{Duration, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -17,6 +28,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dcps_service::DcpsService,
+    dds_data_writer::DdsDataWriter,
     dds_publisher::DdsPublisher,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_domain_participant::DomainParticipantNode,
@@ -52,15 +64,51 @@ impl UserDefinedPublisherNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        let data_writer = self.0.get()?.create_datawriter::<Foo>(
-            type_name,
-            topic_name,
+        let qos = match qos {
+            QosKind::Default => self.0.get()?.get_default_datawriter_qos(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
+        let entity_kind = match Foo::has_key() {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
+        };
+
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(self.0.get()?.guid().entity_id().entity_key())[0],
+            self.0.get()?.get_unique_writer_id(),
+            0,
+        ]);
+
+        let entity_id = EntityId::new(entity_key, entity_kind);
+
+        let guid = Guid::new(self.0.get()?.guid().prefix(), entity_id);
+
+        let topic_kind = match Foo::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            self.0.parent().get()?.data_max_size_serialized(),
             qos,
-            a_listener,
-            mask,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-        )?;
+        ));
+
+        let data_writer =
+            DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
+
+        self.0.get()?.stateful_datawriter_add(data_writer.clone());
 
         let data_writer_node =
             UserDefinedDataWriterNode::new(ChildNode::new(data_writer.downgrade(), self.0.clone()));
@@ -281,6 +329,6 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(InstanceHandle::from(self.0.get()?.guid()))
     }
 }
