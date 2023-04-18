@@ -103,7 +103,7 @@ impl DdsSubscriber {
         counter
     }
 
-    pub fn _stateless_data_reader_add(
+    pub fn stateless_data_reader_add(
         &self,
         data_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
     ) {

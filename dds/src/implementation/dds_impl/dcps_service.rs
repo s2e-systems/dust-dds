@@ -14,10 +14,10 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -955,7 +955,7 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
         .get_builtin_subscriber()
         .stateful_data_reader_list()
         .into_iter()
-        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
         .unwrap()
         .read::<DiscoveredWriterData>(
             i32::MAX,
@@ -1081,7 +1081,7 @@ fn discover_matched_participants(
         .get_builtin_subscriber()
         .stateless_data_reader_list()
         .into_iter()
-        .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+        .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
         .unwrap()
         .clone();
 
@@ -1121,7 +1121,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1131,7 +1131,7 @@ fn add_discovered_participant(
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1141,7 +1141,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1151,7 +1151,7 @@ fn add_discovered_participant(
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1161,7 +1161,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1171,7 +1171,7 @@ fn add_discovered_participant(
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
         );

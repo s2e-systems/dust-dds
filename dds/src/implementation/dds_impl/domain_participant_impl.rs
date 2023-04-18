@@ -1,7 +1,7 @@
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -239,7 +239,7 @@ impl DomainParticipantImpl {
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
             )),
-            SpdpDiscoveredParticipantData::type_name(),
+            ParticipantBuiltinTopicData::type_name(),
             String::from(DCPS_PARTICIPANT),
             None,
             NO_STATUS,
@@ -250,7 +250,7 @@ impl DomainParticipantImpl {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
             )),
-            DiscoveredTopicData::type_name(),
+            TopicBuiltinTopicData::type_name(),
             String::from(DCPS_TOPIC),
             None,
             NO_STATUS,
@@ -261,7 +261,7 @@ impl DomainParticipantImpl {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
             )),
-            DiscoveredWriterData::type_name(),
+            PublicationBuiltinTopicData::type_name(),
             String::from(DCPS_PUBLICATION),
             None,
             NO_STATUS,
@@ -272,7 +272,7 @@ impl DomainParticipantImpl {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             )),
-            DiscoveredReaderData::type_name(),
+            SubscriptionBuiltinTopicData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
             None,
             NO_STATUS,
@@ -287,7 +287,7 @@ impl DomainParticipantImpl {
             None,
             NO_STATUS,
         );
-        builtin_subscriber._stateless_data_reader_add(spdp_builtin_participant_reader);
+        builtin_subscriber.stateless_data_reader_add(spdp_builtin_participant_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_topics_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_publications_reader);
         builtin_subscriber.stateful_data_reader_add(sedp_builtin_subscriptions_reader);
@@ -1101,7 +1101,7 @@ impl DdsShared<DomainParticipantImpl> {
             .get_builtin_subscriber()
             .stateful_data_reader_list()
             .into_iter()
-            .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+            .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
             .unwrap()
             .read::<DiscoveredReaderData>(
                 i32::MAX,
@@ -1214,7 +1214,7 @@ impl DdsShared<DomainParticipantImpl> {
             .get_builtin_subscriber()
             .stateful_data_reader_list()
             .into_iter()
-            .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+            .find(|x| x.get_topic_name() == DCPS_TOPIC)
             .unwrap()
             .read::<DiscoveredTopicData>(
                 1,
