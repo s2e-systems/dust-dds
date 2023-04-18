@@ -39,7 +39,7 @@ impl RtpsStatelessReader {
         self.0.guid()
     }
 
-    pub fn _convert_data_to_cache_change(
+    pub fn convert_data_to_cache_change(
         &self,
         data_submessage: &DataSubmessage,
         source_timestamp: Option<Time>,
@@ -54,7 +54,7 @@ impl RtpsStatelessReader {
         )
     }
 
-    pub fn _add_change(
+    pub fn add_change(
         &mut self,
         change: RtpsReaderCacheChange,
     ) -> RtpsReaderResult<InstanceHandle> {
@@ -65,7 +65,7 @@ impl RtpsStatelessReader {
         self.0.get_qos()
     }
 
-    pub fn _set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
+    pub fn set_qos(&mut self, qos: DataReaderQos) -> DdsResult<()> {
         self.0.set_qos(qos)
     }
 
@@ -89,7 +89,7 @@ impl RtpsStatelessReader {
         )
     }
 
-    pub fn _take<Foo>(
+    pub fn take<Foo>(
         &mut self,
         max_samples: i32,
         sample_states: &[SampleStateKind],
@@ -129,7 +129,7 @@ impl RtpsStatelessReader {
         )
     }
 
-    pub fn _take_next_instance<Foo>(
+    pub fn take_next_instance<Foo>(
         &mut self,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,

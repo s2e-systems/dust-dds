@@ -19,9 +19,11 @@ use crate::{
                     HeartbeatSubmessage,
                 },
             },
+            reader::{RtpsReaderCacheChange, RtpsReaderResult},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
+            stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
             transport::TransportWrite,
-            types::{GuidPrefix, Locator, GUID_UNKNOWN},
+            types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -1198,5 +1200,128 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     self.get_requested_incompatible_qos_status(),
                 )
         }
+    }
+}
+
+impl DdsDataReader<RtpsStatelessReader> {
+    pub fn guid(&self) -> Guid {
+        self.rtps_reader.read_lock().guid()
+    }
+
+    pub fn _convert_data_to_cache_change(
+        &self,
+        data_submessage: &DataSubmessage,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
+    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
+        self.rtps_reader.read_lock().convert_data_to_cache_change(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        )
+    }
+
+    pub fn _add_change(&self, change: RtpsReaderCacheChange) -> RtpsReaderResult<InstanceHandle> {
+        self.rtps_reader.write_lock().add_change(change)
+    }
+
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().get_qos().clone()
+    }
+
+    pub fn set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
+        self.rtps_reader.write_lock().set_qos(qos)
+    }
+
+    pub fn read<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn _take<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn read_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
+    }
+
+    pub fn _take_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
+    }
+
+    pub fn on_data_submessage_received(
+        &self,
+        data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) -> StatelessReaderDataReceivedResult {
+        self.rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver)
     }
 }
