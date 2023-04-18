@@ -81,7 +81,7 @@ use super::{
     builtin_subscriber::BuiltInSubscriber, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_data_writer::DdsDataWriter, user_defined_publisher::UserDefinedPublisher,
+    dds_data_writer::DdsDataWriter, user_defined_publisher::UserDefinedPublisher,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 

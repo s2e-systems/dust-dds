@@ -41,7 +41,7 @@ use super::{
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
     },
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
-    user_defined_data_writer::DdsDataWriter,
+    dds_data_writer::DdsDataWriter,
 };
 
 pub struct BuiltinPublisher {

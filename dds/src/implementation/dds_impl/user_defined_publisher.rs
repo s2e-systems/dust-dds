@@ -30,7 +30,7 @@ use super::{
     message_receiver::{MessageReceiver, PublisherMessageReceiver},
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_data_writer::DdsDataWriter,
+    dds_data_writer::DdsDataWriter,
     writer_factory::WriterFactory,
 };
 

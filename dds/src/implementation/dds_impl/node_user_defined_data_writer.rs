@@ -27,7 +27,7 @@ use super::{
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
-    user_defined_data_writer::DdsDataWriter,
+    dds_data_writer::DdsDataWriter,
     user_defined_publisher::UserDefinedPublisher,
 };
 
