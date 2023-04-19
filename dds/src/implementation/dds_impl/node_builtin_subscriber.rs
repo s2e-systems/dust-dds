@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dcps_service::DcpsService, dds_subscriber::DdsSubscriber,
-    domain_participant_impl::DomainParticipantImpl,
+    domain_participant_impl::DdsDomainParticipant,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_kind::DataReaderNodeKind,
@@ -17,12 +17,12 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub struct BuiltinSubscriberNode(
-    ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 );
 
 impl BuiltinSubscriberNode {
     pub fn new(
-        node: ChildNode<DdsSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }

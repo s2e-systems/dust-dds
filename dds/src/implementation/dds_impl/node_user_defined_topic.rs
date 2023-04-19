@@ -11,18 +11,18 @@ use crate::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl, node_domain_participant::DomainParticipantNode,
+    domain_participant_impl::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
     dds_topic::DdsTopic,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedTopicNode(
-    ChildNode<DdsTopic, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsTopic, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedTopicNode {
     pub fn new(
-        node: ChildNode<DdsTopic, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+        node: ChildNode<DdsTopic, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }

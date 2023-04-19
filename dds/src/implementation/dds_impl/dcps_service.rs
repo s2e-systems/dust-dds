@@ -63,7 +63,7 @@ use super::{
     dds_data_writer::DdsDataWriter,
     dds_subscriber::DdsSubscriber,
     domain_participant_impl::{
-        AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
@@ -74,7 +74,7 @@ use super::{
 };
 
 pub struct DcpsService {
-    participant: DdsShared<DomainParticipantImpl>,
+    participant: DdsShared<DdsDomainParticipant>,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
@@ -85,7 +85,7 @@ pub struct DcpsService {
 
 impl DcpsService {
     pub fn new(
-        participant: DdsShared<DomainParticipantImpl>,
+        participant: DdsShared<DdsDomainParticipant>,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
@@ -396,7 +396,7 @@ impl DcpsService {
         })
     }
 
-    pub fn participant(&self) -> &DdsShared<DomainParticipantImpl> {
+    pub fn participant(&self) -> &DdsShared<DdsDomainParticipant> {
         &self.participant
     }
 
@@ -456,7 +456,7 @@ impl DcpsService {
 }
 
 fn announce_created_data_reader(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_reader_data: DiscoveredReaderData,
 ) {
     let reader_data = &DiscoveredReaderData {
@@ -490,7 +490,7 @@ fn announce_created_data_reader(
 }
 
 fn announce_created_data_writer(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
     let writer_data = &DiscoveredWriterData {
@@ -525,7 +525,7 @@ fn announce_created_data_writer(
 }
 
 fn announce_created_topic(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
     let mut serialized_data = Vec::new();
@@ -551,7 +551,7 @@ fn announce_created_topic(
 }
 
 fn announce_deleted_reader(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     reader_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
@@ -573,7 +573,7 @@ fn announce_deleted_reader(
 }
 
 fn announce_deleted_writer(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     writer_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
@@ -950,7 +950,7 @@ fn user_defined_stateful_writer_send_message(
     }
 }
 
-fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsResult<()> {
+fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
     let samples = domain_participant
         .get_builtin_subscriber()
         .stateful_data_reader_list()
@@ -1074,7 +1074,7 @@ pub fn subscriber_add_matched_writer(
 }
 
 fn discover_matched_participants(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
     let spdp_builtin_participant_data_reader = domain_participant
@@ -1104,7 +1104,7 @@ fn discover_matched_participants(
 }
 
 fn add_discovered_participant(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
     if ParticipantDiscovery::new(

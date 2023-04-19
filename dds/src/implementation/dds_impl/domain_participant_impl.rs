@@ -94,9 +94,9 @@ use std::{
 use super::{
     any_topic_listener::AnyTopicListener, dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    dds_topic::DdsTopic,
+    dds_topic::DdsTopic, message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -132,7 +132,7 @@ pub enum AnnounceKind {
     DeletedParticipant,
 }
 
-pub struct DomainParticipantImpl {
+pub struct DdsDomainParticipant {
     rtps_participant: RtpsParticipant,
     domain_id: DomainId,
     domain_tag: String,
@@ -167,7 +167,7 @@ pub struct DomainParticipantImpl {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl DomainParticipantImpl {
+impl DdsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         rtps_participant: RtpsParticipant,
@@ -361,7 +361,7 @@ impl DomainParticipantImpl {
         let timer_factory = TimerFactory::new();
         let timer = timer_factory.create_timer();
 
-        DdsShared::new(DomainParticipantImpl {
+        DdsShared::new(DdsDomainParticipant {
             rtps_participant,
             domain_id,
             domain_tag,
@@ -721,7 +721,7 @@ impl DomainParticipantImpl {
     }
 }
 
-impl DdsShared<DomainParticipantImpl> {
+impl DdsShared<DdsDomainParticipant> {
     pub fn find_topic(
         &self,
         topic_name: &str,

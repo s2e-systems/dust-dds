@@ -23,7 +23,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dcps_service::DcpsService,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    domain_participant_impl::{AnnounceKind, DdsDomainParticipant},
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
@@ -33,7 +33,7 @@ use super::{
 
 type UserDefinedDataWriterNodeType = ChildNode<
     DdsDataWriter<RtpsStatefulWriter>,
-    ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsPublisher, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 >;
 
 #[derive(PartialEq, Debug)]
