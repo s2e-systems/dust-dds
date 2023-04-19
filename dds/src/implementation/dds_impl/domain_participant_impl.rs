@@ -96,7 +96,7 @@ use super::{
     dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
     message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
     status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl,
+    dds_topic::DdsTopic,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -145,7 +145,7 @@ pub struct DomainParticipantImpl {
     user_defined_publisher_list: DdsRwLock<Vec<DdsShared<DdsPublisher>>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: DdsRwLock<PublisherQos>,
-    topic_list: DdsRwLock<Vec<DdsShared<TopicImpl>>>,
+    topic_list: DdsRwLock<Vec<DdsShared<DdsTopic>>>,
     user_defined_topic_counter: AtomicU8,
     default_topic_qos: DdsRwLock<TopicQos>,
     manual_liveliness_count: Count,
@@ -187,7 +187,7 @@ impl DomainParticipantImpl {
 
         let spdp_topic_entity_id = EntityId::new(EntityKey::new([0, 0, 0]), BUILT_IN_TOPIC);
         let spdp_topic_guid = Guid::new(guid_prefix, spdp_topic_entity_id);
-        let _spdp_topic_participant = TopicImpl::new(
+        let _spdp_topic_participant = DdsTopic::new(
             spdp_topic_guid,
             TopicQos::default(),
             SpdpDiscoveredParticipantData::type_name(),
@@ -199,7 +199,7 @@ impl DomainParticipantImpl {
 
         let sedp_topics_entity_id = EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_TOPIC);
         let sedp_topics_guid = Guid::new(guid_prefix, sedp_topics_entity_id);
-        let _sedp_topic_topics = TopicImpl::new(
+        let _sedp_topic_topics = DdsTopic::new(
             sedp_topics_guid,
             TopicQos::default(),
             DiscoveredTopicData::type_name(),
@@ -211,7 +211,7 @@ impl DomainParticipantImpl {
 
         let sedp_publications_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
         let sedp_publications_guid = Guid::new(guid_prefix, sedp_publications_entity_id);
-        let _sedp_topic_publications = TopicImpl::new(
+        let _sedp_topic_publications = DdsTopic::new(
             sedp_publications_guid,
             TopicQos::default(),
             DiscoveredWriterData::type_name(),
@@ -223,7 +223,7 @@ impl DomainParticipantImpl {
 
         let sedp_subscriptions_entity_id = EntityId::new(EntityKey::new([0, 0, 2]), BUILT_IN_TOPIC);
         let sedp_subscriptions_guid = Guid::new(guid_prefix, sedp_subscriptions_entity_id);
-        let _sedp_topic_subscriptions = TopicImpl::new(
+        let _sedp_topic_subscriptions = DdsTopic::new(
             sedp_subscriptions_guid,
             TopicQos::default(),
             DiscoveredReaderData::type_name(),
@@ -630,7 +630,7 @@ impl DomainParticipantImpl {
         qos: QosKind<TopicQos>,
         a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<TopicImpl>> {
+    ) -> DdsResult<DdsShared<DdsTopic>> {
         let topic_counter = self
             .user_defined_topic_counter
             .fetch_add(1, Ordering::Relaxed);
@@ -644,7 +644,7 @@ impl DomainParticipantImpl {
         };
 
         // /////// Create topic
-        let topic_shared = TopicImpl::new(
+        let topic_shared = DdsTopic::new(
             topic_guid,
             qos,
             type_name,
@@ -708,7 +708,7 @@ impl DomainParticipantImpl {
         Ok(())
     }
 
-    pub fn topic_list(&self) -> DdsListIntoIterator<DdsShared<TopicImpl>> {
+    pub fn topic_list(&self) -> DdsListIntoIterator<DdsShared<DdsTopic>> {
         DdsListIntoIterator::new(self.topic_list.read_lock())
     }
 
@@ -727,7 +727,7 @@ impl DdsShared<DomainParticipantImpl> {
         topic_name: &str,
         type_name: &'static str,
         timeout: Duration,
-    ) -> DdsResult<DdsShared<TopicImpl>> {
+    ) -> DdsResult<DdsShared<DdsTopic>> {
         let start_time = self.get_current_time();
 
         while self.get_current_time() - start_time < timeout {

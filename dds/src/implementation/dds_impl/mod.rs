@@ -26,4 +26,4 @@ pub mod node_user_defined_topic;
 pub mod participant_discovery;
 pub mod status_condition_impl;
 pub mod status_listener;
-pub mod topic_impl;
+pub mod dds_topic;

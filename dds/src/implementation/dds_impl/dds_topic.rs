@@ -35,7 +35,7 @@ impl InconsistentTopicStatus {
     }
 }
 
-pub struct TopicImpl {
+pub struct DdsTopic {
     guid: Guid,
     qos: DdsRwLock<TopicQos>,
     type_name: &'static str,
@@ -47,7 +47,7 @@ pub struct TopicImpl {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl TopicImpl {
+impl DdsTopic {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         guid: Guid,
@@ -72,7 +72,7 @@ impl TopicImpl {
     }
 }
 
-impl DdsShared<TopicImpl> {
+impl DdsShared<DdsTopic> {
     pub fn get_inconsistent_topic_status(&self) -> InconsistentTopicStatus {
         self.status_condition
             .write_lock()
@@ -260,7 +260,7 @@ mod tests {
             EntityId::new(EntityKey::new([3; 3]), BUILT_IN_PARTICIPANT),
         );
         let (announce_sender, _) = std::sync::mpsc::sync_channel(1);
-        let topic = TopicImpl::new(
+        let topic = DdsTopic::new(
             guid,
             TopicQos::default(),
             "",
