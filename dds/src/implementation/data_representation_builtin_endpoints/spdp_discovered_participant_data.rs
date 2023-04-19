@@ -5,31 +5,43 @@ use crate::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
             parameter_list_serializer::ParameterListSerializer,
-            serde_remote_rtps_pim::{
-                DomainTag, DomainTagDeserialize, DomainTagSerialize, ExpectsInlineQosDeserialize,
-                ExpectsInlineQosSerialize,
-            },
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
             types::{
-                Count, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId, ENTITYID_PARTICIPANT,
+                Count, ExpectsInlineQos, Guid, GuidPrefix, Locator, ProtocolVersion, VendorId,
+                ENTITYID_PARTICIPANT,
             },
         },
     },
-    infrastructure::{error::DdsResult, qos_policy::UserDataQosPolicy, time::Duration},
+    infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
     },
 };
 
 use super::parameter_id_values::{
-    DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS, PID_BUILTIN_ENDPOINT_SET,
-    PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR, PID_DOMAIN_ID, PID_DOMAIN_TAG,
-    PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR,
-    PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-    PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
+    DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
+    PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
+    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize, derive_more::From)]
+pub struct DomainTagSerialize<'a>(pub &'a str);
+impl<'a> Default for DomainTagSerialize<'a> {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG)
+    }
+}
+#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
+pub struct DomainTagDeserialize(pub String);
+impl Default for DomainTagDeserialize {
+    fn default() -> Self {
+        Self(DEFAULT_DOMAIN_TAG.to_string())
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantLeaseDuration(Duration);
@@ -61,7 +73,7 @@ pub struct ParticipantProxy {
     pub protocol_version: ProtocolVersion,
     pub guid_prefix: GuidPrefix,
     pub vendor_id: VendorId,
-    pub expects_inline_qos: bool,
+    pub expects_inline_qos: ExpectsInlineQos,
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
     pub default_unicast_locator_list: Vec<Locator>,
@@ -143,57 +155,53 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
-            .serialize_parameter::<&i32, _>(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<DomainTagSerialize, _>(
+            .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DOMAIN_TAG,
-            &DomainTag(self.participant_proxy.domain_tag.as_str()),
+            &DomainTagSerialize(&self.participant_proxy.domain_tag),
         )?;
-        parameter_list_serializer.serialize_parameter::<&ProtocolVersion, _>(
+        parameter_list_serializer.serialize_parameter::<ProtocolVersion>(
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
+        parameter_list_serializer.serialize_parameter(PID_PARTICIPANT_GUID, &participant_key)?;
         parameter_list_serializer
-            .serialize_parameter::<&BuiltInTopicKey, _>(PID_PARTICIPANT_GUID, &participant_key)?;
-        parameter_list_serializer
-            .serialize_parameter::<&VendorId, _>(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<ExpectsInlineQosSerialize, _>(
-                PID_EXPECTS_INLINE_QOS,
-                &self.participant_proxy.expects_inline_qos,
-            )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+            .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.participant_proxy.expects_inline_qos,
+        )?;
+        parameter_list_serializer.serialize_parameter_vector(
             PID_METATRAFFIC_UNICAST_LOCATOR,
             &self.participant_proxy.metatraffic_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_METATRAFFIC_MULTICAST_LOCATOR,
             &self.participant_proxy.metatraffic_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_DEFAULT_UNICAST_LOCATOR,
             &self.participant_proxy.default_unicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter_vector::<&Locator, _>(
+        parameter_list_serializer.serialize_parameter_vector(
             PID_DEFAULT_MULTICAST_LOCATOR,
             &self.participant_proxy.default_multicast_locator_list,
         )?;
-        parameter_list_serializer.serialize_parameter::<&BuiltinEndpointSet, _>(
+        parameter_list_serializer.serialize_parameter(
             PID_BUILTIN_ENDPOINT_SET,
             &self.participant_proxy.available_builtin_endpoints,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&Count, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
             &self.participant_proxy.manual_liveliness_count,
         )?; // Default value is a deviation from the standard and is used for interoperability reasons
-        parameter_list_serializer.serialize_parameter_if_not_default::<&BuiltinEndpointQos, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_BUILTIN_ENDPOINT_QOS,
             &self.participant_proxy.builtin_endpoint_qos,
         )?;
-        parameter_list_serializer.serialize_parameter::<&ParticipantLeaseDuration, _>(
-            PID_PARTICIPANT_LEASE_DURATION,
-            &self.lease_duration,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&UserDataQosPolicy, _>(
+        parameter_list_serializer
+            .serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_USER_DATA,
             &self.dds_participant_data.user_data,
         )?;
@@ -205,32 +213,27 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let participant_key =
-            param_list.get::<BuiltInTopicKey, BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
-        let user_data = param_list.get_or_default::<UserDataQosPolicy, _>(PID_USER_DATA)?;
-        let domain_id = param_list.get::<i32, _>(PID_DOMAIN_ID)?;
-        let domain_tag = param_list.get_or_default::<DomainTagDeserialize, _>(PID_DOMAIN_TAG)?;
-        let protocol_version = param_list.get::<ProtocolVersion, _>(PID_PROTOCOL_VERSION)?;
-        let vendor_id = param_list.get::<VendorId, _>(PID_VENDORID)?;
-        let expects_inline_qos =
-            param_list.get_or_default::<ExpectsInlineQosDeserialize, _>(PID_EXPECTS_INLINE_QOS)?;
+        let participant_key = param_list.get::<BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
+        let user_data = param_list.get_or_default(PID_USER_DATA)?;
+        let domain_id = param_list.get(PID_DOMAIN_ID)?;
+        let domain_tag = param_list
+            .get_or_default::<DomainTagDeserialize>(PID_DOMAIN_TAG)?
+            .into();
+        let protocol_version = param_list.get(PID_PROTOCOL_VERSION)?;
+        let vendor_id = param_list.get(PID_VENDORID)?;
+        let expects_inline_qos = param_list.get_or_default(PID_EXPECTS_INLINE_QOS)?;
         let metatraffic_unicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_METATRAFFIC_UNICAST_LOCATOR)?;
+            param_list.get_list(PID_METATRAFFIC_UNICAST_LOCATOR)?;
         let metatraffic_multicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
-        let default_unicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_DEFAULT_UNICAST_LOCATOR)?;
-        let default_multicast_locator_list =
-            param_list.get_list::<Locator, _>(PID_DEFAULT_MULTICAST_LOCATOR)?;
-        let available_builtin_endpoints =
-            param_list.get::<BuiltinEndpointSet, _>(PID_BUILTIN_ENDPOINT_SET)?;
+            param_list.get_list(PID_METATRAFFIC_MULTICAST_LOCATOR)?;
+        let default_unicast_locator_list = param_list.get_list(PID_DEFAULT_UNICAST_LOCATOR)?;
+        let default_multicast_locator_list = param_list.get_list(PID_DEFAULT_MULTICAST_LOCATOR)?;
+        let available_builtin_endpoints = param_list.get(PID_BUILTIN_ENDPOINT_SET)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
         let manual_liveliness_count =
-            param_list.get_or_default::<Count, _>(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
-        let builtin_endpoint_qos =
-            param_list.get_or_default::<BuiltinEndpointQos, _>(PID_BUILTIN_ENDPOINT_QOS)?;
-        let lease_duration =
-            param_list.get::<ParticipantLeaseDuration, _>(PID_PARTICIPANT_LEASE_DURATION)?;
+            param_list.get_or_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
+        let builtin_endpoint_qos = param_list.get_or_default(PID_BUILTIN_ENDPOINT_QOS)?;
+        let lease_duration = param_list.get(PID_PARTICIPANT_LEASE_DURATION)?;
 
         let v = participant_key.value;
         let guid_prefix = GuidPrefix::new([
@@ -299,7 +302,7 @@ mod tests {
             EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
-        let expects_inline_qos = true;
+        let expects_inline_qos = true.into();
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
         let default_unicast_locator_list = vec![locator1];
@@ -428,7 +431,7 @@ mod tests {
             EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
-        let expects_inline_qos = true;
+        let expects_inline_qos = true.into();
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
         let default_unicast_locator_list = vec![locator1];

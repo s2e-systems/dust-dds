@@ -92,11 +92,11 @@ use std::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_data_reader::DdsDataReader,
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
-    topic_impl::TopicImpl,
+    any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltInSubscriber,
+    dds_data_writer::DdsDataWriter, message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener, topic_impl::TopicImpl,
+    user_defined_subscriber::UserDefinedSubscriber, dds_publisher::DdsPublisher,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -1010,7 +1010,7 @@ impl DdsShared<DomainParticipantImpl> {
                 protocol_version: self.rtps_participant.protocol_version(),
                 guid_prefix: self.rtps_participant.guid().prefix(),
                 vendor_id: self.rtps_participant.vendor_id(),
-                expects_inline_qos: false,
+                expects_inline_qos: false.into(),
                 metatraffic_unicast_locator_list: self
                     .rtps_participant
                     .metatraffic_unicast_locator_list()
@@ -1344,7 +1344,10 @@ fn add_matched_reader(
                 discovered_reader_data.reader_proxy.remote_group_entity_id,
                 unicast_locator_list,
                 multicast_locator_list,
-                discovered_reader_data.reader_proxy.expects_inline_qos,
+                discovered_reader_data
+                    .reader_proxy
+                    .expects_inline_qos
+                    .into(),
                 true,
                 proxy_reliability,
                 proxy_durability,

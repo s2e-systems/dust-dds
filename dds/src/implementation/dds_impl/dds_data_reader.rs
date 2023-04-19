@@ -780,7 +780,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                 remote_group_entity_id: guid.entity_id(),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: false,
+                expects_inline_qos: false.into(),
             },
 
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
