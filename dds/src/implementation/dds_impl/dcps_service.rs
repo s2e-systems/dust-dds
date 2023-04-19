@@ -1018,7 +1018,7 @@ pub fn subscriber_add_matched_writer(
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
             .publication_builtin_topic_data()
-            .partition
+            .partition()
             .name,
     ) {
         d.is_match(&user_defined_subscriber.get_qos().partition.name)
@@ -1031,7 +1031,7 @@ pub fn subscriber_add_matched_writer(
             d.is_match(
                 &discovered_writer_data
                     .publication_builtin_topic_data()
-                    .partition
+                    .partition()
                     .name,
             )
         } else {
@@ -1040,7 +1040,7 @@ pub fn subscriber_add_matched_writer(
 
     let is_partition_string_matched = discovered_writer_data
         .publication_builtin_topic_data()
-        .partition
+        .partition()
         .name
         == user_defined_subscriber.get_qos().partition.name;
 

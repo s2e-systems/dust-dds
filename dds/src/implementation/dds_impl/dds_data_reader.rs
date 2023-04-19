@@ -437,8 +437,8 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     ) {
         let publication_builtin_topic_data =
             discovered_writer_data.publication_builtin_topic_data();
-        if publication_builtin_topic_data.topic_name == self.topic_name
-            && publication_builtin_topic_data.type_name == self.type_name
+        if publication_builtin_topic_data.topic_name() == self.topic_name
+            && publication_builtin_topic_data.get_type_name() == self.type_name
         {
             let instance_handle = discovered_writer_data.get_serialized_key().into();
             let incompatible_qos_policy_list = self
@@ -514,29 +514,29 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
 
         let mut incompatible_qos_policy_list = Vec::new();
 
-        if subscriber_qos.presentation.access_scope > writer_info.presentation.access_scope
+        if subscriber_qos.presentation.access_scope > writer_info.presentation().access_scope
             || subscriber_qos.presentation.coherent_access
-                != writer_info.presentation.coherent_access
-            || subscriber_qos.presentation.ordered_access != writer_info.presentation.ordered_access
+                != writer_info.presentation().coherent_access
+            || subscriber_qos.presentation.ordered_access != writer_info.presentation().ordered_access
         {
             incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
         }
-        if reader_qos.durability > writer_info.durability {
+        if &reader_qos.durability > writer_info.durability() {
             incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
         }
-        if reader_qos.deadline > writer_info.deadline {
+        if &reader_qos.deadline > writer_info.deadline() {
             incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
         }
-        if reader_qos.latency_budget > writer_info.latency_budget {
+        if &reader_qos.latency_budget > writer_info.latency_budget() {
             incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
         }
-        if reader_qos.liveliness > writer_info.liveliness {
+        if &reader_qos.liveliness > writer_info.liveliness() {
             incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
         }
-        if reader_qos.reliability.kind > writer_info.reliability.kind {
+        if reader_qos.reliability.kind > writer_info.reliability().kind {
             incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
         }
-        if reader_qos.destination_order > writer_info.destination_order {
+        if &reader_qos.destination_order > writer_info.destination_order() {
             incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
         }
 
@@ -558,7 +558,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         if let Some(w) = matched_publication {
             self.rtps_reader
                 .write_lock()
-                .matched_writer_remove(w.key.value.into());
+                .matched_writer_remove(w.key().value.into());
 
             self.on_subscription_matched(
                 discovered_writer_handle,

@@ -2,7 +2,6 @@ use crate::{
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_topic_data::ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
-            discovered_writer_data::ReliabilityQosPolicyDataWriterDeserialize,
             parameter_id_values::{
                 PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
                 PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
@@ -59,21 +58,119 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
-    pub key: BuiltInTopicKey,
-    pub name: String,
-    pub type_name: String,
-    pub durability: DurabilityQosPolicy,
-    pub deadline: DeadlineQosPolicy,
-    pub latency_budget: LatencyBudgetQosPolicy,
-    pub liveliness: LivelinessQosPolicy,
-    pub reliability: ReliabilityQosPolicy,
-    pub transport_priority: TransportPriorityQosPolicy,
-    pub lifespan: LifespanQosPolicy,
-    pub destination_order: DestinationOrderQosPolicy,
-    pub history: HistoryQosPolicy,
-    pub resource_limits: ResourceLimitsQosPolicy,
-    pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    key: BuiltInTopicKey,
+    name: String,
+    type_name: String,
+    durability: DurabilityQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    transport_priority: TransportPriorityQosPolicy,
+    lifespan: LifespanQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    history: HistoryQosPolicy,
+    resource_limits: ResourceLimitsQosPolicy,
+    ownership: OwnershipQosPolicy,
+    topic_data: TopicDataQosPolicy,
+}
+
+impl TopicBuiltinTopicData {
+    pub fn new(
+        key: BuiltInTopicKey,
+        name: String,
+        type_name: String,
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        transport_priority: TransportPriorityQosPolicy,
+        lifespan: LifespanQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
+        ownership: OwnershipQosPolicy,
+        topic_data: TopicDataQosPolicy,
+    ) -> Self {
+        Self {
+            key,
+            name,
+            type_name,
+            durability,
+            deadline,
+            latency_budget,
+            liveliness,
+            reliability,
+            transport_priority,
+            lifespan,
+            destination_order,
+            history,
+            resource_limits,
+            ownership,
+            topic_data,
+        }
+    }
+
+    pub fn key(&self) -> &BuiltInTopicKey {
+        &self.key
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
+    }
+
+    pub fn get_type_name(&self) -> &str {
+        self.type_name.as_ref()
+    }
+
+    pub fn durability(&self) -> &DurabilityQosPolicy {
+        &self.durability
+    }
+
+    pub fn deadline(&self) -> &DeadlineQosPolicy {
+        &self.deadline
+    }
+
+    pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
+        &self.latency_budget
+    }
+
+    pub fn liveliness(&self) -> &LivelinessQosPolicy {
+        &self.liveliness
+    }
+
+    pub fn reliability(&self) -> &ReliabilityQosPolicy {
+        &self.reliability
+    }
+
+    pub fn transport_priority(&self) -> &TransportPriorityQosPolicy {
+        &self.transport_priority
+    }
+
+    pub fn lifespan(&self) -> &LifespanQosPolicy {
+        &self.lifespan
+    }
+
+    pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
+        &self.destination_order
+    }
+
+    pub fn history(&self) -> &HistoryQosPolicy {
+        &self.history
+    }
+
+    pub fn resource_limits(&self) -> &ResourceLimitsQosPolicy {
+        &self.resource_limits
+    }
+
+    pub fn ownership(&self) -> &OwnershipQosPolicy {
+        &self.ownership
+    }
+
+    pub fn topic_data(&self) -> &TopicDataQosPolicy {
+        &self.topic_data
+    }
 }
 
 impl DdsType for TopicBuiltinTopicData {
@@ -126,25 +223,134 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
-    pub key: BuiltInTopicKey,
-    pub participant_key: BuiltInTopicKey,
-    pub topic_name: String,
-    pub type_name: String,
+    key: BuiltInTopicKey,
+    participant_key: BuiltInTopicKey,
+    topic_name: String,
+    type_name: String,
+    durability: DurabilityQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
+    lifespan: LifespanQosPolicy,
+    user_data: UserDataQosPolicy,
+    ownership: OwnershipQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    presentation: PresentationQosPolicy,
+    partition: PartitionQosPolicy,
+    topic_data: TopicDataQosPolicy,
+    group_data: GroupDataQosPolicy,
+}
 
-    pub durability: DurabilityQosPolicy,
-    pub deadline: DeadlineQosPolicy,
-    pub latency_budget: LatencyBudgetQosPolicy,
-    pub liveliness: LivelinessQosPolicy,
-    pub reliability: ReliabilityQosPolicy,
-    pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy,
-    pub ownership: OwnershipQosPolicy,
-    pub destination_order: DestinationOrderQosPolicy,
+impl PublicationBuiltinTopicData {
+    pub fn new(
+        key: BuiltInTopicKey,
+        participant_key: BuiltInTopicKey,
+        topic_name: String,
+        type_name: String,
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        lifespan: LifespanQosPolicy,
+        user_data: UserDataQosPolicy,
+        ownership: OwnershipQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        topic_data: TopicDataQosPolicy,
+        group_data: GroupDataQosPolicy,
+    ) -> Self {
+        Self {
+            key,
+            participant_key,
+            topic_name,
+            type_name,
+            durability,
+            deadline,
+            latency_budget,
+            liveliness,
+            reliability: reliability.into(),
+            lifespan,
+            user_data,
+            ownership,
+            destination_order,
+            presentation,
+            partition,
+            topic_data,
+            group_data,
+        }
+    }
 
-    pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub fn key(&self) -> &BuiltInTopicKey {
+        &self.key
+    }
+
+    pub fn participant_key(&self) -> &BuiltInTopicKey {
+        &self.participant_key
+    }
+
+    pub fn topic_name(&self) -> &str {
+        self.topic_name.as_ref()
+    }
+
+    pub fn get_type_name(&self) -> &str {
+        self.type_name.as_ref()
+    }
+
+    pub fn durability(&self) -> &DurabilityQosPolicy {
+        &self.durability
+    }
+
+    pub fn deadline(&self) -> &DeadlineQosPolicy {
+        &self.deadline
+    }
+
+    pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
+        &self.latency_budget
+    }
+
+    pub fn liveliness(&self) -> &LivelinessQosPolicy {
+        &self.liveliness
+    }
+
+    pub fn reliability(&self) -> &ReliabilityQosPolicy {
+        // &self.reliability.into()
+        todo!()
+    }
+
+    pub fn lifespan(&self) -> &LifespanQosPolicy {
+        &self.lifespan
+    }
+
+    pub fn user_data(&self) -> &UserDataQosPolicy {
+        &self.user_data
+    }
+
+    pub fn ownership(&self) -> &OwnershipQosPolicy {
+        &self.ownership
+    }
+
+    pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
+        &self.destination_order
+    }
+
+    pub fn presentation(&self) -> &PresentationQosPolicy {
+        &self.presentation
+    }
+
+    pub fn partition(&self) -> &PartitionQosPolicy {
+        &self.partition
+    }
+
+    pub fn topic_data(&self) -> &TopicDataQosPolicy {
+        &self.topic_data
+    }
+
+    pub fn group_data(&self) -> &GroupDataQosPolicy {
+        &self.group_data
+    }
 }
 
 impl DdsType for PublicationBuiltinTopicData {
@@ -167,9 +373,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
         let deadline = param_list.get_or_default(PID_DEADLINE)?;
         let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
         let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataWriterDeserialize>(PID_RELIABILITY)?
-            .into();
+        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
         let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
         let ownership = param_list.get_or_default(PID_OWNERSHIP)?;

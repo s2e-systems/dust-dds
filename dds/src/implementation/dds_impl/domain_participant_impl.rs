@@ -689,24 +689,24 @@ impl DdsShared<DomainParticipantImpl> {
                 .discovered_topic_list
                 .read_lock()
                 .iter()
-                .find(|&(_, t)| t.name == topic_name && t.type_name == type_name)
+                .find(|&(_, t)| t.name() == topic_name && t.get_type_name() == type_name)
             {
                 let qos = TopicQos {
-                    topic_data: discovered_topic_info.topic_data.clone(),
-                    durability: discovered_topic_info.durability.clone(),
-                    deadline: discovered_topic_info.deadline.clone(),
-                    latency_budget: discovered_topic_info.latency_budget.clone(),
-                    liveliness: discovered_topic_info.liveliness.clone(),
-                    reliability: discovered_topic_info.reliability.clone(),
-                    destination_order: discovered_topic_info.destination_order.clone(),
-                    history: discovered_topic_info.history.clone(),
-                    resource_limits: discovered_topic_info.resource_limits.clone(),
-                    transport_priority: discovered_topic_info.transport_priority.clone(),
-                    lifespan: discovered_topic_info.lifespan.clone(),
-                    ownership: discovered_topic_info.ownership.clone(),
+                    topic_data: discovered_topic_info.topic_data().clone(),
+                    durability: discovered_topic_info.durability().clone(),
+                    deadline: discovered_topic_info.deadline().clone(),
+                    latency_budget: discovered_topic_info.latency_budget().clone(),
+                    liveliness: discovered_topic_info.liveliness().clone(),
+                    reliability: discovered_topic_info.reliability().clone(),
+                    destination_order: discovered_topic_info.destination_order().clone(),
+                    history: discovered_topic_info.history().clone(),
+                    resource_limits: discovered_topic_info.resource_limits().clone(),
+                    transport_priority: discovered_topic_info.transport_priority().clone(),
+                    lifespan: discovered_topic_info.lifespan().clone(),
+                    ownership: discovered_topic_info.ownership().clone(),
                 };
                 return self.create_topic(
-                    &discovered_topic_info.name,
+                    &discovered_topic_info.name(),
                     type_name,
                     QosKind::Specific(qos),
                     None,

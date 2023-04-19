@@ -631,29 +631,29 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .to_vec(),
             None,
             EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-            PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
+            PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: self.rtps_writer.read_lock().guid().into(),
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
-                topic_name: self.topic_name.clone(),
-                type_name: self.type_name.to_string(),
-                durability: writer_qos.durability.clone(),
-                deadline: writer_qos.deadline.clone(),
-                latency_budget: writer_qos.latency_budget.clone(),
-                liveliness: writer_qos.liveliness.clone(),
-                reliability: writer_qos.reliability.clone(),
-                lifespan: writer_qos.lifespan.clone(),
-                user_data: writer_qos.user_data.clone(),
-                ownership: writer_qos.ownership.clone(),
-                destination_order: writer_qos.destination_order,
-                presentation: publisher_qos.presentation.clone(),
-                partition: publisher_qos.partition.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                group_data: publisher_qos.group_data.clone(),
-            },
+                self.topic_name.clone(),
+                self.type_name.to_string(),
+                writer_qos.durability.clone(),
+                writer_qos.deadline.clone(),
+                writer_qos.latency_budget.clone(),
+                writer_qos.liveliness.clone(),
+                writer_qos.reliability.clone().into(),
+                writer_qos.lifespan.clone(),
+                writer_qos.user_data.clone(),
+                writer_qos.ownership.clone(),
+                writer_qos.destination_order,
+                publisher_qos.presentation.clone(),
+                publisher_qos.partition.clone(),
+                topic_qos.topic_data.clone(),
+                publisher_qos.group_data.clone(),
+            ),
         )
     }
 }

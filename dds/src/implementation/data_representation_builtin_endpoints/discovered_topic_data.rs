@@ -31,7 +31,16 @@ pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
     pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
 );
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::From,
+)]
 pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
     fn default() -> Self {
@@ -56,7 +65,7 @@ impl DdsType for DiscoveredTopicData {
     }
 
     fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.topic_builtin_topic_data.key.value.as_ref().into()
+        self.topic_builtin_topic_data.key().value.as_ref().into()
     }
 
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
@@ -73,59 +82,63 @@ impl DdsSerialize for DiscoveredTopicData {
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
-            .serialize_parameter(PID_ENDPOINT_GUID, &self.topic_builtin_topic_data.key)?;
-        parameter_list_serializer
-            .serialize_parameter(PID_TOPIC_NAME, &self.topic_builtin_topic_data.name)?;
-        parameter_list_serializer
-            .serialize_parameter(PID_TYPE_NAME, &self.topic_builtin_topic_data.type_name)?;
+            .serialize_parameter(PID_ENDPOINT_GUID, self.topic_builtin_topic_data.key())?;
+        parameter_list_serializer.serialize_parameter(
+            PID_TOPIC_NAME,
+            &self.topic_builtin_topic_data.name().to_string(),
+        )?;
+        parameter_list_serializer.serialize_parameter(
+            PID_TYPE_NAME,
+            &self.topic_builtin_topic_data.get_type_name().to_string(),
+        )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DURABILITY,
-            &self.topic_builtin_topic_data.durability,
+            self.topic_builtin_topic_data.durability(),
         )?;
 
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DEADLINE,
-            &self.topic_builtin_topic_data.deadline,
+            self.topic_builtin_topic_data.deadline(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LATENCY_BUDGET,
-            &self.topic_builtin_topic_data.latency_budget,
+            self.topic_builtin_topic_data.latency_budget(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIVELINESS,
-            &self.topic_builtin_topic_data.liveliness,
+            self.topic_builtin_topic_data.liveliness(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_RELIABILITY,
-            &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability),
+            &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability()),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TRANSPORT_PRIORITY,
-            &self.topic_builtin_topic_data.transport_priority,
+            self.topic_builtin_topic_data.transport_priority(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIFESPAN,
-            &self.topic_builtin_topic_data.lifespan,
+            self.topic_builtin_topic_data.lifespan(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DESTINATION_ORDER,
-            &self.topic_builtin_topic_data.destination_order,
+            self.topic_builtin_topic_data.destination_order(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_HISTORY,
-            &self.topic_builtin_topic_data.history,
+            self.topic_builtin_topic_data.history(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_RESOURCE_LIMITS,
-            &self.topic_builtin_topic_data.resource_limits,
+            self.topic_builtin_topic_data.resource_limits(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_OWNERSHIP,
-            &self.topic_builtin_topic_data.ownership,
+            self.topic_builtin_topic_data.ownership(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TOPIC_DATA,
-            &self.topic_builtin_topic_data.topic_data,
+            self.topic_builtin_topic_data.topic_data(),
         )?;
         parameter_list_serializer.serialize_sentinel()
     }
@@ -154,7 +167,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
         let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
 
         Ok(Self {
-            topic_builtin_topic_data: TopicBuiltinTopicData {
+            topic_builtin_topic_data: TopicBuiltinTopicData::new(
                 key,
                 name,
                 type_name,
@@ -170,7 +183,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
                 history,
                 resource_limits,
                 topic_data,
-            },
+            ),
         })
     }
 }
@@ -198,25 +211,25 @@ mod tests {
     #[test]
     fn serialize_all_default() {
         let data = DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey {
+            topic_builtin_topic_data: TopicBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                transport_priority: TransportPriorityQosPolicy::default(),
-                lifespan: LifespanQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                history: HistoryQosPolicy::default(),
-                resource_limits: ResourceLimitsQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                TransportPriorityQosPolicy::default(),
+                LifespanQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                HistoryQosPolicy::default(),
+                ResourceLimitsQosPolicy::default(),
+                OwnershipQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+            ),
         };
 
         let expected = vec![
@@ -240,25 +253,25 @@ mod tests {
     #[test]
     fn deserialize_all_default() {
         let expected = DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey {
+            topic_builtin_topic_data: TopicBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                transport_priority: TransportPriorityQosPolicy::default(),
-                lifespan: LifespanQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                history: HistoryQosPolicy::default(),
-                resource_limits: ResourceLimitsQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                TransportPriorityQosPolicy::default(),
+                LifespanQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                HistoryQosPolicy::default(),
+                ResourceLimitsQosPolicy::default(),
+                OwnershipQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+            ),
         };
 
         let mut data = &[
