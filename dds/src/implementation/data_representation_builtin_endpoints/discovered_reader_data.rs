@@ -5,9 +5,9 @@ use crate::{
     implementation::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
-            parameter_list_serializer::ParameterListSerializer, serde_remote_rtps_pim::{ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize},
+            parameter_list_serializer::ParameterListSerializer,
         },
-        rtps::types::{EntityId, Guid, Locator},
+        rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
     infrastructure::{
         error::DdsResult,
@@ -54,7 +54,7 @@ pub struct ReaderProxy {
     pub remote_group_entity_id: EntityId,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
-    pub expects_inline_qos: bool,
+    pub expects_inline_qos: ExpectsInlineQos,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -108,7 +108,7 @@ impl DdsSerialize for DiscoveredReaderData {
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_EXPECTS_INLINE_QOS,
-            &ExpectsInlineQosSerialize(&self.reader_proxy.expects_inline_qos),
+            &self.reader_proxy.expects_inline_qos,
         )?;
         parameter_list_serializer
             .serialize_parameter(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
@@ -190,7 +190,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
         let remote_group_entity_id = param_list.get_or_default(PID_GROUP_ENTITYID)?;
         let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
-        let expects_inline_qos = param_list.get_or_default::<ExpectsInlineQosDeserialize>(PID_MULTICAST_LOCATOR)?.into();
+        let expects_inline_qos = param_list.get_or_default(PID_MULTICAST_LOCATOR)?;
 
         // subscription_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
@@ -250,9 +250,6 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::parameter_list_serde::serde_remote_rtps_pim::{
-        ExpectsInlineQosDeserialize, ExpectsInlineQosSerialize,
-    };
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
         USER_DEFINED_UNKNOWN,
@@ -284,7 +281,7 @@ mod tests {
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: *ExpectsInlineQosSerialize::default().0,
+                expects_inline_qos: ExpectsInlineQos::default(),
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
@@ -351,7 +348,7 @@ mod tests {
                 ),
                 unicast_locator_list: vec![],
                 multicast_locator_list: vec![],
-                expects_inline_qos: ExpectsInlineQosDeserialize::default().0,
+                expects_inline_qos: ExpectsInlineQos::default(),
             },
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey {
