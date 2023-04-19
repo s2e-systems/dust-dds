@@ -25,35 +25,21 @@ use super::parameter_id_values::{
     PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_USER_DATA, PID_VENDORID,
 };
 
-#[derive(Debug, Eq, PartialEq, serde::Serialize, derive_more::From)]
-pub struct DomainTagSerialize<'a>(pub &'a str);
-impl<'a> Default for DomainTagSerialize<'a> {
-    fn default() -> Self {
-        Self(DEFAULT_DOMAIN_TAG)
-    }
-}
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
-pub struct DomainTagDeserialize(pub String);
-impl Default for DomainTagDeserialize {
+#[derive(
+    Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::From,
+)]
+struct DomainTag(String);
+impl Default for DomainTag {
     fn default() -> Self {
         Self(DEFAULT_DOMAIN_TAG.to_string())
     }
 }
 
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    Copy,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::From,
-    derive_more::Into,
+    Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::From, derive_more::Into,
 )]
-struct ParticipantLeaseDuration(Duration);
-
-impl Default for ParticipantLeaseDuration {
+struct LeaseDuration(Duration);
+impl Default for LeaseDuration {
     fn default() -> Self {
         Self(DEFAULT_PARTICIPANT_LEASE_DURATION)
     }
@@ -64,7 +50,7 @@ pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 #[derive(Debug, PartialEq, Eq)]
 struct ParticipantProxy {
     domain_id: DomainId,
-    domain_tag: String,
+    domain_tag: DomainTag,
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
@@ -82,7 +68,7 @@ struct ParticipantProxy {
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
-    lease_duration: ParticipantLeaseDuration,
+    lease_duration: LeaseDuration,
 }
 
 impl SpdpDiscoveredParticipantData {
@@ -109,7 +95,7 @@ impl SpdpDiscoveredParticipantData {
             dds_participant_data: ParticipantBuiltinTopicData { key, user_data },
             participant_proxy: ParticipantProxy {
                 domain_id,
-                domain_tag,
+                domain_tag: domain_tag.into(),
                 protocol_version,
                 guid_prefix,
                 vendor_id,
@@ -135,7 +121,7 @@ impl SpdpDiscoveredParticipantData {
     }
 
     pub fn domain_tag(&self) -> &str {
-        &self.participant_proxy.domain_tag
+        &self.participant_proxy.domain_tag.0
     }
 
     pub fn guid_prefix(&self) -> GuidPrefix {
@@ -193,7 +179,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DOMAIN_TAG,
-            &DomainTagSerialize(&self.participant_proxy.domain_tag),
+            &self.participant_proxy.domain_tag,
         )?;
         parameter_list_serializer.serialize_parameter::<ProtocolVersion>(
             PID_PROTOCOL_VERSION,
@@ -252,9 +238,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let domain_id = param_list.get(PID_DOMAIN_ID)?;
-        let domain_tag = param_list
-            .get_or_default::<DomainTagDeserialize>(PID_DOMAIN_TAG)?
-            .into();
+        let domain_tag = param_list.get_or_default(PID_DOMAIN_TAG)?;
         let protocol_version = param_list.get(PID_PROTOCOL_VERSION)?;
         let vendor_id = param_list.get(PID_VENDORID)?;
         let expects_inline_qos = param_list.get_or_default(PID_EXPECTS_INLINE_QOS)?;
@@ -269,14 +253,11 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let manual_liveliness_count =
             param_list.get_or_default(PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT)?;
         let builtin_endpoint_qos = param_list.get_or_default(PID_BUILTIN_ENDPOINT_QOS)?;
-
-        let key = param_list.get::<BuiltInTopicKey>(PID_PARTICIPANT_GUID)?;
+        let key = param_list.get(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
-
-        let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-
         let lease_duration = param_list.get(PID_PARTICIPANT_LEASE_DURATION)?;
 
+        let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
         let v = dds_participant_data.key.value;
         let guid_prefix = GuidPrefix::new([
             v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
@@ -456,10 +437,6 @@ mod tests {
         let domain_tag = "ab".to_string();
         let protocol_version = ProtocolVersion::new(2, 4);
         let guid_prefix = GuidPrefix::new([8; 12]);
-        let guid = Guid::new(
-            guid_prefix,
-            EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
-        );
         let vendor_id = VendorId::new([73, 74]);
         let expects_inline_qos = true.into();
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
@@ -472,12 +449,9 @@ mod tests {
         let builtin_endpoint_qos = BuiltinEndpointQos::new(
             BuiltinEndpointQos::BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER,
         );
+        let lease_duration = Duration::new(10, 11);
 
-        let dds_participant_data = ParticipantBuiltinTopicData {
-            key: BuiltInTopicKey { value: guid.into() },
-            user_data: UserDataQosPolicy { value: vec![] },
-        };
-        let participant_proxy = ParticipantProxy {
+        let data = SpdpDiscoveredParticipantData::new(
             domain_id,
             domain_tag,
             protocol_version,
@@ -491,14 +465,12 @@ mod tests {
             available_builtin_endpoints,
             manual_liveliness_count,
             builtin_endpoint_qos,
-        };
-        let lease_duration = ParticipantLeaseDuration::from(Duration::new(10, 11));
-
-        let data = SpdpDiscoveredParticipantData {
-            dds_participant_data,
-            participant_proxy,
+            BuiltInTopicKey {
+                value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+            },
+            UserDataQosPolicy { value: vec![] },
             lease_duration,
-        };
+        );
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
