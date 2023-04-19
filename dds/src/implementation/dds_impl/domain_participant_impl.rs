@@ -268,7 +268,7 @@ impl DomainParticipantImpl {
         );
 
         let sedp_builtin_subscriptions_reader = DdsDataReader::new(
-            create_builtin_stateful_reader::<DiscoveredWriterData>(Guid::new(
+            create_builtin_stateful_reader::<DiscoveredReaderData>(Guid::new(
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             )),
