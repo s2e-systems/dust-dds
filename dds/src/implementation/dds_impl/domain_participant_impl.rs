@@ -930,42 +930,42 @@ impl DdsShared<DomainParticipantImpl> {
     }
 
     fn announce_participant(&self) -> DdsResult<()> {
-        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData {
-            dds_participant_data: ParticipantBuiltinTopicData {
+        let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
+            ParticipantBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: self.rtps_participant.guid().into(),
                 },
                 user_data: self.qos.read_lock().user_data.clone(),
             },
-            participant_proxy: ParticipantProxy {
-                domain_id: self.domain_id,
-                domain_tag: self.domain_tag.clone(),
-                protocol_version: self.rtps_participant.protocol_version(),
-                guid_prefix: self.rtps_participant.guid().prefix(),
-                vendor_id: self.rtps_participant.vendor_id(),
-                expects_inline_qos: false.into(),
-                metatraffic_unicast_locator_list: self
+            ParticipantProxy::new(
+                self.domain_id,
+                self.domain_tag.clone(),
+                self.rtps_participant.protocol_version(),
+                self.rtps_participant.guid().prefix(),
+                self.rtps_participant.vendor_id(),
+                false.into(),
+                self
                     .rtps_participant
                     .metatraffic_unicast_locator_list()
                     .to_vec(),
-                metatraffic_multicast_locator_list: self
+                self
                     .rtps_participant
                     .metatraffic_multicast_locator_list()
                     .to_vec(),
-                default_unicast_locator_list: self
+                self
                     .rtps_participant
                     .default_unicast_locator_list()
                     .to_vec(),
-                default_multicast_locator_list: self
+                self
                     .rtps_participant
                     .default_multicast_locator_list()
                     .to_vec(),
-                available_builtin_endpoints: BuiltinEndpointSet::default(),
-                manual_liveliness_count: self.manual_liveliness_count,
-                builtin_endpoint_qos: BuiltinEndpointQos::default(),
-            },
-            lease_duration: self.lease_duration.into(),
-        };
+                BuiltinEndpointSet::default(),
+                self.manual_liveliness_count,
+                BuiltinEndpointQos::default(),
+            ),
+            self.lease_duration.into(),
+        );
         let mut serialized_data = Vec::new();
         spdp_discovered_participant_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
 

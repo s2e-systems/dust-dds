@@ -68,29 +68,80 @@ pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ParticipantProxy {
-    pub domain_id: DomainId,
-    pub domain_tag: String,
-    pub protocol_version: ProtocolVersion,
-    pub guid_prefix: GuidPrefix,
-    pub vendor_id: VendorId,
-    pub expects_inline_qos: ExpectsInlineQos,
-    pub metatraffic_unicast_locator_list: Vec<Locator>,
-    pub metatraffic_multicast_locator_list: Vec<Locator>,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub available_builtin_endpoints: BuiltinEndpointSet,
-    pub manual_liveliness_count: Count,
-    pub builtin_endpoint_qos: BuiltinEndpointQos,
+    domain_id: DomainId,
+    domain_tag: String,
+    protocol_version: ProtocolVersion,
+    guid_prefix: GuidPrefix,
+    vendor_id: VendorId,
+    expects_inline_qos: ExpectsInlineQos,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    available_builtin_endpoints: BuiltinEndpointSet,
+    manual_liveliness_count: Count,
+    builtin_endpoint_qos: BuiltinEndpointQos,
+}
+
+impl ParticipantProxy {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        domain_id: DomainId,
+        domain_tag: String,
+        protocol_version: ProtocolVersion,
+        guid_prefix: GuidPrefix,
+        vendor_id: VendorId,
+        expects_inline_qos: bool,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        available_builtin_endpoints: BuiltinEndpointSet,
+        manual_liveliness_count: Count,
+        builtin_endpoint_qos: BuiltinEndpointQos,
+    ) -> Self {
+        Self {
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos: expects_inline_qos.into(),
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct SpdpDiscoveredParticipantData {
-    pub dds_participant_data: ParticipantBuiltinTopicData,
-    pub participant_proxy: ParticipantProxy,
-    pub lease_duration: ParticipantLeaseDuration,
+    dds_participant_data: ParticipantBuiltinTopicData,
+    participant_proxy: ParticipantProxy,
+    lease_duration: ParticipantLeaseDuration,
 }
 
 impl SpdpDiscoveredParticipantData {
+    pub fn new(
+        dds_participant_data: ParticipantBuiltinTopicData,
+        participant_proxy: ParticipantProxy,
+        lease_duration: ParticipantLeaseDuration,
+    ) -> Self {
+        Self {
+            dds_participant_data,
+            participant_proxy,
+            lease_duration,
+        }
+    }
+
+    pub fn dds_participant_data(&self) -> &ParticipantBuiltinTopicData {
+        &self.dds_participant_data
+    }
+
     pub fn domain_id(&self) -> DomainId {
         self.participant_proxy.domain_id
     }
