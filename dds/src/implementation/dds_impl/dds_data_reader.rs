@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::SyncSender, RwLockWriteGuard},
+    sync::RwLockWriteGuard,
 };
 
 use crate::{
@@ -19,9 +19,11 @@ use crate::{
                     HeartbeatSubmessage,
                 },
             },
+            reader::{RtpsReaderCacheChange, RtpsReaderResult},
             stateful_reader::{RtpsStatefulReader, StatefulReaderDataReceivedResult},
+            stateless_reader::{RtpsStatelessReader, StatelessReaderDataReceivedResult},
             transport::TransportWrite,
-            types::{GuidPrefix, Locator, GUID_UNKNOWN},
+            types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
@@ -55,9 +57,9 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, domain_participant_impl::AnnounceKind,
-    message_receiver::MessageReceiver, node_listener_data_reader::ListenerDataReaderNode,
-    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
+    node_listener_data_reader::ListenerDataReaderNode, status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -175,8 +177,8 @@ impl SubscriptionMatchedStatus {
     }
 }
 
-pub struct UserDefinedDataReader {
-    rtps_reader: DdsRwLock<RtpsStatefulReader>,
+pub struct DdsDataReader<T> {
+    rtps_reader: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
@@ -189,26 +191,21 @@ pub struct UserDefinedDataReader {
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    user_defined_data_send_condvar: DdsCondvar,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
     wait_for_historical_data_condvar: DdsCondvar,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
-    announce_sender: SyncSender<AnnounceKind>,
 }
 
-impl UserDefinedDataReader {
-    #[allow(clippy::too_many_arguments)]
+impl<T> DdsDataReader<T> {
     pub fn new(
-        rtps_reader: RtpsStatefulReader,
+        rtps_reader: T,
         type_name: &'static str,
         topic_name: String,
         listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
         mask: &[StatusKind],
-        user_defined_data_send_condvar: DdsCondvar,
-        announce_sender: SyncSender<AnnounceKind>,
     ) -> DdsShared<Self> {
-        DdsShared::new(UserDefinedDataReader {
+        DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             type_name,
             topic_name,
@@ -226,12 +223,10 @@ impl UserDefinedDataReader {
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            user_defined_data_send_condvar,
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             wait_for_historical_data_condvar: DdsCondvar::new(),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
-            announce_sender,
         })
     }
 
@@ -240,9 +235,7 @@ impl UserDefinedDataReader {
     ) -> RwLockWriteGuard<StatusListener<dyn AnyDataReaderListener + Send + Sync>> {
         self.status_listener.write_lock()
     }
-}
 
-impl DdsShared<UserDefinedDataReader> {
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
     }
@@ -251,6 +244,61 @@ impl DdsShared<UserDefinedDataReader> {
         &self.topic_name
     }
 
+    pub fn get_liveliness_changed_status(&self) -> LivelinessChangedStatus {
+        self.liveliness_changed_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_requested_deadline_missed_status(&self) -> RequestedDeadlineMissedStatus {
+        self.requested_deadline_missed_status
+            .write_lock()
+            .read_and_reset()
+    }
+
+    pub fn get_requested_incompatible_qos_status(&self) -> RequestedIncompatibleQosStatus {
+        self.requested_incompatible_qos_status
+            .write_lock()
+            .read_and_reset()
+    }
+
+    pub fn get_sample_lost_status(&self) -> SampleLostStatus {
+        self.sample_lost_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SampleRejected);
+        self.sample_rejected_status.write_lock().read_and_reset()
+    }
+
+    pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
+        self.status_condition
+            .write_lock()
+            .remove_communication_state(StatusKind::SubscriptionMatched);
+        self.subscription_matched_status
+            .write_lock()
+            .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
+    }
+
+    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
+        self.status_condition.clone()
+    }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        *self.enabled.read_lock()
+    }
+
+    pub fn enable(&self) -> DdsResult<()> {
+        *self.enabled.write_lock() = true;
+        Ok(())
+    }
+}
+
+impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
@@ -364,7 +412,6 @@ impl DdsShared<UserDefinedDataReader> {
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
         self.wait_for_historical_data_condvar.notify_all();
-        self.user_defined_data_send_condvar.notify_all();
     }
 
     pub fn on_heartbeat_frag_submessage_received(
@@ -474,7 +521,7 @@ impl DdsShared<UserDefinedDataReader> {
         subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
         let writer_info = &discovered_writer_data.publication_builtin_topic_data;
-        let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
+        let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         let mut incompatible_qos_policy_list = Vec::new();
 
@@ -547,7 +594,7 @@ impl DdsShared<UserDefinedDataReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader.write_lock().reader_mut().read(
+        self.rtps_reader.write_lock().read(
             max_samples,
             sample_states,
             view_states,
@@ -571,7 +618,7 @@ impl DdsShared<UserDefinedDataReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader.write_lock().reader_mut().take(
+        self.rtps_reader.write_lock().take(
             max_samples,
             sample_states,
             view_states,
@@ -595,16 +642,13 @@ impl DdsShared<UserDefinedDataReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader
-            .write_lock()
-            .reader_mut()
-            .read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            )
+        self.rtps_reader.write_lock().read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     pub fn take_next_instance<Foo>(
@@ -622,16 +666,13 @@ impl DdsShared<UserDefinedDataReader> {
             return Err(DdsError::NotEnabled);
         }
 
-        self.rtps_reader
-            .write_lock()
-            .reader_mut()
-            .take_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            )
+        self.rtps_reader.write_lock().take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     pub fn get_key_value<Foo>(
@@ -650,42 +691,6 @@ impl DdsShared<UserDefinedDataReader> {
         todo!()
     }
 
-    pub fn get_liveliness_changed_status(&self) -> LivelinessChangedStatus {
-        self.liveliness_changed_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_requested_deadline_missed_status(&self) -> RequestedDeadlineMissedStatus {
-        self.requested_deadline_missed_status
-            .write_lock()
-            .read_and_reset()
-    }
-
-    pub fn get_requested_incompatible_qos_status(&self) -> RequestedIncompatibleQosStatus {
-        self.requested_incompatible_qos_status
-            .write_lock()
-            .read_and_reset()
-    }
-
-    pub fn get_sample_lost_status(&self) -> SampleLostStatus {
-        self.sample_lost_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SampleRejected);
-        self.sample_rejected_status.write_lock().read_and_reset()
-    }
-
-    pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
-        self.subscription_matched_status
-            .write_lock()
-            .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
-    }
-
     pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
         if !*self.enabled.read_lock() {
             Err(DdsError::NotEnabled)
@@ -693,14 +698,7 @@ impl DdsShared<UserDefinedDataReader> {
             Ok(())
         }?;
 
-        match self
-            .rtps_reader
-            .read_lock()
-            .reader()
-            .get_qos()
-            .durability
-            .kind
-        {
+        match self.rtps_reader.read_lock().get_qos().durability.kind {
             DurabilityQosPolicyKind::Volatile => Err(DdsError::IllegalOperation),
             DurabilityQosPolicyKind::TransientLocal => Ok(()),
         }?;
@@ -751,47 +749,21 @@ impl DdsShared<UserDefinedDataReader> {
         if self.is_enabled() {
             self.rtps_reader
                 .write_lock()
-                .reader()
                 .get_qos()
                 .check_immutability(&qos)?;
         }
 
-        self.rtps_reader.write_lock().reader_mut().set_qos(qos)?;
+        self.rtps_reader.write_lock().set_qos(qos)?;
 
         Ok(())
     }
 
     pub fn get_qos(&self) -> DataReaderQos {
-        self.rtps_reader.read_lock().reader().get_qos().clone()
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
-    }
-
-    pub fn is_enabled(&self) -> bool {
-        *self.enabled.read_lock()
-    }
-
-    pub fn enable(&self) -> DdsResult<()> {
-        *self.enabled.write_lock() = true;
-        Ok(())
-    }
-
-    pub fn announce_reader(&self, topic_qos: &TopicQos, subscriber_qos: &SubscriberQos) {
-        self.announce_sender
-            .send(AnnounceKind::CreatedDataReader(
-                self.as_discovered_reader_data(topic_qos, subscriber_qos),
-            ))
-            .ok();
+        self.rtps_reader.read_lock().get_qos().clone()
     }
 
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.rtps_reader.read_lock().reader().guid().into()
+        self.rtps_reader.read_lock().guid().into()
     }
 
     pub fn as_discovered_reader_data(
@@ -799,8 +771,8 @@ impl DdsShared<UserDefinedDataReader> {
         topic_qos: &TopicQos,
         subscriber_qos: &SubscriberQos,
     ) -> DiscoveredReaderData {
-        let guid = self.rtps_reader.read_lock().reader().guid();
-        let reader_qos = self.rtps_reader.read_lock().reader().get_qos().clone();
+        let guid = self.rtps_reader.read_lock().guid();
+        let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         DiscoveredReaderData {
             reader_proxy: ReaderProxy {
@@ -855,13 +827,7 @@ impl DdsShared<UserDefinedDataReader> {
             .iter()
             .partition(|&(_, received_time)| {
                 DurationKind::Finite(now - *received_time)
-                    > self
-                        .rtps_reader
-                        .read_lock()
-                        .reader()
-                        .get_qos()
-                        .deadline
-                        .period
+                    > self.rtps_reader.read_lock().get_qos().deadline.period
             });
 
         *self.instance_reception_time.write_lock() = instance_reception_time;
@@ -1234,5 +1200,142 @@ impl DdsShared<UserDefinedDataReader> {
                     self.get_requested_incompatible_qos_status(),
                 )
         }
+    }
+}
+
+impl DdsDataReader<RtpsStatefulReader> {
+    pub fn matched_writer_add(&self, a_writer_proxy: RtpsWriterProxy) {
+        self.rtps_reader
+            .write_lock()
+            .matched_writer_add(a_writer_proxy)
+    }
+
+    pub fn _matched_writer_remove(&self, a_writer_guid: Guid) {
+        self.rtps_reader
+            .write_lock()
+            .matched_writer_remove(a_writer_guid)
+    }
+}
+
+impl DdsDataReader<RtpsStatelessReader> {
+    pub fn guid(&self) -> Guid {
+        self.rtps_reader.read_lock().guid()
+    }
+
+    pub fn _convert_data_to_cache_change(
+        &self,
+        data_submessage: &DataSubmessage,
+        source_timestamp: Option<Time>,
+        source_guid_prefix: GuidPrefix,
+        reception_timestamp: Time,
+    ) -> RtpsReaderResult<RtpsReaderCacheChange> {
+        self.rtps_reader.read_lock()._convert_data_to_cache_change(
+            data_submessage,
+            source_timestamp,
+            source_guid_prefix,
+            reception_timestamp,
+        )
+    }
+
+    pub fn _add_change(&self, change: RtpsReaderCacheChange) -> RtpsReaderResult<InstanceHandle> {
+        self.rtps_reader.write_lock()._add_change(change)
+    }
+
+    pub fn get_qos(&self) -> DataReaderQos {
+        self.rtps_reader.read_lock().get_qos().clone()
+    }
+
+    pub fn _set_qos(&self, qos: DataReaderQos) -> DdsResult<()> {
+        self.rtps_reader.write_lock()._set_qos(qos)
+    }
+
+    pub fn read<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().read(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn _take<Foo>(
+        &self,
+        max_samples: i32,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+        specific_instance_handle: Option<InstanceHandle>,
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock()._take(
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+            specific_instance_handle,
+        )
+    }
+
+    pub fn read_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock().read_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
+    }
+
+    pub fn _take_next_instance<Foo>(
+        &self,
+        max_samples: i32,
+        previous_handle: Option<InstanceHandle>,
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
+    ) -> DdsResult<Vec<Sample<Foo>>>
+    where
+        Foo: for<'de> DdsDeserialize<'de>,
+    {
+        self.rtps_reader.write_lock()._take_next_instance(
+            max_samples,
+            previous_handle,
+            sample_states,
+            view_states,
+            instance_states,
+        )
+    }
+
+    pub fn on_data_submessage_received(
+        &self,
+        data_submessage: &DataSubmessage<'_>,
+        message_receiver: &MessageReceiver,
+    ) -> StatelessReaderDataReceivedResult {
+        self.rtps_reader
+            .write_lock()
+            .on_data_submessage_received(data_submessage, message_receiver)
     }
 }

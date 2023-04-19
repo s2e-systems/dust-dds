@@ -9,6 +9,7 @@ use crate::{
                 DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
                 HeartbeatSubmessage,
             },
+            stateful_reader::RtpsStatefulReader,
             types::{GuidPrefix, Locator},
         },
         utils::{
@@ -30,6 +31,7 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
+    dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
     domain_participant_impl::AnnounceKind,
     message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
     node_kind::SubscriberNodeKind,
@@ -37,15 +39,12 @@ use super::{
     reader_factory::ReaderFactory,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_data_reader::{
-        UserDefinedDataReader, UserDefinedReaderDataSubmessageReceivedResult,
-    },
 };
 
 pub struct UserDefinedSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    data_reader_list: DdsRwLock<Vec<DdsShared<UserDefinedDataReader>>>,
+    data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>>,
     reader_factory: DdsRwLock<ReaderFactory>,
     enabled: DdsRwLock<bool>,
     user_defined_data_send_condvar: DdsCondvar,
@@ -109,7 +108,7 @@ impl UserDefinedSubscriber {
         mask: &[StatusKind],
         default_unicast_locator_list: &[Locator],
         default_multicast_locator_list: &[Locator],
-    ) -> DdsResult<DdsShared<UserDefinedDataReader>>
+    ) -> DdsResult<DdsShared<DdsDataReader<RtpsStatefulReader>>>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
@@ -121,15 +120,8 @@ impl UserDefinedSubscriber {
             default_multicast_locator_list,
         )?;
 
-        let data_reader_shared = UserDefinedDataReader::new(
-            rtps_reader,
-            type_name,
-            topic_name,
-            a_listener,
-            mask,
-            self.user_defined_data_send_condvar.clone(),
-            self.announce_sender.clone(),
-        );
+        let data_reader_shared =
+            DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
 
         self.data_reader_list
             .write_lock()
@@ -172,7 +164,9 @@ impl UserDefinedSubscriber {
         Ok(())
     }
 
-    pub fn data_reader_list(&self) -> DdsListIntoIterator<DdsShared<UserDefinedDataReader>> {
+    pub fn data_reader_list(
+        &self,
+    ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatefulReader>>> {
         DdsListIntoIterator::new(self.data_reader_list.read_lock())
     }
 }
@@ -335,6 +329,7 @@ impl SubscriberSubmessageReceiver for DdsShared<UserDefinedSubscriber> {
         for data_reader in self.data_reader_list.read_lock().iter() {
             data_reader.on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix)
         }
+        self.user_defined_data_send_condvar.notify_all();
     }
 
     fn on_heartbeat_frag_submessage_received(

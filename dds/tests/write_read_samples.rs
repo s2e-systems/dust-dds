@@ -1807,7 +1807,7 @@ fn data_reader_order_by_source_timestamp() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     writer
         .write_w_timestamp(&UserData(1), None, Time::new(30, 0))

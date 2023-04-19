@@ -1,14 +1,25 @@
 use crate::{
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::{
+            endpoint::RtpsEndpoint,
+            stateful_writer::RtpsStatefulWriter,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_WRITER_NO_KEY,
+                USER_DEFINED_WRITER_WITH_KEY,
+            },
+            writer::RtpsWriter,
+        },
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
-        time::Duration,
+        time::{Duration, DURATION_ZERO},
     },
     publication::publisher_listener::PublisherListener,
     topic_definition::type_support::DdsType,
@@ -17,25 +28,23 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dcps_service::DcpsService,
+    dds_data_writer::DdsDataWriter,
+    dds_publisher::DdsPublisher,
     domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_publisher::UserDefinedPublisher,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedPublisherNode(
-    ChildNode<UserDefinedPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedPublisherNode {
     pub fn new(
-        node: ChildNode<
-            UserDefinedPublisher,
-            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-        >,
+        node: ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }
@@ -55,15 +64,51 @@ impl UserDefinedPublisherNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        let data_writer = self.0.get()?.create_datawriter::<Foo>(
-            type_name,
-            topic_name,
+        let qos = match qos {
+            QosKind::Default => self.0.get()?.get_default_datawriter_qos(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
+        let entity_kind = match Foo::has_key() {
+            true => USER_DEFINED_WRITER_WITH_KEY,
+            false => USER_DEFINED_WRITER_NO_KEY,
+        };
+
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(self.0.get()?.guid().entity_id().entity_key())[0],
+            self.0.get()?.get_unique_writer_id(),
+            0,
+        ]);
+
+        let entity_id = EntityId::new(entity_key, entity_kind);
+
+        let guid = Guid::new(self.0.get()?.guid().prefix(), entity_id);
+
+        let topic_kind = match Foo::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            ),
+            true,
+            Duration::new(0, 200_000_000),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            self.0.parent().get()?.data_max_size_serialized(),
             qos,
-            a_listener,
-            mask,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-        )?;
+        ));
+
+        let data_writer =
+            DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
+
+        self.0.get()?.stateful_datawriter_add(data_writer.clone());
 
         let data_writer_node =
             UserDefinedDataWriterNode::new(ChildNode::new(data_writer.downgrade(), self.0.clone()));
@@ -83,7 +128,35 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_datawriter(data_writer_handle)
+        let data_writer = self
+            .0
+            .get()?
+            .stateful_data_writer_list()
+            .into_iter()
+            .find(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data writer can only be deleted from its parent publisher".to_string(),
+                )
+            })?
+            .clone();
+
+        self.0
+            .get()?
+            .stateful_datawriter_delete(InstanceHandle::from(data_writer.guid()));
+
+        // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
+        if data_writer.is_enabled() {
+            self.0
+                .parent()
+                .parent()
+                .get()?
+                .announce_sender()
+                .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                .ok();
+        }
+
+        Ok(())
     }
 
     pub fn lookup_datawriter(
@@ -94,7 +167,7 @@ impl UserDefinedPublisherNode {
         let writer = self
             .0
             .get()?
-            .data_writer_list()
+            .stateful_data_writer_list()
             .into_iter()
             .find(|data_writer| {
                 data_writer.get_topic_name() == topic_name
@@ -110,23 +183,38 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn suspend_publications(&self) -> DdsResult<()> {
-        self.0.get()?.suspend_publications()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn resume_publications(&self) -> DdsResult<()> {
-        self.0.get()?.resume_publications()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn begin_coherent_changes(&self) -> DdsResult<()> {
-        self.0.get()?.begin_coherent_changes()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn end_coherent_changes(&self) -> DdsResult<()> {
-        self.0.get()?.end_coherent_changes()
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        self.0.get()?.wait_for_acknowledgments(max_wait)
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DdsResult<()> {
+        if !self.0.get()?.is_enabled() {
+            return Err(DdsError::NotEnabled);
+        }
+        todo!()
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
@@ -134,7 +222,19 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.get()?.delete_contained_entities()
+        for data_writer in self.0.get()?.stateful_datawriter_drain().into_iter() {
+            if data_writer.is_enabled() {
+                self.0
+                    .parent()
+                    .parent()
+                    .get()?
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                    .ok();
+            }
+        }
+
+        Ok(())
     }
 
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
@@ -186,7 +286,7 @@ impl UserDefinedPublisherNode {
         }
 
         if !self.0.get()?.is_enabled() {
-            self.0.get()?.enable()?;
+            self.0.get()?.enable();
 
             if self
                 .0
@@ -195,7 +295,7 @@ impl UserDefinedPublisherNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_writer in &self.0.get()?.data_writer_list() {
+                for data_writer in &self.0.get()?.stateful_data_writer_list() {
                     data_writer.enable();
                     let topic = self
                         .0
@@ -229,6 +329,6 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(InstanceHandle::from(self.0.get()?.guid()))
     }
 }

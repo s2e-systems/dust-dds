@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::RwLockReadGuard};
+use std::{collections::HashMap, sync::{RwLockReadGuard, RwLockWriteGuard}};
 
 pub struct DdsListIntoIterator<'a, T> {
     lock: RwLockReadGuard<'a, Vec<T>>,
@@ -16,6 +16,25 @@ impl<'a, T> IntoIterator for &'a DdsListIntoIterator<'_, T> {
 impl<'a, T> DdsListIntoIterator<'a, T> {
     pub fn new(lock: RwLockReadGuard<'a, Vec<T>>) -> Self {
         Self { lock }
+    }
+}
+
+pub struct DdsDrainIntoIterator<'a, T> {
+    lock: RwLockWriteGuard<'a, Vec<T>>,
+}
+
+impl<'a, T> DdsDrainIntoIterator<'a, T> {
+    pub fn new(lock: RwLockWriteGuard<'a, Vec<T>>) -> Self {
+        Self { lock }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut DdsDrainIntoIterator<'_, T> {
+    type Item = T;
+    type IntoIter = std::vec::Drain<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.lock.drain(..)
     }
 }
 

@@ -359,6 +359,15 @@ impl<T> DdsDataWriter<T> {
     pub fn is_enabled(&self) -> bool {
         *self.enabled.read_lock()
     }
+
+    pub fn get_topic_name(&self) -> &str {
+        &self.topic_name
+    }
+
+    pub fn get_type_name(&self) -> &'static str {
+        self.type_name
+    }
+
 }
 
 impl DdsDataWriter<RtpsStatefulWriter> {
@@ -437,13 +446,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         self.rtps_writer.read_lock().is_acked_by_all(a_change)
     }
 
-    pub fn get_topic_name(&self) -> &str {
-        &self.topic_name
-    }
 
-    pub fn get_type_name(&self) -> &'static str {
-        self.type_name
-    }
 
     pub fn get_qos(&self) -> DataWriterQos {
         self.rtps_writer.read_lock().get_qos().clone()

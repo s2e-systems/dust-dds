@@ -1,8 +1,11 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::utils::{
-        node::{ChildNode, RootNode},
-        shared_object::{DdsRwLock, DdsShared},
+    implementation::{
+        rtps::stateful_reader::RtpsStatefulReader,
+        utils::{
+            node::{ChildNode, RootNode},
+            shared_object::{DdsRwLock, DdsShared},
+        },
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -22,32 +25,27 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl,
+    any_data_reader_listener::AnyDataReaderListener,
+    dcps_service::DcpsService,
+    dds_data_reader::DdsDataReader,
+    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener, user_defined_data_reader::UserDefinedDataReader,
+    node_user_defined_topic::UserDefinedTopicNode,
+    status_condition_impl::StatusConditionImpl,
+    status_listener::StatusListener,
     user_defined_subscriber::UserDefinedSubscriber,
 };
 
+type UserDefinedDataReaderNodeType = ChildNode<
+    DdsDataReader<RtpsStatefulReader>,
+    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+>;
+
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedDataReaderNode(
-    ChildNode<
-        UserDefinedDataReader,
-        ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
-    >,
-);
+pub struct UserDefinedDataReaderNode(UserDefinedDataReaderNodeType);
 
 impl UserDefinedDataReaderNode {
-    pub fn new(
-        node: ChildNode<
-            UserDefinedDataReader,
-            ChildNode<
-                UserDefinedSubscriber,
-                ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-            >,
-        >,
-    ) -> Self {
+    pub fn new(node: UserDefinedDataReaderNodeType) -> Self {
         Self(node)
     }
 
@@ -231,8 +229,18 @@ impl UserDefinedDataReaderNode {
                 .cloned()
                 .expect("Topic must exist");
             self.0
+                .parent()
+                .parent()
+                .parent()
                 .get()?
-                .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+                .announce_sender()
+                .send(AnnounceKind::CreatedDataReader(
+                    self.0.get()?.as_discovered_reader_data(
+                        &topic.get_qos(),
+                        &self.0.parent().get()?.get_qos(),
+                    ),
+                ))
+                .ok();
         }
 
         Ok(())
@@ -284,8 +292,17 @@ impl UserDefinedDataReaderNode {
             .cloned()
             .expect("Topic must exist");
         self.0
+            .parent()
+            .parent()
+            .parent()
             .get()?
-            .announce_reader(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            .announce_sender()
+            .send(AnnounceKind::CreatedDataReader(
+                self.0
+                    .get()?
+                    .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos()),
+            ))
+            .ok();
 
         Ok(())
     }

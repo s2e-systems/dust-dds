@@ -17,7 +17,7 @@ use super::domain_participant_impl::{
 };
 
 pub struct ParticipantDiscovery<'a> {
-    participant_data: &'a SpdpDiscoveredParticipantData,
+    _participant_data: &'a SpdpDiscoveredParticipantData,
 }
 
 pub struct MismatchedDomain;
@@ -47,20 +47,22 @@ impl<'a> ParticipantDiscovery<'a> {
         if participant_data.domain_id() == local_participant_domain_id
             && participant_data.domain_tag() == local_participant_domain_tag
         {
-            Ok(Self { participant_data })
+            Ok(Self {
+                _participant_data: participant_data,
+            })
         } else {
             Err(MismatchedDomain)
         }
     }
 
-    pub fn discovered_participant_add_publications_reader(&self, reader: &mut RtpsStatefulReader) {
+    pub fn _discovered_participant_add_publications_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
-            .participant_data
+            ._participant_data
             .available_builtin_endpoints()
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                self.participant_data.guid_prefix(),
+                self._participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -68,8 +70,8 @@ impl<'a> ParticipantDiscovery<'a> {
 
             let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
+                self._participant_data.metatraffic_unicast_locator_list(),
+                self._participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );
@@ -78,14 +80,17 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_subscriptions_reader(&self, reader: &mut RtpsStatefulReader) {
+    pub fn _discovered_participant_add_subscriptions_reader(
+        &self,
+        reader: &mut RtpsStatefulReader,
+    ) {
         if self
-            .participant_data
+            ._participant_data
             .available_builtin_endpoints()
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                self.participant_data.guid_prefix(),
+                self._participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -93,8 +98,8 @@ impl<'a> ParticipantDiscovery<'a> {
 
             let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
+                self._participant_data.metatraffic_unicast_locator_list(),
+                self._participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );
@@ -102,14 +107,14 @@ impl<'a> ParticipantDiscovery<'a> {
         }
     }
 
-    pub fn discovered_participant_add_topics_reader(&self, reader: &mut RtpsStatefulReader) {
+    pub fn _discovered_participant_add_topics_reader(&self, reader: &mut RtpsStatefulReader) {
         if self
-            .participant_data
+            ._participant_data
             .available_builtin_endpoints()
             .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
         {
             let remote_writer_guid = Guid::new(
-                self.participant_data.guid_prefix(),
+                self._participant_data.guid_prefix(),
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             );
             let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -117,8 +122,8 @@ impl<'a> ParticipantDiscovery<'a> {
 
             let proxy = RtpsWriterProxy::new(
                 remote_writer_guid,
-                self.participant_data.metatraffic_unicast_locator_list(),
-                self.participant_data.metatraffic_multicast_locator_list(),
+                self._participant_data.metatraffic_unicast_locator_list(),
+                self._participant_data.metatraffic_multicast_locator_list(),
                 data_max_size_serialized,
                 remote_group_entity_id,
             );
