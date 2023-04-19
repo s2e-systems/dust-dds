@@ -30,7 +30,7 @@ use super::{
     dcps_service::DcpsService,
     dds_data_writer::DdsDataWriter,
     dds_publisher::DdsPublisher,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
@@ -39,12 +39,12 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedPublisherNode(
-    ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsPublisher, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedPublisherNode {
     pub fn new(
-        node: ChildNode<DdsPublisher, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+        node: ChildNode<DdsPublisher, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }

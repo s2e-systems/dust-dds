@@ -1,11 +1,23 @@
 use crate::{
-    implementation::utils::node::{ChildNode, RootNode},
+    implementation::{
+        rtps::{
+            endpoint::RtpsEndpoint,
+            reader::RtpsReader,
+            stateful_reader::RtpsStatefulReader,
+            types::{
+                EntityId, EntityKey, Guid, TopicKind, USER_DEFINED_READER_NO_KEY,
+                USER_DEFINED_READER_WITH_KEY,
+            },
+        },
+        utils::node::{ChildNode, RootNode},
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataReaderQos, QosKind, SubscriberQos},
         status::{SampleLostStatus, StatusKind},
+        time::DURATION_ZERO,
     },
     subscription::subscriber_listener::SubscriberListener,
     topic_definition::type_support::{DdsDeserialize, DdsType},
@@ -14,24 +26,22 @@ use crate::{
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
     dcps_service::DcpsService,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    dds_data_reader::DdsDataReader,
+    dds_subscriber::DdsSubscriber,
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedSubscriberNode(
-    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 );
 
 impl UserDefinedSubscriberNode {
     pub fn new(
-        node: ChildNode<
-            UserDefinedSubscriber,
-            ChildNode<DomainParticipantImpl, RootNode<DcpsService>>,
-        >,
+        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }
@@ -51,18 +61,51 @@ impl UserDefinedSubscriberNode {
         let default_unicast_locator_list = participant.default_unicast_locator_list();
         let default_multicast_locator_list = participant.default_multicast_locator_list();
 
-        let reader = self.0.get()?.create_datareader::<Foo>(
-            type_name,
-            topic_name,
+        let qos = match qos {
+            QosKind::Default => self.0.get()?.get_default_datareader_qos(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
+
+        let entity_kind = match Foo::has_key() {
+            true => USER_DEFINED_READER_WITH_KEY,
+            false => USER_DEFINED_READER_NO_KEY,
+        };
+
+        let entity_key = EntityKey::new([
+            <[u8; 3]>::from(self.0.get()?.guid().entity_id().entity_key())[0],
+            self.0.get()?.get_unique_reader_id(),
+            0,
+        ]);
+
+        let entity_id = EntityId::new(entity_key, entity_kind);
+
+        let guid = Guid::new(self.0.get()?.guid().prefix(), entity_id);
+
+        let topic_kind = match Foo::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+
+        let rtps_reader = RtpsStatefulReader::new(RtpsReader::new::<Foo>(
+            RtpsEndpoint::new(
+                guid,
+                topic_kind,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+            ),
+            DURATION_ZERO,
+            DURATION_ZERO,
+            false,
             qos,
-            a_listener,
-            mask,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-        )?;
+        ));
+
+        let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
+
+        self.0.get()?.stateful_data_reader_add(data_reader.clone());
 
         let node =
-            UserDefinedDataReaderNode::new(ChildNode::new(reader.downgrade(), self.0.clone()));
+            UserDefinedDataReaderNode::new(ChildNode::new(data_reader.downgrade(), self.0.clone()));
 
         if self.0.get()?.is_enabled()
             && self
@@ -79,7 +122,34 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_datareader(a_datareader_handle)
+        let data_reader = self
+            .0
+            .get()?
+            .stateful_data_reader_list()
+            .into_iter()
+            .find(|x| x.get_instance_handle() == a_datareader_handle)
+            .ok_or_else(|| {
+                DdsError::PreconditionNotMet(
+                    "Data reader can only be deleted from its parent subscriber".to_string(),
+                )
+            })?
+            .clone();
+
+        self.0.get()?.stateful_data_reader_delete(a_datareader_handle);
+
+        if data_reader.is_enabled() {
+            self.0
+                .parent()
+                .parent()
+                .get()?
+                .announce_sender()
+                .send(AnnounceKind::DeletedDataReader(
+                    data_reader.get_instance_handle(),
+                ))
+                .ok();
+        }
+
+        Ok(())
     }
 
     pub fn lookup_datareader(
@@ -90,7 +160,7 @@ impl UserDefinedSubscriberNode {
         let reader = self
             .0
             .get()?
-            .data_reader_list()
+            .stateful_data_reader_list()
             .into_iter()
             .find(|data_reader| {
                 data_reader.get_topic_name() == topic_name
@@ -105,7 +175,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn notify_datareaders(&self) -> DdsResult<()> {
-        self.0.get()?.notify_datareaders()
+        todo!()
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
@@ -113,11 +183,24 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        self.0.get()?.get_sample_lost_status()
+        todo!()
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.get()?.delete_contained_entities()
+        for data_reader in self.0.get()?.stateful_data_reader_drain().into_iter() {
+            if data_reader.is_enabled() {
+                self.0
+                    .parent()
+                    .parent()
+                    .get()?
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataReader(
+                        data_reader.get_instance_handle(),
+                    ))
+                    .ok();
+            }
+        }
+        Ok(())
     }
 
     pub fn set_default_datareader_qos(&self, qos: QosKind<DataReaderQos>) -> DdsResult<()> {
@@ -166,7 +249,7 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for data_reader in &self.0.get()?.data_reader_list() {
+                for data_reader in &self.0.get()?.stateful_data_reader_list() {
                     data_reader.enable()?;
                     let topic = self
                         .0

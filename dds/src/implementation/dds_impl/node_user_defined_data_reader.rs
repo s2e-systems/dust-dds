@@ -28,17 +28,17 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     dcps_service::DcpsService,
     dds_data_reader::DdsDataReader,
-    domain_participant_impl::{AnnounceKind, DomainParticipantImpl},
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
+    dds_subscriber::DdsSubscriber,
 };
 
 type UserDefinedDataReaderNodeType = ChildNode<
     DdsDataReader<RtpsStatefulReader>,
-    ChildNode<UserDefinedSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 >;
 
 #[derive(PartialEq, Debug)]
