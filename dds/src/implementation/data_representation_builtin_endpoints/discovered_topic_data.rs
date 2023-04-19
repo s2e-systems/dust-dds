@@ -1,17 +1,12 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, TopicBuiltinTopicData},
+    builtin_topics::TopicBuiltinTopicData,
     implementation::parameter_list_serde::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
     },
     infrastructure::{
         error::DdsResult,
-        qos_policy::{
-            DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
-            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
-            ReliabilityQosPolicy, ResourceLimitsQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-        },
+        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
@@ -77,69 +72,58 @@ impl DdsSerialize for DiscoveredTopicData {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
-        parameter_list_serializer.serialize_parameter::<&BuiltInTopicKey, _>(
-            PID_ENDPOINT_GUID,
-            &self.topic_builtin_topic_data.key,
-        )?;
-        parameter_list_serializer.serialize_parameter::<String, _>(
-            PID_TOPIC_NAME,
-            &self.topic_builtin_topic_data.name,
-        )?;
-        parameter_list_serializer.serialize_parameter::<String, _>(
-            PID_TYPE_NAME,
-            &self.topic_builtin_topic_data.type_name,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&DurabilityQosPolicy, _>(
+        parameter_list_serializer
+            .serialize_parameter(PID_ENDPOINT_GUID, &self.topic_builtin_topic_data.key)?;
+        parameter_list_serializer
+            .serialize_parameter(PID_TOPIC_NAME, &self.topic_builtin_topic_data.name)?;
+        parameter_list_serializer
+            .serialize_parameter(PID_TYPE_NAME, &self.topic_builtin_topic_data.type_name)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DURABILITY,
             &self.topic_builtin_topic_data.durability,
         )?;
 
-        parameter_list_serializer.serialize_parameter_if_not_default::<&DeadlineQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DEADLINE,
             &self.topic_builtin_topic_data.deadline,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&LatencyBudgetQosPolicy, _>(
-                PID_LATENCY_BUDGET,
-                &self.topic_builtin_topic_data.latency_budget,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&LivelinessQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_LATENCY_BUDGET,
+            &self.topic_builtin_topic_data.latency_budget,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIVELINESS,
             &self.topic_builtin_topic_data.liveliness,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<ReliabilityQosPolicyDataReaderAndTopicsSerialize, _>(
-                PID_RELIABILITY,
-                &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability),
-            )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&TransportPriorityQosPolicy, _>(
-                PID_TRANSPORT_PRIORITY,
-                &self.topic_builtin_topic_data.transport_priority,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&LifespanQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_RELIABILITY,
+            &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability),
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_TRANSPORT_PRIORITY,
+            &self.topic_builtin_topic_data.transport_priority,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LIFESPAN,
             &self.topic_builtin_topic_data.lifespan,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&DestinationOrderQosPolicy, _>(
-                PID_DESTINATION_ORDER,
-                &self.topic_builtin_topic_data.destination_order,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&HistoryQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_DESTINATION_ORDER,
+            &self.topic_builtin_topic_data.destination_order,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_HISTORY,
             &self.topic_builtin_topic_data.history,
         )?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default::<&ResourceLimitsQosPolicy, _>(
-                PID_RESOURCE_LIMITS,
-                &self.topic_builtin_topic_data.resource_limits,
-            )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&OwnershipQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_RESOURCE_LIMITS,
+            &self.topic_builtin_topic_data.resource_limits,
+        )?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_OWNERSHIP,
             &self.topic_builtin_topic_data.ownership,
         )?;
-        parameter_list_serializer.serialize_parameter_if_not_default::<&TopicDataQosPolicy, _>(
+        parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TOPIC_DATA,
             &self.topic_builtin_topic_data.topic_data,
         )?;
@@ -151,28 +135,23 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
     fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
-        let key = param_list.get::<BuiltInTopicKey, _>(PID_ENDPOINT_GUID)?;
-        let name = param_list.get::<String, _>(PID_TOPIC_NAME)?;
-        let type_name = param_list.get::<String, _>(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default::<DurabilityQosPolicy, _>(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default::<DeadlineQosPolicy, _>(PID_DEADLINE)?;
-        let latency_budget =
-            param_list.get_or_default::<LatencyBudgetQosPolicy, _>(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default::<LivelinessQosPolicy, _>(PID_LIVELINESS)?;
+        let key = param_list.get(PID_ENDPOINT_GUID)?;
+        let name = param_list.get(PID_TOPIC_NAME)?;
+        let type_name = param_list.get(PID_TYPE_NAME)?;
+        let durability = param_list.get_or_default(PID_DURABILITY)?;
+        let deadline = param_list.get_or_default(PID_DEADLINE)?;
+        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
+        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize, _>(
-                PID_RELIABILITY,
-            )?;
-        let transport_priority =
-            param_list.get_or_default::<TransportPriorityQosPolicy, _>(PID_TRANSPORT_PRIORITY)?;
-        let lifespan = param_list.get_or_default::<LifespanQosPolicy, _>(PID_LIFESPAN)?;
-        let ownership = param_list.get_or_default::<OwnershipQosPolicy, _>(PID_OWNERSHIP)?;
-        let destination_order =
-            param_list.get_or_default::<DestinationOrderQosPolicy, _>(PID_DESTINATION_ORDER)?;
-        let history = param_list.get_or_default::<HistoryQosPolicy, _>(PID_HISTORY)?;
-        let resource_limits =
-            param_list.get_or_default::<ResourceLimitsQosPolicy, _>(PID_RESOURCE_LIMITS)?;
-        let topic_data = param_list.get_or_default::<TopicDataQosPolicy, _>(PID_TOPIC_DATA)?;
+            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
+            .into();
+        let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
+        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
+        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
+        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
+        let history = param_list.get_or_default(PID_HISTORY)?;
+        let resource_limits = param_list.get_or_default(PID_RESOURCE_LIMITS)?;
+        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
 
         Ok(Self {
             topic_builtin_topic_data: TopicBuiltinTopicData {
@@ -198,6 +177,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
 
 #[cfg(test)]
 mod tests {
+    use crate::builtin_topics::BuiltInTopicKey;
     use crate::infrastructure::qos_policy::{
         DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, HistoryQosPolicy,
         LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,

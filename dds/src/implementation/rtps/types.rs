@@ -1,6 +1,9 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-use crate::implementation::rtps_udp_psm::mapping_traits::NumberOfBytes;
+use crate::implementation::{
+    data_representation_builtin_endpoints::parameter_id_values::DEFAULT_EXPECTS_INLINE_QOS,
+    rtps_udp_psm::mapping_traits::NumberOfBytes,
+};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -461,4 +464,22 @@ pub enum ReliabilityKind {
 pub enum DurabilityKind {
     Volatile,
     TransientLocal,
+}
+
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    serde::Deserialize,
+    serde::Serialize,
+    derive_more::Into,
+    derive_more::From,
+)]
+pub struct ExpectsInlineQos(bool);
+impl Default for ExpectsInlineQos {
+    fn default() -> Self {
+        Self(DEFAULT_EXPECTS_INLINE_QOS)
+    }
 }
