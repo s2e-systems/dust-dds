@@ -302,7 +302,7 @@ mod tests {
             EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
-        let expects_inline_qos = ExpectsInlineQos(true);
+        let expects_inline_qos = true.into();
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
         let default_unicast_locator_list = vec![locator1];
@@ -431,7 +431,7 @@ mod tests {
             EntityId::new(EntityKey::new([0, 0, 1]), BUILT_IN_PARTICIPANT),
         );
         let vendor_id = VendorId::new([73, 74]);
-        let expects_inline_qos = ExpectsInlineQos(true);
+        let expects_inline_qos = true.into();
         let metatraffic_unicast_locator_list = vec![locator1, locator2];
         let metatraffic_multicast_locator_list = vec![locator1];
         let default_unicast_locator_list = vec![locator1];
