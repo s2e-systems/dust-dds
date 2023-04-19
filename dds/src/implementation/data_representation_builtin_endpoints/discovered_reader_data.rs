@@ -112,10 +112,11 @@ impl DdsSerialize for DiscoveredReaderData {
         )?;
         parameter_list_serializer
             .serialize_parameter(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_GUID,
             &self.subscription_builtin_topic_data.participant_key,
-        )?; // Default value is a deviation from the standard and is used for interoperability reasons
+        )?;
         parameter_list_serializer.serialize_parameter(
             PID_TOPIC_NAME,
             &self.subscription_builtin_topic_data.topic_name,

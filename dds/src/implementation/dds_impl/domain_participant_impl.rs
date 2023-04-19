@@ -11,9 +11,7 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{
-                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
-            },
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -65,7 +63,7 @@ use crate::{
     },
     topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
     {
-        builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+        builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
             error::{DdsError, DdsResult},
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -86,10 +84,10 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, builtin_subscriber::BuiltInSubscriber,
-    dds_data_writer::DdsDataWriter, message_receiver::MessageReceiver,
+    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener, topic_impl::TopicImpl,
-    user_defined_subscriber::UserDefinedSubscriber, dds_publisher::DdsPublisher,
+    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -931,40 +929,32 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_participant(&self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
-            ParticipantBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.rtps_participant.guid().into(),
-                },
-                user_data: self.qos.read_lock().user_data.clone(),
+            self.domain_id,
+            self.domain_tag.clone(),
+            self.rtps_participant.protocol_version(),
+            self.rtps_participant.guid().prefix(),
+            self.rtps_participant.vendor_id(),
+            false,
+            self.rtps_participant
+                .metatraffic_unicast_locator_list()
+                .to_vec(),
+            self.rtps_participant
+                .metatraffic_multicast_locator_list()
+                .to_vec(),
+            self.rtps_participant
+                .default_unicast_locator_list()
+                .to_vec(),
+            self.rtps_participant
+                .default_multicast_locator_list()
+                .to_vec(),
+            BuiltinEndpointSet::default(),
+            self.manual_liveliness_count,
+            BuiltinEndpointQos::default(),
+            BuiltInTopicKey {
+                value: self.rtps_participant.guid().into(),
             },
-            ParticipantProxy::new(
-                self.domain_id,
-                self.domain_tag.clone(),
-                self.rtps_participant.protocol_version(),
-                self.rtps_participant.guid().prefix(),
-                self.rtps_participant.vendor_id(),
-                false.into(),
-                self
-                    .rtps_participant
-                    .metatraffic_unicast_locator_list()
-                    .to_vec(),
-                self
-                    .rtps_participant
-                    .metatraffic_multicast_locator_list()
-                    .to_vec(),
-                self
-                    .rtps_participant
-                    .default_unicast_locator_list()
-                    .to_vec(),
-                self
-                    .rtps_participant
-                    .default_multicast_locator_list()
-                    .to_vec(),
-                BuiltinEndpointSet::default(),
-                self.manual_liveliness_count,
-                BuiltinEndpointQos::default(),
-            ),
-            self.lease_duration.into(),
+            self.qos.read_lock().user_data.clone(),
+            self.lease_duration,
         );
         let mut serialized_data = Vec::new();
         spdp_discovered_participant_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
