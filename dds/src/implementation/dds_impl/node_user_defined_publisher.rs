@@ -30,7 +30,7 @@ use super::{
     dcps_service::DcpsService,
     dds_data_writer::DdsDataWriter,
     dds_publisher::DdsPublisher,
-    domain_participant_impl::{AnnounceKind, DdsDomainParticipant},
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,

@@ -8,7 +8,7 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         dds_impl::{
-            dcps_service::DcpsService, domain_participant_impl::DdsDomainParticipant,
+            dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant,
             node_domain_participant::DomainParticipantNode,
         },
         rtps::{

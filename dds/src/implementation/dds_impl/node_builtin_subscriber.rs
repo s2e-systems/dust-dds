@@ -9,7 +9,7 @@ use crate::{
 
 use super::{
     dcps_service::DcpsService, dds_subscriber::DdsSubscriber,
-    domain_participant_impl::DdsDomainParticipant,
+    dds_domain_participant::DdsDomainParticipant,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_kind::DataReaderNodeKind,

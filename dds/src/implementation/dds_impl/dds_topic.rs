@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, domain_participant_impl::AnnounceKind,
+    any_topic_listener::AnyTopicListener, dds_domain_participant::AnnounceKind,
     node_listener_topic::ListenerTopicNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };

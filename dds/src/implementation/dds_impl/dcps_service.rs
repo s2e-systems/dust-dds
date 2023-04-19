@@ -62,7 +62,7 @@ use super::{
     dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter,
     dds_subscriber::DdsSubscriber,
-    domain_participant_impl::{
+    dds_domain_participant::{
         AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,

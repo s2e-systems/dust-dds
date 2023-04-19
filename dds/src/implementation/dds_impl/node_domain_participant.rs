@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    domain_participant_impl::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
+    dds_domain_participant::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,

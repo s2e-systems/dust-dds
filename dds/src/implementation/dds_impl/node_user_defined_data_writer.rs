@@ -23,7 +23,7 @@ use crate::{
 use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dcps_service::DcpsService,
-    domain_participant_impl::{AnnounceKind, DdsDomainParticipant},
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,

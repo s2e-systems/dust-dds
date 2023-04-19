@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     dcps_service::DcpsService, dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber,
-    domain_participant_impl::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
+    dds_domain_participant::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
 };
 
 type BuiltinDataReaderStatelessNodeType = ChildNode<

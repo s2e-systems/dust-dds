@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    domain_participant_impl::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
+    dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
     dds_topic::DdsTopic,
 };
 
