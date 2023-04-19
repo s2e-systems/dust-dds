@@ -319,29 +319,29 @@ mod tests {
             vec![],
             None,
             EntityId::new(EntityKey::new([21, 22, 23]), BUILT_IN_READER_GROUP),
-            PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
+            PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
-                lifespan: LifespanQosPolicy::default(),
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
+                LifespanQosPolicy::default(),
+                UserDataQosPolicy::default(),
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         );
 
         let expected = vec![
@@ -386,29 +386,29 @@ mod tests {
                     BUILT_IN_PARTICIPANT,
                 ),
             },
-            publication_builtin_topic_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
+            publication_builtin_topic_data: PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
-                lifespan: LifespanQosPolicy::default(),
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER.into(),
+                LifespanQosPolicy::default(),
+                UserDataQosPolicy::default(),
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         };
 
         let mut data = &[

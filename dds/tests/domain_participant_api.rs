@@ -646,7 +646,7 @@ fn get_discovery_data_from_builtin_reader() {
     );
 
     assert_eq!(
-        &topic_samples[0].data.as_ref().unwrap().topic_data.value,
+        &topic_samples[0].data.as_ref().unwrap().topic_data().value,
         &topic_user_data
     );
 
@@ -665,7 +665,7 @@ fn get_discovery_data_from_builtin_reader() {
             .data
             .as_ref()
             .unwrap()
-            .user_data
+            .user_data()
             .value,
         &writer_user_data
     );

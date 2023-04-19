@@ -316,8 +316,7 @@ impl PublicationBuiltinTopicData {
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        // &self.reliability.into()
-        todo!()
+        &self.reliability.0
     }
 
     pub fn lifespan(&self) -> &LifespanQosPolicy {
