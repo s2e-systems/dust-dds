@@ -11,9 +11,7 @@ use crate::{
     },
     infrastructure::{
         error::DdsResult,
-        qos_policy::{
-            ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
-        },
+        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
     },
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
@@ -47,18 +45,60 @@ impl Default for ReliabilityQosPolicyDataWriterDeserialize {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct WriterProxy {
-    pub remote_writer_guid: Guid,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub data_max_size_serialized: Option<i32>,
-    pub remote_group_entity_id: EntityId,
+struct WriterProxy {
+    remote_writer_guid: Guid,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    data_max_size_serialized: Option<i32>,
+    remote_group_entity_id: EntityId,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DiscoveredWriterData {
-    pub writer_proxy: WriterProxy,
-    pub publication_builtin_topic_data: PublicationBuiltinTopicData,
+    writer_proxy: WriterProxy,
+    publication_builtin_topic_data: PublicationBuiltinTopicData,
+}
+
+impl DiscoveredWriterData {
+    pub fn new(
+        remote_writer_guid: Guid,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        data_max_size_serialized: Option<i32>,
+        remote_group_entity_id: EntityId,
+        publication_builtin_topic_data: PublicationBuiltinTopicData,
+    ) -> Self {
+        Self {
+            writer_proxy: WriterProxy {
+                remote_writer_guid,
+                unicast_locator_list,
+                multicast_locator_list,
+                data_max_size_serialized,
+                remote_group_entity_id,
+            },
+            publication_builtin_topic_data,
+        }
+    }
+
+    pub fn remote_writer_guid(&self) -> Guid {
+        self.writer_proxy.remote_writer_guid
+    }
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        &self.writer_proxy.unicast_locator_list
+    }
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        &self.writer_proxy.multicast_locator_list
+    }
+    pub fn data_max_size_serialized(&self) -> Option<i32> {
+        self.writer_proxy.data_max_size_serialized
+    }
+    pub fn remote_group_entity_id(&self) -> EntityId {
+        self.writer_proxy.remote_group_entity_id
+    }
+
+    pub fn publication_builtin_topic_data(&self) -> &PublicationBuiltinTopicData {
+        &self.publication_builtin_topic_data
+    }
 }
 
 pub const DCPS_PUBLICATION: &str = "DCPSPublication";
@@ -93,8 +133,7 @@ impl DdsSerialize for DiscoveredWriterData {
         let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
-        // writer_proxy.remote_writer_guid omitted as of table 9.10
-
+        // writer_proxy.remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
         parameter_list_serializer.serialize_parameter_vector(
             PID_UNICAST_LOCATOR,
             &self.writer_proxy.unicast_locator_list,
@@ -107,17 +146,17 @@ impl DdsSerialize for DiscoveredWriterData {
             parameter_list_serializer
                 .serialize_parameter(PID_DATA_MAX_SIZE_SERIALIZED, data_max_size_serialized)?;
         }
-
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_GROUP_ENTITYID,
             &self.writer_proxy.remote_group_entity_id,
         )?;
         parameter_list_serializer
             .serialize_parameter(PID_ENDPOINT_GUID, &self.publication_builtin_topic_data.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_GUID,
             &self.publication_builtin_topic_data.participant_key,
-        )?; // Default value is a deviation from the standard and is used for interoperability reasons
+        )?;
         parameter_list_serializer.serialize_parameter(
             PID_TOPIC_NAME,
             &self.publication_builtin_topic_data.topic_name,
@@ -130,7 +169,6 @@ impl DdsSerialize for DiscoveredWriterData {
             PID_DURABILITY,
             &self.publication_builtin_topic_data.durability,
         )?;
-
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DEADLINE,
             &self.publication_builtin_topic_data.deadline,
@@ -191,30 +229,26 @@ impl DdsDeserialize<'_> for DiscoveredWriterData {
         let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
         let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
         let data_max_size_serialized = param_list.get(PID_DATA_MAX_SIZE_SERIALIZED).ok();
-        let remote_group_entity_id =
-            param_list.get_or_default(PID_GROUP_ENTITYID)?;
+        let remote_group_entity_id = param_list.get_or_default(PID_GROUP_ENTITYID)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         // Default value is a deviation from the standard and is used for interoperability reasons
-        let participant_key =
-            param_list.get_or_default(PID_PARTICIPANT_GUID)?;
+        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
         let topic_name = param_list.get(PID_TOPIC_NAME)?;
         let type_name = param_list.get(PID_TYPE_NAME)?;
         let durability = param_list.get_or_default(PID_DURABILITY)?;
         let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget =
-            param_list.get_or_default(PID_LATENCY_BUDGET)?;
+        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
         let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataWriterDeserialize>(PID_RELIABILITY)?.into();
+            .get_or_default::<ReliabilityQosPolicyDataWriterDeserialize>(PID_RELIABILITY)?
+            .into();
         let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
         let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order =
-            param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let presentation =
-            param_list.get_or_default(PID_PRESENTATION)?;
+        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
+        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
         let partition = param_list.get_or_default(PID_PARTITION)?;
         let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
         let group_data = param_list.get_or_default(PID_GROUP_DATA)?;

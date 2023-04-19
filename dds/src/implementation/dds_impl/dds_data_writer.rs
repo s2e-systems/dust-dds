@@ -6,9 +6,7 @@ use std::{
 use crate::{
     builtin_topics::BuiltInTopicKey,
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::{
-            DiscoveredWriterData, WriterProxy,
-        },
+        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
         rtps::{
             history_cache::{RtpsParameter, RtpsWriterCacheChange},
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -367,7 +365,6 @@ impl<T> DdsDataWriter<T> {
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
     }
-
 }
 
 impl DdsDataWriter<RtpsStatefulWriter> {
@@ -445,8 +442,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
         self.rtps_writer.read_lock().is_acked_by_all(a_change)
     }
-
-
 
     pub fn get_qos(&self) -> DataWriterQos {
         self.rtps_writer.read_lock().get_qos().clone()
@@ -627,20 +622,16 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
 
-        DiscoveredWriterData {
-            writer_proxy: WriterProxy {
-                remote_writer_guid: self.rtps_writer.read_lock().guid(),
-                unicast_locator_list: self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
-                multicast_locator_list: self
-                    .rtps_writer
-                    .read_lock()
-                    .multicast_locator_list()
-                    .to_vec(),
-                data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-            },
-
-            publication_builtin_topic_data: PublicationBuiltinTopicData {
+        DiscoveredWriterData::new(
+            self.rtps_writer.read_lock().guid(),
+            self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
+            self.rtps_writer
+                .read_lock()
+                .multicast_locator_list()
+                .to_vec(),
+            None,
+            EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
+            PublicationBuiltinTopicData {
                 key: BuiltInTopicKey {
                     value: self.rtps_writer.read_lock().guid().into(),
                 },
@@ -663,7 +654,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 topic_data: topic_qos.topic_data.clone(),
                 group_data: publisher_qos.group_data.clone(),
             },
-        }
+        )
     }
 }
 

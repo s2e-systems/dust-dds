@@ -16,7 +16,7 @@ use crate::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
+            discovered_writer_data::DiscoveredWriterData,
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         rtps::{
@@ -489,14 +489,14 @@ fn announce_created_data_writer(
     domain_participant: &DomainParticipantImpl,
     discovered_writer_data: DiscoveredWriterData,
 ) {
-    let writer_data = &DiscoveredWriterData {
-        writer_proxy: WriterProxy {
-            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
-            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
-            ..discovered_writer_data.writer_proxy
-        },
-        ..discovered_writer_data
-    };
+    let writer_data = &DiscoveredWriterData::new(
+        discovered_writer_data.remote_writer_guid(),
+        domain_participant.default_unicast_locator_list().to_vec(),
+        domain_participant.default_multicast_locator_list().to_vec(),
+        discovered_writer_data.data_max_size_serialized(),
+        discovered_writer_data.remote_group_entity_id(),
+        discovered_writer_data.publication_builtin_topic_data().clone(),
+    );
 
     let mut serialized_data = Vec::new();
     writer_data
@@ -962,16 +962,11 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
         match discovered_writer_data_sample.sample_info.instance_state {
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant.is_publication_ignored(
-                        discovered_writer_data
-                            .writer_proxy
-                            .remote_writer_guid
-                            .into(),
-                    ) {
-                        let remote_writer_guid_prefix = discovered_writer_data
-                            .writer_proxy
-                            .remote_writer_guid
-                            .prefix();
+                    if !domain_participant
+                        .is_publication_ignored(discovered_writer_data.remote_writer_guid().into())
+                    {
+                        let remote_writer_guid_prefix =
+                            discovered_writer_data.remote_writer_guid().prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -1022,7 +1017,7 @@ pub fn subscriber_add_matched_writer(
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
-            .publication_builtin_topic_data
+            .publication_builtin_topic_data()
             .partition
             .name,
     ) {
@@ -1035,7 +1030,7 @@ pub fn subscriber_add_matched_writer(
         if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
             d.is_match(
                 &discovered_writer_data
-                    .publication_builtin_topic_data
+                    .publication_builtin_topic_data()
                     .partition
                     .name,
             )
@@ -1044,7 +1039,7 @@ pub fn subscriber_add_matched_writer(
         };
 
     let is_partition_string_matched = discovered_writer_data
-        .publication_builtin_topic_data
+        .publication_builtin_topic_data()
         .partition
         .name
         == user_defined_subscriber.get_qos().partition.name;

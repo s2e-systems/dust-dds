@@ -181,7 +181,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
             PID_DOMAIN_TAG,
             &self.participant_proxy.domain_tag,
         )?;
-        parameter_list_serializer.serialize_parameter::<ProtocolVersion>(
+        parameter_list_serializer.serialize_parameter(
             PID_PROTOCOL_VERSION,
             &self.participant_proxy.protocol_version,
         )?;
@@ -288,9 +288,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::implementation::rtps::types::{
-        EntityId, EntityKey, Guid, LocatorAddress, LocatorKind, LocatorPort, BUILT_IN_PARTICIPANT,
-    };
+    use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
     use crate::topic_definition::type_support::LittleEndian;
 
