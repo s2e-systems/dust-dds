@@ -621,7 +621,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         publisher_qos: &PublisherQos,
     ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
-
         DiscoveredWriterData::new(
             self.rtps_writer.read_lock().guid(),
             self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
@@ -631,29 +630,27 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                 .to_vec(),
             None,
             EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-            PublicationBuiltinTopicData::new(
-                BuiltInTopicKey {
-                    value: self.rtps_writer.read_lock().guid().into(),
-                },
-                BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
-                self.topic_name.clone(),
-                self.type_name.to_string(),
-                writer_qos.durability.clone(),
-                writer_qos.deadline.clone(),
-                writer_qos.latency_budget.clone(),
-                writer_qos.liveliness.clone(),
-                writer_qos.reliability.clone().into(),
-                writer_qos.lifespan.clone(),
-                writer_qos.user_data.clone(),
-                writer_qos.ownership.clone(),
-                writer_qos.destination_order,
-                publisher_qos.presentation.clone(),
-                publisher_qos.partition.clone(),
-                topic_qos.topic_data.clone(),
-                publisher_qos.group_data.clone(),
-            ),
+            BuiltInTopicKey {
+                value: self.rtps_writer.read_lock().guid().into(),
+            },
+            BuiltInTopicKey {
+                value: GUID_UNKNOWN.into(),
+            },
+            self.topic_name.clone(),
+            self.type_name.to_string(),
+            writer_qos.durability.clone(),
+            writer_qos.deadline.clone(),
+            writer_qos.latency_budget.clone(),
+            writer_qos.liveliness.clone(),
+            writer_qos.reliability.clone().into(),
+            writer_qos.lifespan.clone(),
+            writer_qos.user_data.clone(),
+            writer_qos.ownership.clone(),
+            writer_qos.destination_order,
+            publisher_qos.presentation.clone(),
+            publisher_qos.partition.clone(),
+            topic_qos.topic_data.clone(),
+            publisher_qos.group_data.clone(),
         )
     }
 }

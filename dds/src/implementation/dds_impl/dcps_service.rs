@@ -489,13 +489,30 @@ fn announce_created_data_writer(
     domain_participant: &DomainParticipantImpl,
     discovered_writer_data: DiscoveredWriterData,
 ) {
+    let publication_builtin_topic_data = discovered_writer_data.clone().publication_builtin_topic_data();
     let writer_data = &DiscoveredWriterData::new(
         discovered_writer_data.remote_writer_guid(),
         domain_participant.default_unicast_locator_list().to_vec(),
         domain_participant.default_multicast_locator_list().to_vec(),
         discovered_writer_data.data_max_size_serialized(),
         discovered_writer_data.remote_group_entity_id(),
-        discovered_writer_data.publication_builtin_topic_data().clone(),
+        publication_builtin_topic_data.key().clone(),
+        publication_builtin_topic_data.participant_key().clone(),
+        publication_builtin_topic_data.topic_name().to_string().clone(),
+        publication_builtin_topic_data.get_type_name().to_string().clone(),
+        publication_builtin_topic_data.durability().clone(),
+        publication_builtin_topic_data.deadline().clone(),
+        publication_builtin_topic_data.latency_budget().clone(),
+        publication_builtin_topic_data.liveliness().clone(),
+        publication_builtin_topic_data.reliability().clone(),
+        publication_builtin_topic_data.lifespan().clone(),
+        publication_builtin_topic_data.user_data().clone(),
+        publication_builtin_topic_data.ownership().clone(),
+        publication_builtin_topic_data.destination_order().clone(),
+        publication_builtin_topic_data.presentation().clone(),
+        publication_builtin_topic_data.partition().clone(),
+        publication_builtin_topic_data.topic_data().clone(),
+        publication_builtin_topic_data.group_data().clone(),
     );
 
     let mut serialized_data = Vec::new();
@@ -1016,7 +1033,7 @@ pub fn subscriber_add_matched_writer(
     participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
-        &discovered_writer_data
+        &discovered_writer_data.clone()
             .publication_builtin_topic_data()
             .partition()
             .name,
@@ -1029,7 +1046,7 @@ pub fn subscriber_add_matched_writer(
     let is_subscriber_regex_matched_to_discovered_writer =
         if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
             d.is_match(
-                &discovered_writer_data
+                &discovered_writer_data.clone()
                     .publication_builtin_topic_data()
                     .partition()
                     .name,
@@ -1038,7 +1055,7 @@ pub fn subscriber_add_matched_writer(
             false
         };
 
-    let is_partition_string_matched = discovered_writer_data
+    let is_partition_string_matched = discovered_writer_data.clone()
         .publication_builtin_topic_data()
         .partition()
         .name
