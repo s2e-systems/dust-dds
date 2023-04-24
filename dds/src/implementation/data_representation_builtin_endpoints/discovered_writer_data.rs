@@ -13,15 +13,12 @@ use crate::{
         error::DdsResult,
         qos_policy::{
             DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, GroupDataQosPolicy,
-            HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
-            OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
-            ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+            LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy,
+            PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, TopicDataQosPolicy,
             UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness, LittleEndian,
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::parameter_id_values::{
@@ -50,14 +47,7 @@ impl Default for ReliabilityQosPolicyDataWriter {
 }
 
 const DEFAULT_DATA_MAX_SIZE_SERIALIZED: i32 = 0;
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 struct DataMaxSizeSerialized(i32);
 impl Default for DataMaxSizeSerialized {
     fn default() -> Self {
@@ -111,6 +101,7 @@ pub struct DiscoveredWriterData {
 }
 
 impl DiscoveredWriterData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         remote_writer_guid: Guid,
         unicast_locator_list: Vec<Locator>,
@@ -225,7 +216,7 @@ impl DdsType for DiscoveredWriterData {
 
 impl DdsSerialize for DiscoveredWriterData {
     fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         // remote_writer_guid omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
@@ -233,8 +224,10 @@ impl DdsSerialize for DiscoveredWriterData {
             .serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
         parameter_list_serializer
             .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
-        parameter_list_serializer
-            .serialize_parameter_if_not_default(PID_DATA_MAX_SIZE_SERIALIZED, &self.data_max_size_serialized)?;
+        parameter_list_serializer.serialize_parameter_if_not_default(
+            PID_DATA_MAX_SIZE_SERIALIZED,
+            &self.data_max_size_serialized,
+        )?;
         parameter_list_serializer
             .serialize_parameter_if_not_default(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
         parameter_list_serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
@@ -343,7 +336,6 @@ mod tests {
         PartitionQosPolicy, PresentationQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
     };
-    use crate::topic_definition::type_support::LittleEndian;
 
     use super::*;
 

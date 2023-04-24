@@ -13,9 +13,7 @@ use crate::{
         error::DdsResult,
         qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness, LittleEndian,
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::parameter_id_values::{
@@ -90,7 +88,7 @@ impl DdsType for DiscoveredReaderData {
 
 impl DdsSerialize for DiscoveredReaderData {
     fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
         // reader_proxy.remote_reader_guid omitted as of table 9.10
 
@@ -261,7 +259,6 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::LittleEndian;
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();

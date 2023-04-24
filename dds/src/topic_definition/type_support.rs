@@ -1,34 +1,15 @@
 use std::io::Write;
 
-use byteorder::ByteOrder;
-
 use crate::infrastructure::error::{DdsError, DdsResult};
 
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 type RepresentationType = [u8; 2];
-pub trait Endianness {
-    type Endianness: ByteOrder;
-    const REPRESENTATION_IDENTIFIER: RepresentationType;
-    const REPRESENTATION_OPTIONS: RepresentationType;
-}
+type RepresentationOptions = [u8; 2];
 
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
-
-pub enum LittleEndian {}
-impl Endianness for LittleEndian {
-    type Endianness = byteorder::LittleEndian;
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    const REPRESENTATION_OPTIONS: RepresentationType = [0, 0];
-}
-
-pub enum BigEndian {}
-impl Endianness for BigEndian {
-    type Endianness = byteorder::BigEndian;
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_BE;
-    const REPRESENTATION_OPTIONS: RepresentationType = [0, 0];
-}
+pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
 
 #[derive(Debug, PartialEq, Clone, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DdsSerializedKey(Vec<u8>);
@@ -135,7 +116,7 @@ mod tests {
     impl DdsSerialize for TestBuiltIn {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
         fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
-            let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
+            let mut parameter_list_serializer = ParameterListSerializer::new(writer);
             parameter_list_serializer.serialize_payload_header()?;
             parameter_list_serializer.serialize_parameter_if_not_default(
                 PID_GROUP_ENTITYID,
@@ -146,7 +127,7 @@ mod tests {
     }
 
     impl serde::Serialize for TestBuiltIn {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {

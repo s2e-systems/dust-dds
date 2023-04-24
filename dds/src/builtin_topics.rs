@@ -76,6 +76,7 @@ pub struct TopicBuiltinTopicData {
 }
 
 impl TopicBuiltinTopicData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         key: BuiltInTopicKey,
         name: String,
@@ -263,6 +264,7 @@ pub struct PublicationBuiltinTopicData {
 }
 
 impl PublicationBuiltinTopicData {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         key: BuiltInTopicKey,
         participant_key: BuiltInTopicKey,

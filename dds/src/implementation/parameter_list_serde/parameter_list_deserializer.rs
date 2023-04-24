@@ -5,7 +5,7 @@ use byteorder::{ByteOrder, ReadBytesExt};
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::{BigEndian, Endianness, LittleEndian},
+    topic_definition::type_support::{PL_CDR_BE, PL_CDR_LE},
 };
 
 #[derive(Debug, PartialEq)]
@@ -43,8 +43,8 @@ impl RepresentationIdentifier {
         buf.read(&mut representation_identifier)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
         match representation_identifier {
-            BigEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrBe),
-            LittleEndian::REPRESENTATION_IDENTIFIER => Ok(RepresentationIdentifier::PlCdrLe),
+            PL_CDR_BE => Ok(RepresentationIdentifier::PlCdrBe),
+            PL_CDR_LE => Ok(RepresentationIdentifier::PlCdrLe),
             _ => Err(DdsError::PreconditionNotMet(
                 "Invalid representation identifier".to_string(),
             )),

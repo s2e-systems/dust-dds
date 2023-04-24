@@ -8,9 +8,7 @@ use crate::{
         error::DdsResult,
         qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
-    topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness, LittleEndian,
-    },
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::parameter_id_values::{
@@ -78,7 +76,7 @@ impl DdsType for DiscoveredTopicData {
 
 impl DdsSerialize for DiscoveredTopicData {
     fn dds_serialize<W: std::io::Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
+        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
@@ -110,7 +108,7 @@ impl DdsSerialize for DiscoveredTopicData {
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_RELIABILITY,
-            &ReliabilityQosPolicyDataReaderAndTopics(&self.topic_builtin_topic_data.reliability()),
+            &ReliabilityQosPolicyDataReaderAndTopics(self.topic_builtin_topic_data.reliability()),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TRANSPORT_PRIORITY,
@@ -197,8 +195,6 @@ mod tests {
         ResourceLimitsQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-
-    use crate::topic_definition::type_support::LittleEndian;
 
     use super::*;
 

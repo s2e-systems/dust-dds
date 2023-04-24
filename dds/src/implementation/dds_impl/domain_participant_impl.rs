@@ -61,7 +61,7 @@ use crate::{
         },
         subscriber_listener::SubscriberListener,
     },
-    topic_definition::type_support::{DdsSerialize, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsType},
     {
         builtin_topics::TopicBuiltinTopicData,
         infrastructure::{
@@ -706,7 +706,7 @@ impl DdsShared<DomainParticipantImpl> {
                     ownership: discovered_topic_info.ownership().clone(),
                 };
                 return self.create_topic(
-                    &discovered_topic_info.name(),
+                    discovered_topic_info.name(),
                     type_name,
                     QosKind::Specific(qos),
                     None,

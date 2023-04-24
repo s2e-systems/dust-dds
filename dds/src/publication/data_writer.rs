@@ -20,7 +20,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType, LittleEndian},
+        type_support::{DdsSerialize, DdsType},
     },
 };
 

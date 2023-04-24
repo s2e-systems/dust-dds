@@ -34,7 +34,7 @@ use crate::{
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
-        builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+        builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
             error::{DdsError, DdsResult},
             qos::DataWriterQos,
@@ -642,7 +642,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
             writer_qos.deadline.clone(),
             writer_qos.latency_budget.clone(),
             writer_qos.liveliness.clone(),
-            writer_qos.reliability.clone().into(),
+            writer_qos.reliability.clone(),
             writer_qos.lifespan.clone(),
             writer_qos.user_data.clone(),
             writer_qos.ownership.clone(),
@@ -754,7 +754,7 @@ mod test {
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{DdsSerialize, DdsSerializedKey, Endianness},
+        topic_definition::type_support::{DdsSerialize, DdsSerializedKey},
     };
 
     use mockall::mock;
