@@ -4,9 +4,11 @@ use crate::infrastructure::error::{DdsError, DdsResult};
 
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
-type RepresentationType = [u8; 2];
-type RepresentationOptions = [u8; 2];
+pub type RepresentationType = [u8; 2];
+pub type RepresentationOptions = [u8; 2];
 
+pub const CDR_BE: RepresentationType = [0x00, 0x00];
+pub const CDR_LE: RepresentationType = [0x00, 0x01];
 pub const PL_CDR_BE: RepresentationType = [0x00, 0x02];
 pub const PL_CDR_LE: RepresentationType = [0x00, 0x03];
 pub const REPRESENTATION_OPTIONS: RepresentationOptions = [0x00, 0x00];
@@ -58,7 +60,7 @@ pub trait DdsType {
 }
 
 pub trait DdsSerialize {
-    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType;
     fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()>;
 }
 
@@ -72,6 +74,7 @@ impl<Foo> DdsSerialize for Foo
 where
     Foo: serde::Serialize + DdsSerde,
 {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
     fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
         writer
             .write(

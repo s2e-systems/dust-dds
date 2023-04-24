@@ -754,7 +754,9 @@ mod test {
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{DdsSerialize, DdsSerializedKey},
+        topic_definition::type_support::{
+            DdsSerialize, DdsSerializedKey, RepresentationType, CDR_LE,
+        },
     };
 
     use mockall::mock;
@@ -772,6 +774,7 @@ mod test {
     struct MockFoo {}
 
     impl DdsSerialize for MockFoo {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
         fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
@@ -807,6 +810,7 @@ mod test {
     }
 
     impl DdsSerialize for MockKeyedFoo {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
         fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }

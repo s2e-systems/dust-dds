@@ -18,7 +18,9 @@ use crate::{
             UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 use super::parameter_id_values::{
@@ -215,6 +217,7 @@ impl DdsType for DiscoveredWriterData {
 }
 
 impl DdsSerialize for DiscoveredWriterData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
     fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
         let mut parameter_list_serializer = ParameterListSerializer::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
