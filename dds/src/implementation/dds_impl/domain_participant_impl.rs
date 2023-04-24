@@ -957,7 +957,7 @@ impl DdsShared<DomainParticipantImpl> {
             self.lease_duration,
         );
         let mut serialized_data = Vec::new();
-        spdp_discovered_participant_data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+        spdp_discovered_participant_data.dds_serialize(&mut serialized_data)?;
 
         self.builtin_publisher
             .stateless_data_writer_list()

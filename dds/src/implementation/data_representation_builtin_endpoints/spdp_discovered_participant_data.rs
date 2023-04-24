@@ -13,7 +13,7 @@ use crate::{
     },
     infrastructure::{error::DdsResult, qos_policy::UserDataQosPolicy, time::Duration},
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness, LittleEndian,
     },
 };
 
@@ -171,8 +171,8 @@ impl DdsType for SpdpDiscoveredParticipantData {
 }
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
-    fn serialize<W: std::io::Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
+    fn dds_serialize<W: std::io::Write>(&self, writer: W) -> DdsResult<()> {
+        let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
         parameter_list_serializer.serialize_payload_header()?;
 
         parameter_list_serializer
@@ -294,7 +294,7 @@ mod tests {
 
     pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value.serialize::<_, LittleEndian>(&mut writer).unwrap();
+        value.dds_serialize(&mut writer).unwrap();
         writer
     }
 

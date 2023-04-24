@@ -772,7 +772,7 @@ mod test {
     struct MockFoo {}
 
     impl DdsSerialize for MockFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
+        fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
     }
@@ -807,7 +807,7 @@ mod test {
     }
 
     impl DdsSerialize for MockKeyedFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
+        fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
     }

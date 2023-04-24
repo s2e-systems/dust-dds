@@ -466,7 +466,7 @@ fn announce_created_data_reader(
 
     let mut serialized_data = Vec::new();
     reader_data
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -517,7 +517,7 @@ fn announce_created_data_writer(
 
     let mut serialized_data = Vec::new();
     writer_data
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -543,7 +543,7 @@ fn announce_created_topic(
 ) {
     let mut serialized_data = Vec::new();
     discovered_topic
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();

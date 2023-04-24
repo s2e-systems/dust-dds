@@ -77,7 +77,8 @@ pub trait DdsType {
 }
 
 pub trait DdsSerialize {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()>;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()>;
 }
 
 pub trait DdsDeserialize<'de>: Sized {
@@ -90,24 +91,14 @@ impl<Foo> DdsSerialize for Foo
 where
     Foo: serde::Serialize + DdsSerde,
 {
-    fn serialize<W: Write, E: Endianness>(&self, mut writer: W) -> DdsResult<()> {
-        if E::REPRESENTATION_IDENTIFIER == PL_CDR_BE {
-            writer
-                .write(
-                    cdr::serialize::<_, _, cdr::CdrBe>(self, cdr::Infinite)
-                        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?
-                        .as_slice(),
-                )
-                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-        } else {
-            writer
-                .write(
-                    cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
-                        .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?
-                        .as_slice(),
-                )
-                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-        }
+    fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
+        writer
+            .write(
+                cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?
+                    .as_slice(),
+            )
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
         Ok(())
     }
 }
@@ -118,5 +109,66 @@ where
 {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::implementation::{
+        data_representation_builtin_endpoints::parameter_id_values::PID_GROUP_ENTITYID,
+        parameter_list_serde::parameter_list_serializer::ParameterListSerializer,
+        rtps::types::{EntityId, EntityKey, BUILT_IN_READER_GROUP},
+    };
+
+    use super::*;
+
+    struct TestBuiltIn {
+        remote_group_entity_id: EntityId,
+    }
+    impl TestBuiltIn {
+        fn new(remote_group_entity_id: EntityId) -> Self {
+            Self {
+                remote_group_entity_id,
+            }
+        }
+    }
+    impl DdsSerialize for TestBuiltIn {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+        fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
+            let mut parameter_list_serializer = ParameterListSerializer::<_, LittleEndian>::new(writer);
+            parameter_list_serializer.serialize_payload_header()?;
+            parameter_list_serializer.serialize_parameter_if_not_default(
+                PID_GROUP_ENTITYID,
+                &self.remote_group_entity_id,
+            )?;
+            parameter_list_serializer.serialize_sentinel()
+        }
+    }
+
+    impl serde::Serialize for TestBuiltIn {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            todo!()
+        }
+    }
+    #[test]
+    fn serialize_all_default() {
+        let data = TestBuiltIn::new(EntityId::new(
+            EntityKey::new([21, 22, 23]),
+            BUILT_IN_READER_GROUP,
+        ));
+
+        let mut writer = Vec::<u8>::new();
+        data.dds_serialize(&mut writer).unwrap();
+
+        let expected = vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc9, // u8[3], u8
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        assert_eq!(writer, expected);
     }
 }
