@@ -54,7 +54,14 @@ pub const DCPS_TOPIC: &str = "DCPSTopic";
 pub struct DiscoveredTopicData {
     pub topic_builtin_topic_data: TopicBuiltinTopicData,
 }
-
+impl serde::Serialize for DiscoveredTopicData {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
 impl DdsType for DiscoveredTopicData {
     fn type_name() -> &'static str {
         "DiscoveredTopicData"
@@ -201,9 +208,9 @@ mod tests {
 
     use super::*;
 
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value.dds_serialize::<_>(&mut writer).unwrap();
+        value.dds_serialize(&mut writer).unwrap();
         writer
     }
 

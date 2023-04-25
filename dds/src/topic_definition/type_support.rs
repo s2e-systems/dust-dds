@@ -2,7 +2,10 @@ use std::io::Write;
 
 use crate::infrastructure::error::{DdsError, DdsResult};
 
+use cdr::Encapsulation;
 pub use dust_dds_derive::{DdsSerde, DdsType};
+
+use super::pl_serializer;
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -59,9 +62,30 @@ pub trait DdsType {
     }
 }
 
-pub trait DdsSerialize {
+pub trait DdsSerialize: serde::Serialize {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
-    fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()>;
+    fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
+        let sentinel = [1u8, 0, 0, 0];
+        let data = match Self::REPRESENTATION_IDENTIFIER {
+            CDR_LE => cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
+                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?,
+            PL_CDR_LE => {
+                let mut d = vec![];
+                let mut pl_serializer =
+                    pl_serializer::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
+                serde::Serialize::serialize(&cdr::PlCdrLe::id(), &mut pl_serializer).unwrap();
+                serde::Serialize::serialize(&cdr::PlCdrLe::option(), &mut pl_serializer).unwrap();
+                serde::Serialize::serialize(self, &mut pl_serializer).unwrap();
+                serde::Serialize::serialize(&sentinel, &mut pl_serializer).unwrap();
+                d
+            }
+            _ => todo!(),
+        };
+        writer
+            .write(data.as_slice())
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+        Ok(())
+    }
 }
 
 pub trait DdsDeserialize<'de>: Sized {
@@ -75,16 +99,6 @@ where
     Foo: serde::Serialize + DdsSerde,
 {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-    fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
-        writer
-            .write(
-                cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?
-                    .as_slice(),
-            )
-            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
-        Ok(())
-    }
 }
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo
@@ -98,10 +112,11 @@ where
 
 #[cfg(test)]
 mod tests {
+
     use crate::implementation::{
         data_representation_builtin_endpoints::parameter_id_values::PID_GROUP_ENTITYID,
-        parameter_list_serde::parameter_list_serializer::ParameterListSerializer,
         rtps::types::{EntityId, EntityKey, BUILT_IN_READER_GROUP},
+        rtps_udp_psm::mapping_traits::NumberOfBytes,
     };
 
     use super::*;
@@ -116,27 +131,28 @@ mod tests {
             }
         }
     }
-    impl DdsSerialize for TestBuiltIn {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-        fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
-            let mut parameter_list_serializer = ParameterListSerializer::new(writer);
-            parameter_list_serializer.serialize_payload_header()?;
-            parameter_list_serializer.serialize_parameter_if_not_default(
-                PID_GROUP_ENTITYID,
-                &self.remote_group_entity_id,
-            )?;
-            parameter_list_serializer.serialize_sentinel()
-        }
-    }
-
     impl serde::Serialize for TestBuiltIn {
-        fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: serde::Serializer,
         {
-            todo!()
+            let mut bytes = vec![];
+            let mut cdr_serializer =
+                cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut bytes);
+            serde::Serialize::serialize(&PID_GROUP_ENTITYID, &mut cdr_serializer).unwrap();
+            serde::Serialize::serialize(
+                &(self.remote_group_entity_id.number_of_bytes() as u16),
+                &mut cdr_serializer,
+            )
+            .unwrap();
+            serde::Serialize::serialize(&self.remote_group_entity_id, &mut cdr_serializer).unwrap();
+            serializer.serialize_bytes(&bytes)
         }
     }
+    impl DdsSerialize for TestBuiltIn {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    }
+
     #[test]
     fn serialize_all_default() {
         let data = TestBuiltIn::new(EntityId::new(
@@ -148,7 +164,7 @@ mod tests {
         data.dds_serialize(&mut writer).unwrap();
 
         let expected = vec![
-            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE | OPTIONS
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc9, // u8[3], u8
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length

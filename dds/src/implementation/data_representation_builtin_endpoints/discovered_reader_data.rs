@@ -13,7 +13,9 @@ use crate::{
         error::DdsResult,
         qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, PL_CDR_LE, RepresentationType},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 use super::parameter_id_values::{
@@ -60,7 +62,14 @@ pub struct DiscoveredReaderData {
     pub reader_proxy: ReaderProxy,
     pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
-
+impl serde::Serialize for DiscoveredReaderData {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
 impl DdsType for DiscoveredReaderData {
     fn type_name() -> &'static str {
         "DiscoveredReaderData"
@@ -261,9 +270,9 @@ mod tests {
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value.dds_serialize::<_>(&mut writer).unwrap();
+        value.dds_serialize(&mut writer).unwrap();
         writer
     }
     #[test]

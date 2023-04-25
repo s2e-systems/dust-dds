@@ -743,8 +743,6 @@ impl DdsDataWriter<RtpsStatelessWriter> {
 
 #[cfg(test)]
 mod test {
-    use std::io::Write;
-
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
@@ -754,9 +752,7 @@ mod test {
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{
-            DdsSerialize, DdsSerializedKey, RepresentationType, CDR_LE,
-        },
+        topic_definition::type_support::DdsSerializedKey,
     };
 
     use mockall::mock;
@@ -771,14 +767,8 @@ mod test {
         }
     }
 
+    #[derive(serde::Serialize)]
     struct MockFoo {}
-
-    impl DdsSerialize for MockFoo {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-        fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
-            Ok(())
-        }
-    }
 
     impl DdsType for MockFoo {
         fn type_name() -> &'static str {
@@ -786,6 +776,7 @@ mod test {
         }
     }
 
+    #[derive(serde::Serialize)]
     struct MockKeyedFoo {
         key: Vec<u8>,
     }
@@ -805,13 +796,6 @@ mod test {
 
         fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
             self.key = key.as_ref().to_vec();
-            Ok(())
-        }
-    }
-
-    impl DdsSerialize for MockKeyedFoo {
-        const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
-        fn dds_serialize<W: Write>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
     }

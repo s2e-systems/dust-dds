@@ -70,7 +70,14 @@ pub struct SpdpDiscoveredParticipantData {
     participant_proxy: ParticipantProxy,
     lease_duration: LeaseDuration,
 }
-
+impl serde::Serialize for SpdpDiscoveredParticipantData {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
 impl SpdpDiscoveredParticipantData {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -292,7 +299,7 @@ mod tests {
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
 
-    pub fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
+    pub fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
         value.dds_serialize(&mut writer).unwrap();
         writer

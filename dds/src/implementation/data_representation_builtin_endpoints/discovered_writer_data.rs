@@ -101,7 +101,14 @@ pub struct DiscoveredWriterData {
     topic_data: TopicDataQosPolicy,
     group_data: GroupDataQosPolicy,
 }
-
+impl serde::Serialize for DiscoveredWriterData {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
 impl DiscoveredWriterData {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -342,7 +349,7 @@ mod tests {
 
     use super::*;
 
-    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
         value.dds_serialize(&mut writer).unwrap();
         writer
