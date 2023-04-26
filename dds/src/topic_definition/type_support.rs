@@ -1,11 +1,11 @@
 use std::io::Write;
 
-use crate::infrastructure::error::{DdsError, DdsResult};
+use crate::{
+    implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer,
+    infrastructure::error::{DdsError, DdsResult},
+};
 
-use cdr::Encapsulation;
 pub use dust_dds_derive::{DdsSerde, DdsType};
-
-use super::pl_serializer;
 
 pub type RepresentationType = [u8; 2];
 pub type RepresentationOptions = [u8; 2];
@@ -65,18 +65,15 @@ pub trait DdsType {
 pub trait DdsSerialize: serde::Serialize {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
     fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
-        let sentinel = [1u8, 0, 0, 0];
         let data = match Self::REPRESENTATION_IDENTIFIER {
             CDR_LE => cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
                 .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?,
             PL_CDR_LE => {
                 let mut d = vec![];
-                let mut pl_serializer =
-                    pl_serializer::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
-                serde::Serialize::serialize(&cdr::PlCdrLe::id(), &mut pl_serializer).unwrap();
-                serde::Serialize::serialize(&cdr::PlCdrLe::option(), &mut pl_serializer).unwrap();
-                serde::Serialize::serialize(self, &mut pl_serializer).unwrap();
-                serde::Serialize::serialize(&sentinel, &mut pl_serializer).unwrap();
+                let mut pl_serializer = ParameterListSerializer::new(&mut d);
+                pl_serializer.serialize_payload_header().unwrap();
+                self.dds_serialize_parameter_list(&mut pl_serializer).unwrap();
+                pl_serializer.serialize_sentinel().unwrap();
                 d
             }
             _ => todo!(),
@@ -85,6 +82,13 @@ pub trait DdsSerialize: serde::Serialize {
             .write(data.as_slice())
             .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
         Ok(())
+    }
+
+    fn dds_serialize_parameter_list<W: Write>(
+        &self,
+        _serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        unimplemented!("parameter_list serialization not implemented for this type")
     }
 }
 
@@ -113,52 +117,63 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::implementation::{
-        data_representation_builtin_endpoints::parameter_id_values::PID_GROUP_ENTITYID,
-        rtps::types::{EntityId, EntityKey, BUILT_IN_READER_GROUP},
-        rtps_udp_psm::mapping_traits::NumberOfBytes,
+    use crate::{
+        domain::domain_participant_factory::DomainId,
+        implementation::{
+            data_representation_builtin_endpoints::parameter_id_values::{
+                PID_DOMAIN_ID, PID_GROUP_ENTITYID,
+            },
+            rtps::types::{EntityId, EntityKey, BUILT_IN_READER_GROUP},
+        },
+        infrastructure::qos_policy::UserDataQosPolicy,
     };
 
     use super::*;
 
+    #[derive(serde::Serialize)]
     struct TestBuiltIn {
         remote_group_entity_id: EntityId,
+        inner: TestBuiltInInner,
     }
-    impl TestBuiltIn {
-        fn new(remote_group_entity_id: EntityId) -> Self {
-            Self {
-                remote_group_entity_id,
-            }
-        }
+
+    #[derive(serde::Serialize)]
+    struct TestBuiltInInner {
+        domain_id: DomainId,
     }
-    impl serde::Serialize for TestBuiltIn {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            let mut bytes = vec![];
-            let mut cdr_serializer =
-                cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut bytes);
-            serde::Serialize::serialize(&PID_GROUP_ENTITYID, &mut cdr_serializer).unwrap();
-            serde::Serialize::serialize(
-                &(self.remote_group_entity_id.number_of_bytes() as u16),
-                &mut cdr_serializer,
-            )
-            .unwrap();
-            serde::Serialize::serialize(&self.remote_group_entity_id, &mut cdr_serializer).unwrap();
-            serializer.serialize_bytes(&bytes)
-        }
-    }
+
     impl DdsSerialize for TestBuiltIn {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+        fn dds_serialize_parameter_list<W: Write>(
+            &self,
+            serializer: &mut ParameterListSerializer<W>,
+        ) -> DdsResult<()> {
+            serializer.serialize_parameter(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
+
+            self.inner.dds_serialize_parameter_list(serializer)
+        }
+    }
+
+    impl DdsSerialize for TestBuiltInInner {
+        const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+        fn dds_serialize_parameter_list<W: Write>(
+            &self,
+            serializer: &mut ParameterListSerializer<W>,
+        ) -> DdsResult<()> {
+            serializer.serialize_parameter(PID_DOMAIN_ID, &self.domain_id)
+        }
     }
 
     #[test]
     fn serialize_all_default() {
-        let data = TestBuiltIn::new(EntityId::new(
-            EntityKey::new([21, 22, 23]),
-            BUILT_IN_READER_GROUP,
-        ));
+        let data = TestBuiltIn {
+            remote_group_entity_id: EntityId::new(
+                EntityKey::new([21, 22, 23]),
+                BUILT_IN_READER_GROUP,
+            ),
+            inner: TestBuiltInInner { domain_id: 2 },
+        };
 
         let mut writer = Vec::<u8>::new();
         data.dds_serialize(&mut writer).unwrap();
@@ -167,6 +182,8 @@ mod tests {
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE | OPTIONS
             0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
             21, 22, 23, 0xc9, // u8[3], u8
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x02, 0x00, 0x00, 0x00, // DomainId
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
         assert_eq!(writer, expected);
