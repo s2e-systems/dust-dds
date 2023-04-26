@@ -2,30 +2,6 @@ use std::{collections::HashMap, hash::Hash};
 
 use super::shared_object::DdsRwLock;
 
-pub struct DdsMapObjectIter<'a, K, T, V> {
-    iterator: std::collections::hash_map::Values<'a, K, (T, V)>,
-}
-
-impl<'a, K, T, V> Iterator for DdsMapObjectIter<'a, K, T, V> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|(t, _)| t)
-    }
-}
-
-pub struct DdsMapObjectIterMut<'a, K, T, V> {
-    iterator: std::collections::hash_map::ValuesMut<'a, K, (T, V)>,
-}
-
-impl<'a, K, T, V> Iterator for DdsMapObjectIterMut<'a, K, T, V> {
-    type Item = &'a mut T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|(t, _)| t)
-    }
-}
-
 #[allow(dead_code)]
 pub struct DdsMap<K, T, V> {
     list: DdsRwLock<HashMap<K, (T, V)>>,
@@ -93,6 +69,30 @@ impl<K, T, V> DdsMap<K, T, V> {
         V: Clone,
     {
         self.list.read_lock().get(key).map(|(_, v)| v).cloned()
+    }
+}
+
+pub struct DdsMapObjectIter<'a, K, T, V> {
+    iterator: std::collections::hash_map::Values<'a, K, (T, V)>,
+}
+
+impl<'a, K, T, V> Iterator for DdsMapObjectIter<'a, K, T, V> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next().map(|(t, _)| t)
+    }
+}
+
+pub struct DdsMapObjectIterMut<'a, K, T, V> {
+    iterator: std::collections::hash_map::ValuesMut<'a, K, (T, V)>,
+}
+
+impl<'a, K, T, V> Iterator for DdsMapObjectIterMut<'a, K, T, V> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next().map(|(t, _)| t)
     }
 }
 
