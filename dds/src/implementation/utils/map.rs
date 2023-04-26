@@ -69,18 +69,18 @@ impl<K, T, V> DdsMap<K, T, V> {
         f(self.list.write_lock().get_mut(key).map(|(t, _)| t))
     }
 
-    pub fn iter_object<F, O>(&self, f: F) -> O
+    pub fn iter_object<F, O>(&self, mut f: F) -> O
     where
-        F: for<'a> Fn(DdsMapObjectIter<'a, K, T, V>) -> O,
+        F: for<'a> FnMut(DdsMapObjectIter<'a, K, T, V>) -> O,
     {
         f(DdsMapObjectIter {
             iterator: self.list.read_lock().values(),
         })
     }
 
-    pub fn iter_object_mut<F>(&self, f: F)
+    pub fn iter_object_mut<F>(&self, mut f: F)
     where
-        F: for<'a> Fn(DdsMapObjectIterMut<'a, K, T, V>),
+        F: for<'a> FnMut(DdsMapObjectIterMut<'a, K, T, V>),
     {
         f(DdsMapObjectIterMut {
             iterator: self.list.write_lock().values_mut(),
