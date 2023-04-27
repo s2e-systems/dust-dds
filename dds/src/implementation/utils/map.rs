@@ -47,18 +47,18 @@ impl<K, T, V> DdsMap<K, T, V> {
 
     pub fn iter_object<F, O>(&self, mut f: F) -> O
     where
-        F: for<'a> FnMut(DdsMapObjectIter<'a, K, T, V>) -> O,
+        F: for<'a> FnMut(&mut DdsMapObjectIter<'a, K, T, V>) -> O,
     {
-        f(DdsMapObjectIter {
+        f(&mut DdsMapObjectIter {
             iterator: self.list.read_lock().values(),
         })
     }
 
     pub fn iter_object_mut<F>(&self, mut f: F)
     where
-        F: for<'a> FnMut(DdsMapObjectIterMut<'a, K, T, V>),
+        F: for<'a> FnMut(&mut DdsMapObjectIterMut<'a, K, T, V>),
     {
-        f(DdsMapObjectIterMut {
+        f(&mut DdsMapObjectIterMut {
             iterator: self.list.write_lock().values_mut(),
         });
     }
@@ -69,6 +69,15 @@ impl<K, T, V> DdsMap<K, T, V> {
         V: Clone,
     {
         self.list.read_lock().get(key).map(|(_, v)| v).cloned()
+    }
+
+    pub fn iter_value<F, O>(&self, mut f: F) -> O
+    where
+        F: for<'a> FnMut(&mut DdsMapValueIter<'a, K, T, V>) -> O,
+    {
+        f(&mut DdsMapValueIter {
+            iterator: self.list.read_lock().values(),
+        })
     }
 }
 
@@ -93,6 +102,18 @@ impl<'a, K, T, V> Iterator for DdsMapObjectIterMut<'a, K, T, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iterator.next().map(|(t, _)| t)
+    }
+}
+
+pub struct DdsMapValueIter<'a, K, T, V> {
+    iterator: std::collections::hash_map::Values<'a, K, (T, V)>,
+}
+
+impl<'a, K, T, V> Iterator for DdsMapValueIter<'a, K, T, V> {
+    type Item = &'a V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next().map(|(_, v)| v)
     }
 }
 
@@ -169,5 +190,16 @@ mod tests {
         map.add(2, TestObject::new(), (3, 4));
 
         assert_eq!(map.get_value(&2), Some((3, 4)));
+    }
+
+    #[test]
+    fn iter_values() {
+        let map = DdsMap::new();
+        map.add(1, TestObject::new(), 1);
+        map.add(2, TestObject::new(), 3);
+
+        let contains_value_3 = map.iter_value(|x| x.any(|&y| y == 3));
+
+        assert!(contains_value_3)
     }
 }
