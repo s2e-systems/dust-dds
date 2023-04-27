@@ -47,7 +47,7 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: DomainTag,
@@ -63,21 +63,56 @@ struct ParticipantProxy {
     manual_liveliness_count: Count,
     builtin_endpoint_qos: BuiltinEndpointQos,
 }
+impl DdsSerialize for ParticipantProxy {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
-#[derive(Debug, PartialEq, Eq)]
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter(PID_DOMAIN_ID, &self.domain_id)?;
+        serializer.serialize_parameter_if_not_default(PID_DOMAIN_TAG, &self.domain_tag)?;
+        serializer.serialize_parameter(PID_PROTOCOL_VERSION, &self.protocol_version)?;
+        // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
+        serializer.serialize_parameter(PID_VENDORID, &self.vendor_id)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)?;
+        serializer.serialize_parameter_vector(
+            PID_METATRAFFIC_UNICAST_LOCATOR,
+            &self.metatraffic_unicast_locator_list,
+        )?;
+        serializer.serialize_parameter_vector(
+            PID_METATRAFFIC_MULTICAST_LOCATOR,
+            &self.metatraffic_multicast_locator_list,
+        )?;
+        serializer.serialize_parameter_vector(
+            PID_DEFAULT_UNICAST_LOCATOR,
+            &self.default_unicast_locator_list,
+        )?;
+        serializer.serialize_parameter_vector(
+            PID_DEFAULT_MULTICAST_LOCATOR,
+            &self.default_multicast_locator_list,
+        )?;
+        serializer
+            .serialize_parameter(PID_BUILTIN_ENDPOINT_SET, &self.available_builtin_endpoints)?;
+        serializer.serialize_parameter_if_not_default(
+            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
+            &self.manual_liveliness_count,
+        )?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        serializer.serialize_parameter_if_not_default(
+            PID_BUILTIN_ENDPOINT_QOS,
+            &self.builtin_endpoint_qos,
+        )
+    }
+}
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
     lease_duration: LeaseDuration,
 }
-impl serde::Serialize for SpdpDiscoveredParticipantData {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
-    }
-}
+
 impl SpdpDiscoveredParticipantData {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -179,65 +214,14 @@ impl DdsType for SpdpDiscoveredParticipantData {
 
 impl DdsSerialize for SpdpDiscoveredParticipantData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize<W: std::io::Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
-        parameter_list_serializer.serialize_payload_header()?;
 
-        parameter_list_serializer
-            .serialize_parameter(PID_DOMAIN_ID, &self.participant_proxy.domain_id)?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DOMAIN_TAG,
-            &self.participant_proxy.domain_tag,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_PROTOCOL_VERSION,
-            &self.participant_proxy.protocol_version,
-        )?;
-        // guid_prefix omitted as of Table 9.10 - Omitted Builtin Endpoint Parameters
-        parameter_list_serializer
-            .serialize_parameter(PID_PARTICIPANT_GUID, &self.dds_participant_data.key)?;
-        parameter_list_serializer
-            .serialize_parameter(PID_VENDORID, &self.participant_proxy.vendor_id)?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.participant_proxy.expects_inline_qos,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_METATRAFFIC_UNICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_unicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_METATRAFFIC_MULTICAST_LOCATOR,
-            &self.participant_proxy.metatraffic_multicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_DEFAULT_UNICAST_LOCATOR,
-            &self.participant_proxy.default_unicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_DEFAULT_MULTICAST_LOCATOR,
-            &self.participant_proxy.default_multicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_BUILTIN_ENDPOINT_SET,
-            &self.participant_proxy.available_builtin_endpoints,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT,
-            &self.participant_proxy.manual_liveliness_count,
-        )?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_BUILTIN_ENDPOINT_QOS,
-            &self.participant_proxy.builtin_endpoint_qos,
-        )?;
-        parameter_list_serializer
-            .serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_USER_DATA,
-            &self.dds_participant_data.user_data,
-        )?;
-        parameter_list_serializer.serialize_sentinel()
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        self.dds_participant_data.dds_serialize_parameter_list(serializer)?;
+        self.participant_proxy.dds_serialize_parameter_list(serializer)?;
+        serializer.serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)
     }
 }
 
@@ -479,6 +463,11 @@ mod tests {
 
         let expected = vec![
             0x00, 0x03, 0x00, 0x00, // PL_CDR_LE
+            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            8, 8, 8, 8, // GuidPrefix
+            0, 0, 1, 0xc1, // EntityId
             0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
             0x01, 0x00, 0x00, 0x00, // DomainId
             0x14, 0x40, 0x08, 0x00, // PID_DOMAIN_TAG, Length: 8
@@ -486,11 +475,6 @@ mod tests {
             b'a', b'b', 0, 0x00, // DomainTag: string + padding (1 byte)
             0x15, 0x00, 4, 0x00, // PID_PROTOCOL_VERSION, Length
             0x02, 0x04, 0x00, 0x00, // ProtocolVersion
-            0x50, 0x00, 16, 0x00, // PID_PARTICIPANT_GUID, Length
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            8, 8, 8, 8, // GuidPrefix
-            0, 0, 1, 0xc1, // EntityId
             0x16, 0x00, 4, 0x00, // PID_VENDORID
             73, 74, 0x00, 0x00, // VendorId
             0x43, 0x00, 0x04, 0x00, // PID_EXPECTS_INLINE_QOS, Length: 4,

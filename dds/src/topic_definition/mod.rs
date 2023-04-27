@@ -7,4 +7,3 @@ pub mod topic_listener;
 /// Contains the [`DdsType`](crate::topic_definition::type_support::DdsType) and other traits necessary
 /// to make a type capable of being used by the DDS middleware.
 pub mod type_support;
-pub mod pl_serializer;

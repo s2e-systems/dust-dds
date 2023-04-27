@@ -19,10 +19,11 @@ use crate::{
             HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy, LivelinessQosPolicy,
             OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
-            TransportPriorityQosPolicy, UserDataQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
+            TransportPriorityQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    topic_definition::type_support::{DdsDeserialize, DdsType},
+    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, PL_CDR_LE},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -30,12 +31,25 @@ pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub user_data: UserDataQosPolicy,
 }
+impl DdsSerialize for ParticipantBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: crate::topic_definition::type_support::RepresentationType =
+        PL_CDR_LE;
 
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer
+            .serialize_parameter(PID_PARTICIPANT_GUID, &self.key)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)
+    }
+}
 impl DdsType for ParticipantBuiltinTopicData {
     fn type_name() -> &'static str {
         "ParticipantBuiltinTopicData"
@@ -222,8 +236,6 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     }
 }
 
-
-
 #[derive(
     Debug,
     PartialEq,
@@ -240,7 +252,6 @@ impl Default for ReliabilityQosPolicyDataWriter {
         Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
