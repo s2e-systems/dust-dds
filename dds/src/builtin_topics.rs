@@ -1,7 +1,6 @@
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_topic_data::ReliabilityQosPolicyDataReaderAndTopicsDeserialize,
             parameter_id_values::{
                 PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
                 PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
@@ -28,6 +27,23 @@ use crate::{
         DdsDeserialize, DdsSerialize, DdsType, RepresentationType, PL_CDR_LE,
     },
 };
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::From,
+    derive_more::Into,
+)]
+pub struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
+impl Default for ReliabilityQosPolicyTopics {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct BuiltInTopicKey {
@@ -93,7 +109,7 @@ pub struct TopicBuiltinTopicData {
     deadline: DeadlineQosPolicy,
     latency_budget: LatencyBudgetQosPolicy,
     liveliness: LivelinessQosPolicy,
-    reliability: ReliabilityQosPolicy,
+    reliability: ReliabilityQosPolicyTopics,
     transport_priority: TransportPriorityQosPolicy,
     lifespan: LifespanQosPolicy,
     destination_order: DestinationOrderQosPolicy,
@@ -130,7 +146,7 @@ impl TopicBuiltinTopicData {
             deadline,
             latency_budget,
             liveliness,
-            reliability,
+            reliability: reliability.into(),
             transport_priority,
             lifespan,
             destination_order,
@@ -170,7 +186,7 @@ impl TopicBuiltinTopicData {
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability
+        &self.reliability.0
     }
 
     pub fn transport_priority(&self) -> &TransportPriorityQosPolicy {
@@ -208,6 +224,34 @@ impl DdsType for TopicBuiltinTopicData {
     }
 }
 
+impl DdsSerialize for TopicBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
+        serializer.serialize_parameter(PID_TOPIC_NAME, &self.name)?;
+        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
+        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
+        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
+        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
+        serializer.serialize_parameter_if_not_default(PID_LIVELINESS, &self.liveliness)?;
+        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_TRANSPORT_PRIORITY, &self.transport_priority)?;
+        serializer.serialize_parameter_if_not_default(PID_LIFESPAN, &self.lifespan)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
+        serializer.serialize_parameter_if_not_default(PID_HISTORY, &self.history)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_RESOURCE_LIMITS, &self.resource_limits)?;
+        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
+        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)
+    }
+}
+
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
@@ -219,9 +263,7 @@ impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
         let deadline = param_list.get_or_default(PID_DEADLINE)?;
         let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
         let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
-            .into();
+        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
         let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
         let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
         let ownership = param_list.get_or_default(PID_OWNERSHIP)?;

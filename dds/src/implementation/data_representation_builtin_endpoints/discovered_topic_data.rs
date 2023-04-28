@@ -19,18 +19,6 @@ use super::parameter_id_values::{
     PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
 };
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From, derive_more::Into)]
-pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
-impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
-    fn default() -> Self {
-        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From)]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
-    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
-);
-
 #[derive(
     Debug,
     PartialEq,
@@ -41,8 +29,8 @@ pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
     derive_more::Into,
     derive_more::From,
 )]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
+struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
+impl Default for ReliabilityQosPolicyTopics {
     fn default() -> Self {
         Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
     }
@@ -90,70 +78,13 @@ impl DdsType for DiscoveredTopicData {
 
 impl DdsSerialize for DiscoveredTopicData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize<W: std::io::Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
-        parameter_list_serializer.serialize_payload_header()?;
 
-        parameter_list_serializer
-            .serialize_parameter(PID_ENDPOINT_GUID, self.topic_builtin_topic_data.key())?;
-        parameter_list_serializer.serialize_parameter(
-            PID_TOPIC_NAME,
-            &self.topic_builtin_topic_data.name().to_string(),
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_TYPE_NAME,
-            &self.topic_builtin_topic_data.get_type_name().to_string(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DURABILITY,
-            self.topic_builtin_topic_data.durability(),
-        )?;
-
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DEADLINE,
-            self.topic_builtin_topic_data.deadline(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_LATENCY_BUDGET,
-            self.topic_builtin_topic_data.latency_budget(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_LIVELINESS,
-            self.topic_builtin_topic_data.liveliness(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_RELIABILITY,
-            &ReliabilityQosPolicyDataReaderAndTopics(self.topic_builtin_topic_data.reliability()),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TRANSPORT_PRIORITY,
-            self.topic_builtin_topic_data.transport_priority(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_LIFESPAN,
-            self.topic_builtin_topic_data.lifespan(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DESTINATION_ORDER,
-            self.topic_builtin_topic_data.destination_order(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_HISTORY,
-            self.topic_builtin_topic_data.history(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_RESOURCE_LIMITS,
-            self.topic_builtin_topic_data.resource_limits(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_OWNERSHIP,
-            self.topic_builtin_topic_data.ownership(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TOPIC_DATA,
-            self.topic_builtin_topic_data.topic_data(),
-        )?;
-        parameter_list_serializer.serialize_sentinel()
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        self.topic_builtin_topic_data
+            .dds_serialize_parameter_list(serializer)
     }
 }
 
@@ -169,7 +100,7 @@ impl DdsDeserialize<'_> for DiscoveredTopicData {
         let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
         let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
         let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
+            .get_or_default::<ReliabilityQosPolicyTopics>(PID_RELIABILITY)?
             .into();
         let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
         let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
