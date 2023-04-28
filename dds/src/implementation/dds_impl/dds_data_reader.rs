@@ -776,7 +776,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         DiscoveredReaderData::new(
-            ReaderProxy::new(guid, guid.entity_id(), vec![], vec![], false.into()),
+            ReaderProxy::new(guid, guid.entity_id(), vec![], vec![], false),
             SubscriptionBuiltinTopicData::new(
                 BuiltInTopicKey { value: guid.into() },
                 BuiltInTopicKey {

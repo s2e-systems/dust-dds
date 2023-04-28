@@ -1264,10 +1264,7 @@ fn add_matched_reader(
                     .remote_group_entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
-                discovered_reader_data
-                    .reader_proxy()
-                    .expects_inline_qos()
-                    .into(),
+                discovered_reader_data.reader_proxy().expects_inline_qos(),
                 true,
                 proxy_reliability,
                 proxy_durability,

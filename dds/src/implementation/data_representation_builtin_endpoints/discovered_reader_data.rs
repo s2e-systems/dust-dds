@@ -63,14 +63,14 @@ impl ReaderProxy {
         remote_group_entity_id: EntityId,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: ExpectsInlineQos,
+        expects_inline_qos: bool,
     ) -> Self {
         Self {
             remote_reader_guid,
             remote_group_entity_id,
             unicast_locator_list,
             multicast_locator_list,
-            expects_inline_qos,
+            expects_inline_qos: expects_inline_qos.into(),
         }
     }
 
@@ -90,11 +90,10 @@ impl ReaderProxy {
         self.multicast_locator_list.as_ref()
     }
 
-    pub fn expects_inline_qos(&self) -> ExpectsInlineQos {
-        self.expects_inline_qos
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos.into()
     }
 }
-
 
 impl DdsSerialize for ReaderProxy {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
@@ -102,25 +101,14 @@ impl DdsSerialize for ReaderProxy {
         &self,
         serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
-        serializer.serialize_parameter_vector(
-            PID_UNICAST_LOCATOR,
-            &self.unicast_locator_list,
-        )?;
-        serializer.serialize_parameter_vector(
-            PID_MULTICAST_LOCATOR,
-            &self.multicast_locator_list,
-        )?;
-        serializer.serialize_parameter(
-            PID_GROUP_ENTITYID,
-            &self.remote_group_entity_id,
-        )?;
-        serializer.serialize_parameter_if_not_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.expects_inline_qos,
-        )
+        serializer.serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
+        serializer
+            .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
+        serializer.serialize_parameter(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct DiscoveredReaderData {
