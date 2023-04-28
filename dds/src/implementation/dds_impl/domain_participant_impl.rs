@@ -1035,12 +1035,12 @@ impl DdsShared<DomainParticipantImpl> {
                     if let Some(discovered_reader_data) = discovered_reader_data_sample.data {
                         if !self.is_subscription_ignored(
                             discovered_reader_data
-                                .reader_proxy
+                                .reader_proxy()
                                 .remote_reader_guid()
                                 .into(),
                         ) {
                             let remote_reader_guid_prefix = discovered_reader_data
-                                .reader_proxy
+                                .reader_proxy()
                                 .remote_reader_guid()
                                 .prefix();
                             let reader_parent_participant_guid =
@@ -1055,7 +1055,7 @@ impl DdsShared<DomainParticipantImpl> {
                                     let is_discovered_reader_regex_matched_to_publisher =
                                         if let Ok(d) = glob_to_regex(
                                             &discovered_reader_data
-                                                .subscription_builtin_topic_data
+                                                .subscription_builtin_topic_data()
                                                 .partition
                                                 .name,
                                         ) {
@@ -1070,7 +1070,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         {
                                             d.is_match(
                                                 &discovered_reader_data
-                                                    .subscription_builtin_topic_data
+                                                    .subscription_builtin_topic_data()
                                                     .partition
                                                     .name,
                                             )
@@ -1079,7 +1079,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         };
 
                                     let is_partition_string_matched = discovered_reader_data
-                                        .subscription_builtin_topic_data
+                                        .subscription_builtin_topic_data()
                                         .partition
                                         .name
                                         == publisher.get_qos().partition.name;
@@ -1192,50 +1192,50 @@ fn add_matched_reader(
     publisher_qos: &PublisherQos,
 ) {
     let is_matched_topic_name = discovered_reader_data
-        .subscription_builtin_topic_data
+        .subscription_builtin_topic_data()
         .topic_name
         == writer.get_topic_name();
     let is_matched_type_name = discovered_reader_data
-        .subscription_builtin_topic_data
+        .subscription_builtin_topic_data()
         .type_name
         == writer.get_type_name();
 
     if is_matched_topic_name && is_matched_type_name {
         let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
             &writer.get_qos(),
-            &discovered_reader_data.subscription_builtin_topic_data,
+            &discovered_reader_data.subscription_builtin_topic_data(),
             publisher_qos,
         );
         let instance_handle = discovered_reader_data.get_serialized_key().into();
 
         if incompatible_qos_policy_list.is_empty() {
             let unicast_locator_list = if discovered_reader_data
-                .reader_proxy
+                .reader_proxy()
                 .unicast_locator_list()
                 .is_empty()
             {
                 default_unicast_locator_list
             } else {
                 discovered_reader_data
-                    .reader_proxy
+                    .reader_proxy()
                     .unicast_locator_list()
             };
 
             let multicast_locator_list = if discovered_reader_data
-                .reader_proxy
+                .reader_proxy()
                 .multicast_locator_list()
                 .is_empty()
             {
                 default_multicast_locator_list
             } else {
                 discovered_reader_data
-                    .reader_proxy
+                    .reader_proxy()
                     .multicast_locator_list()
 
             };
 
             let proxy_reliability = match discovered_reader_data
-                .subscription_builtin_topic_data
+                .subscription_builtin_topic_data()
                 .reliability
                 .kind
             {
@@ -1244,7 +1244,7 @@ fn add_matched_reader(
             };
 
             let proxy_durability = match discovered_reader_data
-                .subscription_builtin_topic_data
+                .subscription_builtin_topic_data()
                 .durability
                 .kind
             {
@@ -1253,12 +1253,12 @@ fn add_matched_reader(
             };
 
             let reader_proxy = RtpsReaderProxy::new(
-                discovered_reader_data.reader_proxy.remote_reader_guid(),
-                discovered_reader_data.reader_proxy.remote_group_entity_id(),
+                discovered_reader_data.reader_proxy().remote_reader_guid(),
+                discovered_reader_data.reader_proxy().remote_group_entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
                 discovered_reader_data
-                    .reader_proxy
+                    .reader_proxy()
                     .expects_inline_qos()
                     .into(),
                 true,
@@ -1274,12 +1274,12 @@ fn add_matched_reader(
                 || writer
                     .get_matched_subscription_data(instance_handle)
                     .as_ref()
-                    != Some(&discovered_reader_data.subscription_builtin_topic_data)
+                    != Some(discovered_reader_data.subscription_builtin_topic_data())
             {
                 writer.add_matched_publication(
                     instance_handle,
                     discovered_reader_data
-                        .subscription_builtin_topic_data
+                        .subscription_builtin_topic_data()
                         .clone(),
                 );
                 on_writer_publication_matched(

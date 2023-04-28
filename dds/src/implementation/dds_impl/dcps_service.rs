@@ -456,16 +456,18 @@ fn announce_created_data_reader(
     discovered_reader_data: DiscoveredReaderData,
 ) {
     let reader_proxy = ReaderProxy::new(
-        discovered_reader_data.reader_proxy.remote_reader_guid(),
-        discovered_reader_data.reader_proxy.remote_group_entity_id(),
+        discovered_reader_data.reader_proxy().remote_reader_guid(),
+        discovered_reader_data
+            .reader_proxy()
+            .remote_group_entity_id(),
         domain_participant.default_unicast_locator_list().to_vec(),
         domain_participant.default_multicast_locator_list().to_vec(),
-        discovered_reader_data.reader_proxy.expects_inline_qos(),
+        discovered_reader_data.reader_proxy().expects_inline_qos(),
     );
-    let reader_data = &DiscoveredReaderData {
+    let reader_data = &DiscoveredReaderData::new(
         reader_proxy,
-        ..discovered_reader_data
-    };
+        discovered_reader_data.subscription_builtin_topic_data().clone(),
+    );
 
     let mut serialized_data = Vec::new();
     reader_data

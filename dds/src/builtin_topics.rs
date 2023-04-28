@@ -437,7 +437,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct SubscriptionBuiltinTopicData {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,

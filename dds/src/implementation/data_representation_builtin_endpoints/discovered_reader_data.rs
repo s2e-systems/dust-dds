@@ -48,7 +48,7 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct ReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -95,19 +95,32 @@ impl ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct DiscoveredReaderData {
-    pub reader_proxy: ReaderProxy,
-    pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    reader_proxy: ReaderProxy,
+    subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
 }
-impl serde::Serialize for DiscoveredReaderData {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
+
+impl DiscoveredReaderData {
+    pub fn new(
+        reader_proxy: ReaderProxy,
+        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    ) -> Self {
+        Self {
+            reader_proxy,
+            subscription_builtin_topic_data,
+        }
+    }
+
+    pub fn reader_proxy(&self) -> &ReaderProxy {
+        &self.reader_proxy
+    }
+
+    pub fn subscription_builtin_topic_data(&self) -> &SubscriptionBuiltinTopicData {
+        &self.subscription_builtin_topic_data
     }
 }
+
 impl DdsType for DiscoveredReaderData {
     fn type_name() -> &'static str {
         "DiscoveredReaderData"

@@ -763,16 +763,15 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         let guid = self.rtps_reader.read_lock().guid();
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
-        DiscoveredReaderData {
-            reader_proxy: ReaderProxy::new(
+        DiscoveredReaderData::new(
+            ReaderProxy::new(
                 guid,
                 guid.entity_id(),
                 vec![],
                 vec![],
                 false.into(),
             ),
-
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+            SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },
                 participant_key: BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
@@ -793,7 +792,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                 topic_data: topic_qos.topic_data.clone(),
                 group_data: subscriber_qos.group_data.clone(),
             },
-        }
+        )
     }
 
     pub fn send_message(&self, header: RtpsMessageHeader, transport: &mut impl TransportWrite) {
