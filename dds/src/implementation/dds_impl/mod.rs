@@ -4,6 +4,7 @@ pub mod any_topic_listener;
 pub mod dcps_service;
 pub mod dds_data_reader;
 pub mod dds_data_writer;
+pub mod dds_domain_entity_list;
 pub mod dds_domain_participant;
 pub mod dds_entity_list;
 pub mod dds_publisher;
