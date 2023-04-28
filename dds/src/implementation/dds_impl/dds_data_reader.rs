@@ -784,7 +784,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                 reader_qos.ownership.clone(),
                 reader_qos.destination_order.clone(),
                 reader_qos.user_data.clone(),
-                reader_qos.time_based_filter.clone(),
+                reader_qos.time_based_filter,
                 subscriber_qos.presentation.clone(),
                 subscriber_qos.partition.clone(),
                 topic_qos.topic_data.clone(),

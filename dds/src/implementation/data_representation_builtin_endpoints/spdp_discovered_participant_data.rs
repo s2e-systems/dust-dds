@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData},
+    builtin_topics::{ParticipantBuiltinTopicData},
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::{
@@ -11,7 +11,7 @@ use crate::{
             types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
-    infrastructure::{error::DdsResult, qos_policy::UserDataQosPolicy, time::Duration},
+    infrastructure::{error::DdsResult, time::Duration},
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
     },
@@ -65,6 +65,39 @@ pub struct ParticipantProxy {
 }
 
 impl ParticipantProxy {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        domain_id: DomainId,
+        domain_tag: String,
+        protocol_version: ProtocolVersion,
+        guid_prefix: GuidPrefix,
+        vendor_id: VendorId,
+        expects_inline_qos: bool,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
+        default_unicast_locator_list: Vec<Locator>,
+        default_multicast_locator_list: Vec<Locator>,
+        available_builtin_endpoints: BuiltinEndpointSet,
+        manual_liveliness_count: Count,
+        builtin_endpoint_qos: BuiltinEndpointQos,
+    ) -> Self {
+        Self {
+            domain_id,
+            domain_tag: DomainTag(domain_tag),
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos: expects_inline_qos.into(),
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_builtin_endpoints,
+            manual_liveliness_count,
+            builtin_endpoint_qos,
+        }
+    }
+
     pub fn domain_id(&self) -> i32 {
         self.domain_id
     }
@@ -73,7 +106,7 @@ impl ParticipantProxy {
         &self.domain_tag.0
     }
 
-    pub fn protocol_version(&self) -> ProtocolVersion {
+    pub fn _protocol_version(&self) -> ProtocolVersion {
         self.protocol_version
     }
 
@@ -81,11 +114,11 @@ impl ParticipantProxy {
         self.guid_prefix
     }
 
-    pub fn vendor_id(&self) -> VendorId {
+    pub fn _vendor_id(&self) -> VendorId {
         self.vendor_id
     }
 
-    pub fn expects_inline_qos(&self) -> ExpectsInlineQos {
+    pub fn _expects_inline_qos(&self) -> ExpectsInlineQos {
         self.expects_inline_qos
     }
 
@@ -109,11 +142,11 @@ impl ParticipantProxy {
         self.available_builtin_endpoints
     }
 
-    pub fn manual_liveliness_count(&self) -> Count {
+    pub fn _manual_liveliness_count(&self) -> Count {
         self.manual_liveliness_count
     }
 
-    pub fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
+    pub fn _builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
         self.builtin_endpoint_qos
     }
 }
@@ -169,42 +202,14 @@ pub struct SpdpDiscoveredParticipantData {
 }
 
 impl SpdpDiscoveredParticipantData {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        domain_id: DomainId,
-        domain_tag: String,
-        protocol_version: ProtocolVersion,
-        guid_prefix: GuidPrefix,
-        vendor_id: VendorId,
-        expects_inline_qos: bool,
-        metatraffic_unicast_locator_list: Vec<Locator>,
-        metatraffic_multicast_locator_list: Vec<Locator>,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        available_builtin_endpoints: BuiltinEndpointSet,
-        manual_liveliness_count: Count,
-        builtin_endpoint_qos: BuiltinEndpointQos,
-        key: BuiltInTopicKey,
-        user_data: UserDataQosPolicy,
+        dds_participant_data: ParticipantBuiltinTopicData,
+        participant_proxy: ParticipantProxy,
         lease_duration: Duration,
     ) -> Self {
         Self {
-            dds_participant_data: ParticipantBuiltinTopicData::new(key, user_data),
-            participant_proxy: ParticipantProxy {
-                domain_id,
-                domain_tag: domain_tag.into(),
-                protocol_version,
-                guid_prefix,
-                vendor_id,
-                expects_inline_qos: expects_inline_qos.into(),
-                metatraffic_unicast_locator_list,
-                metatraffic_multicast_locator_list,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
-                available_builtin_endpoints,
-                manual_liveliness_count,
-                builtin_endpoint_qos,
-            },
+            dds_participant_data,
+            participant_proxy,
             lease_duration: lease_duration.into(),
         }
     }
@@ -217,7 +222,7 @@ impl SpdpDiscoveredParticipantData {
         &self.participant_proxy
     }
 
-    pub fn lease_duration(&self) -> &Duration {
+    pub fn _lease_duration(&self) -> &Duration {
         &self.lease_duration.0
     }
 }
@@ -354,23 +359,27 @@ mod tests {
         let lease_duration = Duration::new(10, 11);
 
         let expected = SpdpDiscoveredParticipantData::new(
-            domain_id,
-            domain_tag,
-            protocol_version,
-            guid_prefix,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
-            BuiltInTopicKey {
-                value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-            },
-            UserDataQosPolicy { value: vec![] },
+            ParticipantBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
+                UserDataQosPolicy { value: vec![] },
+            ),
+            ParticipantProxy::new(
+                domain_id,
+                domain_tag,
+                protocol_version,
+                guid_prefix,
+                vendor_id,
+                expects_inline_qos,
+                metatraffic_unicast_locator_list,
+                metatraffic_multicast_locator_list,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                available_builtin_endpoints,
+                manual_liveliness_count,
+                builtin_endpoint_qos,
+            ),
             lease_duration,
         );
 
@@ -474,23 +483,27 @@ mod tests {
         let lease_duration = Duration::new(10, 11);
 
         let data = SpdpDiscoveredParticipantData::new(
-            domain_id,
-            domain_tag,
-            protocol_version,
-            guid_prefix,
-            vendor_id,
-            expects_inline_qos,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            available_builtin_endpoints,
-            manual_liveliness_count,
-            builtin_endpoint_qos,
-            BuiltInTopicKey {
-                value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
-            },
-            UserDataQosPolicy { value: vec![] },
+            ParticipantBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0, 0, 1, 0xc1],
+                },
+                UserDataQosPolicy { value: vec![] },
+            ),
+            ParticipantProxy::new(
+                domain_id,
+                domain_tag,
+                protocol_version,
+                guid_prefix,
+                vendor_id,
+                expects_inline_qos,
+                metatraffic_unicast_locator_list,
+                metatraffic_multicast_locator_list,
+                default_unicast_locator_list,
+                default_multicast_locator_list,
+                available_builtin_endpoints,
+                manual_liveliness_count,
+                builtin_endpoint_qos,
+            ),
             lease_duration,
         );
 

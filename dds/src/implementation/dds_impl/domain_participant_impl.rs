@@ -1,7 +1,7 @@
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    builtin_topics::{BuiltInTopicKey, ParticipantBuiltinTopicData, SubscriptionBuiltinTopicData},
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -11,7 +11,9 @@ use crate::{
             discovered_reader_data::{DiscoveredReaderData, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
             discovered_writer_data::{DiscoveredWriterData, DCPS_PUBLICATION},
-            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+            spdp_discovered_participant_data::{
+                ParticipantProxy, SpdpDiscoveredParticipantData, DCPS_PARTICIPANT,
+            },
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
@@ -929,31 +931,35 @@ impl DdsShared<DomainParticipantImpl> {
 
     fn announce_participant(&self) -> DdsResult<()> {
         let spdp_discovered_participant_data = SpdpDiscoveredParticipantData::new(
-            self.domain_id,
-            self.domain_tag.clone(),
-            self.rtps_participant.protocol_version(),
-            self.rtps_participant.guid().prefix(),
-            self.rtps_participant.vendor_id(),
-            false,
-            self.rtps_participant
-                .metatraffic_unicast_locator_list()
-                .to_vec(),
-            self.rtps_participant
-                .metatraffic_multicast_locator_list()
-                .to_vec(),
-            self.rtps_participant
-                .default_unicast_locator_list()
-                .to_vec(),
-            self.rtps_participant
-                .default_multicast_locator_list()
-                .to_vec(),
-            BuiltinEndpointSet::default(),
-            self.manual_liveliness_count,
-            BuiltinEndpointQos::default(),
-            BuiltInTopicKey {
-                value: self.rtps_participant.guid().into(),
-            },
-            self.qos.read_lock().user_data.clone(),
+            ParticipantBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: self.rtps_participant.guid().into(),
+                },
+                self.qos.read_lock().user_data.clone(),
+            ),
+            ParticipantProxy::new(
+                self.domain_id,
+                self.domain_tag.clone(),
+                self.rtps_participant.protocol_version(),
+                self.rtps_participant.guid().prefix(),
+                self.rtps_participant.vendor_id(),
+                false,
+                self.rtps_participant
+                    .metatraffic_unicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .metatraffic_multicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .default_unicast_locator_list()
+                    .to_vec(),
+                self.rtps_participant
+                    .default_multicast_locator_list()
+                    .to_vec(),
+                BuiltinEndpointSet::default(),
+                self.manual_liveliness_count,
+                BuiltinEndpointQos::default(),
+            ),
             self.lease_duration,
         );
         let mut serialized_data = Vec::new();
@@ -1205,7 +1211,7 @@ fn add_matched_reader(
     if is_matched_topic_name && is_matched_type_name {
         let incompatible_qos_policy_list = get_discovered_reader_incompatible_qos_policy_list(
             &writer.get_qos(),
-            &discovered_reader_data.subscription_builtin_topic_data(),
+            discovered_reader_data.subscription_builtin_topic_data(),
             publisher_qos,
         );
         let instance_handle = discovered_reader_data.get_serialized_key().into();
