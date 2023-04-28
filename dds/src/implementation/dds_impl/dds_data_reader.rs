@@ -764,13 +764,13 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         DiscoveredReaderData {
-            reader_proxy: ReaderProxy {
-                remote_reader_guid: guid,
-                remote_group_entity_id: guid.entity_id(),
-                unicast_locator_list: vec![],
-                multicast_locator_list: vec![],
-                expects_inline_qos: false.into(),
-            },
+            reader_proxy: ReaderProxy::new(
+                guid,
+                guid.entity_id(),
+                vec![],
+                vec![],
+                false.into(),
+            ),
 
             subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
                 key: BuiltInTopicKey { value: guid.into() },

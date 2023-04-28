@@ -455,12 +455,15 @@ fn announce_created_data_reader(
     domain_participant: &DomainParticipantImpl,
     discovered_reader_data: DiscoveredReaderData,
 ) {
+    let reader_proxy = ReaderProxy::new(
+        discovered_reader_data.reader_proxy.remote_reader_guid(),
+        discovered_reader_data.reader_proxy.remote_group_entity_id(),
+        domain_participant.default_unicast_locator_list().to_vec(),
+        domain_participant.default_multicast_locator_list().to_vec(),
+        discovered_reader_data.reader_proxy.expects_inline_qos(),
+    );
     let reader_data = &DiscoveredReaderData {
-        reader_proxy: ReaderProxy {
-            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
-            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
-            ..discovered_reader_data.reader_proxy
-        },
+        reader_proxy,
         ..discovered_reader_data
     };
 
@@ -500,12 +503,8 @@ fn announce_created_data_writer(
         discovered_writer_data.remote_group_entity_id(),
         publication_builtin_topic_data.key().clone(),
         publication_builtin_topic_data.participant_key().clone(),
-        publication_builtin_topic_data
-            .topic_name()
-            .to_string(),
-        publication_builtin_topic_data
-            .get_type_name()
-            .to_string(),
+        publication_builtin_topic_data.topic_name().to_string(),
+        publication_builtin_topic_data.get_type_name().to_string(),
         publication_builtin_topic_data.durability().clone(),
         publication_builtin_topic_data.deadline().clone(),
         publication_builtin_topic_data.latency_budget().clone(),

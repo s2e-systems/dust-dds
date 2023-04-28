@@ -1036,12 +1036,12 @@ impl DdsShared<DomainParticipantImpl> {
                         if !self.is_subscription_ignored(
                             discovered_reader_data
                                 .reader_proxy
-                                .remote_reader_guid
+                                .remote_reader_guid()
                                 .into(),
                         ) {
                             let remote_reader_guid_prefix = discovered_reader_data
                                 .reader_proxy
-                                .remote_reader_guid
+                                .remote_reader_guid()
                                 .prefix();
                             let reader_parent_participant_guid =
                                 Guid::new(remote_reader_guid_prefix, ENTITYID_PARTICIPANT);
@@ -1211,28 +1211,27 @@ fn add_matched_reader(
         if incompatible_qos_policy_list.is_empty() {
             let unicast_locator_list = if discovered_reader_data
                 .reader_proxy
-                .unicast_locator_list
+                .unicast_locator_list()
                 .is_empty()
             {
                 default_unicast_locator_list
             } else {
                 discovered_reader_data
                     .reader_proxy
-                    .unicast_locator_list
-                    .as_ref()
+                    .unicast_locator_list()
             };
 
             let multicast_locator_list = if discovered_reader_data
                 .reader_proxy
-                .multicast_locator_list
+                .multicast_locator_list()
                 .is_empty()
             {
                 default_multicast_locator_list
             } else {
                 discovered_reader_data
                     .reader_proxy
-                    .multicast_locator_list
-                    .as_ref()
+                    .multicast_locator_list()
+
             };
 
             let proxy_reliability = match discovered_reader_data
@@ -1254,13 +1253,13 @@ fn add_matched_reader(
             };
 
             let reader_proxy = RtpsReaderProxy::new(
-                discovered_reader_data.reader_proxy.remote_reader_guid,
-                discovered_reader_data.reader_proxy.remote_group_entity_id,
+                discovered_reader_data.reader_proxy.remote_reader_guid(),
+                discovered_reader_data.reader_proxy.remote_group_entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
                 discovered_reader_data
                     .reader_proxy
-                    .expects_inline_qos
+                    .expects_inline_qos()
                     .into(),
                 true,
                 proxy_reliability,

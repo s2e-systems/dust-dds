@@ -125,7 +125,6 @@ mod tests {
             },
             rtps::types::{EntityId, EntityKey, BUILT_IN_READER_GROUP},
         },
-        infrastructure::qos_policy::UserDataQosPolicy,
     };
 
     use super::*;

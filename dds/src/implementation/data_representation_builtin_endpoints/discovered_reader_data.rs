@@ -50,11 +50,49 @@ pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReaderProxy {
-    pub remote_reader_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub expects_inline_qos: ExpectsInlineQos,
+    remote_reader_guid: Guid,
+    remote_group_entity_id: EntityId,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    expects_inline_qos: ExpectsInlineQos,
+}
+
+impl ReaderProxy {
+    pub fn new(
+        remote_reader_guid: Guid,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        expects_inline_qos: ExpectsInlineQos,
+    ) -> Self {
+        Self {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos,
+        }
+    }
+
+    pub fn remote_reader_guid(&self) -> Guid {
+        self.remote_reader_guid
+    }
+
+    pub fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.unicast_locator_list.as_ref()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.multicast_locator_list.as_ref()
+    }
+
+    pub fn expects_inline_qos(&self) -> ExpectsInlineQos {
+        self.expects_inline_qos
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
