@@ -44,10 +44,8 @@ impl DdsSerialize for ParticipantBuiltinTopicData {
         &self,
         serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
     ) -> DdsResult<()> {
-        serializer
-            .serialize_parameter(PID_PARTICIPANT_GUID, &self.key)?;
-        serializer
-            .serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)
+        serializer.serialize_parameter(PID_PARTICIPANT_GUID, &self.key)?;
+        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)
     }
 }
 impl DdsType for ParticipantBuiltinTopicData {
@@ -439,25 +437,135 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct SubscriptionBuiltinTopicData {
-    pub key: BuiltInTopicKey,
-    pub participant_key: BuiltInTopicKey,
-    pub topic_name: String,
-    pub type_name: String,
+    key: BuiltInTopicKey,
+    participant_key: BuiltInTopicKey,
+    topic_name: String,
+    type_name: String,
 
-    pub durability: DurabilityQosPolicy,
-    pub deadline: DeadlineQosPolicy,
-    pub latency_budget: LatencyBudgetQosPolicy,
-    pub liveliness: LivelinessQosPolicy,
-    pub reliability: ReliabilityQosPolicy,
-    pub ownership: OwnershipQosPolicy,
-    pub destination_order: DestinationOrderQosPolicy,
-    pub user_data: UserDataQosPolicy,
-    pub time_based_filter: TimeBasedFilterQosPolicy,
+    durability: DurabilityQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    ownership: OwnershipQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    user_data: UserDataQosPolicy,
+    time_based_filter: TimeBasedFilterQosPolicy,
 
-    pub presentation: PresentationQosPolicy,
-    pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    presentation: PresentationQosPolicy,
+    partition: PartitionQosPolicy,
+    topic_data: TopicDataQosPolicy,
+    group_data: GroupDataQosPolicy,
+}
+
+impl SubscriptionBuiltinTopicData {
+    pub fn new(
+        key: BuiltInTopicKey,
+        participant_key: BuiltInTopicKey,
+        topic_name: String,
+        type_name: String,
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        ownership: OwnershipQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        user_data: UserDataQosPolicy,
+        time_based_filter: TimeBasedFilterQosPolicy,
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        topic_data: TopicDataQosPolicy,
+        group_data: GroupDataQosPolicy,
+    ) -> Self {
+        Self {
+            key,
+            participant_key,
+            topic_name,
+            type_name,
+            durability,
+            deadline,
+            latency_budget,
+            liveliness,
+            reliability,
+            ownership,
+            destination_order,
+            user_data,
+            time_based_filter,
+            presentation,
+            partition,
+            topic_data,
+            group_data,
+        }
+    }
+
+    pub fn key(&self) -> &BuiltInTopicKey {
+        &self.key
+    }
+
+    pub fn participant_key(&self) -> &BuiltInTopicKey {
+        &self.participant_key
+    }
+
+    pub fn topic_name(&self) -> &str {
+        self.topic_name.as_ref()
+    }
+
+    pub fn get_type_name(&self) -> &str {
+        self.type_name.as_ref()
+    }
+
+    pub fn durability(&self) -> &DurabilityQosPolicy {
+        &self.durability
+    }
+
+    pub fn deadline(&self) -> &DeadlineQosPolicy {
+        &self.deadline
+    }
+
+    pub fn latency_budget(&self) -> &LatencyBudgetQosPolicy {
+        &self.latency_budget
+    }
+
+    pub fn liveliness(&self) -> &LivelinessQosPolicy {
+        &self.liveliness
+    }
+
+    pub fn reliability(&self) -> &ReliabilityQosPolicy {
+        &self.reliability
+    }
+
+    pub fn ownership(&self) -> &OwnershipQosPolicy {
+        &self.ownership
+    }
+
+    pub fn destination_order(&self) -> &DestinationOrderQosPolicy {
+        &self.destination_order
+    }
+
+    pub fn user_data(&self) -> &UserDataQosPolicy {
+        &self.user_data
+    }
+
+    pub fn time_based_filter(&self) -> &TimeBasedFilterQosPolicy {
+        &self.time_based_filter
+    }
+
+    pub fn presentation(&self) -> &PresentationQosPolicy {
+        &self.presentation
+    }
+
+    pub fn partition(&self) -> &PartitionQosPolicy {
+        &self.partition
+    }
+
+    pub fn topic_data(&self) -> &TopicDataQosPolicy {
+        &self.topic_data
+    }
+
+    pub fn group_data(&self) -> &GroupDataQosPolicy {
+        &self.group_data
+    }
 }
 
 impl DdsType for SubscriptionBuiltinTopicData {

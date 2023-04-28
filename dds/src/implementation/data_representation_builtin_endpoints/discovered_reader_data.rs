@@ -132,7 +132,7 @@ impl DdsType for DiscoveredReaderData {
 
     fn get_serialized_key(&self) -> DdsSerializedKey {
         self.subscription_builtin_topic_data
-            .key
+            .key()
             .value
             .as_ref()
             .into()
@@ -169,74 +169,76 @@ impl DdsSerialize for DiscoveredReaderData {
             PID_EXPECTS_INLINE_QOS,
             &self.reader_proxy.expects_inline_qos,
         )?;
-        parameter_list_serializer
-            .serialize_parameter(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
+        parameter_list_serializer.serialize_parameter(
+            PID_ENDPOINT_GUID,
+            self.subscription_builtin_topic_data.key(),
+        )?;
         // Default value is a deviation from the standard and is used for interoperability reasons:
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTICIPANT_GUID,
-            &self.subscription_builtin_topic_data.participant_key,
+            self.subscription_builtin_topic_data.participant_key(),
         )?;
         parameter_list_serializer.serialize_parameter(
             PID_TOPIC_NAME,
-            &self.subscription_builtin_topic_data.topic_name,
+            &self.subscription_builtin_topic_data.topic_name(),
         )?;
         parameter_list_serializer.serialize_parameter(
             PID_TYPE_NAME,
-            &self.subscription_builtin_topic_data.type_name,
+            &self.subscription_builtin_topic_data.get_type_name(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DURABILITY,
-            &self.subscription_builtin_topic_data.durability,
+            self.subscription_builtin_topic_data.durability(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DEADLINE,
-            &self.subscription_builtin_topic_data.deadline,
+            self.subscription_builtin_topic_data.deadline(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_LATENCY_BUDGET,
-            &self.subscription_builtin_topic_data.latency_budget,
+            self.subscription_builtin_topic_data.latency_budget(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DURABILITY,
-            &self.subscription_builtin_topic_data.liveliness,
+            self.subscription_builtin_topic_data.liveliness(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_RELIABILITY,
             &ReliabilityQosPolicyDataReaderAndTopics(
-                &self.subscription_builtin_topic_data.reliability,
+                self.subscription_builtin_topic_data.reliability(),
             ),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_OWNERSHIP,
-            &self.subscription_builtin_topic_data.ownership,
+            self.subscription_builtin_topic_data.ownership(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_DESTINATION_ORDER,
-            &self.subscription_builtin_topic_data.destination_order,
+            self.subscription_builtin_topic_data.destination_order(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_USER_DATA,
-            &self.subscription_builtin_topic_data.user_data,
+            self.subscription_builtin_topic_data.user_data(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TIME_BASED_FILTER,
-            &self.subscription_builtin_topic_data.time_based_filter,
+            self.subscription_builtin_topic_data.time_based_filter(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PRESENTATION,
-            &self.subscription_builtin_topic_data.presentation,
+            self.subscription_builtin_topic_data.presentation(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_PARTITION,
-            &self.subscription_builtin_topic_data.partition,
+            self.subscription_builtin_topic_data.partition(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_TOPIC_DATA,
-            &self.subscription_builtin_topic_data.topic_data,
+            self.subscription_builtin_topic_data.topic_data(),
         )?;
         parameter_list_serializer.serialize_parameter_if_not_default(
             PID_GROUP_DATA,
-            &self.subscription_builtin_topic_data.group_data,
+            self.subscription_builtin_topic_data.group_data(),
         )?;
         parameter_list_serializer.serialize_sentinel()
     }
@@ -284,7 +286,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
                 multicast_locator_list,
                 expects_inline_qos,
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
                 key,
                 participant_key,
                 topic_name,
@@ -302,7 +304,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
                 partition,
                 topic_data,
                 group_data,
-            },
+            ),
         })
     }
 }
@@ -342,29 +344,29 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQos::default(),
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                user_data: UserDataQosPolicy { value: vec![] },
-                ownership: OwnershipQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                UserDataQosPolicy { value: vec![] },
+                TimeBasedFilterQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         };
 
         let expected = vec![
@@ -409,29 +411,29 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQos::default(),
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                UserDataQosPolicy::default(),
+                TimeBasedFilterQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         };
 
         let mut data = &[

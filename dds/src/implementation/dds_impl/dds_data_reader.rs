@@ -435,8 +435,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
         subscriber_qos: &SubscriberQos,
     ) {
-        let publication_builtin_topic_data =
-            discovered_writer_data.clone().publication_builtin_topic_data();
+        let publication_builtin_topic_data = discovered_writer_data
+            .clone()
+            .publication_builtin_topic_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
@@ -509,7 +510,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         discovered_writer_data: &DiscoveredWriterData,
         subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
-        let writer_info = discovered_writer_data.clone().publication_builtin_topic_data();
+        let writer_info = discovered_writer_data
+            .clone()
+            .publication_builtin_topic_data();
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         let mut incompatible_qos_policy_list = Vec::new();
@@ -517,7 +520,8 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         if subscriber_qos.presentation.access_scope > writer_info.presentation().access_scope
             || subscriber_qos.presentation.coherent_access
                 != writer_info.presentation().coherent_access
-            || subscriber_qos.presentation.ordered_access != writer_info.presentation().ordered_access
+            || subscriber_qos.presentation.ordered_access
+                != writer_info.presentation().ordered_access
         {
             incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
         }
@@ -764,34 +768,28 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         DiscoveredReaderData::new(
-            ReaderProxy::new(
-                guid,
-                guid.entity_id(),
-                vec![],
-                vec![],
-                false.into(),
-            ),
-            SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey { value: guid.into() },
-                participant_key: BuiltInTopicKey {
+            ReaderProxy::new(guid, guid.entity_id(), vec![], vec![], false.into()),
+            SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey { value: guid.into() },
+                BuiltInTopicKey {
                     value: GUID_UNKNOWN.into(),
                 },
-                topic_name: self.topic_name.clone(),
-                type_name: self.type_name.to_string(),
-                durability: reader_qos.durability.clone(),
-                deadline: reader_qos.deadline.clone(),
-                latency_budget: reader_qos.latency_budget.clone(),
-                liveliness: reader_qos.liveliness.clone(),
-                reliability: reader_qos.reliability.clone(),
-                ownership: reader_qos.ownership.clone(),
-                destination_order: reader_qos.destination_order.clone(),
-                user_data: reader_qos.user_data.clone(),
-                time_based_filter: reader_qos.time_based_filter,
-                presentation: subscriber_qos.presentation.clone(),
-                partition: subscriber_qos.partition.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                group_data: subscriber_qos.group_data.clone(),
-            },
+                self.topic_name.clone(),
+                self.type_name.to_string(),
+                reader_qos.durability.clone(),
+                reader_qos.deadline.clone(),
+                reader_qos.latency_budget.clone(),
+                reader_qos.liveliness.clone(),
+                reader_qos.reliability.clone(),
+                reader_qos.ownership.clone(),
+                reader_qos.destination_order.clone(),
+                reader_qos.user_data.clone(),
+                reader_qos.time_based_filter,
+                subscriber_qos.presentation.clone(),
+                subscriber_qos.partition.clone(),
+                topic_qos.topic_data.clone(),
+                subscriber_qos.group_data.clone(),
+            ),
         )
     }
 

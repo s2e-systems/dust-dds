@@ -1056,7 +1056,7 @@ impl DdsShared<DomainParticipantImpl> {
                                         if let Ok(d) = glob_to_regex(
                                             &discovered_reader_data
                                                 .subscription_builtin_topic_data()
-                                                .partition
+                                                .partition()
                                                 .name,
                                         ) {
                                             d.is_match(&publisher.get_qos().partition.name)
@@ -1071,7 +1071,7 @@ impl DdsShared<DomainParticipantImpl> {
                                             d.is_match(
                                                 &discovered_reader_data
                                                     .subscription_builtin_topic_data()
-                                                    .partition
+                                                    .partition()
                                                     .name,
                                             )
                                         } else {
@@ -1080,7 +1080,7 @@ impl DdsShared<DomainParticipantImpl> {
 
                                     let is_partition_string_matched = discovered_reader_data
                                         .subscription_builtin_topic_data()
-                                        .partition
+                                        .partition()
                                         .name
                                         == publisher.get_qos().partition.name;
 
@@ -1193,11 +1193,11 @@ fn add_matched_reader(
 ) {
     let is_matched_topic_name = discovered_reader_data
         .subscription_builtin_topic_data()
-        .topic_name
+        .topic_name()
         == writer.get_topic_name();
     let is_matched_type_name = discovered_reader_data
         .subscription_builtin_topic_data()
-        .type_name
+        .get_type_name()
         == writer.get_type_name();
 
     if is_matched_topic_name && is_matched_type_name {
@@ -1216,9 +1216,7 @@ fn add_matched_reader(
             {
                 default_unicast_locator_list
             } else {
-                discovered_reader_data
-                    .reader_proxy()
-                    .unicast_locator_list()
+                discovered_reader_data.reader_proxy().unicast_locator_list()
             };
 
             let multicast_locator_list = if discovered_reader_data
@@ -1231,12 +1229,11 @@ fn add_matched_reader(
                 discovered_reader_data
                     .reader_proxy()
                     .multicast_locator_list()
-
             };
 
             let proxy_reliability = match discovered_reader_data
                 .subscription_builtin_topic_data()
-                .reliability
+                .reliability()
                 .kind
             {
                 ReliabilityQosPolicyKind::BestEffort => ReliabilityKind::BestEffort,
@@ -1245,7 +1242,7 @@ fn add_matched_reader(
 
             let proxy_durability = match discovered_reader_data
                 .subscription_builtin_topic_data()
-                .durability
+                .durability()
                 .kind
             {
                 DurabilityQosPolicyKind::Volatile => DurabilityKind::Volatile,
@@ -1254,7 +1251,9 @@ fn add_matched_reader(
 
             let reader_proxy = RtpsReaderProxy::new(
                 discovered_reader_data.reader_proxy().remote_reader_guid(),
-                discovered_reader_data.reader_proxy().remote_group_entity_id(),
+                discovered_reader_data
+                    .reader_proxy()
+                    .remote_group_entity_id(),
                 unicast_locator_list,
                 multicast_locator_list,
                 discovered_reader_data
@@ -1306,30 +1305,30 @@ fn get_discovered_reader_incompatible_qos_policy_list(
     publisher_qos: &PublisherQos,
 ) -> Vec<QosPolicyId> {
     let mut incompatible_qos_policy_list = Vec::new();
-    if writer_qos.durability < discovered_reader_data.durability {
+    if &writer_qos.durability < discovered_reader_data.durability() {
         incompatible_qos_policy_list.push(DURABILITY_QOS_POLICY_ID);
     }
-    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation.access_scope
+    if publisher_qos.presentation.access_scope < discovered_reader_data.presentation().access_scope
         || publisher_qos.presentation.coherent_access
-            != discovered_reader_data.presentation.coherent_access
+            != discovered_reader_data.presentation().coherent_access
         || publisher_qos.presentation.ordered_access
-            != discovered_reader_data.presentation.ordered_access
+            != discovered_reader_data.presentation().ordered_access
     {
         incompatible_qos_policy_list.push(PRESENTATION_QOS_POLICY_ID);
     }
-    if writer_qos.deadline < discovered_reader_data.deadline {
+    if &writer_qos.deadline < discovered_reader_data.deadline() {
         incompatible_qos_policy_list.push(DEADLINE_QOS_POLICY_ID);
     }
-    if writer_qos.latency_budget < discovered_reader_data.latency_budget {
+    if &writer_qos.latency_budget < discovered_reader_data.latency_budget() {
         incompatible_qos_policy_list.push(LATENCYBUDGET_QOS_POLICY_ID);
     }
-    if writer_qos.liveliness < discovered_reader_data.liveliness {
+    if &writer_qos.liveliness < discovered_reader_data.liveliness() {
         incompatible_qos_policy_list.push(LIVELINESS_QOS_POLICY_ID);
     }
-    if writer_qos.reliability.kind < discovered_reader_data.reliability.kind {
+    if writer_qos.reliability.kind < discovered_reader_data.reliability().kind {
         incompatible_qos_policy_list.push(RELIABILITY_QOS_POLICY_ID);
     }
-    if writer_qos.destination_order < discovered_reader_data.destination_order {
+    if &writer_qos.destination_order < discovered_reader_data.destination_order() {
         incompatible_qos_policy_list.push(DESTINATIONORDER_QOS_POLICY_ID);
     }
     incompatible_qos_policy_list
@@ -1377,7 +1376,7 @@ pub fn remove_writer_matched_reader(
     participant_status_listener: &mut StatusListener<dyn DomainParticipantListener + Send + Sync>,
 ) {
     if let Some(r) = writer.get_matched_subscription_data(discovered_reader_handle) {
-        let handle = r.key.value.into();
+        let handle = r.key().value.into();
         writer.matched_reader_remove(handle);
         writer.remove_matched_subscription(handle.into());
 
