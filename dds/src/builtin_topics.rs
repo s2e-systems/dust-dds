@@ -20,6 +20,7 @@ use crate::{
             OwnershipQosPolicy, PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy,
             ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
             TransportPriorityQosPolicy, UserDataQosPolicy,
+            DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
@@ -266,6 +267,23 @@ impl Default for ReliabilityQosPolicyDataWriter {
     }
 }
 
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    serde::Serialize,
+    serde::Deserialize,
+    derive_more::Into,
+    derive_more::From,
+)]
+struct ReliabilityQosPolicyDataReader(ReliabilityQosPolicy);
+impl Default for ReliabilityQosPolicyDataReader {
+    fn default() -> Self {
+        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
     key: BuiltInTopicKey,
@@ -461,7 +479,7 @@ pub struct SubscriptionBuiltinTopicData {
     deadline: DeadlineQosPolicy,
     latency_budget: LatencyBudgetQosPolicy,
     liveliness: LivelinessQosPolicy,
-    reliability: ReliabilityQosPolicy,
+    reliability: ReliabilityQosPolicyDataReader,
     ownership: OwnershipQosPolicy,
     destination_order: DestinationOrderQosPolicy,
     user_data: UserDataQosPolicy,
@@ -503,7 +521,7 @@ impl SubscriptionBuiltinTopicData {
             deadline,
             latency_budget,
             liveliness,
-            reliability,
+            reliability: reliability.into(),
             ownership,
             destination_order,
             user_data,
@@ -548,7 +566,7 @@ impl SubscriptionBuiltinTopicData {
     }
 
     pub fn reliability(&self) -> &ReliabilityQosPolicy {
-        &self.reliability
+        &self.reliability.0
     }
 
     pub fn ownership(&self) -> &OwnershipQosPolicy {
@@ -589,7 +607,36 @@ impl DdsType for SubscriptionBuiltinTopicData {
         "SubscriptionBuiltinTopicData"
     }
 }
+impl DdsSerialize for SubscriptionBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter(PID_ENDPOINT_GUID, self.key())?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        serializer
+            .serialize_parameter_if_not_default(PID_PARTICIPANT_GUID, &self.participant_key)?;
+        serializer.serialize_parameter(PID_TOPIC_NAME, &self.topic_name)?;
+        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
+        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
+        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
+        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
+        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.liveliness)?;
+        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
+        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
+        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_TIME_BASED_FILTER, &self.time_based_filter)?;
+        serializer.serialize_parameter_if_not_default(PID_PRESENTATION, &self.presentation)?;
+        serializer.serialize_parameter_if_not_default(PID_PARTITION, &self.partition)?;
+        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)?;
+        serializer.serialize_parameter_if_not_default(PID_GROUP_DATA, &self.group_data)
+    }
+}
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
     fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
@@ -604,9 +651,7 @@ impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
         let deadline = param_list.get_or_default(PID_DEADLINE)?;
         let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
         let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
-            .into();
+        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
         let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
         let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;

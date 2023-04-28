@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::{
@@ -318,6 +318,7 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
 

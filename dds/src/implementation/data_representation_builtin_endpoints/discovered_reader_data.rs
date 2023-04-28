@@ -95,10 +95,37 @@ impl ReaderProxy {
     }
 }
 
+
+impl DdsSerialize for ReaderProxy {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    fn dds_serialize_parameter_list<W: Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter_vector(
+            PID_UNICAST_LOCATOR,
+            &self.unicast_locator_list,
+        )?;
+        serializer.serialize_parameter_vector(
+            PID_MULTICAST_LOCATOR,
+            &self.multicast_locator_list,
+        )?;
+        serializer.serialize_parameter(
+            PID_GROUP_ENTITYID,
+            &self.remote_group_entity_id,
+        )?;
+        serializer.serialize_parameter_if_not_default(
+            PID_EXPECTS_INLINE_QOS,
+            &self.expects_inline_qos,
+        )
+    }
+}
+
+
 #[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct DiscoveredReaderData {
-    reader_proxy: ReaderProxy,
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    reader_proxy: ReaderProxy,
 }
 
 impl DiscoveredReaderData {
@@ -148,99 +175,13 @@ impl DdsType for DiscoveredReaderData {
 
 impl DdsSerialize for DiscoveredReaderData {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
-    fn dds_serialize<W: Write>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::new(writer);
-        parameter_list_serializer.serialize_payload_header()?;
-        // reader_proxy.remote_reader_guid omitted as of table 9.10
-
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_UNICAST_LOCATOR,
-            &self.reader_proxy.unicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_MULTICAST_LOCATOR,
-            &self.reader_proxy.multicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_GROUP_ENTITYID,
-            &self.reader_proxy.remote_group_entity_id,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.reader_proxy.expects_inline_qos,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_ENDPOINT_GUID,
-            self.subscription_builtin_topic_data.key(),
-        )?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PARTICIPANT_GUID,
-            self.subscription_builtin_topic_data.participant_key(),
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_TOPIC_NAME,
-            &self.subscription_builtin_topic_data.topic_name(),
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_TYPE_NAME,
-            &self.subscription_builtin_topic_data.get_type_name(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DURABILITY,
-            self.subscription_builtin_topic_data.durability(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DEADLINE,
-            self.subscription_builtin_topic_data.deadline(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_LATENCY_BUDGET,
-            self.subscription_builtin_topic_data.latency_budget(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DURABILITY,
-            self.subscription_builtin_topic_data.liveliness(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_RELIABILITY,
-            &ReliabilityQosPolicyDataReaderAndTopics(
-                self.subscription_builtin_topic_data.reliability(),
-            ),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_OWNERSHIP,
-            self.subscription_builtin_topic_data.ownership(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DESTINATION_ORDER,
-            self.subscription_builtin_topic_data.destination_order(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_USER_DATA,
-            self.subscription_builtin_topic_data.user_data(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TIME_BASED_FILTER,
-            self.subscription_builtin_topic_data.time_based_filter(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PRESENTATION,
-            self.subscription_builtin_topic_data.presentation(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PARTITION,
-            self.subscription_builtin_topic_data.partition(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TOPIC_DATA,
-            self.subscription_builtin_topic_data.topic_data(),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_GROUP_DATA,
-            self.subscription_builtin_topic_data.group_data(),
-        )?;
-        parameter_list_serializer.serialize_sentinel()
+    fn dds_serialize_parameter_list<W: Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        self.reader_proxy.dds_serialize_parameter_list(serializer)?;
+        self.subscription_builtin_topic_data
+            .dds_serialize_parameter_list(serializer)
     }
 }
 
