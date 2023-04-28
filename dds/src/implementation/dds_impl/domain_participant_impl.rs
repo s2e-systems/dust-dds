@@ -1157,7 +1157,7 @@ impl DdsShared<DomainParticipantImpl> {
 
                     self.discovered_topic_list.write_lock().insert(
                         topic_data.get_serialized_key().into(),
-                        topic_data.topic_builtin_topic_data.clone(),
+                        topic_data.topic_builtin_topic_data().clone(),
                     );
 
                     self.topic_find_condvar.notify_all();

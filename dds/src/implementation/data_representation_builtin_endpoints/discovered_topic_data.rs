@@ -50,18 +50,23 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
 pub struct DiscoveredTopicData {
-    pub topic_builtin_topic_data: TopicBuiltinTopicData,
+    topic_builtin_topic_data: TopicBuiltinTopicData,
 }
-impl serde::Serialize for DiscoveredTopicData {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
+
+impl DiscoveredTopicData {
+    pub fn new(topic_builtin_topic_data: TopicBuiltinTopicData) -> Self {
+        Self {
+            topic_builtin_topic_data,
+        }
+    }
+
+    pub fn topic_builtin_topic_data(&self) -> &TopicBuiltinTopicData {
+        &self.topic_builtin_topic_data
     }
 }
+
 impl DdsType for DiscoveredTopicData {
     fn type_name() -> &'static str {
         "DiscoveredTopicData"

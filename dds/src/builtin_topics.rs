@@ -84,7 +84,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct TopicBuiltinTopicData {
     key: BuiltInTopicKey,
     name: String,
