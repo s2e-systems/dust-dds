@@ -3,23 +3,23 @@ use std::{collections::HashMap, hash::Hash};
 use super::shared_object::DdsRwLock;
 
 #[allow(dead_code)]
-pub struct DdsMap<K, T, V> {
-    list: DdsRwLock<HashMap<K, (T, V)>>,
+pub struct DdsMap<K, V> {
+    list: DdsRwLock<HashMap<K, V>>,
 }
 
 #[allow(dead_code)]
-impl<K, T, V> DdsMap<K, T, V> {
+impl<K, V> DdsMap<K, V> {
     pub fn new() -> Self {
         Self {
             list: DdsRwLock::new(HashMap::new()),
         }
     }
 
-    pub fn add(&self, key: K, object: T, value: V)
+    pub fn add(&self, key: K, value: V)
     where
         K: Hash + Eq,
     {
-        self.list.write_lock().insert(key, (object, value));
+        self.list.write_lock().insert(key, value);
     }
 
     pub fn remove(&self, key: &K)
@@ -29,91 +29,104 @@ impl<K, T, V> DdsMap<K, T, V> {
         self.list.write_lock().remove(key);
     }
 
-    pub fn get_object<F, O>(&self, key: &K, mut f: F) -> O
+    pub fn get<F, O>(&self, key: &K, mut f: F) -> O
     where
-        F: FnMut(Option<&T>) -> O,
+        F: FnMut(Option<&V>) -> O,
         K: Hash + Eq,
     {
-        f(self.list.write_lock().get(key).map(|(t, _)| t))
+        f(self.list.read_lock().get(key).map(|v| v))
     }
 
-    pub fn get_object_mut<F, O>(&self, key: &K, mut f: F) -> O
+    pub fn get_mut<F, O>(&self, key: &K, mut f: F) -> O
     where
-        F: FnMut(Option<&mut T>) -> O,
+        F: FnMut(Option<&mut V>) -> O,
         K: Hash + Eq,
     {
-        f(self.list.write_lock().get_mut(key).map(|(t, _)| t))
+        f(self.list.write_lock().get_mut(key).map(|v| v))
     }
 
-    pub fn iter_object<F, O>(&self, mut f: F) -> O
+    pub fn iter<F, O>(&self, mut f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapObjectIter<'a, K, T, V>) -> O,
+        F: for<'a> FnMut(&DdsMapIter<'a, K, V>) -> O,
     {
-        f(&mut DdsMapObjectIter {
-            iterator: self.list.read_lock().values(),
+        f(&DdsMapIter {
+            iterator: self.list.read_lock().iter(),
         })
     }
 
-    pub fn iter_object_mut<F>(&self, mut f: F)
+    pub fn iter_mut<F, O>(&self, mut f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapObjectIterMut<'a, K, T, V>),
+        F: for<'a> FnMut(&DdsMapIterMut<'a, K, V>) -> O,
     {
-        f(&mut DdsMapObjectIterMut {
-            iterator: self.list.write_lock().values_mut(),
-        });
+        f(&DdsMapIterMut {
+            iterator: self.list.write_lock().iter_mut(),
+        })
     }
 
-    pub fn get_value(&self, key: &K) -> Option<V>
+    pub fn values<F, O>(&self, mut f: F) -> O
     where
-        K: Hash + Eq,
-        V: Clone,
-    {
-        self.list.read_lock().get(key).map(|(_, v)| v).cloned()
-    }
-
-    pub fn iter_value<F, O>(&self, mut f: F) -> O
-    where
-        F: for<'a> FnMut(&mut DdsMapValueIter<'a, K, T, V>) -> O,
+        F: for<'a> FnMut(&mut DdsMapValueIter<'a, K, V>) -> O,
     {
         f(&mut DdsMapValueIter {
             iterator: self.list.read_lock().values(),
         })
     }
-}
 
-pub struct DdsMapObjectIter<'a, K, T, V> {
-    iterator: std::collections::hash_map::Values<'a, K, (T, V)>,
-}
-
-impl<'a, K, T, V> Iterator for DdsMapObjectIter<'a, K, T, V> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|(t, _)| t)
+    pub fn values_mut<F, O>(&self, mut f: F) -> O
+    where
+        F: for<'a> FnMut(&mut DdsMapValueIterMut<'a, K, V>) -> O,
+    {
+        f(&mut DdsMapValueIterMut {
+            iterator: self.list.write_lock().values_mut(),
+        })
     }
 }
 
-pub struct DdsMapObjectIterMut<'a, K, T, V> {
-    iterator: std::collections::hash_map::ValuesMut<'a, K, (T, V)>,
+pub struct DdsMapIter<'a, K, V> {
+    iterator: std::collections::hash_map::Iter<'a, K, V>,
 }
 
-impl<'a, K, T, V> Iterator for DdsMapObjectIterMut<'a, K, T, V> {
-    type Item = &'a mut T;
+impl<'a, K, V> Iterator for DdsMapIter<'a, K, V> {
+    type Item = (&'a K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|(t, _)| t)
+        self.iterator.next()
     }
 }
 
-pub struct DdsMapValueIter<'a, K, T, V> {
-    iterator: std::collections::hash_map::Values<'a, K, (T, V)>,
+pub struct DdsMapIterMut<'a, K, V> {
+    iterator: std::collections::hash_map::IterMut<'a, K, V>,
 }
 
-impl<'a, K, T, V> Iterator for DdsMapValueIter<'a, K, T, V> {
+impl<'a, K, V> Iterator for DdsMapIterMut<'a, K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next()
+    }
+}
+
+pub struct DdsMapValueIter<'a, K, V> {
+    iterator: std::collections::hash_map::Values<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for DdsMapValueIter<'a, K, V> {
     type Item = &'a V;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iterator.next().map(|(_, v)| v)
+        self.iterator.next()
+    }
+}
+
+pub struct DdsMapValueIterMut<'a, K, V> {
+    iterator: std::collections::hash_map::ValuesMut<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for DdsMapValueIterMut<'a, K, V> {
+    type Item = &'a mut V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iterator.next()
     }
 }
 
@@ -142,64 +155,44 @@ mod tests {
     #[test]
     fn add_objects() {
         let map = DdsMap::new();
-        map.add(1, TestObject::new(), (1, 2));
-        map.add(2, TestObject::new(), (1, 2));
-        let total_elements = map.iter_object(|x| x.count());
+        map.add(1, TestObject::new());
+        map.add(2, TestObject::new());
+        let total_elements = map.values(|x| x.count());
         assert_eq!(total_elements, 2)
     }
 
     #[test]
     fn remove_objects() {
         let map = DdsMap::new();
-        map.add(1, TestObject::new(), (1, 2));
-        map.add(2, TestObject::new(), (1, 2));
+        map.add(1, TestObject::new());
+        map.add(2, TestObject::new());
         map.remove(&2);
-        let total_elements = map.iter_object(|x| x.count());
+        let total_elements = map.values(|x| x.count());
         assert_eq!(total_elements, 1)
     }
 
     #[test]
     fn get_object() {
         let map = DdsMap::new();
-        map.add(1, TestObject::new(), (1, 2));
+        map.add(1, TestObject::new());
 
-        map.get_object_mut(&1, |x| x.unwrap().enable());
-        assert!(map.get_object(&1, |x| x.unwrap().is_enabled()));
+        map.get_mut(&1, |x| x.unwrap().enable());
+        assert!(map.get(&1, |x| x.unwrap().is_enabled()));
     }
 
     #[test]
     fn iter_mut_objects() {
         let map = DdsMap::new();
-        map.add(1, TestObject::new(), (1, 2));
-        map.add(2, TestObject::new(), (3, 4));
+        map.add(1, TestObject::new());
+        map.add(2, TestObject::new());
 
-        map.iter_object_mut(|list| {
+        map.values_mut(|list| {
             for o in list {
                 o.enable()
             }
         });
 
-        assert!(map.get_object(&1, |x| x.unwrap().is_enabled()));
-        assert!(map.get_object(&2, |x| x.unwrap().is_enabled()));
-    }
-
-    #[test]
-    fn get_values() {
-        let map = DdsMap::new();
-        map.add(1, TestObject::new(), (1, 2));
-        map.add(2, TestObject::new(), (3, 4));
-
-        assert_eq!(map.get_value(&2), Some((3, 4)));
-    }
-
-    #[test]
-    fn iter_values() {
-        let map = DdsMap::new();
-        map.add(1, TestObject::new(), 1);
-        map.add(2, TestObject::new(), 3);
-
-        let contains_value_3 = map.iter_value(|x| x.any(|&y| y == 3));
-
-        assert!(contains_value_3)
+        assert!(map.get(&1, |x| x.unwrap().is_enabled()));
+        assert!(map.get(&2, |x| x.unwrap().is_enabled()));
     }
 }
