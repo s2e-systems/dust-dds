@@ -1093,8 +1093,10 @@ impl DdsShared<DomainParticipantImpl> {
                                                 data_writer,
                                                 &discovered_reader_data,
                                                 discovered_participant_data
+                                                    .participant_proxy()
                                                     .default_unicast_locator_list(),
                                                 discovered_participant_data
+                                                    .participant_proxy()
                                                     .default_multicast_locator_list(),
                                                 &mut publisher.get_status_listener_lock(),
                                                 &mut self.get_status_listener_lock(),

@@ -48,7 +48,7 @@ impl Default for LeaseDuration {
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
 #[derive(Debug, PartialEq, Eq, serde::Serialize)]
-struct ParticipantProxy {
+pub struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: DomainTag,
     protocol_version: ProtocolVersion,
@@ -63,6 +63,61 @@ struct ParticipantProxy {
     manual_liveliness_count: Count,
     builtin_endpoint_qos: BuiltinEndpointQos,
 }
+
+impl ParticipantProxy {
+    pub fn domain_id(&self) -> i32 {
+        self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> &str {
+        &self.domain_tag.0
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    pub fn expects_inline_qos(&self) -> ExpectsInlineQos {
+        self.expects_inline_qos
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
+        self.metatraffic_unicast_locator_list.as_ref()
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
+        self.metatraffic_multicast_locator_list.as_ref()
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &[Locator] {
+        self.default_unicast_locator_list.as_ref()
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &[Locator] {
+        self.default_multicast_locator_list.as_ref()
+    }
+
+    pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
+        self.available_builtin_endpoints
+    }
+
+    pub fn manual_liveliness_count(&self) -> Count {
+        self.manual_liveliness_count
+    }
+
+    pub fn builtin_endpoint_qos(&self) -> BuiltinEndpointQos {
+        self.builtin_endpoint_qos
+    }
+}
+
 impl DdsSerialize for ParticipantProxy {
     const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
@@ -158,36 +213,12 @@ impl SpdpDiscoveredParticipantData {
         &self.dds_participant_data
     }
 
-    pub fn domain_id(&self) -> DomainId {
-        self.participant_proxy.domain_id
+    pub fn participant_proxy(&self) -> &ParticipantProxy {
+        &self.participant_proxy
     }
 
-    pub fn domain_tag(&self) -> &str {
-        &self.participant_proxy.domain_tag.0
-    }
-
-    pub fn guid_prefix(&self) -> GuidPrefix {
-        self.participant_proxy.guid_prefix
-    }
-
-    pub fn default_unicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.default_unicast_locator_list
-    }
-
-    pub fn default_multicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.default_multicast_locator_list
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.metatraffic_unicast_locator_list
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> &[Locator] {
-        &self.participant_proxy.metatraffic_multicast_locator_list
-    }
-
-    pub fn available_builtin_endpoints(&self) -> BuiltinEndpointSet {
-        self.participant_proxy.available_builtin_endpoints
+    pub fn lease_duration(&self) -> &Duration {
+        &self.lease_duration.0
     }
 }
 

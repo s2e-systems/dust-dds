@@ -85,21 +85,21 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
-    pub key: BuiltInTopicKey,
-    pub name: String,
-    pub type_name: String,
-    pub durability: DurabilityQosPolicy,
-    pub deadline: DeadlineQosPolicy,
-    pub latency_budget: LatencyBudgetQosPolicy,
-    pub liveliness: LivelinessQosPolicy,
-    pub reliability: ReliabilityQosPolicy,
-    pub transport_priority: TransportPriorityQosPolicy,
-    pub lifespan: LifespanQosPolicy,
-    pub destination_order: DestinationOrderQosPolicy,
-    pub history: HistoryQosPolicy,
-    pub resource_limits: ResourceLimitsQosPolicy,
-    pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    key: BuiltInTopicKey,
+    name: String,
+    type_name: String,
+    durability: DurabilityQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    transport_priority: TransportPriorityQosPolicy,
+    lifespan: LifespanQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    history: HistoryQosPolicy,
+    resource_limits: ResourceLimitsQosPolicy,
+    ownership: OwnershipQosPolicy,
+    topic_data: TopicDataQosPolicy,
 }
 
 impl TopicBuiltinTopicData {
