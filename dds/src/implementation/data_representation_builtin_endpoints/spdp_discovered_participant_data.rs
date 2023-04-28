@@ -134,7 +134,7 @@ impl SpdpDiscoveredParticipantData {
         lease_duration: Duration,
     ) -> Self {
         Self {
-            dds_participant_data: ParticipantBuiltinTopicData { key, user_data },
+            dds_participant_data: ParticipantBuiltinTopicData::new(key, user_data),
             participant_proxy: ParticipantProxy {
                 domain_id,
                 domain_tag: domain_tag.into(),
@@ -201,7 +201,7 @@ impl DdsType for SpdpDiscoveredParticipantData {
     }
 
     fn get_serialized_key(&self) -> DdsSerializedKey {
-        self.dds_participant_data.key.value.as_ref().into()
+        self.dds_participant_data.key().value.as_ref().into()
     }
 
     fn set_key_fields_from_serialized_key(&mut self, _key: &DdsSerializedKey) -> DdsResult<()> {
@@ -219,8 +219,10 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
         &self,
         serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
-        self.dds_participant_data.dds_serialize_parameter_list(serializer)?;
-        self.participant_proxy.dds_serialize_parameter_list(serializer)?;
+        self.dds_participant_data
+            .dds_serialize_parameter_list(serializer)?;
+        self.participant_proxy
+            .dds_serialize_parameter_list(serializer)?;
         serializer.serialize_parameter(PID_PARTICIPANT_LEASE_DURATION, &self.lease_duration)
     }
 }
@@ -249,8 +251,8 @@ impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
         let lease_duration = param_list.get(PID_PARTICIPANT_LEASE_DURATION)?;
 
-        let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-        let v = dds_participant_data.key.value;
+        let dds_participant_data = ParticipantBuiltinTopicData::new(key, user_data);
+        let v = dds_participant_data.key().value;
         let guid_prefix = GuidPrefix::new([
             v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11],
         ]);

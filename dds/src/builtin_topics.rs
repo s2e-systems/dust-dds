@@ -23,7 +23,9 @@ use crate::{
             DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER,
         },
     },
-    topic_definition::type_support::{DdsDeserialize, DdsSerialize, DdsType, PL_CDR_LE},
+    topic_definition::type_support::{
+        DdsDeserialize, DdsSerialize, DdsType, RepresentationType, PL_CDR_LE,
+    },
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize, Default)]
@@ -33,12 +35,25 @@ pub struct BuiltInTopicKey {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct ParticipantBuiltinTopicData {
-    pub key: BuiltInTopicKey,
-    pub user_data: UserDataQosPolicy,
+    key: BuiltInTopicKey,
+    user_data: UserDataQosPolicy,
+}
+
+impl ParticipantBuiltinTopicData {
+    pub fn new(key: BuiltInTopicKey, user_data: UserDataQosPolicy) -> Self {
+        Self { key, user_data }
+    }
+
+    pub fn key(&self) -> &BuiltInTopicKey {
+        &self.key
+    }
+
+    pub fn user_data(&self) -> &UserDataQosPolicy {
+        &self.user_data
+    }
 }
 impl DdsSerialize for ParticipantBuiltinTopicData {
-    const REPRESENTATION_IDENTIFIER: crate::topic_definition::type_support::RepresentationType =
-        PL_CDR_LE;
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
     fn dds_serialize_parameter_list<W: std::io::Write>(
         &self,

@@ -640,7 +640,7 @@ fn get_discovery_data_from_builtin_reader() {
             .data
             .as_ref()
             .unwrap()
-            .user_data
+            .user_data()
             .value,
         &participant_user_data
     );
