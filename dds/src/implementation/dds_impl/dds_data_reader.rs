@@ -435,9 +435,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
         subscriber_qos: &SubscriberQos,
     ) {
-        let publication_builtin_topic_data = discovered_writer_data
-            .clone()
-            .publication_builtin_topic_data();
+        let publication_builtin_topic_data = discovered_writer_data.dds_publication_data();
         if publication_builtin_topic_data.topic_name() == self.topic_name
             && publication_builtin_topic_data.get_type_name() == self.type_name
         {
@@ -448,26 +446,38 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     subscriber_qos,
                 );
             if incompatible_qos_policy_list.is_empty() {
-                let unicast_locator_list =
-                    if discovered_writer_data.unicast_locator_list().is_empty() {
-                        default_unicast_locator_list
-                    } else {
-                        discovered_writer_data.unicast_locator_list()
-                    };
+                let unicast_locator_list = if discovered_writer_data
+                    .writer_proxy()
+                    .unicast_locator_list()
+                    .is_empty()
+                {
+                    default_unicast_locator_list
+                } else {
+                    discovered_writer_data.writer_proxy().unicast_locator_list()
+                };
 
-                let multicast_locator_list =
-                    if discovered_writer_data.multicast_locator_list().is_empty() {
-                        default_multicast_locator_list
-                    } else {
-                        discovered_writer_data.multicast_locator_list()
-                    };
+                let multicast_locator_list = if discovered_writer_data
+                    .writer_proxy()
+                    .multicast_locator_list()
+                    .is_empty()
+                {
+                    default_multicast_locator_list
+                } else {
+                    discovered_writer_data
+                        .writer_proxy()
+                        .multicast_locator_list()
+                };
 
                 let writer_proxy = RtpsWriterProxy::new(
-                    discovered_writer_data.remote_writer_guid(),
+                    discovered_writer_data.writer_proxy().remote_writer_guid(),
                     unicast_locator_list,
                     multicast_locator_list,
-                    discovered_writer_data.data_max_size_serialized(),
-                    discovered_writer_data.remote_group_entity_id(),
+                    discovered_writer_data
+                        .writer_proxy()
+                        .data_max_size_serialized(),
+                    discovered_writer_data
+                        .writer_proxy()
+                        .remote_group_entity_id(),
                 );
 
                 self.rtps_reader
@@ -478,7 +488,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
                     .write_lock()
                     .insert(instance_handle, publication_builtin_topic_data.clone());
                 match insert_matched_publication_result {
-                    Some(value) if value != publication_builtin_topic_data => self
+                    Some(value) if &value != publication_builtin_topic_data => self
                         .on_subscription_matched(
                             instance_handle,
                             subscriber_status_listener,
@@ -510,9 +520,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         discovered_writer_data: &DiscoveredWriterData,
         subscriber_qos: &SubscriberQos,
     ) -> Vec<QosPolicyId> {
-        let writer_info = discovered_writer_data
-            .clone()
-            .publication_builtin_topic_data();
+        let writer_info = discovered_writer_data.dds_publication_data();
         let reader_qos = self.rtps_reader.read_lock().get_qos().clone();
 
         let mut incompatible_qos_policy_list = Vec::new();

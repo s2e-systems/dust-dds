@@ -4,9 +4,11 @@ use std::{
 };
 
 use crate::{
-    builtin_topics::BuiltInTopicKey,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
-        data_representation_builtin_endpoints::discovered_writer_data::DiscoveredWriterData,
+        data_representation_builtin_endpoints::discovered_writer_data::{
+            DiscoveredWriterData, WriterProxy,
+        },
         rtps::{
             history_cache::{RtpsParameter, RtpsWriterCacheChange},
             messages::submessages::{AckNackSubmessage, NackFragSubmessage},
@@ -14,9 +16,7 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
-            types::{
-                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
-            },
+            types::{ChangeKind, EntityId, EntityKey, Guid, Locator, USER_DEFINED_UNKNOWN},
         },
         utils::{
             condvar::DdsCondvar,
@@ -622,35 +622,39 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
         DiscoveredWriterData::new(
-            self.rtps_writer.read_lock().guid(),
-            self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
-            self.rtps_writer
-                .read_lock()
-                .multicast_locator_list()
-                .to_vec(),
-            None,
-            EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-            BuiltInTopicKey {
-                value: self.rtps_writer.read_lock().guid().into(),
-            },
-            BuiltInTopicKey {
-                value: GUID_UNKNOWN.into(),
-            },
-            self.topic_name.clone(),
-            self.type_name.to_string(),
-            writer_qos.durability.clone(),
-            writer_qos.deadline.clone(),
-            writer_qos.latency_budget.clone(),
-            writer_qos.liveliness.clone(),
-            writer_qos.reliability.clone(),
-            writer_qos.lifespan.clone(),
-            writer_qos.user_data.clone(),
-            writer_qos.ownership.clone(),
-            writer_qos.destination_order,
-            publisher_qos.presentation.clone(),
-            publisher_qos.partition.clone(),
-            topic_qos.topic_data.clone(),
-            publisher_qos.group_data.clone(),
+            PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: self.rtps_writer.read_lock().guid().into(),
+                },
+                BuiltInTopicKey {
+                    value: self.rtps_writer.read_lock().guid().into(),
+                },
+                self.topic_name.clone(),
+                self.type_name.to_string(),
+                writer_qos.durability.clone(),
+                writer_qos.deadline.clone(),
+                writer_qos.latency_budget.clone(),
+                writer_qos.liveliness.clone(),
+                writer_qos.reliability.clone(),
+                writer_qos.lifespan.clone(),
+                writer_qos.user_data.clone(),
+                writer_qos.ownership.clone(),
+                writer_qos.destination_order,
+                publisher_qos.presentation.clone(),
+                publisher_qos.partition.clone(),
+                topic_qos.topic_data.clone(),
+                publisher_qos.group_data.clone(),
+            ),
+            WriterProxy::new(
+                self.rtps_writer.read_lock().guid(),
+                EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
+                self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
+                self.rtps_writer
+                    .read_lock()
+                    .multicast_locator_list()
+                    .to_vec(),
+                None,
+            ),
         )
     }
 }

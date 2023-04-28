@@ -1,15 +1,16 @@
 use crate::{
     implementation::{
-        data_representation_builtin_endpoints::{
-            parameter_id_values::{
-                PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID,
-                PID_GROUP_DATA, PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS,
-                PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION,
-                PID_RELIABILITY, PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA,
-                PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
-            },
+        data_representation_builtin_endpoints::parameter_id_values::{
+            PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_GROUP_DATA,
+            PID_HISTORY, PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP,
+            PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
+            PID_RESOURCE_LIMITS, PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME,
+            PID_TRANSPORT_PRIORITY, PID_TYPE_NAME, PID_USER_DATA,
         },
-        parameter_list_serde::parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_serde::{
+            parameter_list_deserializer::ParameterListDeserializer,
+            parameter_list_serializer::ParameterListSerializer,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -74,7 +75,7 @@ impl DdsSerialize for ParticipantBuiltinTopicData {
 
     fn dds_serialize_parameter_list<W: std::io::Write>(
         &self,
-        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+        serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
         serializer.serialize_parameter(PID_PARTICIPANT_GUID, &self.key)?;
         serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)
@@ -229,7 +230,7 @@ impl DdsSerialize for TopicBuiltinTopicData {
 
     fn dds_serialize_parameter_list<W: std::io::Write>(
         &self,
-        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+        serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
         serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
         serializer.serialize_parameter(PID_TOPIC_NAME, &self.name)?;
@@ -326,7 +327,7 @@ impl Default for ReliabilityQosPolicyDataReader {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct PublicationBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,
@@ -461,6 +462,36 @@ impl PublicationBuiltinTopicData {
 impl DdsType for PublicationBuiltinTopicData {
     fn type_name() -> &'static str {
         "PublicationBuiltinTopicData"
+    }
+}
+
+impl DdsSerialize for PublicationBuiltinTopicData {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+
+    fn dds_serialize_parameter_list<W: std::io::Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter(PID_ENDPOINT_GUID, &self.key)?;
+        // Default value is a deviation from the standard and is used for interoperability reasons:
+        serializer
+            .serialize_parameter_if_not_default(PID_PARTICIPANT_GUID, &self.participant_key)?;
+        serializer.serialize_parameter(PID_TOPIC_NAME, &self.topic_name)?;
+        serializer.serialize_parameter(PID_TYPE_NAME, &self.type_name)?;
+        serializer.serialize_parameter_if_not_default(PID_DURABILITY, &self.durability)?;
+        serializer.serialize_parameter_if_not_default(PID_DEADLINE, &self.deadline)?;
+        serializer.serialize_parameter_if_not_default(PID_LATENCY_BUDGET, &self.latency_budget)?;
+        serializer.serialize_parameter_if_not_default(PID_LIVELINESS, &self.liveliness)?;
+        serializer.serialize_parameter_if_not_default(PID_RELIABILITY, &self.reliability)?;
+        serializer.serialize_parameter_if_not_default(PID_LIFESPAN, &self.lifespan)?;
+        serializer.serialize_parameter_if_not_default(PID_USER_DATA, &self.user_data)?;
+        serializer.serialize_parameter_if_not_default(PID_OWNERSHIP, &self.ownership)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_DESTINATION_ORDER, &self.destination_order)?;
+        serializer.serialize_parameter_if_not_default(PID_PRESENTATION, &self.presentation)?;
+        serializer.serialize_parameter_if_not_default(PID_PARTITION, &self.partition)?;
+        serializer.serialize_parameter_if_not_default(PID_TOPIC_DATA, &self.topic_data)?;
+        serializer.serialize_parameter_if_not_default(PID_GROUP_DATA, &self.group_data)
     }
 }
 
@@ -654,7 +685,7 @@ impl DdsSerialize for SubscriptionBuiltinTopicData {
 
     fn dds_serialize_parameter_list<W: std::io::Write>(
         &self,
-        serializer: &mut crate::implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer<W>,
+        serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
         serializer.serialize_parameter(PID_ENDPOINT_GUID, self.key())?;
         // Default value is a deviation from the standard and is used for interoperability reasons:

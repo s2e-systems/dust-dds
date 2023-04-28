@@ -16,7 +16,7 @@ use crate::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
             discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::DiscoveredWriterData,
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
             spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
         },
         rtps::{
@@ -496,32 +496,15 @@ fn announce_created_data_writer(
     domain_participant: &DomainParticipantImpl,
     discovered_writer_data: DiscoveredWriterData,
 ) {
-    let publication_builtin_topic_data = discovered_writer_data
-        .clone()
-        .publication_builtin_topic_data();
     let writer_data = &DiscoveredWriterData::new(
-        discovered_writer_data.remote_writer_guid(),
-        domain_participant.default_unicast_locator_list().to_vec(),
-        domain_participant.default_multicast_locator_list().to_vec(),
-        discovered_writer_data.data_max_size_serialized(),
-        discovered_writer_data.remote_group_entity_id(),
-        publication_builtin_topic_data.key().clone(),
-        publication_builtin_topic_data.participant_key().clone(),
-        publication_builtin_topic_data.topic_name().to_string(),
-        publication_builtin_topic_data.get_type_name().to_string(),
-        publication_builtin_topic_data.durability().clone(),
-        publication_builtin_topic_data.deadline().clone(),
-        publication_builtin_topic_data.latency_budget().clone(),
-        publication_builtin_topic_data.liveliness().clone(),
-        publication_builtin_topic_data.reliability().clone(),
-        publication_builtin_topic_data.lifespan().clone(),
-        publication_builtin_topic_data.user_data().clone(),
-        publication_builtin_topic_data.ownership().clone(),
-        publication_builtin_topic_data.destination_order().clone(),
-        publication_builtin_topic_data.presentation().clone(),
-        publication_builtin_topic_data.partition().clone(),
-        publication_builtin_topic_data.topic_data().clone(),
-        publication_builtin_topic_data.group_data().clone(),
+        discovered_writer_data.dds_publication_data().clone(),
+        WriterProxy::new(
+            discovered_writer_data.writer_proxy().remote_writer_guid(),
+            discovered_writer_data.writer_proxy().remote_group_entity_id(),
+            domain_participant.default_unicast_locator_list().to_vec(),
+            domain_participant.default_multicast_locator_list().to_vec(),
+            discovered_writer_data.writer_proxy().data_max_size_serialized(),
+        ),
     );
 
     let mut serialized_data = Vec::new();
@@ -989,10 +972,10 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
                     if !domain_participant
-                        .is_publication_ignored(discovered_writer_data.remote_writer_guid().into())
+                        .is_publication_ignored(discovered_writer_data.writer_proxy().remote_writer_guid().into())
                     {
                         let remote_writer_guid_prefix =
-                            discovered_writer_data.remote_writer_guid().prefix();
+                            discovered_writer_data.writer_proxy().remote_writer_guid().prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -1048,7 +1031,7 @@ pub fn subscriber_add_matched_writer(
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
             .clone()
-            .publication_builtin_topic_data()
+            .dds_publication_data()
             .partition()
             .name,
     ) {
@@ -1062,7 +1045,7 @@ pub fn subscriber_add_matched_writer(
             d.is_match(
                 &discovered_writer_data
                     .clone()
-                    .publication_builtin_topic_data()
+                    .dds_publication_data()
                     .partition()
                     .name,
             )
@@ -1072,7 +1055,7 @@ pub fn subscriber_add_matched_writer(
 
     let is_partition_string_matched = discovered_writer_data
         .clone()
-        .publication_builtin_topic_data()
+        .dds_publication_data()
         .partition()
         .name
         == user_defined_subscriber.get_qos().partition.name;
