@@ -1,3 +1,4 @@
+pub mod arc_lock;
 pub mod condvar;
 pub mod iterator;
 pub mod map;
