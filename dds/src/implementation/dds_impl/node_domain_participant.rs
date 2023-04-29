@@ -26,7 +26,7 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct DomainParticipantNode(pub(crate) Guid);
 
 impl DomainParticipantNode {
@@ -41,9 +41,8 @@ impl DomainParticipantNode {
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedPublisherNode> {
         self.call_participant_method(move |dp| {
-            dp.create_publisher(qos, a_listener, mask).map(|x| {
-                UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0))
-            })
+            dp.create_publisher(qos, a_listener, mask)
+                .map(|x| UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
     }
 
@@ -58,9 +57,8 @@ impl DomainParticipantNode {
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedSubscriberNode> {
         self.call_participant_method(|dp| {
-            dp.create_subscriber(qos, a_listener, mask).map(|x| {
-                UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0))
-            })
+            dp.create_subscriber(qos, a_listener, mask)
+                .map(|x| UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
     }
 
