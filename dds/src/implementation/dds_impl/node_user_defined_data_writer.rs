@@ -1,9 +1,9 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        rtps::stateful_writer::RtpsStatefulWriter,
+        rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
-            node::{ChildNode, RootNode},
+            node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -21,20 +21,14 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    dcps_service::DcpsService,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+    any_data_writer_listener::AnyDataWriterListener, dds_data_writer::DdsDataWriter,
+    dds_domain_participant::AnnounceKind, dds_publisher::DdsPublisher,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
-    dds_data_writer::DdsDataWriter,
-    dds_publisher::DdsPublisher,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 
-type UserDefinedDataWriterNodeType = ChildNode<
-    DdsDataWriter<RtpsStatefulWriter>,
-    ChildNode<DdsPublisher, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
->;
+type UserDefinedDataWriterNodeType =
+    ChildNode<DdsDataWriter<RtpsStatefulWriter>, ChildNode<DdsPublisher, Guid>>;
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode(UserDefinedDataWriterNodeType);

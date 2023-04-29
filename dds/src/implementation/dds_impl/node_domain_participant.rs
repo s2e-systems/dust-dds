@@ -4,7 +4,7 @@ use crate::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
-    implementation::utils::node::{ChildNode, RootNode},
+    implementation::{rtps::types::Guid, utils::node::ChildNode},
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},
@@ -18,18 +18,17 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    dds_domain_participant::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
+    any_topic_listener::AnyTopicListener, node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct DomainParticipantNode(ChildNode<DdsDomainParticipant, RootNode<DcpsService>>);
+pub struct DomainParticipantNode(Guid);
 
 impl DomainParticipantNode {
-    pub fn new(node: ChildNode<DdsDomainParticipant, RootNode<DcpsService>>) -> Self {
+    pub fn new(node: Guid) -> Self {
         Self(node)
     }
 

@@ -1,9 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        rtps::stateful_reader::RtpsStatefulReader,
+        rtps::{stateful_reader::RtpsStatefulReader, types::Guid},
         utils::{
-            node::{ChildNode, RootNode},
+            node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -25,21 +25,15 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    dcps_service::DcpsService,
-    dds_data_reader::DdsDataReader,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
+    dds_domain_participant::AnnounceKind, dds_subscriber::DdsSubscriber,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    dds_subscriber::DdsSubscriber,
 };
 
-type UserDefinedDataReaderNodeType = ChildNode<
-    DdsDataReader<RtpsStatefulReader>,
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
->;
+type UserDefinedDataReaderNodeType =
+    ChildNode<DdsDataReader<RtpsStatefulReader>, ChildNode<DdsSubscriber, Guid>>;
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataReaderNode(UserDefinedDataReaderNodeType);

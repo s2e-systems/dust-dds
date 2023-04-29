@@ -22,7 +22,7 @@ impl DomainParticipantList {
         }
     }
 
-    pub fn add_entity(
+    pub fn add_participant(
         &self,
         guid: Guid,
         entity: DdsDomainParticipant,
@@ -31,7 +31,7 @@ impl DomainParticipantList {
         self.participant_list.add_entity(guid, entity, listener);
     }
 
-    pub fn remove_entity(&self, guid: &Guid) {
+    pub fn remove_participant(&self, guid: &Guid) {
         self.participant_list.remove_entity(guid);
     }
 

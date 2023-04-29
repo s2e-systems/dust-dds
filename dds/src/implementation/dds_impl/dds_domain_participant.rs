@@ -719,9 +719,7 @@ impl DdsDomainParticipant {
     pub fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
-}
 
-impl DdsShared<DdsDomainParticipant> {
     pub fn find_topic(
         &self,
         topic_name: &str,

@@ -42,10 +42,7 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{
-            condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::{condvar::DdsCondvar, shared_object::DdsRwLock},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -61,20 +58,21 @@ use crate::{
 use super::{
     dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter,
-    dds_subscriber::DdsSubscriber,
     dds_domain_participant::{
         AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_subscriber::DdsSubscriber,
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
 };
 
 pub struct DcpsService {
-    participant: DdsShared<DdsDomainParticipant>,
+    participant_guid: Guid,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
@@ -85,10 +83,12 @@ pub struct DcpsService {
 
 impl DcpsService {
     pub fn new(
-        participant: DdsShared<DdsDomainParticipant>,
+        participant_guid: Guid,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
+        sedp_condvar: &DdsCondvar,
+        user_defined_data_send_condvar: &DdsCondvar,
         announce_sender: SyncSender<AnnounceKind>,
         announce_receiver: Receiver<AnnounceKind>,
     ) -> DdsResult<Self> {
@@ -97,7 +97,6 @@ impl DcpsService {
 
         // //////////// Notification thread
         {
-            let domain_participant = participant.clone();
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -105,7 +104,13 @@ impl DcpsService {
                     break;
                 }
 
-                domain_participant.update_communication_status().ok();
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .domain_participant_list()
+                    .get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            dp.update_communication_status().ok();
+                        }
+                    });
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
@@ -114,8 +119,7 @@ impl DcpsService {
 
         // ////////////// SPDP participant discovery
         {
-            let domain_participant = participant.clone();
-            let sedp_condvar_clone = domain_participant.sedp_condvar().clone();
+            let sedp_condvar_clone = sedp_condvar.clone();
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -124,29 +128,19 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    MessageReceiver::new(domain_participant.get_current_time())
-                        .process_message(
-                            domain_participant.guid().prefix(),
-                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
-                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
-                            locator,
-                            &message,
-                            &mut domain_participant.get_status_listener_lock(),
-                        )
-                        .ok();
-
-                    discover_matched_participants(&domain_participant, &sedp_condvar_clone).ok();
-                    domain_participant.discover_matched_readers().ok();
-                    discover_matched_writers(&domain_participant).ok();
-                    domain_participant.discover_matched_topics().ok();
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .domain_participant_list()
+                        .get_participant(&participant_guid, |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        })
                 }
             }));
         }
 
         //  ////////////// Entity announcer thread
         {
-            let domain_participant = participant.clone();
-
             let task_quit = quit.clone();
 
             threads.push(std::thread::spawn(move || loop {
@@ -155,38 +149,20 @@ impl DcpsService {
                 }
 
                 if let Ok(announce_kind) = announce_receiver.recv() {
-                    match announce_kind {
-                        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-                            announce_created_data_reader(
-                                &domain_participant,
-                                discovered_reader_data,
-                            )
-                        }
-                        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-                            announce_created_data_writer(
-                                &domain_participant,
-                                discovered_writer_data,
-                            )
-                        }
-                        AnnounceKind::CratedTopic(discovered_topic_data) => {
-                            announce_created_topic(&domain_participant, discovered_topic_data)
-                        }
-                        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-                            announce_deleted_reader(&domain_participant, deleted_reader_handle)
-                        }
-                        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-                            announce_deleted_writer(&domain_participant, deleted_writer_handle)
-                        }
-                        AnnounceKind::DeletedParticipant => (),
-                    }
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .domain_participant_list()
+                        .get_participant(&participant_guid, |dp| {
+                            if let Some(dp) = dp {
+                                announce_entity(dp, announce_kind);
+                            }
+                        })
                 }
             }));
         }
 
         // //////////// Unicast metatraffic Communication receive
         {
-            let domain_participant = participant.clone();
-            let sedp_condvar_clone = domain_participant.sedp_condvar().clone();
+            let sedp_condvar_clone = sedp_condvar.clone();
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -194,104 +170,41 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    MessageReceiver::new(domain_participant.get_current_time())
-                        .process_message(
-                            domain_participant.guid().prefix(),
-                            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
-                            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
-                            locator,
-                            &message,
-                            &mut domain_participant.get_status_listener_lock(),
-                        )
-                        .ok();
-
-                    discover_matched_participants(&domain_participant, &sedp_condvar_clone).ok();
-                    domain_participant.discover_matched_readers().ok();
-                    discover_matched_writers(&domain_participant).ok();
-                    domain_participant.discover_matched_topics().ok();
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .domain_participant_list()
+                        .get_participant(&participant_guid, |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        })
                 }
             }));
         }
 
         // //////////// Unicast metatraffic Communication send
         {
-            let domain_participant = participant.clone();
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
 
             let mut metatraffic_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
-            let sedp_condvar_clone = domain_participant.sedp_condvar().clone();
+            let sedp_condvar_clone = sedp_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
-
-                let header = RtpsMessageHeader {
-                    protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: domain_participant.protocol_version(),
-                    vendor_id: domain_participant.vendor_id(),
-                    guid_prefix: domain_participant.guid().prefix(),
-                };
-
-                let _now = domain_participant.get_current_time();
-                stateless_writer_send_message(
-                    domain_participant
-                        .get_builtin_publisher()
-                        .stateless_data_writer_list()
-                        .into_iter()
-                        .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
-                        .unwrap(),
-                    header,
-                    &mut metatraffic_unicast_transport_send,
-                );
-
-                user_defined_stateful_writer_send_message(
-                    domain_participant
-                        .get_builtin_publisher()
-                        .stateful_data_writer_list()
-                        .into_iter()
-                        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
-                        .unwrap(),
-                    header,
-                    &mut metatraffic_unicast_transport_send,
-                );
-
-                user_defined_stateful_writer_send_message(
-                    domain_participant
-                        .get_builtin_publisher()
-                        .stateful_data_writer_list()
-                        .into_iter()
-                        .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
-                        .unwrap(),
-                    header,
-                    &mut metatraffic_unicast_transport_send,
-                );
-
-                user_defined_stateful_writer_send_message(
-                    domain_participant
-                        .get_builtin_publisher()
-                        .stateful_data_writer_list()
-                        .into_iter()
-                        .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
-                        .unwrap(),
-                    header,
-                    &mut metatraffic_unicast_transport_send,
-                );
-
-                for stateful_readers in domain_participant
-                    .get_builtin_subscriber()
-                    .stateful_data_reader_list()
-                    .into_iter()
-                {
-                    stateful_readers.send_message(header, &mut metatraffic_unicast_transport_send)
-                }
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .domain_participant_list()
+                    .get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
+                        }
+                    });
             }));
         }
 
         // //////////// User-defined Communication receive
         {
-            let domain_participant = participant.clone();
             let task_quit = quit.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
@@ -299,21 +212,23 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
-                    domain_participant
-                        .receive_user_defined_data(locator, message)
-                        .ok();
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .domain_participant_list()
+                        .get_participant(&participant_guid, |dp| {
+                            if let Some(dp) = dp {
+                                dp.receive_user_defined_data(locator, message).ok();
+                            }
+                        });
                 }
             }));
         }
 
         // //////////// User-defined Communication send
         {
-            let domain_participant = participant.clone();
             let socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
             let mut default_unicast_transport_send = UdpTransport::new(socket);
             let task_quit = quit.clone();
-            let user_defined_data_send_condvar_clone =
-                domain_participant.user_defined_data_send_condvar().clone();
+            let user_defined_data_send_condvar_clone = user_defined_data_send_condvar.clone();
             threads.push(std::thread::spawn(move || loop {
                 if task_quit.load(atomic::Ordering::SeqCst) {
                     break;
@@ -322,71 +237,25 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                let header = RtpsMessageHeader {
-                    protocol: ProtocolId::PROTOCOL_RTPS,
-                    version: domain_participant.protocol_version(),
-                    vendor_id: domain_participant.vendor_id(),
-                    guid_prefix: domain_participant.guid().prefix(),
-                };
-                let now = domain_participant.get_current_time();
-
-                for publisher in &domain_participant.user_defined_publisher_list() {
-                    for data_writer in &publisher.stateful_data_writer_list() {
-                        let writer_id = data_writer.guid().entity_id();
-                        let data_max_size_serialized = data_writer.data_max_size_serialized();
-                        let heartbeat_period = data_writer.heartbeat_period();
-                        let first_sn = data_writer
-                            .change_list()
-                            .into_iter()
-                            .map(|x| x.sequence_number())
-                            .min()
-                            .unwrap_or(SequenceNumber::new(1));
-                        let last_sn = data_writer
-                            .change_list()
-                            .into_iter()
-                            .map(|x| x.sequence_number())
-                            .max()
-                            .unwrap_or_else(|| SequenceNumber::new(0));
-                        remove_stale_writer_changes(data_writer, now);
-                        for mut reader_proxy in &mut data_writer.matched_reader_list() {
-                            match reader_proxy.reliability() {
-                                ReliabilityKind::BestEffort => {
-                                    send_message_best_effort_reader_proxy(
-                                        &mut reader_proxy,
-                                        data_max_size_serialized,
-                                        header,
-                                        &mut default_unicast_transport_send,
-                                    )
-                                }
-                                ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
-                                    &mut reader_proxy,
-                                    data_max_size_serialized,
-                                    header,
-                                    &mut default_unicast_transport_send,
-                                    writer_id,
-                                    first_sn,
-                                    last_sn,
-                                    heartbeat_period,
-                                ),
-                            }
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .domain_participant_list()
+                    .get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            user_defined_communication_send(
+                                dp,
+                                &mut default_unicast_transport_send,
+                            );
                         }
-                    }
-                }
-
-                for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.stateful_data_reader_list() {
-                        data_reader.send_message(header, &mut default_unicast_transport_send)
-                    }
-                }
+                    })
             }));
         }
 
         let sender_socket = UdpSocket::bind("0.0.0.0:0000").unwrap();
 
-        let sedp_condvar = participant.sedp_condvar().clone();
-        let user_defined_data_send_condvar = participant.user_defined_data_send_condvar().clone();
+        let sedp_condvar = sedp_condvar.clone();
+        let user_defined_data_send_condvar = user_defined_data_send_condvar.clone();
         Ok(DcpsService {
-            participant,
+            participant_guid,
             quit,
             threads: DdsRwLock::new(threads),
             sedp_condvar,
@@ -394,10 +263,6 @@ impl DcpsService {
             sender_socket,
             announce_sender,
         })
-    }
-
-    pub fn participant(&self) -> &DdsShared<DdsDomainParticipant> {
-        &self.participant
     }
 
     pub fn shutdown_tasks(&self) {
@@ -409,33 +274,13 @@ impl DcpsService {
             .send(AnnounceKind::DeletedParticipant)
             .ok();
 
-        if let Some(default_unicast_locator) =
-            self.participant.default_unicast_locator_list().get(0)
-        {
-            let port: u32 = default_unicast_locator.port().into();
-            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
-
-        if let Some(metatraffic_unicast_locator) =
-            self.participant.metatraffic_unicast_locator_list().get(0)
-        {
-            let port: u32 = metatraffic_unicast_locator.port().into();
-            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
-
-        if let Some(metatraffic_multicast_transport) =
-            self.participant.metatraffic_multicast_locator_list().get(0)
-        {
-            let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
-            let port: u32 = metatraffic_multicast_transport.port().into();
-            let addr = SocketAddrV4::new(
-                Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
-                port as u16,
-            );
-            self.sender_socket.send_to(&[0], addr).ok();
-        }
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list()
+            .get_participant(&self.participant_guid, |dp| {
+                if let Some(dp) = dp {
+                    send_shutdown_messages(dp, &self.sender_socket);
+                }
+            });
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();
@@ -1343,5 +1188,204 @@ fn add_matched_topics_detector(
             DurabilityKind::TransientLocal,
         );
         writer.matched_reader_add(proxy);
+    }
+}
+
+fn receive_builtin_message(
+    domain_participant: &DdsDomainParticipant,
+    message: RtpsMessage,
+    locator: Locator,
+    sedp_condvar: &DdsCondvar,
+) {
+    MessageReceiver::new(domain_participant.get_current_time())
+        .process_message(
+            domain_participant.guid().prefix(),
+            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+            locator,
+            &message,
+            &mut domain_participant.get_status_listener_lock(),
+        )
+        .ok();
+
+    discover_matched_participants(&domain_participant, sedp_condvar).ok();
+    domain_participant.discover_matched_readers().ok();
+    discover_matched_writers(&domain_participant).ok();
+    domain_participant.discover_matched_topics().ok();
+}
+
+fn send_user_defined_message(
+    domain_participant: &DdsDomainParticipant,
+    metatraffic_unicast_transport_send: &mut impl TransportWrite,
+) {
+    let header = RtpsMessageHeader {
+        protocol: ProtocolId::PROTOCOL_RTPS,
+        version: domain_participant.protocol_version(),
+        vendor_id: domain_participant.vendor_id(),
+        guid_prefix: domain_participant.guid().prefix(),
+    };
+
+    let _now = domain_participant.get_current_time();
+    stateless_writer_send_message(
+        domain_participant
+            .get_builtin_publisher()
+            .stateless_data_writer_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == SpdpDiscoveredParticipantData::type_name())
+            .unwrap(),
+        header,
+        metatraffic_unicast_transport_send,
+    );
+
+    user_defined_stateful_writer_send_message(
+        domain_participant
+            .get_builtin_publisher()
+            .stateful_data_writer_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+            .unwrap(),
+        header,
+        metatraffic_unicast_transport_send,
+    );
+
+    user_defined_stateful_writer_send_message(
+        domain_participant
+            .get_builtin_publisher()
+            .stateful_data_writer_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+            .unwrap(),
+        header,
+        metatraffic_unicast_transport_send,
+    );
+
+    user_defined_stateful_writer_send_message(
+        domain_participant
+            .get_builtin_publisher()
+            .stateful_data_writer_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+            .unwrap(),
+        header,
+        metatraffic_unicast_transport_send,
+    );
+
+    for stateful_readers in domain_participant
+        .get_builtin_subscriber()
+        .stateful_data_reader_list()
+        .into_iter()
+    {
+        stateful_readers.send_message(header, metatraffic_unicast_transport_send)
+    }
+}
+
+fn announce_entity(domain_participant: &DdsDomainParticipant, announce_kind: AnnounceKind) {
+    match announce_kind {
+        AnnounceKind::CreatedDataReader(discovered_reader_data) => {
+            announce_created_data_reader(&domain_participant, discovered_reader_data)
+        }
+        AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
+            announce_created_data_writer(&domain_participant, discovered_writer_data)
+        }
+        AnnounceKind::CratedTopic(discovered_topic_data) => {
+            announce_created_topic(&domain_participant, discovered_topic_data)
+        }
+        AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
+            announce_deleted_reader(&domain_participant, deleted_reader_handle)
+        }
+        AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
+            announce_deleted_writer(&domain_participant, deleted_writer_handle)
+        }
+        AnnounceKind::DeletedParticipant => (),
+    }
+}
+
+fn send_shutdown_messages(domain_participant: &DdsDomainParticipant, sender_socket: &UdpSocket) {
+    if let Some(default_unicast_locator) = domain_participant.default_unicast_locator_list().get(0)
+    {
+        let port: u32 = default_unicast_locator.port().into();
+        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+        sender_socket.send_to(&[0], addr).ok();
+    }
+
+    if let Some(metatraffic_unicast_locator) =
+        domain_participant.metatraffic_unicast_locator_list().get(0)
+    {
+        let port: u32 = metatraffic_unicast_locator.port().into();
+        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+        sender_socket.send_to(&[0], addr).ok();
+    }
+
+    if let Some(metatraffic_multicast_transport) = domain_participant
+        .metatraffic_multicast_locator_list()
+        .get(0)
+    {
+        let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
+        let port: u32 = metatraffic_multicast_transport.port().into();
+        let addr = SocketAddrV4::new(
+            Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
+            port as u16,
+        );
+        sender_socket.send_to(&[0], addr).ok();
+    }
+}
+
+fn user_defined_communication_send(
+    domain_participant: &DdsDomainParticipant,
+    default_unicast_transport_send: &mut impl TransportWrite,
+) {
+    let header = RtpsMessageHeader {
+        protocol: ProtocolId::PROTOCOL_RTPS,
+        version: domain_participant.protocol_version(),
+        vendor_id: domain_participant.vendor_id(),
+        guid_prefix: domain_participant.guid().prefix(),
+    };
+    let now = domain_participant.get_current_time();
+
+    for publisher in &domain_participant.user_defined_publisher_list() {
+        for data_writer in &publisher.stateful_data_writer_list() {
+            let writer_id = data_writer.guid().entity_id();
+            let data_max_size_serialized = data_writer.data_max_size_serialized();
+            let heartbeat_period = data_writer.heartbeat_period();
+            let first_sn = data_writer
+                .change_list()
+                .into_iter()
+                .map(|x| x.sequence_number())
+                .min()
+                .unwrap_or(SequenceNumber::new(1));
+            let last_sn = data_writer
+                .change_list()
+                .into_iter()
+                .map(|x| x.sequence_number())
+                .max()
+                .unwrap_or_else(|| SequenceNumber::new(0));
+            remove_stale_writer_changes(data_writer, now);
+            for mut reader_proxy in &mut data_writer.matched_reader_list() {
+                match reader_proxy.reliability() {
+                    ReliabilityKind::BestEffort => send_message_best_effort_reader_proxy(
+                        &mut reader_proxy,
+                        data_max_size_serialized,
+                        header,
+                        default_unicast_transport_send,
+                    ),
+                    ReliabilityKind::Reliable => send_message_reliable_reader_proxy(
+                        &mut reader_proxy,
+                        data_max_size_serialized,
+                        header,
+                        default_unicast_transport_send,
+                        writer_id,
+                        first_sn,
+                        last_sn,
+                        heartbeat_period,
+                    ),
+                }
+            }
+        }
+    }
+
+    for subscriber in &domain_participant.user_defined_subscriber_list() {
+        for data_reader in &subscriber.stateful_data_reader_list() {
+            data_reader.send_message(header, default_unicast_transport_send)
+        }
     }
 }

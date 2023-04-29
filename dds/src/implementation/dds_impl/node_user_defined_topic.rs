@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::node::{ChildNode, RootNode},
+    implementation::{rtps::types::Guid, utils::node::ChildNode},
     infrastructure::{
         condition::StatusCondition,
         error::DdsResult,
@@ -10,20 +10,15 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
-    dds_topic::DdsTopic,
+    any_topic_listener::AnyTopicListener, dds_topic::DdsTopic,
+    node_domain_participant::DomainParticipantNode,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedTopicNode(
-    ChildNode<DdsTopic, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-);
+pub struct UserDefinedTopicNode(ChildNode<DdsTopic, Guid>);
 
 impl UserDefinedTopicNode {
-    pub fn new(
-        node: ChildNode<DdsTopic, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-    ) -> Self {
+    pub fn new(node: ChildNode<DdsTopic, Guid>) -> Self {
         Self(node)
     }
 

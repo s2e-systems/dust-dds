@@ -27,17 +27,15 @@ use super::{
     any_data_reader_listener::AnyDataReaderListener,
     dcps_service::DcpsService,
     dds_data_reader::DdsDataReader,
-    dds_subscriber::DdsSubscriber,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+    dds_subscriber::DdsSubscriber,
     node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
     status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedSubscriberNode(
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-);
+pub struct UserDefinedSubscriberNode(ChildNode<DdsSubscriber, Guid>);
 
 impl UserDefinedSubscriberNode {
     pub fn new(
@@ -135,7 +133,9 @@ impl UserDefinedSubscriberNode {
             })?
             .clone();
 
-        self.0.get()?.stateful_data_reader_delete(a_datareader_handle);
+        self.0
+            .get()?
+            .stateful_data_reader_delete(a_datareader_handle);
 
         if data_reader.is_enabled() {
             self.0
