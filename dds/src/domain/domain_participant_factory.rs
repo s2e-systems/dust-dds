@@ -250,7 +250,6 @@ impl DomainParticipantFactory {
             a_listener,
             mask,
             &spdp_discovery_locator_list,
-            sedp_condvar.clone(),
             user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
             announce_sender.clone(),

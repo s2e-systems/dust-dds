@@ -26,7 +26,7 @@ impl<T, L> DdsEntityList<T, L> {
     pub fn remove_entity(&self, guid: &Guid) {
         // Remove the listener first to avoid the entity from disappearing if the listener is being used
         self.entity_listener_list.remove(guid);
-        self.entity_list.remove(&guid);
+        self.entity_list.remove(guid);
     }
 
     pub fn get_entity<F, O>(&self, guid: &Guid, f: F) -> O

@@ -222,7 +222,7 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
-        Ok(DomainParticipantNode::new(self.0.parent().clone()))
+        Ok(DomainParticipantNode::new(*self.0.parent()))
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {

@@ -181,7 +181,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
-        Ok(DomainParticipantNode::new(self.0.parent().clone()))
+        Ok(DomainParticipantNode::new(*self.0.parent()))
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {

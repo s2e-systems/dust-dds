@@ -27,7 +27,7 @@ impl UserDefinedTopicNode {
     }
 
     pub fn get_participant(&self) -> DomainParticipantNode {
-        DomainParticipantNode::new(self.0.parent().clone())
+        DomainParticipantNode::new(*self.0.parent())
     }
 
     pub fn get_type_name(&self) -> DdsResult<&'static str> {

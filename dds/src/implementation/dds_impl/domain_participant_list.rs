@@ -41,7 +41,7 @@ impl DomainParticipantList {
 
     pub fn remove_participant(&self, guid: &Guid) {
         self.participant_list.remove_entity(guid);
-        self.dcps_service_list.remove(&guid);
+        self.dcps_service_list.remove(guid);
     }
 
     pub fn get_participant<F, O>(&self, guid: &Guid, f: F) -> O

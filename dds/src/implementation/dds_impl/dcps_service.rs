@@ -82,6 +82,7 @@ pub struct DcpsService {
 }
 
 impl DcpsService {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         participant_guid: Guid,
         mut metatraffic_multicast_transport: UdpTransport,
@@ -1208,9 +1209,9 @@ fn receive_builtin_message(
         )
         .ok();
 
-    discover_matched_participants(&domain_participant, sedp_condvar).ok();
+    discover_matched_participants(domain_participant, sedp_condvar).ok();
     domain_participant.discover_matched_readers().ok();
-    discover_matched_writers(&domain_participant).ok();
+    discover_matched_writers(domain_participant).ok();
     domain_participant.discover_matched_topics().ok();
 }
 
@@ -1282,19 +1283,19 @@ fn send_user_defined_message(
 fn announce_entity(domain_participant: &DdsDomainParticipant, announce_kind: AnnounceKind) {
     match announce_kind {
         AnnounceKind::CreatedDataReader(discovered_reader_data) => {
-            announce_created_data_reader(&domain_participant, discovered_reader_data)
+            announce_created_data_reader(domain_participant, discovered_reader_data)
         }
         AnnounceKind::CreatedDataWriter(discovered_writer_data) => {
-            announce_created_data_writer(&domain_participant, discovered_writer_data)
+            announce_created_data_writer(domain_participant, discovered_writer_data)
         }
         AnnounceKind::CratedTopic(discovered_topic_data) => {
-            announce_created_topic(&domain_participant, discovered_topic_data)
+            announce_created_topic(domain_participant, discovered_topic_data)
         }
         AnnounceKind::DeletedDataReader(deleted_reader_handle) => {
-            announce_deleted_reader(&domain_participant, deleted_reader_handle)
+            announce_deleted_reader(domain_participant, deleted_reader_handle)
         }
         AnnounceKind::DeletedDataWriter(deleted_writer_handle) => {
-            announce_deleted_writer(&domain_participant, deleted_writer_handle)
+            announce_deleted_writer(domain_participant, deleted_writer_handle)
         }
         AnnounceKind::DeletedParticipant => (),
     }

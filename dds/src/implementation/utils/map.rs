@@ -34,7 +34,7 @@ impl<K, V> DdsMap<K, V> {
         F: FnOnce(Option<&V>) -> O,
         K: Hash + Eq,
     {
-        f(self.list.read_lock().get(key).map(|v| v))
+        f(self.list.read_lock().get(key))
     }
 
     pub fn get_mut<F, O>(&self, key: &K, f: F) -> O
@@ -42,7 +42,7 @@ impl<K, V> DdsMap<K, V> {
         F: FnOnce(Option<&mut V>) -> O,
         K: Hash + Eq,
     {
-        f(self.list.write_lock().get_mut(key).map(|v| v))
+        f(self.list.write_lock().get_mut(key))
     }
 
     pub fn iter<F, O>(&self, f: F) -> O

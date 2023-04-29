@@ -180,7 +180,7 @@ impl UserDefinedDataReaderNode {
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
             topic.downgrade(),
-            self.0.parent().parent().clone(),
+            *self.0.parent().parent(),
         )))
     }
 

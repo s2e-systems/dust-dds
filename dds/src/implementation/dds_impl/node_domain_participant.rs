@@ -42,7 +42,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedPublisherNode> {
         self.call_participant_method(move |dp| {
             dp.create_publisher(qos, a_listener, mask).map(|x| {
-                UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0.clone()))
+                UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0))
             })
         })
     }
@@ -59,7 +59,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedSubscriberNode> {
         self.call_participant_method(|dp| {
             dp.create_subscriber(qos, a_listener, mask).map(|x| {
-                UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0.clone()))
+                UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0))
             })
         })
     }
@@ -78,7 +78,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         self.call_participant_method(|dp| {
             dp.create_topic(topic_name, type_name, qos, a_listener, mask)
-                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
     }
 
@@ -94,7 +94,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedTopicNode> {
         self.call_participant_method(|dp| {
             dp.find_topic(topic_name, type_name, timeout)
-                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
     }
 
@@ -108,7 +108,7 @@ impl DomainParticipantNode {
                 .topic_list()
                 .into_iter()
                 .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0))))
         })
     }
 
@@ -118,24 +118,36 @@ impl DomainParticipantNode {
 
         Ok(BuiltinSubscriberNode::new(ChildNode::new(
             builtin_subcriber.downgrade(),
-            self.0.clone(),
+            self.0,
         )))
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_participant(handle)))
+        self.call_participant_method_if_enabled(|dp| {
+            dp.ignore_participant(handle);
+            Ok(())
+        })
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_topic(handle)))
+        self.call_participant_method_if_enabled(|dp| {
+            dp.ignore_topic(handle);
+            Ok(())
+        })
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_publication(handle)))
+        self.call_participant_method_if_enabled(|dp| {
+            dp.ignore_publication(handle);
+            Ok(())
+        })
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_subscription(handle)))
+        self.call_participant_method_if_enabled(|dp| {
+            dp.ignore_subscription(handle);
+            Ok(())
+        })
     }
 
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {

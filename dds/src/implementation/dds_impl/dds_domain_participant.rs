@@ -157,7 +157,6 @@ pub struct DdsDomainParticipant {
     status_listener: DdsRwLock<StatusListener<dyn DomainParticipantListener + Send + Sync>>,
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
-    sedp_condvar: DdsCondvar,
     ignored_participants: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
@@ -178,7 +177,6 @@ impl DdsDomainParticipant {
         listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
         spdp_discovery_locator_list: &[Locator],
-        sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
@@ -386,7 +384,6 @@ impl DdsDomainParticipant {
             user_defined_data_send_condvar,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             topic_find_condvar: DdsCondvar::new(),
-            sedp_condvar,
             ignored_participants: DdsRwLock::new(HashSet::new()),
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
@@ -1257,14 +1254,6 @@ impl DdsDomainParticipant {
         }
 
         Ok(())
-    }
-
-    pub fn sedp_condvar(&self) -> &DdsCondvar {
-        &self.sedp_condvar
-    }
-
-    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
-        &self.user_defined_data_send_condvar
     }
 
     pub fn cancel_timers(&self) {
