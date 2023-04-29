@@ -27,7 +27,7 @@ use super::{
 };
 
 #[derive(PartialEq, Debug)]
-pub struct DomainParticipantNode(Guid);
+pub struct DomainParticipantNode(pub(crate) Guid);
 
 impl DomainParticipantNode {
     pub fn new(node: Guid) -> Self {
@@ -40,7 +40,7 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedPublisherNode> {
-        self.call_participant_method(|dp| {
+        self.call_participant_method(move |dp| {
             dp.create_publisher(qos, a_listener, mask).map(|x| {
                 UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0.clone()))
             })
@@ -229,8 +229,8 @@ impl DomainParticipantNode {
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
     }
@@ -253,7 +253,7 @@ impl DomainParticipantNode {
 
     fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
     where
-        F: FnMut(&DdsDomainParticipant) -> DdsResult<O>,
+        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .domain_participant_list()
@@ -262,7 +262,7 @@ impl DomainParticipantNode {
 
     fn call_participant_method_if_enabled<F, O>(&self, f: F) -> DdsResult<O>
     where
-        F: FnMut(&DdsDomainParticipant) -> DdsResult<O>,
+        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .domain_participant_list()

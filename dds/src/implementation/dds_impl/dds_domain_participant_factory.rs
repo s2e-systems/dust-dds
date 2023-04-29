@@ -26,7 +26,7 @@ impl DdsDomainParticipantFactory {
         self.qos.read_lock().clone()
     }
 
-    pub fn set_qos(&mut self, qos: DomainParticipantFactoryQos) {
+    pub fn set_qos(&self, qos: DomainParticipantFactoryQos) {
         *self.qos.write_lock() = qos;
     }
 
@@ -34,7 +34,7 @@ impl DdsDomainParticipantFactory {
         self.default_participant_qos.read_lock().clone()
     }
 
-    pub fn set_default_participant_qos(&mut self, default_participant_qos: DomainParticipantQos) {
+    pub fn set_default_participant_qos(&self, default_participant_qos: DomainParticipantQos) {
         *self.default_participant_qos.write_lock() = default_participant_qos;
     }
 

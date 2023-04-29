@@ -20,7 +20,7 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{condvar::DdsCondvar, shared_object::DdsShared},
+        utils::condvar::DdsCondvar,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -256,7 +256,7 @@ impl DomainParticipantFactory {
             announce_sender.clone(),
         );
 
-        let dcps_service = DdsShared::new(DcpsService::new(
+        let dcps_service = DcpsService::new(
             guid,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
@@ -265,7 +265,11 @@ impl DomainParticipantFactory {
             &user_defined_data_send_condvar,
             announce_sender,
             announce_receiver,
-        )?);
+        )?;
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list()
+            .add_participant(guid, dds_participant, None, dcps_service);
 
         let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
 
@@ -277,10 +281,6 @@ impl DomainParticipantFactory {
             participant.enable()?;
         }
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .add_participant(guid, dds_participant, None);
-
         Ok(participant)
     }
 
@@ -288,45 +288,40 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        todo!()
-        // let participant_handle = participant.get_instance_handle()?;
-        // let mut participant_list = THE_PARTICIPANT_FACTORY.participant_list.write_lock();
+        let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list()
+            .get_participant(&participant.0 .0, |dp| {
+                let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                Ok(dp.user_defined_publisher_list().into_iter().count() == 0
+                    && dp.user_defined_subscriber_list().into_iter().count() == 0
+                    && dp.topic_list().into_iter().count() == 0)
+            })?;
 
-        // let index = participant_list
-        //     .iter()
-        //     .position(|pm| InstanceHandle::from(pm.participant().guid()) == participant_handle)
-        //     .ok_or(DdsError::AlreadyDeleted)?;
+        if is_participant_empty {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .domain_participant_list()
+                .get_participant(&participant.0 .0, |dp| {
+                    dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
+                    Ok(())
+                })?;
 
-        // let is_participant_empty = participant_list[index]
-        //     .participant()
-        //     .user_defined_publisher_list()
-        //     .into_iter()
-        //     .count()
-        //     == 0
-        //     && participant_list[index]
-        //         .participant()
-        //         .user_defined_subscriber_list()
-        //         .into_iter()
-        //         .count()
-        //         == 0
-        //     && participant_list[index]
-        //         .participant()
-        //         .topic_list()
-        //         .into_iter()
-        //         .count()
-        //         == 0;
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .domain_participant_list()
+                .get_dcps_service(&participant.0 .0, |dcps| {
+                    dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
+                    Ok(())
+                })?;
 
-        // if is_participant_empty {
-        //     participant_list[index].participant().cancel_timers();
-        //     participant_list[index].shutdown_tasks();
-        //     participant_list.remove(index);
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .domain_participant_list()
+                .remove_participant(&participant.0 .0);
 
-        //     Ok(())
-        // } else {
-        //     Err(DdsError::PreconditionNotMet(
-        //         "Domain participant still contains other entities".to_string(),
-        //     ))
-        // }
+            Ok(())
+        } else {
+            Err(DdsError::PreconditionNotMet(
+                "Domain participant still contains other entities".to_string(),
+            ))
+        }
     }
 
     /// This operation returns the [`DomainParticipantFactory`] singleton. The operation is idempotent, that is, it can be called multiple

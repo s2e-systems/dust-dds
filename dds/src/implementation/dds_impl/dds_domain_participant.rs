@@ -93,10 +93,11 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dds_data_reader::DdsDataReader,
-    dds_data_writer::DdsDataWriter, dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber,
-    dds_topic::DdsTopic, message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    dds_data_writer::DdsDataWriter,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
+    message_receiver::MessageReceiver, node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl, status_listener::StatusListener,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -981,13 +982,18 @@ impl DdsDomainParticipant {
             }
 
             self.announce_participant().ok();
-
-            let this = self.clone();
+            let participant_guid = self.guid();
             self.timer.write_lock().start_timer(
                 DurationKind::Finite(Duration::new(5, 0)),
                 InstanceHandle::new([0; 16]),
                 move || {
-                    this.announce_participant().ok();
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .domain_participant_list()
+                        .get_participant(&participant_guid, |dp| {
+                            if let Some(dp) = dp {
+                                dp.announce_participant().ok();
+                            }
+                        });
                 },
             );
         }

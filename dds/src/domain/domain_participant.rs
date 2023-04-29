@@ -41,7 +41,7 @@ use super::{
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
 #[derive(PartialEq, Debug)]
-pub struct DomainParticipant(DomainParticipantNode);
+pub struct DomainParticipant(pub(crate) DomainParticipantNode);
 
 impl DomainParticipant {
     pub(crate) fn new(node: DomainParticipantNode) -> Self {

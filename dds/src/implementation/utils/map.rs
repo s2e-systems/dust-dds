@@ -29,52 +29,52 @@ impl<K, V> DdsMap<K, V> {
         self.list.write_lock().remove(key);
     }
 
-    pub fn get<F, O>(&self, key: &K, mut f: F) -> O
+    pub fn get<F, O>(&self, key: &K, f: F) -> O
     where
-        F: FnMut(Option<&V>) -> O,
+        F: FnOnce(Option<&V>) -> O,
         K: Hash + Eq,
     {
         f(self.list.read_lock().get(key).map(|v| v))
     }
 
-    pub fn get_mut<F, O>(&self, key: &K, mut f: F) -> O
+    pub fn get_mut<F, O>(&self, key: &K, f: F) -> O
     where
-        F: FnMut(Option<&mut V>) -> O,
+        F: FnOnce(Option<&mut V>) -> O,
         K: Hash + Eq,
     {
         f(self.list.write_lock().get_mut(key).map(|v| v))
     }
 
-    pub fn iter<F, O>(&self, mut f: F) -> O
+    pub fn iter<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&DdsMapIter<'a, K, V>) -> O,
+        F: for<'a> FnOnce(&DdsMapIter<'a, K, V>) -> O,
     {
         f(&DdsMapIter {
             iterator: self.list.read_lock().iter(),
         })
     }
 
-    pub fn iter_mut<F, O>(&self, mut f: F) -> O
+    pub fn iter_mut<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&DdsMapIterMut<'a, K, V>) -> O,
+        F: for<'a> FnOnce(&DdsMapIterMut<'a, K, V>) -> O,
     {
         f(&DdsMapIterMut {
             iterator: self.list.write_lock().iter_mut(),
         })
     }
 
-    pub fn values<F, O>(&self, mut f: F) -> O
+    pub fn values<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapValueIter<'a, K, V>) -> O,
+        F: for<'a> FnOnce(&mut DdsMapValueIter<'a, K, V>) -> O,
     {
         f(&mut DdsMapValueIter {
             iterator: self.list.read_lock().values(),
         })
     }
 
-    pub fn values_mut<F, O>(&self, mut f: F) -> O
+    pub fn values_mut<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapValueIterMut<'a, K, V>) -> O,
+        F: for<'a> FnOnce(&mut DdsMapValueIterMut<'a, K, V>) -> O,
     {
         f(&mut DdsMapValueIterMut {
             iterator: self.list.write_lock().values_mut(),

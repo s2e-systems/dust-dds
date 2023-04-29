@@ -30,44 +30,44 @@ impl<T, L, P> DdsDomainEntityList<T, L, P> {
         self.parent_list.remove(guid)
     }
 
-    pub fn get_entity<F, O>(&self, guid: &Guid, mut f: F) -> O
+    pub fn get_entity<F, O>(&self, guid: &Guid, f: F) -> O
     where
-        F: FnMut(Option<&T>) -> O,
+        F: FnOnce(Option<&T>) -> O,
     {
         self.entity_list.get_entity(guid, |x| f(x))
     }
 
-    pub fn get_entity_mut<F, O>(&self, guid: &Guid, mut f: F) -> O
+    pub fn get_entity_mut<F, O>(&self, guid: &Guid, f: F) -> O
     where
-        F: FnMut(Option<&mut T>) -> O,
+        F: FnOnce(Option<&mut T>) -> O,
     {
         self.entity_list.get_entity_mut(guid, |x| f(x))
     }
 
-    pub fn get_listener<F, O>(&self, guid: &Guid, mut f: F) -> O
+    pub fn get_listener<F, O>(&self, guid: &Guid, f: F) -> O
     where
-        F: FnMut(Option<&L>) -> O,
+        F: FnOnce(Option<&L>) -> O,
     {
         self.entity_list.get_listener(guid, |x| f(x))
     }
 
-    pub fn get_listener_mut<F, O>(&self, guid: &Guid, mut f: F) -> O
+    pub fn get_listener_mut<F, O>(&self, guid: &Guid, f: F) -> O
     where
-        F: FnMut(Option<&mut L>) -> O,
+        F: FnOnce(Option<&mut L>) -> O,
     {
         self.entity_list.get_listener_mut(guid, |x| f(x))
     }
 
     pub fn iter<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapValueIter<'a, Guid, T>) -> O,
+        F: for<'a> FnOnce(&mut DdsMapValueIter<'a, Guid, T>) -> O,
     {
         self.entity_list.iter(f)
     }
 
     pub fn iter_mut<F, O>(&self, f: F) -> O
     where
-        F: for<'a> FnMut(&mut DdsMapValueIterMut<'a, Guid, T>) -> O,
+        F: for<'a> FnOnce(&mut DdsMapValueIterMut<'a, Guid, T>) -> O,
     {
         self.entity_list.iter_mut(f)
     }
