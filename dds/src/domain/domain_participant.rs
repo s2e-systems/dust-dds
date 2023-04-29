@@ -40,7 +40,7 @@ use super::{
 /// - Factory methods: [`DomainParticipant::create_topic()`], [`DomainParticipant::create_publisher()`], [`DomainParticipant::create_subscriber()`], [`DomainParticipant::delete_topic()`], [`DomainParticipant::delete_publisher()`],
 /// [`DomainParticipant::delete_subscriber()`]
 /// - Operations that access the status: [`DomainParticipant::get_statuscondition()`]
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct DomainParticipant(pub(crate) DomainParticipantNode);
 
 impl DomainParticipant {
