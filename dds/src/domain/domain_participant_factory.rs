@@ -20,15 +20,10 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{
-            condvar::DdsCondvar,
-            node::{ChildNode, RootNode},
-            shared_object::DdsShared,
-        },
+        utils::{condvar::DdsCondvar, shared_object::DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
@@ -255,22 +250,24 @@ impl DomainParticipantFactory {
             a_listener,
             mask,
             &spdp_discovery_locator_list,
-            sedp_condvar,
-            user_defined_data_send_condvar,
+            sedp_condvar.clone(),
+            user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
             announce_sender.clone(),
         );
 
         let dcps_service = DdsShared::new(DcpsService::new(
-            participant,
+            guid,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
+            &sedp_condvar,
+            &user_defined_data_send_condvar,
             announce_sender,
             announce_receiver,
         )?);
 
-        let participant = DomainParticipant::new(DomainParticipantNode::new(participant.guid()));
+        let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
 
         if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .qos()
@@ -282,7 +279,7 @@ impl DomainParticipantFactory {
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .domain_participant_list()
-            .add_participant(guid, participant, None);
+            .add_participant(guid, dds_participant, None);
 
         Ok(participant)
     }

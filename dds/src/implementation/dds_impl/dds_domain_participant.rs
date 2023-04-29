@@ -181,7 +181,7 @@ impl DdsDomainParticipant {
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
-    ) -> DdsShared<Self> {
+    ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
@@ -361,7 +361,7 @@ impl DdsDomainParticipant {
         let timer_factory = TimerFactory::new();
         let timer = timer_factory.create_timer();
 
-        DdsShared::new(DdsDomainParticipant {
+        Self {
             rtps_participant,
             domain_id,
             domain_tag,
@@ -394,7 +394,7 @@ impl DdsDomainParticipant {
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
-        })
+        }
     }
 
     pub fn guid(&self) -> Guid {

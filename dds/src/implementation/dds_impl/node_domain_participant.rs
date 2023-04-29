@@ -18,10 +18,12 @@ use crate::{
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, node_builtin_subscriber::BuiltinSubscriberNode,
+    any_topic_listener::AnyTopicListener, dds_domain_participant::DdsDomainParticipant,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,
+    node_user_defined_topic::UserDefinedTopicNode,
 };
 
 #[derive(PartialEq, Debug)]
@@ -38,14 +40,15 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedPublisherNode> {
-        self.0
-            .get()?
-            .create_publisher(qos, a_listener, mask)
-            .map(|x| UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        self.call_participant_method(|dp| {
+            dp.create_publisher(qos, a_listener, mask).map(|x| {
+                UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0.clone()))
+            })
+        })
     }
 
     pub fn delete_publisher(&self, publisher_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_publisher(publisher_handle)
+        self.call_participant_method(|dp| dp.delete_publisher(publisher_handle))
     }
 
     pub fn create_subscriber(
@@ -54,14 +57,15 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedSubscriberNode> {
-        self.0
-            .get()?
-            .create_subscriber(qos, a_listener, mask)
-            .map(|x| UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        self.call_participant_method(|dp| {
+            dp.create_subscriber(qos, a_listener, mask).map(|x| {
+                UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0.clone()))
+            })
+        })
     }
 
     pub fn delete_subscriber(&self, subscriber_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_subscriber(subscriber_handle)
+        self.call_participant_method(|dp| dp.delete_subscriber(subscriber_handle))
     }
 
     pub fn create_topic(
@@ -72,14 +76,14 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedTopicNode> {
-        self.0
-            .get()?
-            .create_topic(topic_name, type_name, qos, a_listener, mask)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        self.call_participant_method(|dp| {
+            dp.create_topic(topic_name, type_name, qos, a_listener, mask)
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        })
     }
 
     pub fn delete_topic(&self, topic_handle: InstanceHandle) -> DdsResult<()> {
-        self.0.get()?.delete_topic(topic_handle)
+        self.call_participant_method(|dp| dp.delete_topic(topic_handle))
     }
 
     pub fn find_topic(
@@ -88,10 +92,10 @@ impl DomainParticipantNode {
         type_name: &'static str,
         timeout: Duration,
     ) -> DdsResult<UserDefinedTopicNode> {
-        self.0
-            .get()?
-            .find_topic(topic_name, type_name, timeout)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        self.call_participant_method(|dp| {
+            dp.find_topic(topic_name, type_name, timeout)
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone())))
+        })
     }
 
     pub fn lookup_topicdescription(
@@ -99,21 +103,18 @@ impl DomainParticipantNode {
         topic_name: &str,
         type_name: &str,
     ) -> DdsResult<Option<UserDefinedTopicNode>> {
-        Ok(self
-            .0
-            .get()?
-            .topic_list()
-            .into_iter()
-            .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
-            .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
+        self.call_participant_method(|dp| {
+            Ok(dp
+                .topic_list()
+                .into_iter()
+                .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
+                .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0.clone()))))
+        })
     }
 
     pub fn get_builtin_subscriber(&self) -> DdsResult<BuiltinSubscriberNode> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        let builtin_subcriber = self.0.get()?.get_builtin_subscriber();
+        let builtin_subcriber =
+            self.call_participant_method_if_enabled(|dp| Ok(dp.get_builtin_subscriber()))?;
 
         Ok(BuiltinSubscriberNode::new(ChildNode::new(
             builtin_subcriber.downgrade(),
@@ -122,160 +123,108 @@ impl DomainParticipantNode {
     }
 
     pub fn ignore_participant(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.ignore_participant(handle);
-
-        Ok(())
+        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_participant(handle)))
     }
 
     pub fn ignore_topic(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.ignore_topic(handle);
-
-        Ok(())
+        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_topic(handle)))
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.ignore_publication(handle);
-
-        Ok(())
+        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_publication(handle)))
     }
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) -> DdsResult<()> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.ignore_subscription(handle);
-
-        Ok(())
+        self.call_participant_method_if_enabled(|dp| Ok(dp.ignore_subscription(handle)))
     }
 
     pub fn get_domain_id(&self) -> DdsResult<DomainId> {
-        Ok(self.0.get()?.get_domain_id())
+        self.call_participant_method(|dp| Ok(dp.get_domain_id()))
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.0.get()?.delete_contained_entities()
+        self.call_participant_method(|dp| dp.delete_contained_entities())
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.assert_liveliness()
+        self.call_participant_method_if_enabled(|dp| dp.assert_liveliness())
     }
 
     pub fn set_default_publisher_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
-        self.0.get()?.set_default_publisher_qos(qos)
+        self.call_participant_method(|dp| dp.set_default_publisher_qos(qos))
     }
 
     pub fn get_default_publisher_qos(&self) -> DdsResult<PublisherQos> {
-        Ok(self.0.get()?.get_default_publisher_qos())
+        self.call_participant_method(|dp| Ok(dp.get_default_publisher_qos()))
     }
 
     pub fn set_default_subscriber_qos(&self, qos: QosKind<SubscriberQos>) -> DdsResult<()> {
-        self.0.get()?.set_default_subscriber_qos(qos)
+        self.call_participant_method(|dp| dp.set_default_subscriber_qos(qos))
     }
 
     pub fn get_default_subscriber_qos(&self) -> DdsResult<SubscriberQos> {
-        Ok(self.0.get()?.get_default_subscriber_qos())
+        self.call_participant_method(|dp| Ok(dp.get_default_subscriber_qos()))
     }
 
     pub fn set_default_topic_qos(&self, qos: QosKind<TopicQos>) -> DdsResult<()> {
-        self.0.get()?.set_default_topic_qos(qos)
+        self.call_participant_method(|dp| dp.set_default_topic_qos(qos))
     }
 
     pub fn get_default_topic_qos(&self) -> DdsResult<TopicQos> {
-        Ok(self.0.get()?.get_default_topic_qos())
+        self.call_participant_method(|dp| Ok(dp.get_default_topic_qos()))
     }
 
     pub fn get_discovered_participants(&self) -> DdsResult<Vec<InstanceHandle>> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(self
-            .0
-            .get()?
-            .discovered_participant_list()
-            .into_iter()
-            .map(|(&key, _)| key)
-            .collect())
+        self.call_participant_method_if_enabled(|dp| {
+            Ok(dp
+                .discovered_participant_list()
+                .into_iter()
+                .map(|(&key, _)| key)
+                .collect())
+        })
     }
 
     pub fn get_discovered_participant_data(
         &self,
         participant_handle: InstanceHandle,
     ) -> DdsResult<ParticipantBuiltinTopicData> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(self
-            .0
-            .get()?
-            .discovered_participant_list()
-            .into_iter()
-            .find(|&(handle, _)| handle == &participant_handle)
-            .ok_or(DdsError::BadParameter)?
-            .1
-            .dds_participant_data
-            .clone())
+        self.call_participant_method_if_enabled(|dp| {
+            Ok(dp
+                .discovered_participant_list()
+                .into_iter()
+                .find(|&(handle, _)| handle == &participant_handle)
+                .ok_or(DdsError::BadParameter)?
+                .1
+                .dds_participant_data
+                .clone())
+        })
     }
 
     pub fn get_discovered_topics(&self) -> DdsResult<Vec<InstanceHandle>> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.get_discovered_topics()
+        self.call_participant_method_if_enabled(|dp| dp.get_discovered_topics())
     }
 
     pub fn get_discovered_topic_data(
         &self,
         topic_handle: InstanceHandle,
     ) -> DdsResult<TopicBuiltinTopicData> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.get_discovered_topic_data(topic_handle)
+        self.call_participant_method_if_enabled(|dp| dp.get_discovered_topic_data(topic_handle))
     }
 
     pub fn contains_entity(&self, a_handle: InstanceHandle) -> DdsResult<bool> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        self.0.get()?.contains_entity(a_handle)
+        self.call_participant_method_if_enabled(|dp| dp.contains_entity(a_handle))
     }
 
     pub fn get_current_time(&self) -> DdsResult<Time> {
-        if !self.0.get()?.is_enabled() {
-            return Err(DdsError::NotEnabled);
-        }
-
-        Ok(self.0.get()?.get_current_time())
+        self.call_participant_method_if_enabled(|dp| Ok(dp.get_current_time()))
     }
 
     pub fn set_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)
+        self.call_participant_method(|dp| dp.set_qos(qos))
     }
 
     pub fn get_qos(&self) -> DdsResult<DomainParticipantQos> {
-        Ok(self.0.get()?.get_qos())
+        self.call_participant_method(|dp| Ok(dp.get_qos()))
     }
 
     pub fn set_listener(
@@ -283,23 +232,47 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<()> {
-        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
-        Ok(())
+        todo!()
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        Ok(StatusCondition::new(self.0.get()?.get_statuscondition()))
+        self.call_participant_method(|dp| Ok(StatusCondition::new(dp.get_statuscondition())))
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.0.get()?.get_status_changes())
+        self.call_participant_method(|dp| Ok(dp.get_status_changes()))
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        self.0.get()?.enable()
+        self.call_participant_method(|dp| dp.enable())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.guid().into())
+        Ok(self.0.into())
+    }
+
+    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnMut(&DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list()
+            .get_participant(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
+    }
+
+    fn call_participant_method_if_enabled<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnMut(&DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list()
+            .get_participant(&self.0, |dp| {
+                let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                if dp.is_enabled() {
+                    f(dp)
+                } else {
+                    Err(DdsError::NotEnabled)
+                }
+            })
     }
 }

@@ -9,7 +9,7 @@ use crate::{
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::node::{ChildNode, RootNode},
+        utils::node::ChildNode,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -24,23 +24,18 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    dcps_service::DcpsService,
-    dds_data_reader::DdsDataReader,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    dds_subscriber::DdsSubscriber,
-    node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode,
-    status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
+    dds_domain_participant::AnnounceKind,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_subscriber::DdsSubscriber, node_domain_participant::DomainParticipantNode,
+    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedSubscriberNode(ChildNode<DdsSubscriber, Guid>);
 
 impl UserDefinedSubscriberNode {
-    pub fn new(
-        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-    ) -> Self {
+    pub fn new(node: ChildNode<DdsSubscriber, Guid>) -> Self {
         Self(node)
     }
 
@@ -55,9 +50,15 @@ impl UserDefinedSubscriberNode {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        let participant = self.0.parent().get()?;
-        let default_unicast_locator_list = participant.default_unicast_locator_list();
-        let default_multicast_locator_list = participant.default_multicast_locator_list();
+        let (default_unicast_locator_list, default_multicast_locator_list) =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .domain_participant_list()
+                .get_participant(self.0.parent(), |dp| {
+                    (
+                        dp.unwrap().default_unicast_locator_list(),
+                        dp.unwrap().default_multicast_locator_list(),
+                    )
+                });
 
         let qos = match qos {
             QosKind::Default => self.0.get()?.get_default_datareader_qos(),
