@@ -8,6 +8,7 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
 };
 
+use byteorder::ByteOrder;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];
@@ -120,7 +121,7 @@ pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
             }
             PL_CDR_LE => {
                 let mut deserializer = ParameterListDeserializer::read(buf).unwrap();
-                Ok(DdsDeserialize::dds_deserialize_parameter_list(&mut deserializer).unwrap())
+                Ok(DdsDeserialize::dds_deserialize_parameter_list::<byteorder::LittleEndian>(&mut deserializer).unwrap())
             }
             _ => Err(DdsError::PreconditionNotMet(
                 "Illegal representation identifier".to_string(),
@@ -128,8 +129,8 @@ pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
         }
     }
 
-    fn dds_deserialize_parameter_list(
-        _deserializer: &mut ParameterListDeserializer<'de>,
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        _deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
         unimplemented!("parameter_list deserialization not implemented for this type")
     }
@@ -166,8 +167,8 @@ mod tests {
         inner: TestDeserializeInner,
     }
     impl<'de> DdsDeserialize<'de> for TestDeserialize {
-        fn dds_deserialize_parameter_list(
-            deserializer: &mut ParameterListDeserializer<'de>,
+        fn dds_deserialize_parameter_list<E: ByteOrder>(
+            deserializer: &mut ParameterListDeserializer<'de, E>,
         ) -> DdsResult<Self> {
             Ok(Self {
                 remote_group_entity_id: deserializer.get(PID_GROUP_ENTITYID)?,
@@ -185,8 +186,8 @@ mod tests {
             cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
         }
 
-        fn dds_deserialize_parameter_list(
-            deserializer: &mut ParameterListDeserializer<'de>,
+        fn dds_deserialize_parameter_list<E: ByteOrder>(
+            deserializer: &mut ParameterListDeserializer<'de, E>,
         ) -> DdsResult<Self> {
             Ok(Self {
                 domain_id: deserializer.get(PID_DOMAIN_ID)?,

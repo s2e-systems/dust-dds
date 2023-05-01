@@ -200,7 +200,7 @@ impl DdsSerialize for DiscoveredWriterData {
 
 impl DdsDeserialize<'_> for DiscoveredWriterData {
     fn dds_deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
+        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;

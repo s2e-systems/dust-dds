@@ -265,7 +265,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
+        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
 
         let domain_id = param_list.get(PID_DOMAIN_ID)?;
         let domain_tag = param_list.get_or_default(PID_DOMAIN_TAG)?;

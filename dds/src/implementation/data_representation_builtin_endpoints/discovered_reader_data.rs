@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use byteorder::ByteOrder;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
     implementation::{
@@ -108,8 +110,8 @@ impl DdsSerialize for ReaderProxy {
 }
 
 impl<'de> DdsDeserialize<'de> for ReaderProxy {
-    fn dds_deserialize_parameter_list(
-        deserializer: &mut ParameterListDeserializer<'de>,
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
         let key: BuiltInTopicKey = deserializer.get(PID_ENDPOINT_GUID)?;
         Ok(Self {
@@ -186,8 +188,8 @@ impl DdsSerialize for DiscoveredReaderData {
 }
 
 impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
-    fn dds_deserialize_parameter_list(
-        deserializer: &mut ParameterListDeserializer<'de>,
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
         Ok(Self {
             reader_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,

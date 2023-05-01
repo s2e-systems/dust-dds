@@ -1,3 +1,5 @@
+use byteorder::ByteOrder;
+
 use crate::{
     implementation::{
         data_representation_builtin_endpoints::parameter_id_values::{
@@ -89,7 +91,7 @@ impl DdsType for ParticipantBuiltinTopicData {
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
+        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
 
         let participant_key = param_list.get(PID_PARTICIPANT_GUID)?;
         let user_data = param_list.get_or_default(PID_USER_DATA)?;
@@ -255,7 +257,7 @@ impl DdsSerialize for TopicBuiltinTopicData {
 
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
+        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
 
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
         let name = param_list.get(PID_TOPIC_NAME)?;
@@ -497,7 +499,7 @@ impl DdsSerialize for PublicationBuiltinTopicData {
 
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
+        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
 
         // publication_builtin_topic_data
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
@@ -711,8 +713,8 @@ impl DdsSerialize for SubscriptionBuiltinTopicData {
     }
 }
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn dds_deserialize_parameter_list(
-        deserializer: &mut ParameterListDeserializer<'de>,
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
         Ok(Self {
             key: deserializer.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?,
