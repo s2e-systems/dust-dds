@@ -90,15 +90,12 @@ impl DdsType for ParticipantBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
-
-        let participant_key = param_list.get(PID_PARTICIPANT_GUID)?;
-        let user_data = param_list.get_or_default(PID_USER_DATA)?;
-
-        Ok(ParticipantBuiltinTopicData {
-            key: participant_key,
-            user_data,
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
+        Ok(Self {
+            key: deserializer.get(PID_PARTICIPANT_GUID)?,
+            user_data: deserializer.get_or_default(PID_USER_DATA)?,
         })
     }
 }
