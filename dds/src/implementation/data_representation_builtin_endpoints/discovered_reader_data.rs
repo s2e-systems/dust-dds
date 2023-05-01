@@ -174,7 +174,7 @@ impl DdsSerialize for DiscoveredReaderData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // reader_proxy
@@ -387,7 +387,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredReaderData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredReaderData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

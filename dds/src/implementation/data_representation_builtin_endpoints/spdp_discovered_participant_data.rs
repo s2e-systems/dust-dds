@@ -264,7 +264,7 @@ impl DdsSerialize for SpdpDiscoveredParticipantData {
 }
 
 impl<'de> DdsDeserialize<'de> for SpdpDiscoveredParticipantData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let domain_id = param_list.get(PID_DOMAIN_ID)?;
@@ -448,7 +448,7 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 

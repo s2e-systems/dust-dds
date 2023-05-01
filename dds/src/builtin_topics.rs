@@ -88,7 +88,7 @@ impl DdsType for ParticipantBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let participant_key = param_list.get(PID_PARTICIPANT_GUID)?;
@@ -254,7 +254,7 @@ impl DdsSerialize for TopicBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
@@ -496,7 +496,7 @@ impl DdsSerialize for PublicationBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // publication_builtin_topic_data
@@ -711,7 +711,7 @@ impl DdsSerialize for SubscriptionBuiltinTopicData {
     }
 }
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // subscription_builtin_topic_data

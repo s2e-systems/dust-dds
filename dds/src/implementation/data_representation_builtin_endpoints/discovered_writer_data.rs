@@ -199,7 +199,7 @@ impl DdsSerialize for DiscoveredWriterData {
 }
 
 impl DdsDeserialize<'_> for DiscoveredWriterData {
-    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
         let param_list = ParameterListDeserializer::read(buf)?;
 
         // publication_builtin_topic_data
@@ -405,7 +405,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredWriterData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredWriterData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }

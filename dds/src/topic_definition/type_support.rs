@@ -1,7 +1,10 @@
 use std::io::Write;
 
 use crate::{
-    implementation::parameter_list_serde::parameter_list_serializer::ParameterListSerializer,
+    implementation::parameter_list_serde::{
+        parameter_list_deserializer::ParameterListDeserializer,
+        parameter_list_serializer::ParameterListSerializer,
+    },
     infrastructure::error::{DdsError, DdsResult},
 };
 
@@ -72,7 +75,8 @@ pub trait DdsSerialize: serde::Serialize {
                 let mut d = vec![];
                 let mut pl_serializer = ParameterListSerializer::new(&mut d);
                 pl_serializer.serialize_payload_header().unwrap();
-                self.dds_serialize_parameter_list(&mut pl_serializer).unwrap();
+                self.dds_serialize_parameter_list(&mut pl_serializer)
+                    .unwrap();
                 pl_serializer.serialize_sentinel().unwrap();
                 d
             }
@@ -93,7 +97,13 @@ pub trait DdsSerialize: serde::Serialize {
 }
 
 pub trait DdsDeserialize<'de>: Sized {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
+
+    fn dds_deserialize_parameter_list(
+        _deserializer: &mut ParameterListDeserializer<'de>,
+    ) -> DdsResult<Self> {
+        unimplemented!("parameter_list deserialization not implemented for this type")
+    }
 }
 
 pub trait DdsSerde {}
@@ -109,14 +119,13 @@ impl<'de, Foo> DdsDeserialize<'de> for Foo
 where
     Foo: serde::Deserialize<'de> + DdsSerde,
 {
-    fn deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         domain::domain_participant_factory::DomainId,
         implementation::{
@@ -128,6 +137,70 @@ mod tests {
     };
 
     use super::*;
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct TestDeserialize {
+        remote_group_entity_id: EntityId,
+        inner: TestDeserializeInner,
+    }
+    impl<'de> DdsDeserialize<'de> for TestDeserialize {
+        fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+        }
+
+        fn dds_deserialize_parameter_list(
+            deserializer: &mut ParameterListDeserializer<'de>,
+        ) -> DdsResult<Self> {
+            Ok(Self {
+                remote_group_entity_id: deserializer.get(PID_GROUP_ENTITYID)?,
+                inner: TestDeserializeInner::dds_deserialize_parameter_list(deserializer)?,
+            })
+        }
+    }
+
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct TestDeserializeInner {
+        domain_id: DomainId,
+    }
+    impl<'de> DdsDeserialize<'de> for TestDeserializeInner {
+        fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+        }
+
+        fn dds_deserialize_parameter_list(
+            deserializer: &mut ParameterListDeserializer<'de>,
+        ) -> DdsResult<Self> {
+            Ok(Self {
+                domain_id: deserializer.get(PID_DOMAIN_ID)?,
+            })
+        }
+    }
+
+    #[test]
+    fn deserialize_all_default() {
+        let expected = TestDeserialize {
+            remote_group_entity_id: EntityId::new(
+                EntityKey::new([21, 22, 23]),
+                BUILT_IN_READER_GROUP,
+            ),
+            inner: TestDeserializeInner { domain_id: 2 },
+        };
+
+        let data = vec![
+            0x00, 0x03, 0x00, 0x00, // PL_CDR_LE | OPTIONS
+            0x53, 0x00, 4, 0, //PID_GROUP_ENTITYID
+            21, 22, 23, 0xc9, // u8[3], u8
+            0x0f, 0x00, 0x04, 0x00, // PID_DOMAIN_ID, Length: 4
+            0x02, 0x00, 0x00, 0x00, // DomainId
+            0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
+        ];
+        let mut deserializer = ParameterListDeserializer::read(&mut data.as_slice()).unwrap();
+        let result: TestDeserialize = DdsDeserialize::dds_deserialize_parameter_list(&mut deserializer).unwrap();
+        assert_eq!(result, expected);
+    }
+
+
 
     #[derive(serde::Serialize)]
     struct TestBuiltIn {
