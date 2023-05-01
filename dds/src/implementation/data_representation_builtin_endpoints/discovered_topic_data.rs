@@ -13,12 +13,6 @@ use crate::{
     },
 };
 
-use super::parameter_id_values::{
-    PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_HISTORY,
-    PID_LATENCY_BUDGET, PID_LIFESPAN, PID_LIVELINESS, PID_OWNERSHIP, PID_RELIABILITY,
-    PID_RESOURCE_LIMITS, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TRANSPORT_PRIORITY, PID_TYPE_NAME,
-};
-
 #[derive(
     Debug,
     PartialEq,
@@ -88,46 +82,12 @@ impl DdsSerialize for DiscoveredTopicData {
     }
 }
 
-impl DdsDeserialize<'_> for DiscoveredTopicData {
-    fn dds_deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
-
-        let key = param_list.get(PID_ENDPOINT_GUID)?;
-        let name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyTopics>(PID_RELIABILITY)?
-            .into();
-        let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
-        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let history = param_list.get_or_default(PID_HISTORY)?;
-        let resource_limits = param_list.get_or_default(PID_RESOURCE_LIMITS)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-
+impl<'de> DdsDeserialize<'de> for DiscoveredTopicData {
+    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
         Ok(Self {
-            topic_builtin_topic_data: TopicBuiltinTopicData::new(
-                key,
-                name,
-                type_name,
-                durability,
-                deadline,
-                latency_budget,
-                liveliness,
-                reliability,
-                transport_priority,
-                lifespan,
-                ownership,
-                destination_order,
-                history,
-                resource_limits,
-                topic_data,
-            ),
+            topic_builtin_topic_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
         })
     }
 }

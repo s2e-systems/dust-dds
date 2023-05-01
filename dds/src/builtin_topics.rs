@@ -256,41 +256,25 @@ impl DdsSerialize for TopicBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for TopicBuiltinTopicData {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
-
-        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        let name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
-        let transport_priority = param_list.get_or_default(PID_TRANSPORT_PRIORITY)?;
-        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let history = param_list.get_or_default(PID_HISTORY)?;
-        let resource_limits = param_list.get_or_default(PID_RESOURCE_LIMITS)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-
+    fn dds_deserialize_parameter_list<E: byteorder::ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
         Ok(Self {
-            key,
-            name,
-            type_name,
-            durability,
-            deadline,
-            latency_budget,
-            liveliness,
-            reliability,
-            transport_priority,
-            lifespan,
-            ownership,
-            destination_order,
-            history,
-            resource_limits,
-            topic_data,
+            key: deserializer.get(PID_ENDPOINT_GUID)?,
+            name: deserializer.get(PID_TOPIC_NAME)?,
+            type_name: deserializer.get(PID_TYPE_NAME)?,
+            durability: deserializer.get_or_default(PID_DURABILITY)?,
+            deadline: deserializer.get_or_default(PID_DEADLINE)?,
+            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
+            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
+            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
+            transport_priority: deserializer.get_or_default(PID_TRANSPORT_PRIORITY)?,
+            lifespan: deserializer.get_or_default(PID_LIFESPAN)?,
+            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
+            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
+            history: deserializer.get_or_default(PID_HISTORY)?,
+            resource_limits: deserializer.get_or_default(PID_RESOURCE_LIMITS)?,
+            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
         })
     }
 }
