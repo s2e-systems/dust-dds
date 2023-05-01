@@ -711,47 +711,28 @@ impl DdsSerialize for SubscriptionBuiltinTopicData {
     }
 }
 impl<'de> DdsDeserialize<'de> for SubscriptionBuiltinTopicData {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
-
-        // subscription_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons
-        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
-        let user_data = param_list.get_or_default(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let time_based_filter = param_list.get_or_default(PID_TIME_BASED_FILTER)?;
-        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
-
+    fn dds_deserialize_parameter_list(
+        deserializer: &mut ParameterListDeserializer<'de>,
+    ) -> DdsResult<Self> {
         Ok(Self {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability,
-            deadline,
-            latency_budget,
-            liveliness,
-            reliability,
-            user_data,
-            ownership,
-            destination_order,
-            time_based_filter,
-            presentation,
-            partition,
-            topic_data,
-            group_data,
+            key: deserializer.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?,
+            // Default value is a deviation from the standard and is used for interoperability reasons
+            participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
+            topic_name: deserializer.get(PID_TOPIC_NAME)?,
+            type_name: deserializer.get(PID_TYPE_NAME)?,
+            durability: deserializer.get_or_default(PID_DURABILITY)?,
+            deadline: deserializer.get_or_default(PID_DEADLINE)?,
+            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
+            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
+            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
+            user_data: deserializer.get_or_default(PID_USER_DATA)?,
+            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
+            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
+            time_based_filter: deserializer.get_or_default(PID_TIME_BASED_FILTER)?,
+            presentation: deserializer.get_or_default(PID_PRESENTATION)?,
+            partition: deserializer.get_or_default(PID_PARTITION)?,
+            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
+            group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
         })
     }
 }

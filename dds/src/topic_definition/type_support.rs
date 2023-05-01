@@ -8,7 +8,6 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
 };
 
-use byteorder::ReadBytesExt;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];

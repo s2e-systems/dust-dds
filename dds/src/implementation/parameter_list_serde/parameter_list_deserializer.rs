@@ -1,11 +1,8 @@
-use std::io::Read;
-
 use byteorder::{ByteOrder, ReadBytesExt};
 
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::{PL_CDR_BE, PL_CDR_LE},
 };
 
 #[derive(Debug, PartialEq)]
@@ -35,41 +32,6 @@ impl<'de: 'a, 'a> Parameter<'a> {
 enum RepresentationIdentifier {
     PlCdrBe,
     PlCdrLe,
-}
-
-impl RepresentationIdentifier {
-    fn read(buf: &mut &[u8]) -> DdsResult<Self> {
-        let mut representation_identifier = [0; 2];
-        buf.read(&mut representation_identifier)
-            .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
-        match representation_identifier {
-            PL_CDR_BE => Ok(RepresentationIdentifier::PlCdrBe),
-            PL_CDR_LE => Ok(RepresentationIdentifier::PlCdrLe),
-            _ => Err(DdsError::PreconditionNotMet(
-                "Invalid representation identifier".to_string(),
-            )),
-        }
-    }
-}
-
-struct RepresentationOptions([u8; 2]);
-impl RepresentationOptions {
-    fn read(buf: &mut &[u8]) -> DdsResult<Self> {
-        Ok(Self([
-            buf.read_u8().map_err(|err| {
-                DdsError::PreconditionNotMet(format!(
-                    "read of representation options[0] failed with: {}",
-                    err
-                ))
-            })?,
-            buf.read_u8().map_err(|err| {
-                DdsError::PreconditionNotMet(format!(
-                    "read of representation options[1] failed with: {}",
-                    err
-                ))
-            })?,
-        ]))
-    }
 }
 
 #[derive(Debug, PartialEq)]
