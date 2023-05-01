@@ -48,7 +48,7 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -110,7 +110,7 @@ impl DdsSerialize for ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     reader_proxy: ReaderProxy,

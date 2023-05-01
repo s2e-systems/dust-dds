@@ -51,7 +51,7 @@ pub struct BuiltInTopicKey {
     pub value: [u8; 16], // Originally in the DDS idl [i32;3]
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantBuiltinTopicData {
     key: BuiltInTopicKey,
     user_data: UserDataQosPolicy,
@@ -101,7 +101,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TopicBuiltinTopicData {
     key: BuiltInTopicKey,
     name: String,
@@ -327,7 +327,7 @@ impl Default for ReliabilityQosPolicyDataReader {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PublicationBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,
@@ -541,7 +541,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubscriptionBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,

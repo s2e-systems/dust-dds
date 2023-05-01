@@ -70,7 +70,7 @@ impl From<&DataMaxSizeSerialized> for Option<i32> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WriterProxy {
     remote_writer_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -136,7 +136,7 @@ impl DdsSerialize for WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,

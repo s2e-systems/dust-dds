@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{Read, Write};
 
 use crate::{
     implementation::parameter_list_serde::{
@@ -8,6 +8,7 @@ use crate::{
     infrastructure::error::{DdsError, DdsResult},
 };
 
+use byteorder::ReadBytesExt;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];
@@ -96,8 +97,37 @@ pub trait DdsSerialize: serde::Serialize {
     }
 }
 
-pub trait DdsDeserialize<'de>: Sized {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self>;
+pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
+    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
+        // cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+
+        let mut representation_identifier: RepresentationType = [0, 0];
+        buf.read_exact(&mut representation_identifier).unwrap();
+        let mut representation_option: RepresentationOptions = [0, 0];
+        buf.read_exact(&mut representation_option).unwrap();
+
+        match representation_identifier {
+            CDR_BE => {
+                let mut deserializer =
+                    cdr::Deserializer::<_, _, byteorder::BigEndian>::new(buf, cdr::Infinite);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            }
+            CDR_LE => {
+                let mut deserializer =
+                    cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(buf, cdr::Infinite);
+                serde::Deserialize::deserialize(&mut deserializer)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+            }
+            PL_CDR_LE => {
+                let mut deserializer = ParameterListDeserializer::read(buf).unwrap();
+                Ok(DdsDeserialize::dds_deserialize_parameter_list(&mut deserializer).unwrap())
+            }
+            _ => Err(DdsError::PreconditionNotMet(
+                "Illegal representation identifier".to_string(),
+            )),
+        }
+    }
 
     fn dds_deserialize_parameter_list(
         _deserializer: &mut ParameterListDeserializer<'de>,
@@ -115,14 +145,7 @@ where
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
 }
 
-impl<'de, Foo> DdsDeserialize<'de> for Foo
-where
-    Foo: serde::Deserialize<'de> + DdsSerde,
-{
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-    }
-}
+impl<'de, Foo> DdsDeserialize<'de> for Foo where Foo: serde::Deserialize<'de> + DdsSerde {}
 
 #[cfg(test)]
 mod tests {
@@ -144,10 +167,6 @@ mod tests {
         inner: TestDeserializeInner,
     }
     impl<'de> DdsDeserialize<'de> for TestDeserialize {
-        fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-        }
-
         fn dds_deserialize_parameter_list(
             deserializer: &mut ParameterListDeserializer<'de>,
         ) -> DdsResult<Self> {
@@ -157,7 +176,6 @@ mod tests {
             })
         }
     }
-
 
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct TestDeserializeInner {
@@ -195,12 +213,11 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // DomainId
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        let mut deserializer = ParameterListDeserializer::read(&mut data.as_slice()).unwrap();
-        let result: TestDeserialize = DdsDeserialize::dds_deserialize_parameter_list(&mut deserializer).unwrap();
+        //let mut deserializer = ParameterListDeserializer::read(&mut data.as_slice()).unwrap();
+        let result: TestDeserialize =
+            DdsDeserialize::dds_deserialize(&mut data.as_slice()).unwrap();
         assert_eq!(result, expected);
     }
-
-
 
     #[derive(serde::Serialize)]
     struct TestBuiltIn {

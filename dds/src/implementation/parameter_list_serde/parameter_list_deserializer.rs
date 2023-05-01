@@ -80,8 +80,10 @@ pub struct ParameterListDeserializer<'a> {
 
 impl<'de: 'a, 'a> ParameterListDeserializer<'a> {
     pub fn read(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let representation_identifier = RepresentationIdentifier::read(buf)?;
-        let _representation_options = RepresentationOptions::read(buf)?;
+        // let representation_identifier = RepresentationIdentifier::read(buf)?;
+        // let _representation_options = RepresentationOptions::read(buf)?;
+
+        let representation_identifier = RepresentationIdentifier::PlCdrLe;
 
         let mut parameter = vec![];
         loop {

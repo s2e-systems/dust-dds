@@ -47,7 +47,7 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: DomainTag,
@@ -194,7 +194,7 @@ impl DdsSerialize for ParticipantProxy {
         )
     }
 }
-#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
@@ -448,7 +448,8 @@ mod tests {
             11, 0x00, 0x00, 0x00, // Duration: fraction
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL
         ][..];
-        let result: SpdpDiscoveredParticipantData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
+        let result: SpdpDiscoveredParticipantData =
+            DdsDeserialize::dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 
