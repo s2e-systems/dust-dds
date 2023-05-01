@@ -541,6 +541,32 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
             group_data,
         })
     }
+
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
+        Ok(Self {
+            // publication_builtin_topic_data
+            key: deserializer.get(PID_ENDPOINT_GUID)?,
+            // Default value is a deviation from the standard and is used for interoperability reasons:
+            participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
+            topic_name: deserializer.get(PID_TOPIC_NAME)?,
+            type_name: deserializer.get(PID_TYPE_NAME)?,
+            durability: deserializer.get_or_default(PID_DURABILITY)?,
+            deadline: deserializer.get_or_default(PID_DEADLINE)?,
+            latency_budget: deserializer.get_or_default(PID_LATENCY_BUDGET)?,
+            liveliness: deserializer.get_or_default(PID_LIVELINESS)?,
+            reliability: deserializer.get_or_default(PID_RELIABILITY)?,
+            lifespan: deserializer.get_or_default(PID_LIFESPAN)?,
+            user_data: deserializer.get_or_default(PID_USER_DATA)?,
+            ownership: deserializer.get_or_default(PID_OWNERSHIP)?,
+            destination_order: deserializer.get_or_default(PID_DESTINATION_ORDER)?,
+            presentation: deserializer.get_or_default(PID_PRESENTATION)?,
+            partition: deserializer.get_or_default(PID_PARTITION)?,
+            topic_data: deserializer.get_or_default(PID_TOPIC_DATA)?,
+            group_data: deserializer.get_or_default(PID_GROUP_DATA)?,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]

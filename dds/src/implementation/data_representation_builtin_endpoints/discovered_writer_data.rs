@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use byteorder::ByteOrder;
+
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
@@ -19,11 +21,8 @@ use crate::{
 };
 
 use super::parameter_id_values::{
-    PID_DATA_MAX_SIZE_SERIALIZED, PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY,
-    PID_ENDPOINT_GUID, PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIFESPAN,
-    PID_LIVELINESS, PID_MULTICAST_LOCATOR, PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION,
-    PID_PRESENTATION, PID_RELIABILITY, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME,
-    PID_UNICAST_LOCATOR, PID_USER_DATA,
+    PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
+    PID_UNICAST_LOCATOR,
 };
 
 #[derive(
@@ -136,6 +135,21 @@ impl DdsSerialize for WriterProxy {
     }
 }
 
+impl<'de> DdsDeserialize<'de> for WriterProxy {
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
+        let key: BuiltInTopicKey = deserializer.get(PID_ENDPOINT_GUID)?;
+        Ok(Self {
+            remote_writer_guid: key.value.into(),
+            remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
+            unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
+            data_max_size_serialized: deserializer.get_or_default(PID_DATA_MAX_SIZE_SERIALIZED)?,
+        })
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
@@ -198,65 +212,13 @@ impl DdsSerialize for DiscoveredWriterData {
     }
 }
 
-impl DdsDeserialize<'_> for DiscoveredWriterData {
-    fn dds_deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
-
-        // publication_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons:
-        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataWriter>(PID_RELIABILITY)?
-            .into();
-        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
-        let user_data = param_list.get_or_default(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
-
-        //writer_proxy
-        let remote_writer_guid = key.value.into();
-        let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
-        let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
-        let data_max_size_serialized = param_list.get_or_default(PID_DATA_MAX_SIZE_SERIALIZED)?;
-        let remote_group_entity_id = param_list.get_or_default(PID_GROUP_ENTITYID)?;
+impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
         Ok(Self {
-            dds_publication_data: PublicationBuiltinTopicData::new(
-                key,
-                participant_key,
-                topic_name,
-                type_name,
-                durability,
-                deadline,
-                latency_budget,
-                liveliness,
-                reliability,
-                lifespan,
-                user_data,
-                ownership,
-                destination_order,
-                presentation,
-                partition,
-                topic_data,
-                group_data,
-            ),
-            writer_proxy: WriterProxy::new(
-                remote_writer_guid,
-                remote_group_entity_id,
-                unicast_locator_list,
-                multicast_locator_list,
-                data_max_size_serialized,
-            ),
+            dds_publication_data: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
+            writer_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
         })
     }
 }
