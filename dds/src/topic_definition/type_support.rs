@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_all_default() {
+    fn dds_deserialize_simple() {
         let expected = TestDeserialize {
             remote_group_entity_id: EntityId::new(
                 EntityKey::new([21, 22, 23]),
@@ -220,17 +220,17 @@ mod tests {
     }
 
     #[derive(serde::Serialize)]
-    struct TestBuiltIn {
+    struct TestSerialize {
         remote_group_entity_id: EntityId,
-        inner: TestBuiltInInner,
+        inner: TestSerializeInner,
     }
 
     #[derive(serde::Serialize)]
-    struct TestBuiltInInner {
+    struct TestSerializeInner {
         domain_id: DomainId,
     }
 
-    impl DdsSerialize for TestBuiltIn {
+    impl DdsSerialize for TestSerialize {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
         fn dds_serialize_parameter_list<W: Write>(
@@ -243,7 +243,7 @@ mod tests {
         }
     }
 
-    impl DdsSerialize for TestBuiltInInner {
+    impl DdsSerialize for TestSerializeInner {
         const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
 
         fn dds_serialize_parameter_list<W: Write>(
@@ -255,13 +255,13 @@ mod tests {
     }
 
     #[test]
-    fn serialize_all_default() {
-        let data = TestBuiltIn {
+    fn dds_serialize_simple() {
+        let data = TestSerialize {
             remote_group_entity_id: EntityId::new(
                 EntityKey::new([21, 22, 23]),
                 BUILT_IN_READER_GROUP,
             ),
-            inner: TestBuiltInInner { domain_id: 2 },
+            inner: TestSerializeInner { domain_id: 2 },
         };
 
         let mut writer = Vec::<u8>::new();

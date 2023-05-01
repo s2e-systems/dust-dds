@@ -84,16 +84,9 @@ impl ParticipantProxy {
         manual_liveliness_count: Count,
         builtin_endpoint_qos: BuiltinEndpointQos,
     ) -> Self {
-        // let g: [u8; 12] = guid_prefix.into();
-        // let guid_prefix = BuiltInTopicKey {
-        //     value: [
-        //         g[0], g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], g[9], g[10], g[11], 0, 0, 0,
-        //         0,
-        //     ],
-        // };
         Self {
             domain_id,
-            domain_tag: DomainTag(domain_tag),
+            domain_tag: domain_tag.into(),
             protocol_version,
             guid_prefix,
             vendor_id,

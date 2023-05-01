@@ -3,7 +3,7 @@ use std::io::Write;
 use byteorder::ByteOrder;
 
 use crate::{
-    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
+    builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
@@ -139,9 +139,8 @@ impl<'de> DdsDeserialize<'de> for WriterProxy {
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
-        let key: BuiltInTopicKey = deserializer.get(PID_ENDPOINT_GUID)?;
         Ok(Self {
-            remote_writer_guid: key.value.into(),
+            remote_writer_guid: deserializer.get(PID_ENDPOINT_GUID)?,
             remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
             unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
             multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
@@ -225,6 +224,7 @@ impl<'de> DdsDeserialize<'de> for DiscoveredWriterData {
 
 #[cfg(test)]
 mod tests {
+    use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_PARTICIPANT, BUILT_IN_READER_GROUP,
         BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_UNKNOWN,
