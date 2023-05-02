@@ -9,7 +9,6 @@ use crate::{
 };
 
 use byteorder::ByteOrder;
-use cdr::Encapsulation;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];
@@ -74,8 +73,8 @@ pub trait DdsSerialize {
             CDR_LE => {
                 let mut d = vec![];
                 let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
-                writer.write(&CDR_LE).unwrap();
-                writer.write(&REPRESENTATION_OPTIONS).unwrap();
+                writer.write_all(&CDR_LE).unwrap();
+                writer.write_all(&REPRESENTATION_OPTIONS).unwrap();
                 self.dds_serialize_cdr(&mut serializer).unwrap();
                 d
             }
