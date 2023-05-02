@@ -99,12 +99,12 @@ pub trait DdsSerialize: serde::Serialize {
 
 pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        // cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-
         let mut representation_identifier: RepresentationType = [0, 0];
-        buf.read_exact(&mut representation_identifier).unwrap();
+        buf.read_exact(&mut representation_identifier)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
         let mut representation_option: RepresentationOptions = [0, 0];
-        buf.read_exact(&mut representation_option).unwrap();
+        buf.read_exact(&mut representation_option)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
 
         match representation_identifier {
             CDR_BE => {
