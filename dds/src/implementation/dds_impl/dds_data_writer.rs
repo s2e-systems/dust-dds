@@ -16,7 +16,9 @@ use crate::{
             reader_proxy::RtpsReaderProxy,
             stateful_writer::RtpsStatefulWriter,
             stateless_writer::RtpsStatelessWriter,
-            types::{ChangeKind, EntityId, EntityKey, Guid, Locator, USER_DEFINED_UNKNOWN},
+            types::{
+                ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
+            },
         },
         utils::{
             condvar::DdsCondvar,
@@ -627,7 +629,7 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     value: self.rtps_writer.read_lock().guid().into(),
                 },
                 BuiltInTopicKey {
-                    value: self.rtps_writer.read_lock().guid().into(),
+                    value: GUID_UNKNOWN.into(),
                 },
                 self.topic_name.clone(),
                 self.type_name.to_string(),
