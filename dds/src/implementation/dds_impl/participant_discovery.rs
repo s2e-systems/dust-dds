@@ -11,7 +11,7 @@ use crate::{
     },
 };
 
-use super::domain_participant_impl::{
+use super::dds_domain_participant::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
 };

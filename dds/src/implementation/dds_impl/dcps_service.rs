@@ -14,10 +14,10 @@ use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
-            discovered_reader_data::{DiscoveredReaderData, ReaderProxy},
-            discovered_topic_data::DiscoveredTopicData,
-            discovered_writer_data::{DiscoveredWriterData, WriterProxy},
-            spdp_discovered_participant_data::SpdpDiscoveredParticipantData,
+            discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
+            discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
+            discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
+            spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -61,8 +61,9 @@ use crate::{
 use super::{
     dds_data_reader::DdsDataReader,
     dds_data_writer::DdsDataWriter,
-    domain_participant_impl::{
-        AnnounceKind, DomainParticipantImpl, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    dds_subscriber::DdsSubscriber,
+    dds_domain_participant::{
+        AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
@@ -70,11 +71,10 @@ use super::{
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,
     status_listener::StatusListener,
-    user_defined_subscriber::UserDefinedSubscriber,
 };
 
 pub struct DcpsService {
-    participant: DdsShared<DomainParticipantImpl>,
+    participant: DdsShared<DdsDomainParticipant>,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
@@ -85,7 +85,7 @@ pub struct DcpsService {
 
 impl DcpsService {
     pub fn new(
-        participant: DdsShared<DomainParticipantImpl>,
+        participant: DdsShared<DdsDomainParticipant>,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
@@ -279,9 +279,13 @@ impl DcpsService {
                     &mut metatraffic_unicast_transport_send,
                 );
 
-                domain_participant
+                for stateful_readers in domain_participant
                     .get_builtin_subscriber()
-                    .send_message(header, &mut metatraffic_unicast_transport_send);
+                    .stateful_data_reader_list()
+                    .into_iter()
+                {
+                    stateful_readers.send_message(header, &mut metatraffic_unicast_transport_send)
+                }
             }));
         }
 
@@ -370,7 +374,7 @@ impl DcpsService {
                 }
 
                 for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.data_reader_list() {
+                    for data_reader in &subscriber.stateful_data_reader_list() {
                         data_reader.send_message(header, &mut default_unicast_transport_send)
                     }
                 }
@@ -392,7 +396,7 @@ impl DcpsService {
         })
     }
 
-    pub fn participant(&self) -> &DdsShared<DomainParticipantImpl> {
+    pub fn participant(&self) -> &DdsShared<DdsDomainParticipant> {
         &self.participant
     }
 
@@ -452,7 +456,7 @@ impl DcpsService {
 }
 
 fn announce_created_data_reader(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_reader_data: DiscoveredReaderData,
 ) {
     let reader_proxy = ReaderProxy::new(
@@ -493,7 +497,7 @@ fn announce_created_data_reader(
 }
 
 fn announce_created_data_writer(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
     let writer_data = &DiscoveredWriterData::new(
@@ -530,7 +534,7 @@ fn announce_created_data_writer(
 }
 
 fn announce_created_topic(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_topic: DiscoveredTopicData,
 ) {
     let mut serialized_data = Vec::new();
@@ -556,7 +560,7 @@ fn announce_created_topic(
 }
 
 fn announce_deleted_reader(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     reader_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(reader_handle.as_ref());
@@ -578,7 +582,7 @@ fn announce_deleted_reader(
 }
 
 fn announce_deleted_writer(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     writer_handle: InstanceHandle,
 ) {
     let serialized_key = DdsSerializedKey::from(writer_handle.as_ref());
@@ -955,10 +959,13 @@ fn user_defined_stateful_writer_send_message(
     }
 }
 
-fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsResult<()> {
+fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
     let samples = domain_participant
         .get_builtin_subscriber()
-        .sedp_builtin_publications_reader()
+        .stateful_data_reader_list()
+        .into_iter()
+        .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+        .unwrap()
         .read::<DiscoveredWriterData>(
             i32::MAX,
             ANY_SAMPLE_STATE,
@@ -1005,7 +1012,7 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
             }
             InstanceStateKind::NotAliveDisposed => {
                 for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.data_reader_list() {
+                    for data_reader in &subscriber.stateful_data_reader_list() {
                         data_reader.remove_matched_writer(
                             discovered_writer_data_sample.sample_info.instance_handle,
                             &mut subscriber.get_status_listener_lock(),
@@ -1022,7 +1029,7 @@ fn discover_matched_writers(domain_participant: &DomainParticipantImpl) -> DdsRe
 }
 
 pub fn subscriber_add_matched_writer(
-    user_defined_subscriber: &UserDefinedSubscriber,
+    user_defined_subscriber: &DdsSubscriber,
     discovered_writer_data: &DiscoveredWriterData,
     default_unicast_locator_list: &[Locator],
     default_multicast_locator_list: &[Locator],
@@ -1064,7 +1071,7 @@ pub fn subscriber_add_matched_writer(
         || is_subscriber_regex_matched_to_discovered_writer
         || is_partition_string_matched
     {
-        for data_reader in &user_defined_subscriber.data_reader_list() {
+        for data_reader in &user_defined_subscriber.stateful_data_reader_list() {
             data_reader.add_matched_writer(
                 discovered_writer_data,
                 default_unicast_locator_list,
@@ -1078,12 +1085,15 @@ pub fn subscriber_add_matched_writer(
 }
 
 fn discover_matched_participants(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     sedp_condvar: &DdsCondvar,
 ) -> DdsResult<()> {
     let spdp_builtin_participant_data_reader = domain_participant
         .get_builtin_subscriber()
-        .spdp_builtin_participant_reader()
+        .stateless_data_reader_list()
+        .into_iter()
+        .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
+        .unwrap()
         .clone();
 
     while let Ok(samples) = spdp_builtin_participant_data_reader.read(
@@ -1105,7 +1115,7 @@ fn discover_matched_participants(
 }
 
 fn add_discovered_participant(
-    domain_participant: &DomainParticipantImpl,
+    domain_participant: &DdsDomainParticipant,
     discovered_participant_data: SpdpDiscoveredParticipantData,
 ) {
     if ParticipantDiscovery::new(
@@ -1122,7 +1132,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1130,7 +1140,10 @@ fn add_discovered_participant(
         add_matched_publications_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_publications_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
+                .unwrap(),
             &discovered_participant_data,
         );
 
@@ -1139,7 +1152,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1147,7 +1160,10 @@ fn add_discovered_participant(
         add_matched_subscriptions_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_subscriptions_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
+                .unwrap(),
             &discovered_participant_data,
         );
 
@@ -1156,7 +1172,7 @@ fn add_discovered_participant(
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
                 .into_iter()
-                .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
+                .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
         );
@@ -1164,7 +1180,10 @@ fn add_discovered_participant(
         add_matched_topics_announcer(
             domain_participant
                 .get_builtin_subscriber()
-                .sedp_builtin_topics_reader(),
+                .stateful_data_reader_list()
+                .into_iter()
+                .find(|x| x.get_topic_name() == DCPS_TOPIC)
+                .unwrap(),
             &discovered_participant_data,
         );
 

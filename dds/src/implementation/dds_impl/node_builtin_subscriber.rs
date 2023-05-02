@@ -1,22 +1,15 @@
 use crate::{
-    builtin_topics::{
-        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
-        TopicBuiltinTopicData,
-    },
     implementation::utils::node::{ChildNode, RootNode},
     infrastructure::{
-        condition::StatusCondition,
-        error::{DdsError, DdsResult},
-        instance::InstanceHandle,
-        qos::SubscriberQos,
+        condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
         status::StatusKind,
     },
     topic_definition::type_support::DdsType,
 };
 
 use super::{
-    builtin_subscriber::BuiltInSubscriber, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl,
+    dcps_service::DcpsService, dds_subscriber::DdsSubscriber,
+    dds_domain_participant::DdsDomainParticipant,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_kind::DataReaderNodeKind,
@@ -24,12 +17,12 @@ use super::{
 
 #[derive(PartialEq, Debug)]
 pub struct BuiltinSubscriberNode(
-    ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
 );
 
 impl BuiltinSubscriberNode {
     pub fn new(
-        node: ChildNode<BuiltInSubscriber, ChildNode<DomainParticipantImpl, RootNode<DcpsService>>>,
+        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
     ) -> Self {
         Self(node)
     }
@@ -38,44 +31,28 @@ impl BuiltinSubscriberNode {
     where
         Foo: DdsType,
     {
-        match topic_name {
-            "DCPSParticipant" if Foo::type_name() == ParticipantBuiltinTopicData::type_name() => {
-                Ok(Some(DataReaderNodeKind::BuiltinStateless(
-                    BuiltinDataReaderStatelessNode::new(ChildNode::new(
-                        self.0.get()?.spdp_builtin_participant_reader().downgrade(),
-                        self.0.clone(),
-                    )),
-                )))
-            }
-            "DCPSTopic" if Foo::type_name() == TopicBuiltinTopicData::type_name() => {
-                Ok(Some(DataReaderNodeKind::BuiltinStateful(
-                    BuiltinDataReaderStatefulNode::new(ChildNode::new(
-                        self.0.get()?.sedp_builtin_topics_reader().downgrade(),
-                        self.0.clone(),
-                    )),
-                )))
-            }
-            "DCPSPublication" if Foo::type_name() == PublicationBuiltinTopicData::type_name() => {
-                Ok(Some(DataReaderNodeKind::BuiltinStateful(
-                    BuiltinDataReaderStatefulNode::new(ChildNode::new(
-                        self.0.get()?.sedp_builtin_publications_reader().downgrade(),
-                        self.0.clone(),
-                    )),
-                )))
-            }
-            "DCPSSubscription" if Foo::type_name() == SubscriptionBuiltinTopicData::type_name() => {
-                Ok(Some(DataReaderNodeKind::BuiltinStateful(
-                    BuiltinDataReaderStatefulNode::new(ChildNode::new(
-                        self.0
-                            .get()?
-                            .sedp_builtin_subscriptions_reader()
-                            .downgrade(),
-                        self.0.clone(),
-                    )),
-                )))
-            }
-
-            _ => Err(DdsError::BadParameter),
+        if let Some(r) = self
+            .0
+            .get()?
+            .stateful_data_reader_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
+        {
+            Ok(Some(DataReaderNodeKind::BuiltinStateful(
+                BuiltinDataReaderStatefulNode::new(ChildNode::new(r.downgrade(), self.0.clone())),
+            )))
+        } else if let Some(r) = self
+            .0
+            .get()?
+            .stateless_data_reader_list()
+            .into_iter()
+            .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
+        {
+            Ok(Some(DataReaderNodeKind::BuiltinStateless(
+                BuiltinDataReaderStatelessNode::new(ChildNode::new(r.downgrade(), self.0.clone())),
+            )))
+        } else {
+            Ok(None)
         }
     }
 
@@ -84,11 +61,11 @@ impl BuiltinSubscriberNode {
     }
 
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
-        self.0.get()?.get_statuscondition()
+        todo!()
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        self.0.get()?.get_status_changes()
+        todo!()
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

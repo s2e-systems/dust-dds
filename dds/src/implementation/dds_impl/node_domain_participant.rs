@@ -19,17 +19,17 @@ use crate::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dcps_service::DcpsService,
-    domain_participant_impl::DomainParticipantImpl, node_builtin_subscriber::BuiltinSubscriberNode,
+    dds_domain_participant::DdsDomainParticipant, node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct DomainParticipantNode(ChildNode<DomainParticipantImpl, RootNode<DcpsService>>);
+pub struct DomainParticipantNode(ChildNode<DdsDomainParticipant, RootNode<DcpsService>>);
 
 impl DomainParticipantNode {
-    pub fn new(node: ChildNode<DomainParticipantImpl, RootNode<DcpsService>>) -> Self {
+    pub fn new(node: ChildNode<DdsDomainParticipant, RootNode<DcpsService>>) -> Self {
         Self(node)
     }
 

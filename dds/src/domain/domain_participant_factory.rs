@@ -8,7 +8,7 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         dds_impl::{
-            dcps_service::DcpsService, domain_participant_impl::DomainParticipantImpl,
+            dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant,
             node_domain_participant::DomainParticipantNode,
         },
         rtps::{
@@ -256,7 +256,7 @@ impl DomainParticipantFactory {
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(1);
-        let participant = DomainParticipantImpl::new(
+        let participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
             configuration.domain_tag,
