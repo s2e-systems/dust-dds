@@ -9,6 +9,7 @@ use crate::{
 };
 
 use byteorder::ByteOrder;
+use cdr::Encapsulation;
 pub use dust_dds_derive::{DdsSerde, DdsType};
 
 pub type RepresentationType = [u8; 2];
@@ -66,12 +67,18 @@ pub trait DdsType {
     }
 }
 
-pub trait DdsSerialize: serde::Serialize {
+pub trait DdsSerialize {
     const REPRESENTATION_IDENTIFIER: RepresentationType;
     fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
         let data = match Self::REPRESENTATION_IDENTIFIER {
-            CDR_LE => cdr::serialize::<_, _, cdr::CdrLe>(self, cdr::Infinite)
-                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?,
+            CDR_LE => {
+                let mut d = vec![];
+                let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
+                writer.write(&CDR_LE).unwrap();
+                writer.write(&REPRESENTATION_OPTIONS).unwrap();
+                self.dds_serialize_cdr(&mut serializer).unwrap();
+                d
+            }
             PL_CDR_LE => {
                 let mut d = vec![];
                 let mut pl_serializer = ParameterListSerializer::new(&mut d);
@@ -89,11 +96,15 @@ pub trait DdsSerialize: serde::Serialize {
         Ok(())
     }
 
+    fn dds_serialize_cdr<S: serde::Serializer>(&self, _serializer: S) -> DdsResult<()> {
+        unimplemented!("dds_serialize_cdr not implemented for this type")
+    }
+
     fn dds_serialize_parameter_list<W: Write>(
         &self,
         _serializer: &mut ParameterListSerializer<W>,
     ) -> DdsResult<()> {
-        unimplemented!("parameter_list serialization not implemented for this type")
+        unimplemented!("dds_serialize_parameter_list not implemented for this type")
     }
 }
 
@@ -151,6 +162,11 @@ where
     Foo: serde::Serialize + DdsSerde,
 {
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
+
+    fn dds_serialize_cdr<S: serde::Serializer>(&self, serializer: S) -> DdsResult<()> {
+        serde::Serialize::serialize(self, serializer).unwrap();
+        Ok(())
+    }
 }
 
 impl<'de, Foo> DdsDeserialize<'de> for Foo where Foo: serde::Deserialize<'de> + DdsSerde {}
@@ -227,13 +243,11 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    #[derive(serde::Serialize)]
     struct TestSerialize {
         remote_group_entity_id: EntityId,
         inner: TestSerializeInner,
     }
 
-    #[derive(serde::Serialize)]
     struct TestSerializeInner {
         domain_id: DomainId,
     }
@@ -248,6 +262,19 @@ mod tests {
             serializer.serialize_parameter(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
 
             self.inner.dds_serialize_parameter_list(serializer)
+        }
+
+        fn dds_serialize<W: Write>(&self, mut writer: W) -> DdsResult<()> {
+            let mut data = vec![];
+            let mut pl_serializer = ParameterListSerializer::new(&mut data);
+            pl_serializer.serialize_payload_header().unwrap();
+            self.dds_serialize_parameter_list(&mut pl_serializer)
+                .unwrap();
+            pl_serializer.serialize_sentinel().unwrap();
+            writer
+                .write(data.as_slice())
+                .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+            Ok(())
         }
     }
 
