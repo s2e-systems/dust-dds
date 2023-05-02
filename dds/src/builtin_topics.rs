@@ -100,7 +100,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TopicBuiltinTopicData {
     key: BuiltInTopicKey,
     name: String,
@@ -310,7 +310,7 @@ impl Default for ReliabilityQosPolicyDataReader {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct PublicationBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,
@@ -479,55 +479,10 @@ impl DdsSerialize for PublicationBuiltinTopicData {
 }
 
 impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
-    fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::<byteorder::LittleEndian>::read(buf)?;
-
-        // publication_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons
-        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list.get_or_default(PID_RELIABILITY)?;
-        let lifespan = param_list.get_or_default(PID_LIFESPAN)?;
-        let user_data = param_list.get_or_default(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
-
-        Ok(Self {
-            key,
-            participant_key,
-            topic_name,
-            type_name,
-            durability,
-            deadline,
-            latency_budget,
-            liveliness,
-            reliability,
-            lifespan,
-            user_data,
-            ownership,
-            destination_order,
-            presentation,
-            partition,
-            topic_data,
-            group_data,
-        })
-    }
-
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
         Ok(Self {
-            // publication_builtin_topic_data
             key: deserializer.get(PID_ENDPOINT_GUID)?,
             // Default value is a deviation from the standard and is used for interoperability reasons:
             participant_key: deserializer.get_or_default(PID_PARTICIPANT_GUID)?,
@@ -550,7 +505,7 @@ impl<'de> DdsDeserialize<'de> for PublicationBuiltinTopicData {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SubscriptionBuiltinTopicData {
     key: BuiltInTopicKey,
     participant_key: BuiltInTopicKey,

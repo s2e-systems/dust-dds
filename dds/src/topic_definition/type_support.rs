@@ -195,7 +195,7 @@ mod tests {
 
     use super::*;
 
-    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[derive(Debug, PartialEq)]
     struct TestDeserialize {
         remote_group_entity_id: EntityId,
         inner: TestDeserializeInner,
@@ -211,15 +211,11 @@ mod tests {
         }
     }
 
-    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[derive(Debug, PartialEq)]
     struct TestDeserializeInner {
         domain_id: DomainId,
     }
     impl<'de> DdsDeserialize<'de> for TestDeserializeInner {
-        fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
-            cdr::deserialize(buf).map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
-        }
-
         fn dds_deserialize_parameter_list<E: ByteOrder>(
             deserializer: &mut ParameterListDeserializer<'de, E>,
         ) -> DdsResult<Self> {
@@ -247,7 +243,6 @@ mod tests {
             0x02, 0x00, 0x00, 0x00, // DomainId
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ];
-        //let mut deserializer = ParameterListDeserializer::read(&mut data.as_slice()).unwrap();
         let result: TestDeserialize =
             DdsDeserialize::dds_deserialize(&mut data.as_slice()).unwrap();
         assert_eq!(result, expected);

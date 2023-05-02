@@ -28,7 +28,7 @@ use super::parameter_id_values::{
 };
 
 #[derive(
-    Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::Into, derive_more::From,
+    Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -38,7 +38,7 @@ impl Default for DomainTag {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, derive_more::From, derive_more::Into,
+    Debug, PartialEq, Eq, derive_more::From, derive_more::Into, serde::Serialize, serde::Deserialize
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -50,7 +50,7 @@ impl Default for LeaseDuration {
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ParticipantProxy {
     domain_id: DomainId,
     domain_tag: DomainTag,
@@ -224,7 +224,7 @@ impl<'de> DdsDeserialize<'de> for ParticipantProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SpdpDiscoveredParticipantData {
     dds_participant_data: ParticipantBuiltinTopicData,
     participant_proxy: ParticipantProxy,
@@ -312,7 +312,7 @@ mod tests {
     use crate::implementation::rtps::types::{LocatorAddress, LocatorKind, LocatorPort};
     use crate::infrastructure::qos_policy::UserDataQosPolicy;
 
-    pub fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
         value.dds_serialize(&mut writer).unwrap();
         writer

@@ -43,7 +43,7 @@ impl Default for ReliabilityQosPolicyDataWriter {
 }
 
 const DEFAULT_DATA_MAX_SIZE_SERIALIZED: i32 = 0;
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 struct DataMaxSizeSerialized(i32);
 impl Default for DataMaxSizeSerialized {
     fn default() -> Self {
@@ -69,7 +69,7 @@ impl From<&DataMaxSizeSerialized> for Option<i32> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {
     remote_writer_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -149,7 +149,7 @@ impl<'de> DdsDeserialize<'de> for WriterProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiscoveredWriterData {
     dds_publication_data: PublicationBuiltinTopicData,
     writer_proxy: WriterProxy,
@@ -238,7 +238,7 @@ mod tests {
 
     use super::*;
 
-    fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
         value.dds_serialize(&mut writer).unwrap();
         writer

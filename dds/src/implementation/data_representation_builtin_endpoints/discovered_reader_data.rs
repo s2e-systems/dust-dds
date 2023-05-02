@@ -25,19 +25,19 @@ use super::parameter_id_values::{
     PID_UNICAST_LOCATOR,
 };
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From, derive_more::Into)]
+#[derive(Debug, PartialEq, Eq, derive_more::From, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
 impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
     fn default() -> Self {
         Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
     }
 }
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From)]
+#[derive(Debug, PartialEq, Eq, derive_more::From)]
 pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
     pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
 );
 
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
+#[derive(Debug, PartialEq, Eq, derive_more::Into)]
 pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
 impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
     fn default() -> Self {
@@ -47,7 +47,7 @@ impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ReaderProxy {
     remote_reader_guid: Guid,
     remote_group_entity_id: EntityId,
@@ -123,7 +123,7 @@ impl<'de> DdsDeserialize<'de> for ReaderProxy {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct DiscoveredReaderData {
     subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
     reader_proxy: ReaderProxy,
@@ -214,7 +214,7 @@ mod tests {
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
 
-    fn to_bytes_le<S: DdsSerialize + serde::Serialize>(value: &S) -> Vec<u8> {
+    fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
         value.dds_serialize(&mut writer).unwrap();
         writer
