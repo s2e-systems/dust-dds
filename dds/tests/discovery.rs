@@ -140,7 +140,7 @@ fn updated_readers_are_announced_to_writer() {
     let matched_subscription_data = data_writer
         .get_matched_subscription_data(matched_subscriptions[0])
         .unwrap();
-    assert_eq!(matched_subscription_data.user_data, user_data_qos_policy);
+    assert_eq!(matched_subscription_data.user_data(), &user_data_qos_policy);
 }
 
 #[test]
@@ -267,7 +267,7 @@ fn updated_writers_are_announced_to_reader() {
         .get_matched_publication_data(matched_publications[0])
         .unwrap();
 
-    assert_eq!(matched_publication_data.user_data, user_data_qos_policy);
+    assert_eq!(matched_publication_data.user_data(), &user_data_qos_policy);
 }
 
 #[test]
@@ -299,7 +299,13 @@ fn participant_records_discovered_topics() {
         .get_discovered_topics()
         .unwrap()
         .iter()
-        .map(|&handle| participant2.get_discovered_topic_data(handle).unwrap().name)
+        .map(|&handle| {
+            participant2
+                .get_discovered_topic_data(handle)
+                .unwrap()
+                .name()
+                .to_string()
+        })
         .collect();
     assert!(discovered_topic_names.contains(&"Topic 1".to_string()));
     assert!(discovered_topic_names.contains(&"Topic 2".to_string()));

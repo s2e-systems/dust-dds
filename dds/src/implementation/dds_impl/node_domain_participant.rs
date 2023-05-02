@@ -232,7 +232,7 @@ impl DomainParticipantNode {
             .find(|&(handle, _)| handle == &participant_handle)
             .ok_or(DdsError::BadParameter)?
             .1
-            .dds_participant_data
+            .dds_participant_data()
             .clone())
     }
 

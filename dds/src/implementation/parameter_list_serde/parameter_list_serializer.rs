@@ -1,35 +1,33 @@
 use crate::{
     implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL,
     infrastructure::error::{DdsError, DdsResult},
-    topic_definition::type_support::Endianness,
+    topic_definition::type_support::{PL_CDR_LE, REPRESENTATION_OPTIONS},
 };
 
 use serde::Serialize;
 
-pub struct ParameterListSerializer<W, E>
+pub struct ParameterListSerializer<W>
 where
     W: std::io::Write,
-    E: Endianness,
 {
-    serializer: cdr::Serializer<W, E::Endianness>,
+    serializer: cdr::Serializer<W, byteorder::LittleEndian>,
 }
 
-impl<W, E> ParameterListSerializer<W, E>
+impl<W> ParameterListSerializer<W>
 where
     W: std::io::Write,
-    E: Endianness,
 {
     pub fn new(writer: W) -> Self {
         Self {
-            serializer: cdr::Serializer::<_, E::Endianness>::new(writer),
+            serializer: cdr::Serializer::new(writer),
         }
     }
 
     pub fn serialize_payload_header(&mut self) -> DdsResult<()> {
-        E::REPRESENTATION_IDENTIFIER
+        PL_CDR_LE
             .serialize(&mut self.serializer)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
-        E::REPRESENTATION_OPTIONS
+        REPRESENTATION_OPTIONS
             .serialize(&mut self.serializer)
             .map_err(|err| DdsError::PreconditionNotMet(err.to_string()))?;
         Ok(())

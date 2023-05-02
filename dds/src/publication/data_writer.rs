@@ -20,7 +20,7 @@ use crate::{
     publication::{data_writer_listener::DataWriterListener, publisher::Publisher},
     topic_definition::{
         topic::Topic,
-        type_support::{DdsSerialize, DdsType, LittleEndian},
+        type_support::{DdsSerialize, DdsType},
     },
 };
 
@@ -157,7 +157,7 @@ where
             let mut serialized_key = Vec::new();
             instance
                 .get_serialized_key()
-                .serialize::<_, LittleEndian>(&mut serialized_key)?;
+                .dds_serialize(&mut serialized_key)?;
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(w) => {
@@ -245,7 +245,7 @@ where
         timestamp: Time,
     ) -> DdsResult<()> {
         let mut serialized_data = Vec::new();
-        data.serialize::<_, LittleEndian>(&mut serialized_data)?;
+        data.dds_serialize(&mut serialized_data)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
@@ -316,7 +316,7 @@ where
 
         let mut serialized_key = Vec::new();
         data.get_serialized_key()
-            .serialize::<_, LittleEndian>(&mut serialized_key)?;
+            .dds_serialize(&mut serialized_key)?;
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => {

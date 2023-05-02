@@ -139,27 +139,25 @@ impl DdsShared<DdsTopic> {
 
     pub fn as_discovered_topic_data(&self) -> DiscoveredTopicData {
         let qos = self.qos.read_lock();
-        DiscoveredTopicData {
-            topic_builtin_topic_data: TopicBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.guid.into(),
-                },
-                name: self.topic_name.to_string(),
-                type_name: self.type_name.to_string(),
-                durability: qos.durability.clone(),
-                deadline: qos.deadline.clone(),
-                latency_budget: qos.latency_budget.clone(),
-                liveliness: qos.liveliness.clone(),
-                reliability: qos.reliability.clone(),
-                transport_priority: qos.transport_priority.clone(),
-                lifespan: qos.lifespan.clone(),
-                destination_order: qos.destination_order.clone(),
-                history: qos.history.clone(),
-                resource_limits: qos.resource_limits.clone(),
-                ownership: qos.ownership.clone(),
-                topic_data: qos.topic_data.clone(),
+        DiscoveredTopicData::new(TopicBuiltinTopicData::new(
+            BuiltInTopicKey {
+                value: self.guid.into(),
             },
-        }
+            self.topic_name.to_string(),
+            self.type_name.to_string(),
+            qos.durability.clone(),
+            qos.deadline.clone(),
+            qos.latency_budget.clone(),
+            qos.liveliness.clone(),
+            qos.reliability.clone(),
+            qos.transport_priority.clone(),
+            qos.lifespan.clone(),
+            qos.destination_order.clone(),
+            qos.history.clone(),
+            qos.resource_limits.clone(),
+            qos.ownership.clone(),
+            qos.topic_data.clone(),
+        ))
     }
 
     pub fn process_discovered_topic(
@@ -169,8 +167,11 @@ impl DdsShared<DdsTopic> {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        if discovered_topic_data.topic_builtin_topic_data.type_name == self.get_type_name()
-            && discovered_topic_data.topic_builtin_topic_data.name == self.get_name()
+        if discovered_topic_data
+            .topic_builtin_topic_data()
+            .get_type_name()
+            == self.get_type_name()
+            && discovered_topic_data.topic_builtin_topic_data().name() == self.get_name()
             && !is_discovered_topic_consistent(&self.qos.read_lock(), discovered_topic_data)
         {
             self.inconsistent_topic_status.write_lock().increment();
@@ -218,30 +219,42 @@ fn is_discovered_topic_consistent(
     topic_qos: &TopicQos,
     discovered_topic_data: &DiscoveredTopicData,
 ) -> bool {
-    topic_qos.topic_data == discovered_topic_data.topic_builtin_topic_data.topic_data
-        && topic_qos.durability == discovered_topic_data.topic_builtin_topic_data.durability
-        && topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data.deadline
-        && topic_qos.latency_budget
+    &topic_qos.topic_data
+        == discovered_topic_data
+            .topic_builtin_topic_data()
+            .topic_data()
+        && &topic_qos.durability
             == discovered_topic_data
-                .topic_builtin_topic_data
-                .latency_budget
-        && topic_qos.liveliness == discovered_topic_data.topic_builtin_topic_data.liveliness
-        && topic_qos.reliability == discovered_topic_data.topic_builtin_topic_data.reliability
-        && topic_qos.destination_order
+                .topic_builtin_topic_data()
+                .durability()
+        && &topic_qos.deadline == discovered_topic_data.topic_builtin_topic_data().deadline()
+        && &topic_qos.latency_budget
             == discovered_topic_data
-                .topic_builtin_topic_data
-                .destination_order
-        && topic_qos.history == discovered_topic_data.topic_builtin_topic_data.history
-        && topic_qos.resource_limits
+                .topic_builtin_topic_data()
+                .latency_budget()
+        && &topic_qos.liveliness
             == discovered_topic_data
-                .topic_builtin_topic_data
-                .resource_limits
-        && topic_qos.transport_priority
+                .topic_builtin_topic_data()
+                .liveliness()
+        && &topic_qos.reliability
             == discovered_topic_data
-                .topic_builtin_topic_data
-                .transport_priority
-        && topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data.lifespan
-        && topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data.ownership
+                .topic_builtin_topic_data()
+                .reliability()
+        && &topic_qos.destination_order
+            == discovered_topic_data
+                .topic_builtin_topic_data()
+                .destination_order()
+        && &topic_qos.history == discovered_topic_data.topic_builtin_topic_data().history()
+        && &topic_qos.resource_limits
+            == discovered_topic_data
+                .topic_builtin_topic_data()
+                .resource_limits()
+        && &topic_qos.transport_priority
+            == discovered_topic_data
+                .topic_builtin_topic_data()
+                .transport_priority()
+        && &topic_qos.lifespan == discovered_topic_data.topic_builtin_topic_data().lifespan()
+        && &topic_qos.ownership == discovered_topic_data.topic_builtin_topic_data().ownership()
 }
 
 #[cfg(test)]
