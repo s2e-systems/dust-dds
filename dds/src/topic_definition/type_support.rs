@@ -74,18 +74,21 @@ pub trait DdsSerialize {
                 let mut d = vec![];
                 let mut serializer =
                     cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
-                writer.write_all(&CDR_LE).unwrap();
-                writer.write_all(&REPRESENTATION_OPTIONS).unwrap();
-                self.dds_serialize_cdr(&mut serializer).unwrap();
+                writer
+                    .write_all(&CDR_LE)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+                writer
+                    .write_all(&REPRESENTATION_OPTIONS)
+                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
+                self.dds_serialize_cdr(&mut serializer)?;
                 d
             }
             PL_CDR_LE => {
                 let mut d = vec![];
                 let mut pl_serializer = ParameterListSerializer::new(&mut d);
-                pl_serializer.serialize_payload_header().unwrap();
-                self.dds_serialize_parameter_list(&mut pl_serializer)
-                    .unwrap();
-                pl_serializer.serialize_sentinel().unwrap();
+                pl_serializer.serialize_payload_header()?;
+                self.dds_serialize_parameter_list(&mut pl_serializer)?;
+                pl_serializer.serialize_sentinel()?;
                 d
             }
             _ => todo!(),
@@ -166,7 +169,8 @@ where
     const REPRESENTATION_IDENTIFIER: RepresentationType = CDR_LE;
 
     fn dds_serialize_cdr<S: serde::Serializer>(&self, serializer: S) -> DdsResult<()> {
-        serde::Serialize::serialize(self, serializer).unwrap();
+        serde::Serialize::serialize(self, serializer)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))?;
         Ok(())
     }
 }
