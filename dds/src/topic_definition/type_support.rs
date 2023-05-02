@@ -72,7 +72,8 @@ pub trait DdsSerialize {
         let data = match Self::REPRESENTATION_IDENTIFIER {
             CDR_LE => {
                 let mut d = vec![];
-                let mut serializer = cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
+                let mut serializer =
+                    cdr::ser::Serializer::<_, byteorder::LittleEndian>::new(&mut d);
                 writer.write_all(&CDR_LE).unwrap();
                 writer.write_all(&REPRESENTATION_OPTIONS).unwrap();
                 self.dds_serialize_cdr(&mut serializer).unwrap();
@@ -107,7 +108,7 @@ pub trait DdsSerialize {
     }
 }
 
-pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
+pub trait DdsDeserialize<'de>: Sized {
     fn dds_deserialize(buf: &mut &'de [u8]) -> DdsResult<Self> {
         let mut representation_identifier: RepresentationType = [0, 0];
         buf.read_exact(&mut representation_identifier)
@@ -120,14 +121,12 @@ pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
             CDR_BE => {
                 let mut deserializer =
                     cdr::Deserializer::<_, _, byteorder::BigEndian>::new(buf, cdr::Infinite);
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                DdsDeserialize::dds_deserialize_cdr(&mut deserializer)
             }
             CDR_LE => {
                 let mut deserializer =
                     cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(buf, cdr::Infinite);
-                serde::Deserialize::deserialize(&mut deserializer)
-                    .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+                DdsDeserialize::dds_deserialize_cdr(&mut deserializer)
             }
             PL_CDR_BE => {
                 let mut deserializer = ParameterListDeserializer::read(buf)?;
@@ -147,10 +146,14 @@ pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
         }
     }
 
+    fn dds_deserialize_cdr<D: serde::Deserializer<'de>>(_deserializer: D) -> DdsResult<Self> {
+        unimplemented!("dds_deserialize_cdr not implemented for this type")
+    }
+
     fn dds_deserialize_parameter_list<E: ByteOrder>(
         _deserializer: &mut ParameterListDeserializer<'de, E>,
     ) -> DdsResult<Self> {
-        unimplemented!("parameter_list deserialization not implemented for this type")
+        unimplemented!("dds_deserialize_parameter_list not implemented for this type")
     }
 }
 
@@ -168,7 +171,15 @@ where
     }
 }
 
-impl<'de, Foo> DdsDeserialize<'de> for Foo where Foo: serde::Deserialize<'de> + DdsSerde {}
+impl<'de, Foo> DdsDeserialize<'de> for Foo
+where
+    Foo: serde::Deserialize<'de> + DdsSerde,
+{
+    fn dds_deserialize_cdr<D: serde::Deserializer<'de>>(deserializer: D) -> DdsResult<Self> {
+        serde::Deserialize::deserialize(deserializer)
+            .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
+    }
+}
 
 #[cfg(test)]
 mod tests {
