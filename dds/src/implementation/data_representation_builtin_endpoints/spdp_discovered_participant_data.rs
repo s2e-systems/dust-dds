@@ -1,5 +1,5 @@
 use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData},
+    builtin_topics::ParticipantBuiltinTopicData,
     domain::domain_participant_factory::DomainId,
     implementation::{
         parameter_list_serde::{
@@ -8,9 +8,7 @@ use crate::{
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
-            types::{
-                Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId,
-            },
+            types::{Count, ExpectsInlineQos, GuidPrefix, Locator, ProtocolVersion, VendorId},
         },
     },
     infrastructure::{error::DdsResult, time::Duration},
@@ -22,13 +20,13 @@ use crate::{
 use super::parameter_id_values::{
     DEFAULT_DOMAIN_TAG, DEFAULT_PARTICIPANT_LEASE_DURATION, PID_BUILTIN_ENDPOINT_QOS,
     PID_BUILTIN_ENDPOINT_SET, PID_DEFAULT_MULTICAST_LOCATOR, PID_DEFAULT_UNICAST_LOCATOR,
-    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS,
-    PID_METATRAFFIC_MULTICAST_LOCATOR, PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID,
-    PID_PARTICIPANT_LEASE_DURATION, PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
+    PID_DOMAIN_ID, PID_DOMAIN_TAG, PID_EXPECTS_INLINE_QOS, PID_METATRAFFIC_MULTICAST_LOCATOR,
+    PID_METATRAFFIC_UNICAST_LOCATOR, PID_PARTICIPANT_GUID, PID_PARTICIPANT_LEASE_DURATION,
+    PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT, PID_PROTOCOL_VERSION, PID_VENDORID,
 };
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize
+    Debug, PartialEq, Eq, derive_more::Into, derive_more::From, serde::Serialize, serde::Deserialize,
 )]
 struct DomainTag(String);
 impl Default for DomainTag {
@@ -38,7 +36,7 @@ impl Default for DomainTag {
 }
 
 #[derive(
-    Debug, PartialEq, Eq, derive_more::From, derive_more::Into, serde::Serialize, serde::Deserialize
+    Debug, PartialEq, Eq, derive_more::From, derive_more::Into, serde::Serialize, serde::Deserialize,
 )]
 struct LeaseDuration(Duration);
 impl Default for LeaseDuration {
@@ -46,7 +44,6 @@ impl Default for LeaseDuration {
         Self(DEFAULT_PARTICIPANT_LEASE_DURATION)
     }
 }
-
 
 pub const DCPS_PARTICIPANT: &str = "DCPSParticipant";
 

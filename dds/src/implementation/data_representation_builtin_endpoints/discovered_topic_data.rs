@@ -4,31 +4,11 @@ use crate::{
         parameter_list_deserializer::ParameterListDeserializer,
         parameter_list_serializer::ParameterListSerializer,
     },
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
-    },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
     },
 };
-
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::From,
-)]
-struct ReliabilityQosPolicyTopics(ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyTopics {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
 
 pub const DCPS_TOPIC: &str = "DCPSTopic";
 

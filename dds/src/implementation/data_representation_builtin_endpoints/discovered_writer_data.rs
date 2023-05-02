@@ -11,10 +11,7 @@ use crate::{
         },
         rtps::types::{EntityId, Guid, Locator},
     },
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER},
-    },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
     },
@@ -24,50 +21,6 @@ use super::parameter_id_values::{
     PID_DATA_MAX_SIZE_SERIALIZED, PID_ENDPOINT_GUID, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-    derive_more::Into,
-    derive_more::From,
-)]
-struct ReliabilityQosPolicyDataWriter(ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataWriter {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_WRITER)
-    }
-}
-
-const DEFAULT_DATA_MAX_SIZE_SERIALIZED: i32 = 0;
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct DataMaxSizeSerialized(i32);
-impl Default for DataMaxSizeSerialized {
-    fn default() -> Self {
-        Self(DEFAULT_DATA_MAX_SIZE_SERIALIZED)
-    }
-}
-impl From<Option<i32>> for DataMaxSizeSerialized {
-    fn from(v: Option<i32>) -> Self {
-        if let Some(data_max_size_serialized) = v {
-            DataMaxSizeSerialized(data_max_size_serialized)
-        } else {
-            DataMaxSizeSerialized(DEFAULT_DATA_MAX_SIZE_SERIALIZED)
-        }
-    }
-}
-impl From<&DataMaxSizeSerialized> for Option<i32> {
-    fn from(v: &DataMaxSizeSerialized) -> Self {
-        if v.0 != DEFAULT_DATA_MAX_SIZE_SERIALIZED {
-            Some(v.0)
-        } else {
-            None
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct WriterProxy {

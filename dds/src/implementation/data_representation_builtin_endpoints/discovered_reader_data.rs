@@ -11,10 +11,7 @@ use crate::{
         },
         rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
-    },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
         DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
     },
@@ -24,26 +21,6 @@ use super::parameter_id_values::{
     PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
     PID_UNICAST_LOCATOR,
 };
-
-#[derive(Debug, PartialEq, Eq, derive_more::From, derive_more::Into)]
-pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
-impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
-    fn default() -> Self {
-        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
-#[derive(Debug, PartialEq, Eq, derive_more::From)]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
-    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
-);
-
-#[derive(Debug, PartialEq, Eq, derive_more::Into)]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
