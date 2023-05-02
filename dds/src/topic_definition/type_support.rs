@@ -119,9 +119,17 @@ pub trait DdsDeserialize<'de>: Sized + serde::Deserialize<'de> {
                 serde::Deserialize::deserialize(&mut deserializer)
                     .map_err(|e| DdsError::PreconditionNotMet(e.to_string()))
             }
+            PL_CDR_BE => {
+                let mut deserializer = ParameterListDeserializer::read(buf)?;
+                DdsDeserialize::dds_deserialize_parameter_list::<byteorder::BigEndian>(
+                    &mut deserializer,
+                )
+            }
             PL_CDR_LE => {
-                let mut deserializer = ParameterListDeserializer::read(buf).unwrap();
-                Ok(DdsDeserialize::dds_deserialize_parameter_list::<byteorder::LittleEndian>(&mut deserializer).unwrap())
+                let mut deserializer = ParameterListDeserializer::read(buf)?;
+                DdsDeserialize::dds_deserialize_parameter_list::<byteorder::LittleEndian>(
+                    &mut deserializer,
+                )
             }
             _ => Err(DdsError::PreconditionNotMet(
                 "Illegal representation identifier".to_string(),
