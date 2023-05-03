@@ -54,14 +54,12 @@ impl UserDefinedPublisherNode {
         Foo: DdsType,
     {
         let (default_unicast_locator_list, default_multicast_locator_list) =
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
-                .get_participant(self.0.parent(), |dp| {
-                    (
-                        dp.unwrap().default_unicast_locator_list().to_vec(),
-                        dp.unwrap().default_multicast_locator_list().to_vec(),
-                    )
-                });
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
+                (
+                    dp.unwrap().default_unicast_locator_list().to_vec(),
+                    dp.unwrap().default_multicast_locator_list().to_vec(),
+                )
+            });
 
         let qos = match qos {
             QosKind::Default => self.0.get()?.get_default_datawriter_qos(),
@@ -90,7 +88,6 @@ impl UserDefinedPublisherNode {
         };
 
         let data_max_size_serialized = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(self.0.parent(), |dp| dp.unwrap().data_max_size_serialized());
 
         let rtps_writer_impl = RtpsStatefulWriter::new(RtpsWriter::new(
@@ -150,14 +147,12 @@ impl UserDefinedPublisherNode {
 
         // The writer creation is announced only on enabled so its deletion must be announced only if it is enabled
         if data_writer.is_enabled() {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
-                .get_dcps_service(self.0.parent(), |dp| {
-                    dp.unwrap()
-                        .announce_sender()
-                        .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                        .ok()
-                });
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dp| {
+                dp.unwrap()
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                    .ok()
+            });
         }
 
         Ok(())
@@ -228,14 +223,12 @@ impl UserDefinedPublisherNode {
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for data_writer in self.0.get()?.stateful_datawriter_drain().into_iter() {
             if data_writer.is_enabled() {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .domain_participant_list()
-                    .get_dcps_service(self.0.parent(), |dp| {
-                        dp.unwrap()
-                            .announce_sender()
-                            .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
-                            .ok()
-                    });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dp| {
+                    dp.unwrap()
+                        .announce_sender()
+                        .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
+                        .ok()
+                });
             }
         }
 
@@ -285,7 +278,6 @@ impl UserDefinedPublisherNode {
 
     pub fn enable(&self) -> DdsResult<()> {
         let is_parent_enabled = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(self.0.parent(), |dp| dp.unwrap().is_enabled());
         if !is_parent_enabled {
             return Err(DdsError::PreconditionNotMet(
@@ -305,9 +297,8 @@ impl UserDefinedPublisherNode {
             {
                 for data_writer in &self.0.get()?.stateful_data_writer_list() {
                     data_writer.enable();
-                    let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_participant(self.0.parent(), |dp| {
+                    let topic =
+                        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
                             dp.unwrap()
                                 .topic_list()
                                 .into_iter()
@@ -319,18 +310,16 @@ impl UserDefinedPublisherNode {
                                 .expect("Topic must exist")
                         });
 
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_dcps_service(self.0.parent(), |dcps| {
-                            let discovered_writer_data = data_writer.as_discovered_writer_data(
-                                &topic.get_qos(),
-                                &self.0.get().unwrap().get_qos(),
-                            );
-                            dcps.unwrap()
-                                .announce_sender()
-                                .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
-                                .ok()
-                        });
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
+                        let discovered_writer_data = data_writer.as_discovered_writer_data(
+                            &topic.get_qos(),
+                            &self.0.get().unwrap().get_qos(),
+                        );
+                        dcps.unwrap()
+                            .announce_sender()
+                            .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
+                            .ok()
+                    });
                 }
             }
         }

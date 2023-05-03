@@ -266,9 +266,7 @@ impl DomainParticipantFactory {
             announce_receiver,
         )?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .add_participant(guid, dds_participant, None, dcps_service);
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(guid, dds_participant, dcps_service);
 
         let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
 
@@ -287,9 +285,8 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .get_participant(&participant.0 .0, |dp| {
+        let is_participant_empty =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
                 let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
                 Ok(dp.user_defined_publisher_list().into_iter().count() == 0
                     && dp.user_defined_subscriber_list().into_iter().count() == 0
@@ -297,23 +294,17 @@ impl DomainParticipantFactory {
             })?;
 
         if is_participant_empty {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
-                .get_participant(&participant.0 .0, |dp| {
-                    dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
-                    Ok(())
-                })?;
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
+                dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
+                Ok(())
+            })?;
 
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
-                .get_dcps_service(&participant.0 .0, |dcps| {
-                    dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
-                    Ok(())
-                })?;
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(&participant.0 .0, |dcps| {
+                dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
+                Ok(())
+            })?;
 
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
-                .remove_participant(&participant.0 .0);
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.remove_participant(&participant.0 .0);
 
             Ok(())
         } else {
@@ -334,14 +325,14 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
     /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .iter(|x| {
-                x.find(|dp| dp.get_domain_id() == domain_id)
-                    .map(|dp| dp.guid())
-            })
-            .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
+    pub fn lookup_participant(&self, _domain_id: DomainId) -> Option<DomainParticipant> {
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //     .iter(|x| {
+        //         x.find(|dp| dp.get_domain_id() == domain_id)
+        //             .map(|dp| dp.guid())
+        //     })
+        //     .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

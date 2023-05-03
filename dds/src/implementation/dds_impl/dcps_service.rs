@@ -105,13 +105,11 @@ impl DcpsService {
                     break;
                 }
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .domain_participant_list()
-                    .get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            dp.update_communication_status().ok();
-                        }
-                    });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                    if let Some(dp) = dp {
+                        dp.update_communication_status().ok();
+                    }
+                });
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
@@ -129,13 +127,11 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_participant(&participant_guid, |dp| {
-                            if let Some(dp) = dp {
-                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                            }
-                        })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                        }
+                    })
                 }
             }));
         }
@@ -150,13 +146,11 @@ impl DcpsService {
                 }
 
                 if let Ok(announce_kind) = announce_receiver.recv() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_participant(&participant_guid, |dp| {
-                            if let Some(dp) = dp {
-                                announce_entity(dp, announce_kind);
-                            }
-                        })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            announce_entity(dp, announce_kind);
+                        }
+                    })
                 }
             }));
         }
@@ -171,13 +165,11 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_participant(&participant_guid, |dp| {
-                            if let Some(dp) = dp {
-                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                            }
-                        })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                        }
+                    })
                 }
             }));
         }
@@ -194,13 +186,11 @@ impl DcpsService {
                     break;
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .domain_participant_list()
-                    .get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
-                        }
-                    });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                    if let Some(dp) = dp {
+                        send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
+                    }
+                });
             }));
         }
 
@@ -213,13 +203,11 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .domain_participant_list()
-                        .get_participant(&participant_guid, |dp| {
-                            if let Some(dp) = dp {
-                                dp.receive_user_defined_data(locator, message).ok();
-                            }
-                        });
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            dp.receive_user_defined_data(locator, message).ok();
+                        }
+                    });
                 }
             }));
         }
@@ -238,16 +226,11 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .domain_participant_list()
-                    .get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            user_defined_communication_send(
-                                dp,
-                                &mut default_unicast_transport_send,
-                            );
-                        }
-                    })
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                    if let Some(dp) = dp {
+                        user_defined_communication_send(dp, &mut default_unicast_transport_send);
+                    }
+                })
             }));
         }
 
@@ -275,13 +258,11 @@ impl DcpsService {
             .send(AnnounceKind::DeletedParticipant)
             .ok();
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .get_participant(&self.participant_guid, |dp| {
-                if let Some(dp) = dp {
-                    send_shutdown_messages(dp, &self.sender_socket);
-                }
-            });
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.participant_guid, |dp| {
+            if let Some(dp) = dp {
+                send_shutdown_messages(dp, &self.sender_socket);
+            }
+        });
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();

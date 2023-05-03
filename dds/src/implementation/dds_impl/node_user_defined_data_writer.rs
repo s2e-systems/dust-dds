@@ -93,7 +93,6 @@ impl UserDefinedDataWriterNode {
         )?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_dcps_service(self.0.parent().parent(), |dcps| {
                 dcps.unwrap().user_defined_data_send_condvar().notify_all()
             });
@@ -139,7 +138,6 @@ impl UserDefinedDataWriterNode {
         let data_writer = self.0.get()?;
 
         let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(self.0.parent().parent(), |dp| {
                 dp.unwrap()
                     .topic_list()
@@ -209,7 +207,6 @@ impl UserDefinedDataWriterNode {
             self.0.get()?.set_qos(qos);
 
             let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
                 .get_participant(self.0.parent().parent(), |dp| {
                     dp.unwrap()
                         .topic_list()
@@ -226,7 +223,6 @@ impl UserDefinedDataWriterNode {
                 .get()?
                 .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
             THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
                 .get_dcps_service(self.0.parent().parent(), |dcps| {
                     dcps.unwrap()
                         .announce_sender()
@@ -271,7 +267,6 @@ impl UserDefinedDataWriterNode {
         let data_writer = self.0.get()?;
 
         let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(self.0.parent().parent(), |dp| {
                 dp.unwrap()
                     .topic_list()
@@ -288,7 +283,6 @@ impl UserDefinedDataWriterNode {
             .get()?
             .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_dcps_service(self.0.parent().parent(), move |dcps| {
                 dcps.unwrap()
                     .announce_sender()

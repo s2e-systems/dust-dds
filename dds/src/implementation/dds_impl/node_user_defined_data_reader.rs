@@ -164,9 +164,8 @@ impl UserDefinedDataReaderNode {
 
     pub fn get_topicdescription(&self) -> DdsResult<UserDefinedTopicNode> {
         let data_reader = self.0.get()?;
-        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .get_participant(self.0.parent().parent(), |dp| {
+        let topic =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent().parent(), |dp| {
                 dp.unwrap()
                     .topic_list()
                     .into_iter()
@@ -211,7 +210,6 @@ impl UserDefinedDataReaderNode {
         let data_reader = self.0.get()?;
         if self.0.get()?.is_enabled() {
             let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
                 .get_participant(self.0.parent().parent(), |dp| {
                     dp.unwrap()
                         .topic_list()
@@ -228,7 +226,6 @@ impl UserDefinedDataReaderNode {
                 .get()?
                 .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
             THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .domain_participant_list()
                 .get_dcps_service(self.0.parent().parent(), |dcps| {
                     dcps.unwrap()
                         .announce_sender()
@@ -273,7 +270,6 @@ impl UserDefinedDataReaderNode {
         let data_reader = self.0.get()?;
 
         let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(self.0.parent().parent(), |dp| {
                 dp.unwrap()
                     .topic_list()
@@ -290,7 +286,6 @@ impl UserDefinedDataReaderNode {
             .get()?
             .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_dcps_service(self.0.parent().parent(), |dcps| {
                 dcps.unwrap()
                     .announce_sender()

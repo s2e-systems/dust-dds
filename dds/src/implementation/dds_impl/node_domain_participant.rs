@@ -266,7 +266,6 @@ impl DomainParticipantNode {
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
             .get_participant(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
     }
 
@@ -274,15 +273,13 @@ impl DomainParticipantNode {
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .domain_participant_list()
-            .get_participant(&self.0, |dp| {
-                let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                if dp.is_enabled() {
-                    f(dp)
-                } else {
-                    Err(DdsError::NotEnabled)
-                }
-            })
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0, |dp| {
+            let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+            if dp.is_enabled() {
+                f(dp)
+            } else {
+                Err(DdsError::NotEnabled)
+            }
+        })
     }
 }
