@@ -265,23 +265,25 @@ impl DomainParticipantNode {
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
     }
 
     fn call_participant_method_mut<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant_mut(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
     }
 
     fn call_participant_method_if_enabled<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0, |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.prefix(), |dp| {
             let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
             if dp.is_enabled() {
                 f(dp)

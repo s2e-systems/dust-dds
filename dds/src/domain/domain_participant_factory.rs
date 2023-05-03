@@ -256,7 +256,7 @@ impl DomainParticipantFactory {
         );
 
         let dcps_service = DcpsService::new(
-            guid,
+            guid_prefix,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
@@ -266,7 +266,11 @@ impl DomainParticipantFactory {
             announce_receiver,
         )?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(guid, dds_participant, dcps_service);
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(
+            guid_prefix,
+            dds_participant,
+            dcps_service,
+        );
 
         let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
 
@@ -285,26 +289,34 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let is_participant_empty =
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
+        let is_participant_empty = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &participant.0 .0.prefix(),
+            |dp| {
                 let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
                 Ok(dp.user_defined_publisher_list().into_iter().count() == 0
                     && dp.user_defined_subscriber_list().into_iter().count() == 0
                     && dp.topic_list().into_iter().count() == 0)
-            })?;
+            },
+        )?;
 
         if is_participant_empty {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
-                dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
-                Ok(())
-            })?;
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                &participant.0 .0.prefix(),
+                |dp| {
+                    dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
+                    Ok(())
+                },
+            )?;
 
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(&participant.0 .0, |dcps| {
-                dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
-                Ok(())
-            })?;
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
+                &participant.0 .0.prefix(),
+                |dcps| {
+                    dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
+                    Ok(())
+                },
+            )?;
 
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.remove_participant(&participant.0 .0);
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.remove_participant(&participant.0 .0.prefix());
 
             Ok(())
         } else {

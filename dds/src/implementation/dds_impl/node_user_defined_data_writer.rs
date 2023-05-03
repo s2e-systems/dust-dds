@@ -91,7 +91,7 @@ impl UserDefinedDataWriterNode {
             timestamp,
         )?;
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(&self.0.parent().prefix(), |dcps| {
             dcps.unwrap().user_defined_data_send_condvar().notify_all()
         });
 
@@ -135,17 +135,20 @@ impl UserDefinedDataWriterNode {
     pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
         let data_writer = self.0.get()?;
 
-        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
-            dp.unwrap()
-                .topic_list()
-                .into_iter()
-                .find(|t| {
-                    t.get_name() == data_writer.get_topic_name()
-                        && t.get_type_name() == data_writer.get_type_name()
-                })
-                .cloned()
-                .expect("Topic must exist")
-        });
+        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &self.0.parent().prefix(),
+            |dp| {
+                dp.unwrap()
+                    .topic_list()
+                    .into_iter()
+                    .find(|t| {
+                        t.get_name() == data_writer.get_topic_name()
+                            && t.get_type_name() == data_writer.get_type_name()
+                    })
+                    .cloned()
+                    .expect("Topic must exist")
+            },
+        );
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
             topic.downgrade(),
@@ -203,17 +206,20 @@ impl UserDefinedDataWriterNode {
 
             self.0.get()?.set_qos(qos);
 
-            let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
-                dp.unwrap()
-                    .topic_list()
-                    .into_iter()
-                    .find(|t| {
-                        t.get_name() == data_writer.get_topic_name()
-                            && t.get_type_name() == data_writer.get_type_name()
-                    })
-                    .cloned()
-                    .expect("Topic must exist")
-            });
+            let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                &self.0.parent().prefix(),
+                |dp| {
+                    dp.unwrap()
+                        .topic_list()
+                        .into_iter()
+                        .find(|t| {
+                            t.get_name() == data_writer.get_topic_name()
+                                && t.get_type_name() == data_writer.get_type_name()
+                        })
+                        .cloned()
+                        .expect("Topic must exist")
+                },
+            );
             todo!()
             // let discovered_writer_data = self
             //     .0

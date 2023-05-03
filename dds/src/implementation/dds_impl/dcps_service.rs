@@ -72,7 +72,7 @@ use super::{
 };
 
 pub struct DcpsService {
-    participant_guid: Guid,
+    participant_guid_prefix: GuidPrefix,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
@@ -84,7 +84,7 @@ pub struct DcpsService {
 impl DcpsService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        participant_guid: Guid,
+        participant_guid_prefix: GuidPrefix,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
@@ -105,11 +105,14 @@ impl DcpsService {
                     break;
                 }
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                    if let Some(dp) = dp {
-                        dp.update_communication_status().ok();
-                    }
-                });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    &participant_guid_prefix,
+                    |dp| {
+                        if let Some(dp) = dp {
+                            dp.update_communication_status().ok();
+                        }
+                    },
+                );
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
@@ -127,11 +130,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -146,11 +152,14 @@ impl DcpsService {
                 }
 
                 if let Ok(announce_kind) = announce_receiver.recv() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            announce_entity(dp, announce_kind);
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                announce_entity(dp, announce_kind);
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -165,11 +174,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -186,11 +198,14 @@ impl DcpsService {
                     break;
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                    if let Some(dp) = dp {
-                        send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
-                    }
-                });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    &participant_guid_prefix,
+                    |dp| {
+                        if let Some(dp) = dp {
+                            send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
+                        }
+                    },
+                );
             }));
         }
 
@@ -203,11 +218,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            dp.receive_user_defined_data(locator, message).ok();
-                        }
-                    });
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                dp.receive_user_defined_data(locator, message).ok();
+                            }
+                        },
+                    );
                 }
             }));
         }
@@ -226,11 +244,17 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                    if let Some(dp) = dp {
-                        user_defined_communication_send(dp, &mut default_unicast_transport_send);
-                    }
-                })
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    &participant_guid_prefix,
+                    |dp| {
+                        if let Some(dp) = dp {
+                            user_defined_communication_send(
+                                dp,
+                                &mut default_unicast_transport_send,
+                            );
+                        }
+                    },
+                )
             }));
         }
 
@@ -239,7 +263,7 @@ impl DcpsService {
         let sedp_condvar = sedp_condvar.clone();
         let user_defined_data_send_condvar = user_defined_data_send_condvar.clone();
         Ok(DcpsService {
-            participant_guid,
+            participant_guid_prefix,
             quit,
             threads: DdsRwLock::new(threads),
             sedp_condvar,
@@ -258,11 +282,14 @@ impl DcpsService {
             .send(AnnounceKind::DeletedParticipant)
             .ok();
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.participant_guid, |dp| {
-            if let Some(dp) = dp {
-                send_shutdown_messages(dp, &self.sender_socket);
-            }
-        });
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            &self.participant_guid_prefix,
+            |dp| {
+                if let Some(dp) = dp {
+                    send_shutdown_messages(dp, &self.sender_socket);
+                }
+            },
+        );
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();

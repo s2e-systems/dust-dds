@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 
 use crate::{
-    implementation::{rtps::types::Guid, utils::shared_object::DdsRwLock},
+    implementation::{rtps::types::GuidPrefix, utils::shared_object::DdsRwLock},
     infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
 };
 
 use super::{dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant};
 
 pub struct DdsDomainParticipantFactory {
-    domain_participant_list: DdsRwLock<HashMap<Guid, (DdsDomainParticipant, DcpsService)>>,
+    domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
 }
@@ -42,49 +42,51 @@ impl DdsDomainParticipantFactory {
 
     pub fn add_participant(
         &self,
-        guid: Guid,
+        guid_prefix: GuidPrefix,
         dds_participant: DdsDomainParticipant,
         dcps_service: DcpsService,
     ) {
         self.domain_participant_list
             .write_lock()
-            .insert(guid, (dds_participant, dcps_service));
+            .insert(guid_prefix, (dds_participant, dcps_service));
     }
 
-    pub fn remove_participant(&self, guid: &Guid) {
-        self.domain_participant_list.write_lock().remove(guid);
+    pub fn remove_participant(&self, guid_prefix: &GuidPrefix) {
+        self.domain_participant_list
+            .write_lock()
+            .remove(guid_prefix);
     }
 
-    pub fn get_participant<F, O>(&self, guid: &Guid, f: F) -> O
+    pub fn get_participant<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
     where
         F: FnOnce(Option<&DdsDomainParticipant>) -> O,
     {
         f(self
             .domain_participant_list
             .read_lock()
-            .get(guid)
+            .get(&guid_prefix)
             .map(|o| &o.0))
     }
 
-    pub fn get_participant_mut<F, O>(&self, guid: &Guid, f: F) -> O
+    pub fn get_participant_mut<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
     where
         F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
     {
         f(self
             .domain_participant_list
             .write_lock()
-            .get_mut(guid)
+            .get_mut(&guid_prefix)
             .map(|o| &mut o.0))
     }
 
-    pub fn get_dcps_service<F, O>(&self, guid: &Guid, f: F) -> O
+    pub fn get_dcps_service<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
     where
         F: FnOnce(Option<&DcpsService>) -> O,
     {
         f(self
             .domain_participant_list
             .read_lock()
-            .get(guid)
+            .get(&guid_prefix)
             .map(|o| &o.1))
     }
 }

@@ -53,7 +53,7 @@ impl UserDefinedPublisherNode {
     where
         Foo: DdsType,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0, |dp| {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.prefix(), |dp| {
             create_datawriter::<Foo>(
                 dp.ok_or(DdsError::AlreadyDeleted)?,
                 self.0,

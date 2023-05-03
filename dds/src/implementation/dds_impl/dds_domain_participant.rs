@@ -986,11 +986,14 @@ impl DdsDomainParticipant {
                 DurationKind::Finite(Duration::new(5, 0)),
                 InstanceHandle::new([0; 16]),
                 move || {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            dp.announce_participant().ok();
-                        }
-                    });
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid.prefix(),
+                        |dp| {
+                            if let Some(dp) = dp {
+                                dp.announce_participant().ok();
+                            }
+                        },
+                    );
                 },
             );
         }
