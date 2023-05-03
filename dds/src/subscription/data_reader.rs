@@ -552,6 +552,7 @@ where
             DataReaderNodeKind::UserDefined(r) => r.wait_for_historical_data(max_wait),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
+
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];

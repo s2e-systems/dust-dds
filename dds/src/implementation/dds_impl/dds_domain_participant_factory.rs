@@ -66,7 +66,7 @@ impl DdsDomainParticipantFactory {
             .map(|o| &o.0))
     }
 
-    pub fn _get_participant_mut<F, O>(&self, guid: &Guid, f: F) -> O
+    pub fn get_participant_mut<F, O>(&self, guid: &Guid, f: F) -> O
     where
         F: FnOnce(Option<&mut DdsDomainParticipant>) -> O,
     {

@@ -148,7 +148,7 @@ pub struct DdsDomainParticipant {
     user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<DdsSubscriber>>>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
-    user_defined_publisher_list: DdsRwLock<Vec<DdsShared<DdsPublisher>>>,
+    user_defined_publisher_list: Vec<DdsShared<DdsPublisher>>,
     user_defined_publisher_counter: AtomicU8,
     default_publisher_qos: DdsRwLock<PublisherQos>,
     topic_list: DdsRwLock<Vec<DdsShared<DdsTopic>>>,
@@ -375,7 +375,7 @@ impl DdsDomainParticipant {
             user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: DdsRwLock::new(SubscriberQos::default()),
-            user_defined_publisher_list: DdsRwLock::new(Vec::new()),
+            user_defined_publisher_list: Vec::new(),
             user_defined_publisher_counter: AtomicU8::new(0),
             default_publisher_qos: DdsRwLock::new(PublisherQos::default()),
             topic_list: DdsRwLock::new(Vec::new()),
@@ -497,11 +497,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn create_publisher(
-        &self,
+        &mut self,
         qos: QosKind<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<DdsPublisher>> {
+    ) -> DdsResult<Guid> {
         let publisher_qos = match qos {
             QosKind::Default => self.default_publisher_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -520,14 +520,12 @@ impl DdsDomainParticipant {
             publisher_impl_shared.enable();
         }
 
-        self.user_defined_publisher_list
-            .write_lock()
-            .push(publisher_impl_shared.clone());
+        self.user_defined_publisher_list.push(publisher_impl_shared);
 
-        Ok(publisher_impl_shared)
+        Ok(guid)
     }
 
-    pub fn delete_publisher(&self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_publisher(&mut self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .user_defined_publisher_list()
             .into_iter()
@@ -548,14 +546,13 @@ impl DdsDomainParticipant {
         }
 
         self.user_defined_publisher_list
-            .write_lock()
             .retain(|x| InstanceHandle::from(x.guid()) != a_publisher_handle);
 
         Ok(())
     }
 
-    pub fn user_defined_publisher_list(&self) -> DdsListIntoIterator<DdsShared<DdsPublisher>> {
-        DdsListIntoIterator::new(self.user_defined_publisher_list.read_lock())
+    pub fn user_defined_publisher_list(&self) -> &[DdsShared<DdsPublisher>] {
+        self.user_defined_publisher_list.as_slice()
     }
 
     pub fn create_subscriber(
@@ -685,7 +682,7 @@ impl DdsDomainParticipant {
             })?
             .clone();
 
-        for publisher in &self.user_defined_publisher_list() {
+        for publisher in self.user_defined_publisher_list() {
             if publisher.stateful_data_writer_list().into_iter().any(|w| {
                 w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
             }) {
@@ -805,7 +802,7 @@ impl DdsDomainParticipant {
 
     pub fn ignore_subscription(&self, handle: InstanceHandle) {
         self.ignored_subcriptions.write_lock().insert(handle);
-        for publisher in &self.user_defined_publisher_list() {
+        for publisher in self.user_defined_publisher_list() {
             for data_writer in &publisher.stateful_data_writer_list() {
                 remove_writer_matched_reader(
                     data_writer,
@@ -817,8 +814,8 @@ impl DdsDomainParticipant {
         }
     }
 
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        for user_defined_publisher in self.user_defined_publisher_list.write_lock().drain(..) {
+    pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
+        for user_defined_publisher in self.user_defined_publisher_list.drain(..) {
             for data_writer in user_defined_publisher
                 .stateful_datawriter_drain()
                 .into_iter()
@@ -970,7 +967,7 @@ impl DdsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
             {
-                for publisher in self.user_defined_publisher_list.read_lock().iter() {
+                for publisher in self.user_defined_publisher_list() {
                     publisher.enable();
                 }
 
@@ -1086,7 +1083,7 @@ impl DdsDomainParticipant {
     ) -> DdsResult<()> {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid().prefix(),
-            self.user_defined_publisher_list.read_lock().as_slice(),
+            self.user_defined_publisher_list.as_slice(),
             self.user_defined_subscriber_list.read_lock().as_slice(),
             source_locator,
             &message,
@@ -1133,7 +1130,7 @@ impl DdsDomainParticipant {
                                 .read_lock()
                                 .get(&reader_parent_participant_guid.into())
                             {
-                                for publisher in &self.user_defined_publisher_list() {
+                                for publisher in self.user_defined_publisher_list() {
                                     let is_discovered_reader_regex_matched_to_publisher =
                                         if let Ok(d) = glob_to_regex(
                                             &discovered_reader_data
@@ -1192,7 +1189,7 @@ impl DdsDomainParticipant {
                     }
                 }
                 InstanceStateKind::NotAliveDisposed => {
-                    for publisher in &self.user_defined_publisher_list() {
+                    for publisher in self.user_defined_publisher_list() {
                         for data_writer in &publisher.stateful_data_writer_list() {
                             remove_writer_matched_reader(
                                 data_writer,

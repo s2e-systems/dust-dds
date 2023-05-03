@@ -40,14 +40,14 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedPublisherNode> {
-        self.call_participant_method(move |dp| {
+        self.call_participant_method_mut(move |dp| {
             dp.create_publisher(qos, a_listener, mask)
-                .map(|x| UserDefinedPublisherNode::new(ChildNode::new(x.downgrade(), self.0)))
+                .map(|x| UserDefinedPublisherNode::new(x))
         })
     }
 
     pub fn delete_publisher(&self, publisher_handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| dp.delete_publisher(publisher_handle))
+        self.call_participant_method_mut(|dp| dp.delete_publisher(publisher_handle))
     }
 
     pub fn create_subscriber(
@@ -153,7 +153,7 @@ impl DomainParticipantNode {
     }
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
-        self.call_participant_method(|dp| dp.delete_contained_entities())
+        self.call_participant_method_mut(|dp| dp.delete_contained_entities())
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
@@ -267,6 +267,14 @@ impl DomainParticipantNode {
     {
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .get_participant(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
+    }
+
+    fn call_participant_method_mut<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant_mut(&self.0, |dp| f(dp.ok_or(DdsError::AlreadyDeleted)?))
     }
 
     fn call_participant_method_if_enabled<F, O>(&self, f: F) -> DdsResult<O>

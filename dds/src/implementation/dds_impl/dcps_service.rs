@@ -331,10 +331,14 @@ fn announce_created_data_writer(
         discovered_writer_data.dds_publication_data().clone(),
         WriterProxy::new(
             discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data.writer_proxy().remote_group_entity_id(),
+            discovered_writer_data
+                .writer_proxy()
+                .remote_group_entity_id(),
             domain_participant.default_unicast_locator_list().to_vec(),
             domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data.writer_proxy().data_max_size_serialized(),
+            discovered_writer_data
+                .writer_proxy()
+                .data_max_size_serialized(),
         ),
     );
 
@@ -805,11 +809,16 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
         match discovered_writer_data_sample.sample_info.instance_state {
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant
-                        .is_publication_ignored(discovered_writer_data.writer_proxy().remote_writer_guid().into())
-                    {
-                        let remote_writer_guid_prefix =
-                            discovered_writer_data.writer_proxy().remote_writer_guid().prefix();
+                    if !domain_participant.is_publication_ignored(
+                        discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .into(),
+                    ) {
+                        let remote_writer_guid_prefix = discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -1377,7 +1386,7 @@ fn user_defined_communication_send(
     };
     let now = domain_participant.get_current_time();
 
-    for publisher in &domain_participant.user_defined_publisher_list() {
+    for publisher in domain_participant.user_defined_publisher_list() {
         for data_writer in &publisher.stateful_data_writer_list() {
             let writer_id = data_writer.guid().entity_id();
             let data_max_size_serialized = data_writer.data_max_size_serialized();
