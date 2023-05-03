@@ -1,5 +1,5 @@
 use crate::{
-    implementation::utils::node::{ChildNode, RootNode},
+    implementation::{rtps::types::Guid, utils::node::ChildNode},
     infrastructure::{
         condition::StatusCondition, error::DdsResult, instance::InstanceHandle, qos::SubscriberQos,
         status::StatusKind,
@@ -8,22 +8,17 @@ use crate::{
 };
 
 use super::{
-    dcps_service::DcpsService, dds_subscriber::DdsSubscriber,
-    dds_domain_participant::DdsDomainParticipant,
+    dds_subscriber::DdsSubscriber,
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_kind::DataReaderNodeKind,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct BuiltinSubscriberNode(
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-);
+pub struct BuiltinSubscriberNode(ChildNode<DdsSubscriber, Guid>);
 
 impl BuiltinSubscriberNode {
-    pub fn new(
-        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-    ) -> Self {
+    pub fn new(node: ChildNode<DdsSubscriber, Guid>) -> Self {
         Self(node)
     }
 

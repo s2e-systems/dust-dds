@@ -1,9 +1,9 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
-        rtps::stateful_writer::RtpsStatefulWriter,
+        rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
-            node::{ChildNode, RootNode},
+            node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -21,20 +21,15 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    dcps_service::DcpsService,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
-    dds_data_writer::DdsDataWriter,
-    dds_publisher::DdsPublisher,
+    any_data_writer_listener::AnyDataWriterListener, dds_data_writer::DdsDataWriter,
+    dds_domain_participant::AnnounceKind,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_publisher::DdsPublisher, node_user_defined_publisher::UserDefinedPublisherNode,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 
-type UserDefinedDataWriterNodeType = ChildNode<
-    DdsDataWriter<RtpsStatefulWriter>,
-    ChildNode<DdsPublisher, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
->;
+type UserDefinedDataWriterNodeType =
+    ChildNode<DdsDataWriter<RtpsStatefulWriter>, ChildNode<DdsPublisher, Guid>>;
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode(UserDefinedDataWriterNodeType);
@@ -97,13 +92,10 @@ impl UserDefinedDataWriterNode {
             timestamp,
         )?;
 
-        self.0
-            .parent()
-            .parent()
-            .parent()
-            .get()?
-            .user_defined_data_send_condvar()
-            .notify_all();
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_dcps_service(self.0.parent().parent(), |dcps| {
+                dcps.unwrap().user_defined_data_send_condvar().notify_all()
+            });
 
         Ok(())
     }
@@ -145,23 +137,22 @@ impl UserDefinedDataWriterNode {
     pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
         let data_writer = self.0.get()?;
 
-        let topic = self
-            .0
-            .parent()
-            .parent()
-            .get()?
-            .topic_list()
-            .into_iter()
-            .find(|t| {
-                t.get_name() == data_writer.get_topic_name()
-                    && t.get_type_name() == data_writer.get_type_name()
-            })
-            .cloned()
-            .expect("Topic must exist");
+        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(self.0.parent().parent(), |dp| {
+                dp.unwrap()
+                    .topic_list()
+                    .into_iter()
+                    .find(|t| {
+                        t.get_name() == data_writer.get_topic_name()
+                            && t.get_type_name() == data_writer.get_type_name()
+                    })
+                    .cloned()
+                    .expect("Topic must exist")
+            });
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
             topic.downgrade(),
-            self.0.parent().parent().clone(),
+            *self.0.parent().parent(),
         )))
     }
 
@@ -215,32 +206,29 @@ impl UserDefinedDataWriterNode {
 
             self.0.get()?.set_qos(qos);
 
-            let topic = self
+            let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(self.0.parent().parent(), |dp| {
+                    dp.unwrap()
+                        .topic_list()
+                        .into_iter()
+                        .find(|t| {
+                            t.get_name() == data_writer.get_topic_name()
+                                && t.get_type_name() == data_writer.get_type_name()
+                        })
+                        .cloned()
+                        .expect("Topic must exist")
+                });
+            let discovered_writer_data = self
                 .0
-                .parent()
-                .parent()
                 .get()?
-                .topic_list()
-                .into_iter()
-                .find(|t| {
-                    t.get_name() == data_writer.get_topic_name()
-                        && t.get_type_name() == data_writer.get_type_name()
-                })
-                .cloned()
-                .expect("Topic must exist");
-            self.0
-                .parent()
-                .parent()
-                .parent()
-                .get()?
-                .announce_sender()
-                .send(AnnounceKind::CreatedDataWriter(
-                    self.0.get()?.as_discovered_writer_data(
-                        &topic.get_qos(),
-                        &self.0.parent().get()?.get_qos(),
-                    ),
-                ))
-                .ok();
+                .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_dcps_service(self.0.parent().parent(), |dcps| {
+                    dcps.unwrap()
+                        .announce_sender()
+                        .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
+                        .ok()
+                });
         } else {
             self.0.get()?.set_qos(qos);
         }
@@ -278,31 +266,29 @@ impl UserDefinedDataWriterNode {
 
         let data_writer = self.0.get()?;
 
-        let topic = self
+        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(self.0.parent().parent(), |dp| {
+                dp.unwrap()
+                    .topic_list()
+                    .into_iter()
+                    .find(|t| {
+                        t.get_name() == data_writer.get_topic_name()
+                            && t.get_type_name() == data_writer.get_type_name()
+                    })
+                    .cloned()
+                    .expect("Topic must exist")
+            });
+        let discovered_writer_data = self
             .0
-            .parent()
-            .parent()
             .get()?
-            .topic_list()
-            .into_iter()
-            .find(|t| {
-                t.get_name() == data_writer.get_topic_name()
-                    && t.get_type_name() == data_writer.get_type_name()
-            })
-            .cloned()
-            .expect("Topic must exist");
-        self.0
-            .parent()
-            .parent()
-            .parent()
-            .get()?
-            .announce_sender()
-            .send(AnnounceKind::CreatedDataWriter(
-                self.0
-                    .get()?
-                    .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos()),
-            ))
-            .ok();
+            .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_dcps_service(self.0.parent().parent(), move |dcps| {
+                dcps.unwrap()
+                    .announce_sender()
+                    .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
+                    .ok()
+            });
 
         Ok(())
     }

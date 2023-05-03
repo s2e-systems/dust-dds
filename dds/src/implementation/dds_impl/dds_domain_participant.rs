@@ -99,6 +99,7 @@ use std::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dds_data_writer::DdsDataWriter,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
     node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
@@ -161,7 +162,6 @@ pub struct DdsDomainParticipant {
     status_listener: DdsRwLock<StatusListener<dyn DomainParticipantListener + Send + Sync>>,
     user_defined_data_send_condvar: DdsCondvar,
     topic_find_condvar: DdsCondvar,
-    sedp_condvar: DdsCondvar,
     ignored_participants: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
@@ -182,11 +182,10 @@ impl DdsDomainParticipant {
         listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
         mask: &[StatusKind],
         spdp_discovery_locator_list: &[Locator],
-        sedp_condvar: DdsCondvar,
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
-    ) -> DdsShared<Self> {
+    ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
 
@@ -366,7 +365,7 @@ impl DdsDomainParticipant {
         let timer_factory = TimerFactory::new();
         let timer = timer_factory.create_timer();
 
-        DdsShared::new(DdsDomainParticipant {
+        Self {
             rtps_participant,
             domain_id,
             domain_tag,
@@ -390,7 +389,6 @@ impl DdsDomainParticipant {
             user_defined_data_send_condvar,
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             topic_find_condvar: DdsCondvar::new(),
-            sedp_condvar,
             ignored_participants: DdsRwLock::new(HashSet::new()),
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
@@ -399,7 +397,7 @@ impl DdsDomainParticipant {
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
-        })
+        }
     }
 
     pub fn guid(&self) -> Guid {
@@ -724,9 +722,7 @@ impl DdsDomainParticipant {
     pub fn data_max_size_serialized(&self) -> usize {
         self.data_max_size_serialized
     }
-}
 
-impl DdsShared<DdsDomainParticipant> {
     pub fn find_topic(
         &self,
         topic_name: &str,
@@ -988,13 +984,16 @@ impl DdsShared<DdsDomainParticipant> {
             }
 
             self.announce_participant().ok();
-
-            let this = self.clone();
+            let participant_guid = self.guid();
             self.timer.write_lock().start_timer(
                 DurationKind::Finite(Duration::new(5, 0)),
                 InstanceHandle::new([0; 16]),
                 move || {
-                    this.announce_participant().ok();
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                        if let Some(dp) = dp {
+                            dp.announce_participant().ok();
+                        }
+                    });
                 },
             );
         }
@@ -1256,14 +1255,6 @@ impl DdsShared<DdsDomainParticipant> {
         }
 
         Ok(())
-    }
-
-    pub fn sedp_condvar(&self) -> &DdsCondvar {
-        &self.sedp_condvar
-    }
-
-    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
-        &self.user_defined_data_send_condvar
     }
 
     pub fn cancel_timers(&self) {

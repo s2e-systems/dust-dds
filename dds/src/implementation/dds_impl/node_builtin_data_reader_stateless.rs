@@ -1,8 +1,8 @@
 use crate::{
     implementation::{
-        rtps::stateless_reader::RtpsStatelessReader,
+        rtps::{stateless_reader::RtpsStatelessReader, types::Guid},
         utils::{
-            node::{ChildNode, RootNode},
+            node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -15,14 +15,12 @@ use crate::{
 };
 
 use super::{
-    dcps_service::DcpsService, dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber,
-    dds_domain_participant::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
+    dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber,
+    status_condition_impl::StatusConditionImpl,
 };
 
-type BuiltinDataReaderStatelessNodeType = ChildNode<
-    DdsDataReader<RtpsStatelessReader>,
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
->;
+type BuiltinDataReaderStatelessNodeType =
+    ChildNode<DdsDataReader<RtpsStatelessReader>, ChildNode<DdsSubscriber, Guid>>;
 
 #[derive(PartialEq, Debug)]
 pub struct BuiltinDataReaderStatelessNode(BuiltinDataReaderStatelessNodeType);

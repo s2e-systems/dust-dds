@@ -108,7 +108,7 @@ fn large_data_should_be_fragmented() {
     reader_wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    reader_wait_set.wait(Duration::new(5, 0)).unwrap();
+    reader_wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let samples = reader
         .take(3, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE)

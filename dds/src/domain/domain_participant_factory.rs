@@ -9,6 +9,7 @@ use crate::{
         configuration::DustDdsConfiguration,
         dds_impl::{
             dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
             node_domain_participant::DomainParticipantNode,
         },
         rtps::{
@@ -19,21 +20,15 @@ use crate::{
             },
         },
         rtps_udp_psm::udp_transport::UdpTransport,
-        utils::{
-            condvar::DdsCondvar,
-            node::{ChildNode, RootNode},
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::condvar::DdsCondvar,
     },
     infrastructure::{
         error::{DdsError, DdsResult},
-        instance::InstanceHandle,
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
 };
 use jsonschema::JSONSchema;
-use lazy_static::lazy_static;
 use mac_address::MacAddress;
 use schemars::schema_for;
 use socket2::Socket;
@@ -42,15 +37,9 @@ use super::domain_participant::DomainParticipant;
 
 pub type DomainId = i32;
 
-lazy_static! {
-    /// This value can be used as an alias for the singleton factory returned by the operation
-    /// [`DomainParticipantFactory::get_instance()`].
-    pub static ref THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory {
-        participant_list: DdsRwLock::new(vec![]),
-        qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
-        default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
-    };
-}
+/// This value can be used as an alias for the singleton factory returned by the operation
+/// [`DomainParticipantFactory::get_instance()`].
+pub static THE_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory;
 
 // As of 9.6.1.4.1  Default multicast address
 const DEFAULT_MULTICAST_LOCATOR_ADDRESS: LocatorAddress =
@@ -142,11 +131,7 @@ fn configuration_try_from_str(configuration_json: &str) -> Result<DustDdsConfigu
 /// The sole purpose of this class is to allow the creation and destruction of [`DomainParticipant`] objects.
 /// [`DomainParticipantFactory`] itself has no factory. It is a pre-existing singleton object that can be accessed by means of the
 /// [`DomainParticipantFactory::get_instance`] operation.
-pub struct DomainParticipantFactory {
-    participant_list: DdsRwLock<Vec<DdsShared<DcpsService>>>,
-    qos: DdsRwLock<DomainParticipantFactoryQos>,
-    default_participant_qos: DdsRwLock<DomainParticipantQos>,
-}
+pub struct DomainParticipantFactory;
 
 impl DomainParticipantFactory {
     /// This operation creates a new [`DomainParticipant`] object. The [`DomainParticipant`] signifies that the calling application intends
@@ -172,7 +157,7 @@ impl DomainParticipantFactory {
         };
 
         let domain_participant_qos = match qos {
-            QosKind::Default => self.default_participant_qos.read_lock().clone(),
+            QosKind::Default => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos(),
             QosKind::Specific(q) => q,
         };
 
@@ -253,10 +238,11 @@ impl DomainParticipantFactory {
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
+        let guid = rtps_participant.guid();
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(1);
-        let participant = DdsDomainParticipant::new(
+        let dds_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
             configuration.domain_tag,
@@ -264,36 +250,33 @@ impl DomainParticipantFactory {
             a_listener,
             mask,
             &spdp_discovery_locator_list,
-            sedp_condvar,
-            user_defined_data_send_condvar,
+            user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
             announce_sender.clone(),
         );
 
-        let dcps_service = DdsShared::new(DcpsService::new(
-            participant,
+        let dcps_service = DcpsService::new(
+            guid,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
+            &sedp_condvar,
+            &user_defined_data_send_condvar,
             announce_sender,
             announce_receiver,
-        )?);
+        )?;
 
-        let participant = DomainParticipant::new(DomainParticipantNode::new(ChildNode::new(
-            dcps_service.participant().downgrade(),
-            RootNode::new(dcps_service.downgrade()),
-        )));
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_participant(guid, dds_participant, dcps_service);
 
-        if self
-            .qos
-            .read_lock()
+        let participant = DomainParticipant::new(DomainParticipantNode::new(guid));
+
+        if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .qos()
             .entity_factory
             .autoenable_created_entities
         {
             participant.enable()?;
         }
-
-        self.participant_list.write_lock().push(dcps_service);
 
         Ok(participant)
     }
@@ -302,37 +285,26 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted otherwise the error [`DdsError::PreconditionNotMet`] is returned. If the
     /// participant has been previously deleted this operation returns the error [`DdsError::AlreadyDeleted`].
     pub fn delete_participant(&self, participant: &DomainParticipant) -> DdsResult<()> {
-        let participant_handle = participant.get_instance_handle()?;
-        let mut participant_list = THE_PARTICIPANT_FACTORY.participant_list.write_lock();
-
-        let index = participant_list
-            .iter()
-            .position(|pm| InstanceHandle::from(pm.participant().guid()) == participant_handle)
-            .ok_or(DdsError::AlreadyDeleted)?;
-
-        let is_participant_empty = participant_list[index]
-            .participant()
-            .user_defined_publisher_list()
-            .into_iter()
-            .count()
-            == 0
-            && participant_list[index]
-                .participant()
-                .user_defined_subscriber_list()
-                .into_iter()
-                .count()
-                == 0
-            && participant_list[index]
-                .participant()
-                .topic_list()
-                .into_iter()
-                .count()
-                == 0;
+        let is_participant_empty =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
+                let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                Ok(dp.user_defined_publisher_list().into_iter().count() == 0
+                    && dp.user_defined_subscriber_list().into_iter().count() == 0
+                    && dp.topic_list().into_iter().count() == 0)
+            })?;
 
         if is_participant_empty {
-            participant_list[index].participant().cancel_timers();
-            participant_list[index].shutdown_tasks();
-            participant_list.remove(index);
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant.0 .0, |dp| {
+                dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
+                Ok(())
+            })?;
+
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(&participant.0 .0, |dcps| {
+                dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
+                Ok(())
+            })?;
+
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.remove_participant(&participant.0 .0);
 
             Ok(())
         } else {
@@ -353,17 +325,14 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
     /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
-        self.participant_list
-            .read_lock()
-            .iter()
-            .find(|dp| dp.participant().get_domain_id() == domain_id)
-            .map(|dp| {
-                DomainParticipant::new(DomainParticipantNode::new(ChildNode::new(
-                    dp.participant().downgrade(),
-                    RootNode::new(dp.downgrade()),
-                )))
-            })
+    pub fn lookup_participant(&self, _domain_id: DomainId) -> Option<DomainParticipant> {
+        todo!()
+        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+        //     .iter(|x| {
+        //         x.find(|dp| dp.get_domain_id() == domain_id)
+        //             .map(|dp| dp.guid())
+        //     })
+        //     .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created
@@ -371,12 +340,12 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
     pub fn set_default_participant_qos(&self, qos: QosKind<DomainParticipantQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => {
-                *self.default_participant_qos.write_lock() = DomainParticipantQos::default()
-            }
-            QosKind::Specific(q) => *self.default_participant_qos.write_lock() = q,
+        let q = match qos {
+            QosKind::Default => DomainParticipantQos::default(),
+            QosKind::Specific(q) => q,
         };
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.set_default_participant_qos(q);
 
         Ok(())
     }
@@ -387,7 +356,7 @@ impl DomainParticipantFactory {
     /// The values retrieved by [`DomainParticipantFactory::get_default_participant_qos`] will match the set of values specified on the last successful call to
     /// [`DomainParticipantFactory::set_default_participant_qos`], or else, if the call was never made, the default value of [`DomainParticipantQos`].
     pub fn get_default_participant_qos(&self) -> DomainParticipantQos {
-        self.default_participant_qos.read_lock().clone()
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.default_participant_qos()
     }
 
     /// This operation sets the value of the [`DomainParticipantFactoryQos`] policies. These policies control the behavior of the object
@@ -396,17 +365,19 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return a [`DdsError::InconsistentPolicy`].
     pub fn set_qos(&self, qos: QosKind<DomainParticipantFactoryQos>) -> DdsResult<()> {
-        match qos {
-            QosKind::Default => *self.qos.write_lock() = DomainParticipantFactoryQos::default(),
-            QosKind::Specific(q) => *self.qos.write_lock() = q,
-        }
+        let q = match qos {
+            QosKind::Default => DomainParticipantFactoryQos::default(),
+            QosKind::Specific(q) => q,
+        };
+
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.set_qos(q);
 
         Ok(())
     }
 
     /// This operation returns the value of the [`DomainParticipantFactoryQos`] policies.
     pub fn get_qos(&self) -> DomainParticipantFactoryQos {
-        self.qos.read_lock().clone()
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.qos()
     }
 }
 

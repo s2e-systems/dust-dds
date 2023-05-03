@@ -1,9 +1,9 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        rtps::stateful_reader::RtpsStatefulReader,
+        rtps::{stateful_reader::RtpsStatefulReader, types::Guid},
         utils::{
-            node::{ChildNode, RootNode},
+            node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -25,21 +25,16 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    dcps_service::DcpsService,
-    dds_data_reader::DdsDataReader,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_user_defined_subscriber::UserDefinedSubscriberNode,
-    node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
+    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
+    dds_domain_participant::AnnounceKind,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_subscriber::DdsSubscriber, node_user_defined_subscriber::UserDefinedSubscriberNode,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
-    dds_subscriber::DdsSubscriber,
 };
 
-type UserDefinedDataReaderNodeType = ChildNode<
-    DdsDataReader<RtpsStatefulReader>,
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
->;
+type UserDefinedDataReaderNodeType =
+    ChildNode<DdsDataReader<RtpsStatefulReader>, ChildNode<DdsSubscriber, Guid>>;
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataReaderNode(UserDefinedDataReaderNodeType);
@@ -169,23 +164,22 @@ impl UserDefinedDataReaderNode {
 
     pub fn get_topicdescription(&self) -> DdsResult<UserDefinedTopicNode> {
         let data_reader = self.0.get()?;
-        let topic = self
-            .0
-            .parent()
-            .parent()
-            .get()?
-            .topic_list()
-            .into_iter()
-            .find(|t| {
-                t.get_name() == data_reader.get_topic_name()
-                    && t.get_type_name() == data_reader.get_type_name()
-            })
-            .cloned()
-            .expect("Topic must exist");
+        let topic =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent().parent(), |dp| {
+                dp.unwrap()
+                    .topic_list()
+                    .into_iter()
+                    .find(|t| {
+                        t.get_name() == data_reader.get_topic_name()
+                            && t.get_type_name() == data_reader.get_type_name()
+                    })
+                    .cloned()
+                    .expect("Topic must exist")
+            });
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
             topic.downgrade(),
-            self.0.parent().parent().clone(),
+            *self.0.parent().parent(),
         )))
     }
 
@@ -215,32 +209,29 @@ impl UserDefinedDataReaderNode {
 
         let data_reader = self.0.get()?;
         if self.0.get()?.is_enabled() {
-            let topic = self
+            let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(self.0.parent().parent(), |dp| {
+                    dp.unwrap()
+                        .topic_list()
+                        .into_iter()
+                        .find(|t| {
+                            t.get_name() == data_reader.get_topic_name()
+                                && t.get_type_name() == data_reader.get_type_name()
+                        })
+                        .cloned()
+                        .expect("Topic must exist")
+                });
+            let discovered_reader_data = self
                 .0
-                .parent()
-                .parent()
                 .get()?
-                .topic_list()
-                .into_iter()
-                .find(|t| {
-                    t.get_name() == data_reader.get_topic_name()
-                        && t.get_type_name() == data_reader.get_type_name()
-                })
-                .cloned()
-                .expect("Topic must exist");
-            self.0
-                .parent()
-                .parent()
-                .parent()
-                .get()?
-                .announce_sender()
-                .send(AnnounceKind::CreatedDataReader(
-                    self.0.get()?.as_discovered_reader_data(
-                        &topic.get_qos(),
-                        &self.0.parent().get()?.get_qos(),
-                    ),
-                ))
-                .ok();
+                .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_dcps_service(self.0.parent().parent(), |dcps| {
+                    dcps.unwrap()
+                        .announce_sender()
+                        .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+                        .ok()
+                });
         }
 
         Ok(())
@@ -278,31 +269,29 @@ impl UserDefinedDataReaderNode {
 
         let data_reader = self.0.get()?;
 
-        let topic = self
+        let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(self.0.parent().parent(), |dp| {
+                dp.unwrap()
+                    .topic_list()
+                    .into_iter()
+                    .find(|t| {
+                        t.get_name() == data_reader.get_topic_name()
+                            && t.get_type_name() == data_reader.get_type_name()
+                    })
+                    .cloned()
+                    .expect("Topic must exist")
+            });
+        let discovered_reader_data = self
             .0
-            .parent()
-            .parent()
             .get()?
-            .topic_list()
-            .into_iter()
-            .find(|t| {
-                t.get_name() == data_reader.get_topic_name()
-                    && t.get_type_name() == data_reader.get_type_name()
-            })
-            .cloned()
-            .expect("Topic must exist");
-        self.0
-            .parent()
-            .parent()
-            .parent()
-            .get()?
-            .announce_sender()
-            .send(AnnounceKind::CreatedDataReader(
-                self.0
-                    .get()?
-                    .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos()),
-            ))
-            .ok();
+            .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_dcps_service(self.0.parent().parent(), |dcps| {
+                dcps.unwrap()
+                    .announce_sender()
+                    .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+                    .ok()
+            });
 
         Ok(())
     }

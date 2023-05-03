@@ -9,7 +9,7 @@ use crate::{
                 USER_DEFINED_READER_WITH_KEY,
             },
         },
-        utils::node::{ChildNode, RootNode},
+        utils::node::ChildNode,
     },
     infrastructure::{
         condition::StatusCondition,
@@ -24,25 +24,18 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    dcps_service::DcpsService,
-    dds_data_reader::DdsDataReader,
-    dds_subscriber::DdsSubscriber,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode,
-    status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
+    dds_domain_participant::AnnounceKind,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    dds_subscriber::DdsSubscriber, node_domain_participant::DomainParticipantNode,
+    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
-pub struct UserDefinedSubscriberNode(
-    ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-);
+pub struct UserDefinedSubscriberNode(ChildNode<DdsSubscriber, Guid>);
 
 impl UserDefinedSubscriberNode {
-    pub fn new(
-        node: ChildNode<DdsSubscriber, ChildNode<DdsDomainParticipant, RootNode<DcpsService>>>,
-    ) -> Self {
+    pub fn new(node: ChildNode<DdsSubscriber, Guid>) -> Self {
         Self(node)
     }
 
@@ -57,9 +50,13 @@ impl UserDefinedSubscriberNode {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        let participant = self.0.parent().get()?;
-        let default_unicast_locator_list = participant.default_unicast_locator_list();
-        let default_multicast_locator_list = participant.default_multicast_locator_list();
+        let (default_unicast_locator_list, default_multicast_locator_list) =
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
+                (
+                    dp.unwrap().default_unicast_locator_list().to_vec(),
+                    dp.unwrap().default_multicast_locator_list().to_vec(),
+                )
+            });
 
         let qos = match qos {
             QosKind::Default => self.0.get()?.get_default_datareader_qos(),
@@ -91,8 +88,8 @@ impl UserDefinedSubscriberNode {
             RtpsEndpoint::new(
                 guid,
                 topic_kind,
-                default_unicast_locator_list,
-                default_multicast_locator_list,
+                &default_unicast_locator_list,
+                &default_multicast_locator_list,
             ),
             DURATION_ZERO,
             DURATION_ZERO,
@@ -135,18 +132,19 @@ impl UserDefinedSubscriberNode {
             })?
             .clone();
 
-        self.0.get()?.stateful_data_reader_delete(a_datareader_handle);
+        self.0
+            .get()?
+            .stateful_data_reader_delete(a_datareader_handle);
 
         if data_reader.is_enabled() {
-            self.0
-                .parent()
-                .parent()
-                .get()?
-                .announce_sender()
-                .send(AnnounceKind::DeletedDataReader(
-                    data_reader.get_instance_handle(),
-                ))
-                .ok();
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
+                dcps.unwrap()
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataReader(
+                        data_reader.get_instance_handle(),
+                    ))
+                    .ok()
+            });
         }
 
         Ok(())
@@ -179,7 +177,7 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn get_participant(&self) -> DdsResult<DomainParticipantNode> {
-        Ok(DomainParticipantNode::new(self.0.parent().clone()))
+        Ok(DomainParticipantNode::new(*self.0.parent()))
     }
 
     pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
@@ -189,15 +187,14 @@ impl UserDefinedSubscriberNode {
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for data_reader in self.0.get()?.stateful_data_reader_drain().into_iter() {
             if data_reader.is_enabled() {
-                self.0
-                    .parent()
-                    .parent()
-                    .get()?
-                    .announce_sender()
-                    .send(AnnounceKind::DeletedDataReader(
-                        data_reader.get_instance_handle(),
-                    ))
-                    .ok();
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
+                    dcps.unwrap()
+                        .announce_sender()
+                        .send(AnnounceKind::DeletedDataReader(
+                            data_reader.get_instance_handle(),
+                        ))
+                        .ok()
+                });
             }
         }
         Ok(())
@@ -233,7 +230,9 @@ impl UserDefinedSubscriberNode {
     }
 
     pub fn enable(&self) -> DdsResult<()> {
-        if !self.0.parent().get()?.is_enabled() {
+        let is_parent_enabled = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .get_participant(self.0.parent(), |dp| dp.unwrap().is_enabled());
+        if !is_parent_enabled {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
             ));
@@ -251,30 +250,29 @@ impl UserDefinedSubscriberNode {
             {
                 for data_reader in &self.0.get()?.stateful_data_reader_list() {
                     data_reader.enable()?;
-                    let topic = self
-                        .0
-                        .parent()
-                        .get()?
-                        .topic_list()
-                        .into_iter()
-                        .find(|t| {
-                            t.get_name() == data_reader.get_topic_name()
-                                && t.get_type_name() == data_reader.get_type_name()
-                        })
-                        .cloned()
-                        .expect("Topic must exist");
-                    self.0
-                        .parent()
-                        .parent()
-                        .get()?
-                        .announce_sender()
-                        .send(AnnounceKind::CreatedDataReader(
-                            data_reader.as_discovered_reader_data(
-                                &topic.get_qos(),
-                                &self.0.get()?.get_qos(),
-                            ),
-                        ))
-                        .ok();
+                    let topic =
+                        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(self.0.parent(), |dp| {
+                            dp.unwrap()
+                                .topic_list()
+                                .into_iter()
+                                .find(|t| {
+                                    t.get_name() == data_reader.get_topic_name()
+                                        && t.get_type_name() == data_reader.get_type_name()
+                                })
+                                .cloned()
+                                .expect("Topic must exist")
+                        });
+
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
+                        let discovered_reader_data = data_reader.as_discovered_reader_data(
+                            &topic.get_qos(),
+                            &self.0.get().unwrap().get_qos(),
+                        );
+                        dcps.unwrap()
+                            .announce_sender()
+                            .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+                            .ok()
+                    });
                 }
             }
         }
