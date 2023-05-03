@@ -123,7 +123,7 @@ impl InstanceHandleBuilder {
         where
             Foo: for<'de> DdsDeserialize<'de> + DdsType,
         {
-            Ok(Foo::deserialize(data)
+            Ok(Foo::dds_deserialize(data)
                 .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize data"))?
                 .get_serialized_key())
         }
@@ -146,7 +146,7 @@ impl InstanceHandleBuilder {
                 .find(|&x| x.parameter_id() == ParameterId(PID_KEY_HASH))
             {
                 Some(p) => InstanceHandle::new(p.value().try_into().unwrap()),
-                None => DdsSerializedKey::deserialize(&mut data)
+                None => DdsSerializedKey::dds_deserialize(&mut data)
                     .map_err(|_| RtpsReaderError::InvalidData("Failed to deserialize key"))?
                     .into(),
             },
@@ -575,7 +575,7 @@ impl RtpsReader {
 
             let (data, valid_data) = match cache_change.kind {
                 ChangeKind::Alive | ChangeKind::AliveFiltered => (
-                    Some(DdsDeserialize::deserialize(
+                    Some(DdsDeserialize::dds_deserialize(
                         &mut cache_change.data.as_slice(),
                     )?),
                     true,

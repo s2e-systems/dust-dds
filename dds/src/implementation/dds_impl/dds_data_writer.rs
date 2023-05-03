@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    builtin_topics::BuiltInTopicKey,
+    builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
     implementation::{
         data_representation_builtin_endpoints::discovered_writer_data::{
             DiscoveredWriterData, WriterProxy,
@@ -36,7 +36,7 @@ use crate::{
     },
     topic_definition::type_support::{DdsSerializedKey, DdsType},
     {
-        builtin_topics::{PublicationBuiltinTopicData, SubscriptionBuiltinTopicData},
+        builtin_topics::SubscriptionBuiltinTopicData,
         infrastructure::{
             error::{DdsError, DdsResult},
             qos::DataWriterQos,
@@ -367,7 +367,6 @@ impl<T> DdsDataWriter<T> {
     pub fn get_type_name(&self) -> &'static str {
         self.type_name
     }
-
 }
 
 impl DdsDataWriter<RtpsStatefulWriter> {
@@ -445,8 +444,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
     pub fn _is_acked_by_all(&self, a_change: &RtpsWriterCacheChange) -> bool {
         self.rtps_writer.read_lock().is_acked_by_all(a_change)
     }
-
-
 
     pub fn get_qos(&self) -> DataWriterQos {
         self.rtps_writer.read_lock().get_qos().clone()
@@ -626,44 +623,41 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         publisher_qos: &PublisherQos,
     ) -> DiscoveredWriterData {
         let writer_qos = self.rtps_writer.read_lock().get_qos().clone();
-
-        DiscoveredWriterData {
-            writer_proxy: WriterProxy {
-                remote_writer_guid: self.rtps_writer.read_lock().guid(),
-                unicast_locator_list: self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
-                multicast_locator_list: self
-                    .rtps_writer
+        DiscoveredWriterData::new(
+            PublicationBuiltinTopicData::new(
+                BuiltInTopicKey {
+                    value: self.rtps_writer.read_lock().guid().into(),
+                },
+                BuiltInTopicKey {
+                    value: GUID_UNKNOWN.into(),
+                },
+                self.topic_name.clone(),
+                self.type_name.to_string(),
+                writer_qos.durability.clone(),
+                writer_qos.deadline.clone(),
+                writer_qos.latency_budget.clone(),
+                writer_qos.liveliness.clone(),
+                writer_qos.reliability.clone(),
+                writer_qos.lifespan.clone(),
+                writer_qos.user_data.clone(),
+                writer_qos.ownership.clone(),
+                writer_qos.destination_order,
+                publisher_qos.presentation.clone(),
+                publisher_qos.partition.clone(),
+                topic_qos.topic_data.clone(),
+                publisher_qos.group_data.clone(),
+            ),
+            WriterProxy::new(
+                self.rtps_writer.read_lock().guid(),
+                EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
+                self.rtps_writer.read_lock().unicast_locator_list().to_vec(),
+                self.rtps_writer
                     .read_lock()
                     .multicast_locator_list()
                     .to_vec(),
-                data_max_size_serialized: None,
-                remote_group_entity_id: EntityId::new(EntityKey::new([0; 3]), USER_DEFINED_UNKNOWN),
-            },
-
-            publication_builtin_topic_data: PublicationBuiltinTopicData {
-                key: BuiltInTopicKey {
-                    value: self.rtps_writer.read_lock().guid().into(),
-                },
-                participant_key: BuiltInTopicKey {
-                    value: GUID_UNKNOWN.into(),
-                },
-                topic_name: self.topic_name.clone(),
-                type_name: self.type_name.to_string(),
-                durability: writer_qos.durability.clone(),
-                deadline: writer_qos.deadline.clone(),
-                latency_budget: writer_qos.latency_budget.clone(),
-                liveliness: writer_qos.liveliness.clone(),
-                reliability: writer_qos.reliability.clone(),
-                lifespan: writer_qos.lifespan.clone(),
-                user_data: writer_qos.user_data.clone(),
-                ownership: writer_qos.ownership.clone(),
-                destination_order: writer_qos.destination_order,
-                presentation: publisher_qos.presentation.clone(),
-                partition: publisher_qos.partition.clone(),
-                topic_data: topic_qos.topic_data.clone(),
-                group_data: publisher_qos.group_data.clone(),
-            },
-        }
+                None,
+            ),
+        )
     }
 }
 
@@ -755,8 +749,6 @@ impl DdsDataWriter<RtpsStatelessWriter> {
 
 #[cfg(test)]
 mod test {
-    use std::io::Write;
-
     use crate::{
         implementation::rtps::{
             endpoint::RtpsEndpoint,
@@ -766,7 +758,7 @@ mod test {
             writer::RtpsWriter,
         },
         infrastructure::time::DURATION_ZERO,
-        topic_definition::type_support::{DdsSerialize, DdsSerializedKey, Endianness},
+        topic_definition::type_support::DdsSerializedKey,
     };
 
     use mockall::mock;
@@ -781,13 +773,8 @@ mod test {
         }
     }
 
+    #[derive(serde::Serialize)]
     struct MockFoo {}
-
-    impl DdsSerialize for MockFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
-            Ok(())
-        }
-    }
 
     impl DdsType for MockFoo {
         fn type_name() -> &'static str {
@@ -795,6 +782,7 @@ mod test {
         }
     }
 
+    #[derive(serde::Serialize)]
     struct MockKeyedFoo {
         key: Vec<u8>,
     }
@@ -814,12 +802,6 @@ mod test {
 
         fn set_key_fields_from_serialized_key(&mut self, key: &DdsSerializedKey) -> DdsResult<()> {
             self.key = key.as_ref().to_vec();
-            Ok(())
-        }
-    }
-
-    impl DdsSerialize for MockKeyedFoo {
-        fn serialize<W: Write, E: Endianness>(&self, _writer: W) -> DdsResult<()> {
             Ok(())
         }
     }

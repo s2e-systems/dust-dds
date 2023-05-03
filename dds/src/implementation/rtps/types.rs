@@ -14,7 +14,7 @@ use crate::implementation::{
 /// Type used to hold globally-unique RTPS-entity identifiers. These are identifiers used to uniquely refer to each RTPS Entity in the system.
 /// Must be possible to represent using 16 octets.
 /// The following values are reserved by the protocol: GUID_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Guid {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -80,7 +80,18 @@ impl From<Guid> for [u8; 16] {
 /// Type used to hold the prefix of the globally-unique RTPS-entity identifiers. The GUIDs of entities belonging to the same participant all have the same prefix (see 8.2.4.3).
 /// Must be possible to represent using 12 octets.
 /// The following values are reserved by the protocol: GUIDPREFIX_UNKNOWN
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, derive_more::From, derive_more::Into)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    derive_more::From,
+    derive_more::Into,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub struct GuidPrefix([u8; 12]);
 pub const GUIDPREFIX_UNKNOWN: GuidPrefix = GuidPrefix([0; 12]);
 

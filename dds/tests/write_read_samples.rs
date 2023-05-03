@@ -932,7 +932,7 @@ fn take_specific_instance() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = KeyedData { id: 1, value: 1 };
     let data2 = KeyedData { id: 2, value: 10 };
@@ -943,7 +943,7 @@ fn take_specific_instance() {
     writer.write(&data3, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let samples = reader

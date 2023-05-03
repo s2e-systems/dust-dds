@@ -52,7 +52,7 @@ use crate::{
     subscription::sample_info::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
-    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType, LittleEndian},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
@@ -286,18 +286,25 @@ fn announce_created_data_reader(
     domain_participant: &DdsDomainParticipant,
     discovered_reader_data: DiscoveredReaderData,
 ) {
-    let reader_data = &DiscoveredReaderData {
-        reader_proxy: ReaderProxy {
-            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
-            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
-            ..discovered_reader_data.reader_proxy
-        },
-        ..discovered_reader_data
-    };
+    let reader_proxy = ReaderProxy::new(
+        discovered_reader_data.reader_proxy().remote_reader_guid(),
+        discovered_reader_data
+            .reader_proxy()
+            .remote_group_entity_id(),
+        domain_participant.default_unicast_locator_list().to_vec(),
+        domain_participant.default_multicast_locator_list().to_vec(),
+        discovered_reader_data.reader_proxy().expects_inline_qos(),
+    );
+    let reader_data = &DiscoveredReaderData::new(
+        reader_proxy,
+        discovered_reader_data
+            .subscription_builtin_topic_data()
+            .clone(),
+    );
 
     let mut serialized_data = Vec::new();
     reader_data
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -320,18 +327,20 @@ fn announce_created_data_writer(
     domain_participant: &DdsDomainParticipant,
     discovered_writer_data: DiscoveredWriterData,
 ) {
-    let writer_data = &DiscoveredWriterData {
-        writer_proxy: WriterProxy {
-            unicast_locator_list: domain_participant.default_unicast_locator_list().to_vec(),
-            multicast_locator_list: domain_participant.default_multicast_locator_list().to_vec(),
-            ..discovered_writer_data.writer_proxy
-        },
-        ..discovered_writer_data
-    };
+    let writer_data = &DiscoveredWriterData::new(
+        discovered_writer_data.dds_publication_data().clone(),
+        WriterProxy::new(
+            discovered_writer_data.writer_proxy().remote_writer_guid(),
+            discovered_writer_data.writer_proxy().remote_group_entity_id(),
+            domain_participant.default_unicast_locator_list().to_vec(),
+            domain_participant.default_multicast_locator_list().to_vec(),
+            discovered_writer_data.writer_proxy().data_max_size_serialized(),
+        ),
+    );
 
     let mut serialized_data = Vec::new();
     writer_data
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -357,7 +366,7 @@ fn announce_created_topic(
 ) {
     let mut serialized_data = Vec::new();
     discovered_topic
-        .serialize::<_, LittleEndian>(&mut serialized_data)
+        .dds_serialize(&mut serialized_data)
         .expect("Failed to serialize data");
 
     let timestamp = domain_participant.get_current_time();
@@ -796,16 +805,11 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
         match discovered_writer_data_sample.sample_info.instance_state {
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant.is_publication_ignored(
-                        discovered_writer_data
-                            .writer_proxy
-                            .remote_writer_guid
-                            .into(),
-                    ) {
-                        let remote_writer_guid_prefix = discovered_writer_data
-                            .writer_proxy
-                            .remote_writer_guid
-                            .prefix();
+                    if !domain_participant
+                        .is_publication_ignored(discovered_writer_data.writer_proxy().remote_writer_guid().into())
+                    {
+                        let remote_writer_guid_prefix =
+                            discovered_writer_data.writer_proxy().remote_writer_guid().prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -820,8 +824,12 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
                                 subscriber_add_matched_writer(
                                     subscriber,
                                     &discovered_writer_data,
-                                    discovered_participant_data.default_unicast_locator_list(),
-                                    discovered_participant_data.default_multicast_locator_list(),
+                                    discovered_participant_data
+                                        .participant_proxy()
+                                        .default_unicast_locator_list(),
+                                    discovered_participant_data
+                                        .participant_proxy()
+                                        .default_multicast_locator_list(),
                                     &mut domain_participant.get_status_listener_lock(),
                                 );
                             }
@@ -856,8 +864,9 @@ pub fn subscriber_add_matched_writer(
 ) {
     let is_discovered_writer_regex_matched_to_subscriber = if let Ok(d) = glob_to_regex(
         &discovered_writer_data
-            .publication_builtin_topic_data
-            .partition
+            .clone()
+            .dds_publication_data()
+            .partition()
             .name,
     ) {
         d.is_match(&user_defined_subscriber.get_qos().partition.name)
@@ -869,8 +878,9 @@ pub fn subscriber_add_matched_writer(
         if let Ok(d) = glob_to_regex(&user_defined_subscriber.get_qos().partition.name) {
             d.is_match(
                 &discovered_writer_data
-                    .publication_builtin_topic_data
-                    .partition
+                    .clone()
+                    .dds_publication_data()
+                    .partition()
                     .name,
             )
         } else {
@@ -878,8 +888,9 @@ pub fn subscriber_add_matched_writer(
         };
 
     let is_partition_string_matched = discovered_writer_data
-        .publication_builtin_topic_data
-        .partition
+        .clone()
+        .dds_publication_data()
+        .partition()
         .name
         == user_defined_subscriber.get_qos().partition.name;
 
@@ -1015,11 +1026,14 @@ fn add_matched_subscriptions_announcer(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
     {
         let remote_writer_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1027,8 +1041,12 @@ fn add_matched_subscriptions_announcer(
 
         let proxy = RtpsWriterProxy::new(
             remote_writer_guid,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             data_max_size_serialized,
             remote_group_entity_id,
         );
@@ -1041,11 +1059,14 @@ fn add_matched_subscriptions_detector(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
     {
         let remote_reader_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1053,8 +1074,12 @@ fn add_matched_subscriptions_detector(
         let proxy = RtpsReaderProxy::new(
             remote_reader_guid,
             remote_group_entity_id,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
@@ -1069,11 +1094,14 @@ fn add_matched_publications_announcer(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
     {
         let remote_writer_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1081,8 +1109,12 @@ fn add_matched_publications_announcer(
 
         let proxy = RtpsWriterProxy::new(
             remote_writer_guid,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             data_max_size_serialized,
             remote_group_entity_id,
         );
@@ -1096,11 +1128,14 @@ fn add_matched_publications_detector(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
     {
         let remote_reader_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1108,8 +1143,12 @@ fn add_matched_publications_detector(
         let proxy = RtpsReaderProxy::new(
             remote_reader_guid,
             remote_group_entity_id,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,
@@ -1124,11 +1163,14 @@ fn add_matched_topics_announcer(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
     {
         let remote_writer_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1136,8 +1178,12 @@ fn add_matched_topics_announcer(
 
         let proxy = RtpsWriterProxy::new(
             remote_writer_guid,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             data_max_size_serialized,
             remote_group_entity_id,
         );
@@ -1150,11 +1196,14 @@ fn add_matched_topics_detector(
     discovered_participant_data: &SpdpDiscoveredParticipantData,
 ) {
     if discovered_participant_data
+        .participant_proxy()
         .available_builtin_endpoints()
         .has(BuiltinEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
     {
         let remote_reader_guid = Guid::new(
-            discovered_participant_data.guid_prefix(),
+            discovered_participant_data
+                .participant_proxy()
+                .guid_prefix(),
             ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
         );
         let remote_group_entity_id = ENTITYID_UNKNOWN;
@@ -1162,8 +1211,12 @@ fn add_matched_topics_detector(
         let proxy = RtpsReaderProxy::new(
             remote_reader_guid,
             remote_group_entity_id,
-            discovered_participant_data.metatraffic_unicast_locator_list(),
-            discovered_participant_data.metatraffic_multicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_unicast_locator_list(),
+            discovered_participant_data
+                .participant_proxy()
+                .metatraffic_multicast_locator_list(),
             expects_inline_qos,
             true,
             ReliabilityKind::Reliable,

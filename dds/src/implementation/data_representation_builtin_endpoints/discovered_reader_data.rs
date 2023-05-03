@@ -1,7 +1,9 @@
 use std::io::Write;
 
+use byteorder::ByteOrder;
+
 use crate::{
-    builtin_topics::{BuiltInTopicKey, SubscriptionBuiltinTopicData},
+    builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
         parameter_list_serde::{
             parameter_list_deserializer::ParameterListDeserializer,
@@ -9,58 +11,119 @@ use crate::{
         },
         rtps::types::{EntityId, ExpectsInlineQos, Guid, Locator},
     },
-    infrastructure::{
-        error::DdsResult,
-        qos_policy::{ReliabilityQosPolicy, DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS},
-    },
+    infrastructure::error::DdsResult,
     topic_definition::type_support::{
-        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, Endianness,
+        DdsDeserialize, DdsSerialize, DdsSerializedKey, DdsType, RepresentationType, PL_CDR_LE,
     },
 };
 
 use super::parameter_id_values::{
-    PID_DEADLINE, PID_DESTINATION_ORDER, PID_DURABILITY, PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS,
-    PID_GROUP_DATA, PID_GROUP_ENTITYID, PID_LATENCY_BUDGET, PID_LIVELINESS, PID_MULTICAST_LOCATOR,
-    PID_OWNERSHIP, PID_PARTICIPANT_GUID, PID_PARTITION, PID_PRESENTATION, PID_RELIABILITY,
-    PID_TIME_BASED_FILTER, PID_TOPIC_DATA, PID_TOPIC_NAME, PID_TYPE_NAME, PID_UNICAST_LOCATOR,
-    PID_USER_DATA,
+    PID_ENDPOINT_GUID, PID_EXPECTS_INLINE_QOS, PID_GROUP_ENTITYID, PID_MULTICAST_LOCATOR,
+    PID_UNICAST_LOCATOR,
 };
-
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From, derive_more::Into)]
-pub struct ReliabilityQosPolicyDataReaderAndTopics<'a>(pub &'a ReliabilityQosPolicy);
-impl<'a> Default for ReliabilityQosPolicyDataReaderAndTopics<'a> {
-    fn default() -> Self {
-        Self(&DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
-#[derive(Debug, PartialEq, Eq, serde::Serialize, derive_more::From)]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsSerialize<'a>(
-    pub &'a ReliabilityQosPolicyDataReaderAndTopics<'a>,
-);
-
-#[derive(Debug, PartialEq, Eq, serde::Deserialize, derive_more::Into)]
-pub struct ReliabilityQosPolicyDataReaderAndTopicsDeserialize(pub ReliabilityQosPolicy);
-impl Default for ReliabilityQosPolicyDataReaderAndTopicsDeserialize {
-    fn default() -> Self {
-        Self(DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS)
-    }
-}
 
 pub const DCPS_SUBSCRIPTION: &str = "DCPSSubscription";
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReaderProxy {
-    pub remote_reader_guid: Guid,
-    pub remote_group_entity_id: EntityId,
-    pub unicast_locator_list: Vec<Locator>,
-    pub multicast_locator_list: Vec<Locator>,
-    pub expects_inline_qos: ExpectsInlineQos,
+    remote_reader_guid: Guid,
+    remote_group_entity_id: EntityId,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    expects_inline_qos: ExpectsInlineQos,
+}
+
+impl ReaderProxy {
+    pub fn new(
+        remote_reader_guid: Guid,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        expects_inline_qos: bool,
+    ) -> Self {
+        Self {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            expects_inline_qos: expects_inline_qos.into(),
+        }
+    }
+
+    pub fn remote_reader_guid(&self) -> Guid {
+        self.remote_reader_guid
+    }
+
+    pub fn remote_group_entity_id(&self) -> EntityId {
+        self.remote_group_entity_id
+    }
+
+    pub fn unicast_locator_list(&self) -> &[Locator] {
+        self.unicast_locator_list.as_ref()
+    }
+
+    pub fn multicast_locator_list(&self) -> &[Locator] {
+        self.multicast_locator_list.as_ref()
+    }
+
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos.into()
+    }
+}
+
+impl DdsSerialize for ReaderProxy {
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    fn dds_serialize_parameter_list<W: Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        serializer.serialize_parameter_vector(PID_UNICAST_LOCATOR, &self.unicast_locator_list)?;
+        serializer
+            .serialize_parameter_vector(PID_MULTICAST_LOCATOR, &self.multicast_locator_list)?;
+        serializer.serialize_parameter(PID_GROUP_ENTITYID, &self.remote_group_entity_id)?;
+        serializer
+            .serialize_parameter_if_not_default(PID_EXPECTS_INLINE_QOS, &self.expects_inline_qos)
+    }
+}
+
+impl<'de> DdsDeserialize<'de> for ReaderProxy {
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
+        Ok(Self {
+            remote_reader_guid: deserializer.get(PID_ENDPOINT_GUID)?,
+            remote_group_entity_id: deserializer.get_or_default(PID_GROUP_ENTITYID)?,
+            unicast_locator_list: deserializer.get_list(PID_UNICAST_LOCATOR)?,
+            multicast_locator_list: deserializer.get_list(PID_MULTICAST_LOCATOR)?,
+            expects_inline_qos: deserializer.get_or_default(PID_MULTICAST_LOCATOR)?,
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DiscoveredReaderData {
-    pub reader_proxy: ReaderProxy,
-    pub subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    reader_proxy: ReaderProxy,
+}
+
+impl DiscoveredReaderData {
+    pub fn new(
+        reader_proxy: ReaderProxy,
+        subscription_builtin_topic_data: SubscriptionBuiltinTopicData,
+    ) -> Self {
+        Self {
+            reader_proxy,
+            subscription_builtin_topic_data,
+        }
+    }
+
+    pub fn reader_proxy(&self) -> &ReaderProxy {
+        &self.reader_proxy
+    }
+
+    pub fn subscription_builtin_topic_data(&self) -> &SubscriptionBuiltinTopicData {
+        &self.subscription_builtin_topic_data
+    }
 }
 
 impl DdsType for DiscoveredReaderData {
@@ -74,7 +137,7 @@ impl DdsType for DiscoveredReaderData {
 
     fn get_serialized_key(&self) -> DdsSerializedKey {
         self.subscription_builtin_topic_data
-            .key
+            .key()
             .value
             .as_ref()
             .into()
@@ -89,160 +152,26 @@ impl DdsType for DiscoveredReaderData {
 }
 
 impl DdsSerialize for DiscoveredReaderData {
-    fn serialize<W: Write, E: Endianness>(&self, writer: W) -> DdsResult<()> {
-        let mut parameter_list_serializer = ParameterListSerializer::<_, E>::new(writer);
-        parameter_list_serializer.serialize_payload_header()?;
-        // reader_proxy.remote_reader_guid omitted as of table 9.10
-
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_UNICAST_LOCATOR,
-            &self.reader_proxy.unicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter_vector(
-            PID_MULTICAST_LOCATOR,
-            &self.reader_proxy.multicast_locator_list,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_GROUP_ENTITYID,
-            &self.reader_proxy.remote_group_entity_id,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_EXPECTS_INLINE_QOS,
-            &self.reader_proxy.expects_inline_qos,
-        )?;
-        parameter_list_serializer
-            .serialize_parameter(PID_ENDPOINT_GUID, &self.subscription_builtin_topic_data.key)?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PARTICIPANT_GUID,
-            &self.subscription_builtin_topic_data.participant_key,
-        )?; // Default value is a deviation from the standard and is used for interoperability reasons
-        parameter_list_serializer.serialize_parameter(
-            PID_TOPIC_NAME,
-            &self.subscription_builtin_topic_data.topic_name,
-        )?;
-        parameter_list_serializer.serialize_parameter(
-            PID_TYPE_NAME,
-            &self.subscription_builtin_topic_data.type_name,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DURABILITY,
-            &self.subscription_builtin_topic_data.durability,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DEADLINE,
-            &self.subscription_builtin_topic_data.deadline,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_LATENCY_BUDGET,
-            &self.subscription_builtin_topic_data.latency_budget,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DURABILITY,
-            &self.subscription_builtin_topic_data.liveliness,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_RELIABILITY,
-            &ReliabilityQosPolicyDataReaderAndTopics(
-                &self.subscription_builtin_topic_data.reliability,
-            ),
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_OWNERSHIP,
-            &self.subscription_builtin_topic_data.ownership,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_DESTINATION_ORDER,
-            &self.subscription_builtin_topic_data.destination_order,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_USER_DATA,
-            &self.subscription_builtin_topic_data.user_data,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TIME_BASED_FILTER,
-            &self.subscription_builtin_topic_data.time_based_filter,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PRESENTATION,
-            &self.subscription_builtin_topic_data.presentation,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_PARTITION,
-            &self.subscription_builtin_topic_data.partition,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_TOPIC_DATA,
-            &self.subscription_builtin_topic_data.topic_data,
-        )?;
-        parameter_list_serializer.serialize_parameter_if_not_default(
-            PID_GROUP_DATA,
-            &self.subscription_builtin_topic_data.group_data,
-        )?;
-        parameter_list_serializer.serialize_sentinel()
+    const REPRESENTATION_IDENTIFIER: RepresentationType = PL_CDR_LE;
+    fn dds_serialize_parameter_list<W: Write>(
+        &self,
+        serializer: &mut ParameterListSerializer<W>,
+    ) -> DdsResult<()> {
+        self.reader_proxy.dds_serialize_parameter_list(serializer)?;
+        self.subscription_builtin_topic_data
+            .dds_serialize_parameter_list(serializer)
     }
 }
 
-impl DdsDeserialize<'_> for DiscoveredReaderData {
-    fn deserialize(buf: &mut &'_ [u8]) -> DdsResult<Self> {
-        let param_list = ParameterListDeserializer::read(buf)?;
-
-        // reader_proxy
-        let remote_group_entity_id = param_list.get_or_default(PID_GROUP_ENTITYID)?;
-        let unicast_locator_list = param_list.get_list(PID_UNICAST_LOCATOR)?;
-        let multicast_locator_list = param_list.get_list(PID_MULTICAST_LOCATOR)?;
-        let expects_inline_qos = param_list.get_or_default(PID_MULTICAST_LOCATOR)?;
-
-        // subscription_builtin_topic_data
-        let key = param_list.get::<BuiltInTopicKey>(PID_ENDPOINT_GUID)?;
-        // Default value is a deviation from the standard and is used for interoperability reasons
-        let participant_key = param_list.get_or_default(PID_PARTICIPANT_GUID)?;
-        let topic_name = param_list.get(PID_TOPIC_NAME)?;
-        let type_name = param_list.get(PID_TYPE_NAME)?;
-        let durability = param_list.get_or_default(PID_DURABILITY)?;
-        let deadline = param_list.get_or_default(PID_DEADLINE)?;
-        let latency_budget = param_list.get_or_default(PID_LATENCY_BUDGET)?;
-        let liveliness = param_list.get_or_default(PID_LIVELINESS)?;
-        let reliability = param_list
-            .get_or_default::<ReliabilityQosPolicyDataReaderAndTopicsDeserialize>(PID_RELIABILITY)?
-            .into();
-        let user_data = param_list.get_or_default(PID_USER_DATA)?;
-        let ownership = param_list.get_or_default(PID_OWNERSHIP)?;
-        let destination_order = param_list.get_or_default(PID_DESTINATION_ORDER)?;
-        let time_based_filter = param_list.get_or_default(PID_TIME_BASED_FILTER)?;
-        let presentation = param_list.get_or_default(PID_PRESENTATION)?;
-        let partition = param_list.get_or_default(PID_PARTITION)?;
-        let topic_data = param_list.get_or_default(PID_TOPIC_DATA)?;
-        let group_data = param_list.get_or_default(PID_GROUP_DATA)?;
-
-        let remote_reader_guid = key.value.into();
-
+impl<'de> DdsDeserialize<'de> for DiscoveredReaderData {
+    fn dds_deserialize_parameter_list<E: ByteOrder>(
+        deserializer: &mut ParameterListDeserializer<'de, E>,
+    ) -> DdsResult<Self> {
         Ok(Self {
-            reader_proxy: ReaderProxy {
-                remote_reader_guid,
-                remote_group_entity_id,
-                unicast_locator_list,
-                multicast_locator_list,
-                expects_inline_qos,
-            },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key,
-                participant_key,
-                topic_name,
-                type_name,
-                durability,
-                deadline,
-                latency_budget,
-                liveliness,
-                reliability,
-                user_data,
-                ownership,
-                destination_order,
-                time_based_filter,
-                presentation,
-                partition,
-                topic_data,
-                group_data,
-            },
+            reader_proxy: DdsDeserialize::dds_deserialize_parameter_list(deserializer)?,
+            subscription_builtin_topic_data: DdsDeserialize::dds_deserialize_parameter_list(
+                deserializer,
+            )?,
         })
     }
 }
@@ -250,6 +179,7 @@ impl DdsDeserialize<'_> for DiscoveredReaderData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builtin_topics::BuiltInTopicKey;
     use crate::implementation::rtps::types::{
         EntityKey, GuidPrefix, BUILT_IN_WRITER_WITH_KEY, USER_DEFINED_READER_WITH_KEY,
         USER_DEFINED_UNKNOWN,
@@ -260,11 +190,10 @@ mod tests {
         PresentationQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy, UserDataQosPolicy,
         DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
     };
-    use crate::topic_definition::type_support::LittleEndian;
 
     fn to_bytes_le<S: DdsSerialize>(value: &S) -> Vec<u8> {
         let mut writer = Vec::<u8>::new();
-        value.serialize::<_, LittleEndian>(&mut writer).unwrap();
+        value.dds_serialize(&mut writer).unwrap();
         writer
     }
     #[test]
@@ -283,29 +212,29 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQos::default(),
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                user_data: UserDataQosPolicy { value: vec![] },
-                ownership: OwnershipQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                UserDataQosPolicy { value: vec![] },
+                TimeBasedFilterQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         };
 
         let expected = vec![
@@ -350,29 +279,29 @@ mod tests {
                 multicast_locator_list: vec![],
                 expects_inline_qos: ExpectsInlineQos::default(),
             },
-            subscription_builtin_topic_data: SubscriptionBuiltinTopicData {
-                key: BuiltInTopicKey {
+            subscription_builtin_topic_data: SubscriptionBuiltinTopicData::new(
+                BuiltInTopicKey {
                     value: [1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0],
                 },
-                participant_key: BuiltInTopicKey {
+                BuiltInTopicKey {
                     value: [6, 0, 0, 0, 7, 0, 0, 0, 8, 0, 0, 0, 9, 0, 0, 0],
                 },
-                topic_name: "ab".to_string(),
-                type_name: "cd".to_string(),
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(),
-                liveliness: LivelinessQosPolicy::default(),
-                reliability: DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                presentation: PresentationQosPolicy::default(),
-                partition: PartitionQosPolicy::default(),
-                topic_data: TopicDataQosPolicy::default(),
-                group_data: GroupDataQosPolicy::default(),
-            },
+                "ab".to_string(),
+                "cd".to_string(),
+                DurabilityQosPolicy::default(),
+                DeadlineQosPolicy::default(),
+                LatencyBudgetQosPolicy::default(),
+                LivelinessQosPolicy::default(),
+                DEFAULT_RELIABILITY_QOS_POLICY_DATA_READER_AND_TOPICS,
+                OwnershipQosPolicy::default(),
+                DestinationOrderQosPolicy::default(),
+                UserDataQosPolicy::default(),
+                TimeBasedFilterQosPolicy::default(),
+                PresentationQosPolicy::default(),
+                PartitionQosPolicy::default(),
+                TopicDataQosPolicy::default(),
+                GroupDataQosPolicy::default(),
+            ),
         };
 
         let mut data = &[
@@ -397,7 +326,7 @@ mod tests {
             b'c', b'd', 0, 0x00, // string + padding (1 byte)
             0x01, 0x00, 0x00, 0x00, // PID_SENTINEL, length
         ][..];
-        let result: DiscoveredReaderData = DdsDeserialize::deserialize(&mut data).unwrap();
+        let result: DiscoveredReaderData = DdsDeserialize::dds_deserialize(&mut data).unwrap();
         assert_eq!(result, expected);
     }
 }
