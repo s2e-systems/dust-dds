@@ -94,6 +94,6 @@ impl DdsDomainParticipantFactory {
 }
 
 lazy_static! {
-    pub static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
+    pub(super) static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
         DdsDomainParticipantFactory::new();
 }
