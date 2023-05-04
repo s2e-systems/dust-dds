@@ -1,6 +1,6 @@
 use crate::{
+    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
-        dds_impl::dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
         rtps::{
             endpoint::RtpsEndpoint,
             reader::RtpsReader,

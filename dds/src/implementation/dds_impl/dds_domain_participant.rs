@@ -6,7 +6,7 @@ use crate::{
         SubscriptionBuiltinTopicData,
     },
     domain::{
-        domain_participant_factory::DomainId,
+        domain_participant_factory::{DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY},
         domain_participant_listener::DomainParticipantListener,
     },
     implementation::{
@@ -19,9 +19,7 @@ use crate::{
             },
         },
         dds_impl::{
-            dds_data_reader::DdsDataReader,
-            dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-            dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
+            dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber, dds_topic::DdsTopic,
         },
         rtps::{
             discovery_types::{BuiltinEndpointQos, BuiltinEndpointSet},
