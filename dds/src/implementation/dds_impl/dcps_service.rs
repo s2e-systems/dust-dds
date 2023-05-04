@@ -130,7 +130,7 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
@@ -174,7 +174,7 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                         &participant_guid_prefix,
                         |dp| {
                             if let Some(dp) = dp {
@@ -244,17 +244,11 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-                    &participant_guid_prefix,
-                    |dp| {
-                        if let Some(dp) = dp {
-                            user_defined_communication_send(
-                                dp,
-                                &mut default_unicast_transport_send,
-                            );
-                        }
-                    },
-                )
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid_prefix, |dp| {
+                    if let Some(dp) = dp {
+                        user_defined_communication_send(dp, &mut default_unicast_transport_send);
+                    }
+                })
             }));
         }
 
@@ -282,14 +276,11 @@ impl DcpsService {
             .send(AnnounceKind::DeletedParticipant)
             .ok();
 
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-            &self.participant_guid_prefix,
-            |dp| {
-                if let Some(dp) = dp {
-                    send_shutdown_messages(dp, &self.sender_socket);
-                }
-            },
-        );
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.participant_guid_prefix, |dp| {
+            if let Some(dp) = dp {
+                send_shutdown_messages(dp, &self.sender_socket);
+            }
+        });
 
         while let Some(thread) = self.threads.write_lock().pop() {
             thread.join().unwrap();
@@ -1263,7 +1254,7 @@ fn add_matched_topics_detector(
 }
 
 fn receive_builtin_message(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     message: RtpsMessage,
     locator: Locator,
     sedp_condvar: &DdsCondvar,
@@ -1414,7 +1405,7 @@ fn user_defined_communication_send(
     let now = domain_participant.get_current_time();
 
     for publisher in domain_participant.user_defined_publisher_list() {
-        for data_writer in &publisher.stateful_data_writer_list() {
+        for data_writer in publisher.stateful_data_writer_list() {
             let writer_id = data_writer.guid().entity_id();
             let data_max_size_serialized = data_writer.data_max_size_serialized();
             let heartbeat_period = data_writer.heartbeat_period();

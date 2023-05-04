@@ -42,7 +42,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<UserDefinedPublisherNode> {
         self.call_participant_method_mut(move |dp| {
             dp.create_publisher(qos, a_listener, mask)
-                .map(|x| UserDefinedPublisherNode::new(x))
+                .map(|x| UserDefinedPublisherNode::new(x, self.0))
         })
     }
 
@@ -74,14 +74,14 @@ impl DomainParticipantNode {
         a_listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedTopicNode> {
-        self.call_participant_method(|dp| {
+        self.call_participant_method_mut(|dp| {
             dp.create_topic(topic_name, type_name, qos, a_listener, mask)
                 .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
     }
 
     pub fn delete_topic(&self, topic_handle: InstanceHandle) -> DdsResult<()> {
-        self.call_participant_method(|dp| dp.delete_topic(topic_handle))
+        self.call_participant_method_mut(|dp| dp.delete_topic(topic_handle))
     }
 
     pub fn find_topic(
@@ -90,7 +90,7 @@ impl DomainParticipantNode {
         type_name: &'static str,
         timeout: Duration,
     ) -> DdsResult<UserDefinedTopicNode> {
-        self.call_participant_method(|dp| {
+        self.call_participant_method_mut(|dp| {
             dp.find_topic(topic_name, type_name, timeout)
                 .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0)))
         })
