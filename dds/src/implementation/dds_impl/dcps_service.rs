@@ -11,8 +11,8 @@ use std::{
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     domain::domain_participant_listener::DomainParticipantListener,
+    implementation::dds_impl::dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},

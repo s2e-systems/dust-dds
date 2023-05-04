@@ -2,9 +2,9 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
+        dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
         node_kind::{DataWriterNodeKind, TopicNodeKind},
     },
     infrastructure::{

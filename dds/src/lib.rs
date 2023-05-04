@@ -25,5 +25,4 @@ pub mod subscription;
 /// by the application to define topics and attach qos policies.
 pub mod topic_definition;
 
-mod dds_domain_participant_factory;
 mod implementation;

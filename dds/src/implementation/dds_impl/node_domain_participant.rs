@@ -1,11 +1,13 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
-    implementation::{rtps::types::Guid, utils::node::ChildNode},
+    implementation::{
+        dds_impl::dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+        rtps::types::Guid, utils::node::ChildNode,
+    },
     infrastructure::{
         condition::StatusCondition,
         error::{DdsError, DdsResult},

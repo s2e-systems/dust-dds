@@ -4,12 +4,12 @@ use std::{
 };
 
 use crate::{
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
         dds_impl::{
             dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
             node_domain_participant::DomainParticipantNode,
         },
         rtps::{

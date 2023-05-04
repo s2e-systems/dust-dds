@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
+        dds_impl::dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
         rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
             node::ChildNode,
