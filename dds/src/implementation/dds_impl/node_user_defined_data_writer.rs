@@ -5,10 +5,7 @@ use crate::{
             DiscoveredWriterData, WriterProxy,
         },
         rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
-        utils::{
-            node::ChildNode,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -29,8 +26,6 @@ use super::{
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
-
-type UserDefinedDataWriterNodeType = ChildNode<DdsDataWriter<RtpsStatefulWriter>, Guid>;
 
 #[derive(PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode {
