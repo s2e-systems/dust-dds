@@ -50,6 +50,18 @@ fn default_participant_qos() {
 }
 
 #[test]
+fn create_delete_participant() {
+    let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
+    let domain_participant_factory = DomainParticipantFactory::get_instance();
+    let participant = domain_participant_factory
+        .create_participant(domain_id, QosKind::Default, None, NO_STATUS)
+        .unwrap();
+    assert!(domain_participant_factory
+        .delete_participant(&participant)
+        .is_ok())
+}
+
+#[test]
 fn not_allowed_to_delete_participant_with_entities() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
