@@ -1,4 +1,5 @@
 use crate::{
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{
             endpoint::RtpsEndpoint,
@@ -24,9 +25,7 @@ use crate::{
 
 use super::{
     any_data_writer_listener::AnyDataWriterListener, dds_data_writer::DdsDataWriter,
-    dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    node_domain_participant::DomainParticipantNode,
+    dds_domain_participant::DdsDomainParticipant, node_domain_participant::DomainParticipantNode,
     node_user_defined_data_writer::UserDefinedDataWriterNode,
     status_condition_impl::StatusConditionImpl,
 };
@@ -345,7 +344,7 @@ where
             .entity_factory
             .autoenable_created_entities
     {
-        data_writer_node.enable()?;
+        data_writer_node.enable(domain_participant)?;
     }
 
     Ok(data_writer_node)

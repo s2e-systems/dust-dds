@@ -1,4 +1,5 @@
 use crate::{
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{
             endpoint::RtpsEndpoint,
@@ -25,9 +26,8 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
-    dds_domain_participant::AnnounceKind,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    dds_subscriber::DdsSubscriber, node_domain_participant::DomainParticipantNode,
+    dds_domain_participant::AnnounceKind, dds_subscriber::DdsSubscriber,
+    node_domain_participant::DomainParticipantNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
 };
 
@@ -51,15 +51,12 @@ impl UserDefinedSubscriberNode {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         let (default_unicast_locator_list, default_multicast_locator_list) =
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-                &self.0.parent().prefix(),
-                |dp| {
-                    (
-                        dp.unwrap().default_unicast_locator_list().to_vec(),
-                        dp.unwrap().default_multicast_locator_list().to_vec(),
-                    )
-                },
-            );
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+                (
+                    dp.unwrap().default_unicast_locator_list().to_vec(),
+                    dp.unwrap().default_multicast_locator_list().to_vec(),
+                )
+            });
 
         let qos = match qos {
             QosKind::Default => self.0.get()?.get_default_datareader_qos(),

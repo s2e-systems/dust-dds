@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
         node_kind::{DataWriterNodeKind, TopicNodeKind},
@@ -542,7 +543,10 @@ where
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.enable(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }

@@ -1,5 +1,6 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     domain::{
         domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
@@ -19,7 +20,6 @@ use crate::{
 
 use super::{
     any_topic_listener::AnyTopicListener, dds_domain_participant::DdsDomainParticipant,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     node_builtin_subscriber::BuiltinSubscriberNode,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_subscriber::UserDefinedSubscriberNode,

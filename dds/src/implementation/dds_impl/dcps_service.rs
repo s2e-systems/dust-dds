@@ -11,6 +11,7 @@ use std::{
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         data_representation_builtin_endpoints::{
@@ -64,7 +65,6 @@ use super::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     },
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     dds_subscriber::DdsSubscriber,
     message_receiver::MessageReceiver,
     participant_discovery::ParticipantDiscovery,

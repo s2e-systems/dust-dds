@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use lazy_static::lazy_static;
 
 use crate::{
-    implementation::{rtps::types::GuidPrefix, utils::shared_object::DdsRwLock},
+    implementation::{
+        dds_impl::{dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant},
+        rtps::types::GuidPrefix,
+        utils::shared_object::DdsRwLock,
+    },
     infrastructure::qos::{DomainParticipantFactoryQos, DomainParticipantQos},
 };
-
-use super::{dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant};
 
 pub struct DdsDomainParticipantFactory {
     domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,

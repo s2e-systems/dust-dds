@@ -1,5 +1,6 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
@@ -24,7 +25,6 @@ use super::{
     any_data_writer_listener::AnyDataWriterListener,
     dds_data_writer::DdsDataWriter,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     dds_publisher::DdsPublisher,
     dds_topic::DdsTopic,
     node_user_defined_publisher::UserDefinedPublisherNode,
@@ -286,8 +286,8 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
-        self.call_participant_mut_method(|dp| enable(dp, self.parent_publisher, self.this))
+    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
+        enable_data_writer(domain_participant, self.parent_publisher, self.this)
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
@@ -307,6 +307,10 @@ impl UserDefinedDataWriterNode {
             },
         )
     }
+
+    pub fn this(&self) -> Guid {
+        self.this
+    }
 }
 
 fn enable(
@@ -314,19 +318,6 @@ fn enable(
     publisher_guid: Guid,
     data_writer_guid: Guid,
 ) -> DdsResult<()> {
-    let is_parent_enabled = domain_participant
-        .get_publisher(publisher_guid)?
-        .is_enabled();
-    if !is_parent_enabled {
-        return Err(DdsError::PreconditionNotMet(
-            "Parent publisher disabled".to_string(),
-        ));
-    }
-    domain_participant
-        .get_publisher(publisher_guid)?
-        .get_data_writer(data_writer_guid)?
-        .enable();
-
     // self.0.get()?.enable();
 
     // let data_writer = self.0.get()?;
@@ -371,6 +362,27 @@ fn enable(
 
     // Ok(())
     todo!()
+}
+
+fn enable_data_writer(
+    domain_participant: &mut DdsDomainParticipant,
+    publisher_guid: Guid,
+    data_writer_guid: Guid,
+) -> DdsResult<()> {
+    let is_parent_enabled = domain_participant
+        .get_publisher(publisher_guid)?
+        .is_enabled();
+    if !is_parent_enabled {
+        return Err(DdsError::PreconditionNotMet(
+            "Parent publisher disabled".to_string(),
+        ));
+    }
+    domain_participant
+        .get_publisher(publisher_guid)?
+        .get_data_writer(data_writer_guid)?
+        .enable();
+
+    Ok(())
 }
 
 impl DdsDomainParticipant {

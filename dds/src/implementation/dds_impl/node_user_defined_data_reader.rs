@@ -1,5 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
+    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{stateful_reader::RtpsStatefulReader, types::Guid},
         utils::{
@@ -26,9 +27,8 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
-    dds_domain_participant::AnnounceKind,
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    dds_subscriber::DdsSubscriber, node_user_defined_subscriber::UserDefinedSubscriberNode,
+    dds_domain_participant::AnnounceKind, dds_subscriber::DdsSubscriber,
+    node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
     status_listener::StatusListener,
 };
