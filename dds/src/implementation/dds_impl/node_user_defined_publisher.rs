@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{
             endpoint::RtpsEndpoint,
@@ -43,6 +42,7 @@ impl UserDefinedPublisherNode {
 
     pub fn create_datawriter<Foo>(
         &self,
+        domain_participant: &mut DdsDomainParticipant,
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
@@ -52,17 +52,15 @@ impl UserDefinedPublisherNode {
     where
         Foo: DdsType,
     {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.this.prefix(), |dp| {
-            create_datawriter::<Foo>(
-                dp.ok_or(DdsError::AlreadyDeleted)?,
-                self.this,
-                qos,
-                a_listener,
-                mask,
-                type_name,
-                topic_name,
-            )
-        })
+        create_datawriter::<Foo>(
+            domain_participant,
+            self.this,
+            qos,
+            a_listener,
+            mask,
+            type_name,
+            topic_name,
+        )
     }
 
     pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
@@ -264,6 +262,10 @@ impl UserDefinedPublisherNode {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         todo!()
         // Ok(InstanceHandle::from(self.this.get()?.guid()))
+    }
+
+    pub fn parent(&self) -> Guid {
+        self.parent
     }
 }
 

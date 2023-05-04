@@ -1,12 +1,16 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    },
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
+        any_data_writer_listener::AnyDataWriterListener,
+        dds_domain_participant::DdsDomainParticipant, node_kind::DataWriterNodeKind,
         node_user_defined_publisher::UserDefinedPublisherNode,
     },
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
@@ -60,16 +64,20 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        #[allow(clippy::redundant_closure)]
-        self.0
-            .create_datawriter::<Foo>(
-                a_topic.get_type_name()?,
-                a_topic.get_name()?,
-                qos,
-                a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-                mask,
-            )
-            .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
+        self.call_participant_mut_method(|dp| {
+            #[allow(clippy::redundant_closure)]
+            self.0
+                .create_datawriter::<Foo>(
+                    dp,
+                    a_topic.get_type_name()?,
+                    a_topic.get_name()?,
+                    qos,
+                    a_listener
+                        .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+                    mask,
+                )
+                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
+        })
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -282,5 +290,23 @@ impl Publisher {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0.get_instance_handle()
+    }
+
+    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
+    }
+
+    fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.parent().prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
     }
 }

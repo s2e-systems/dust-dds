@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{
             endpoint::RtpsEndpoint,
@@ -25,10 +24,13 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
-    dds_domain_participant::AnnounceKind, dds_subscriber::DdsSubscriber,
+    any_data_reader_listener::AnyDataReaderListener,
+    dds_data_reader::DdsDataReader,
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+    dds_subscriber::DdsSubscriber,
     node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
+    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
@@ -39,8 +41,13 @@ impl UserDefinedSubscriberNode {
         Self(node)
     }
 
+    pub fn guid(&self) -> DdsResult<Guid> {
+        Ok(self.0.get()?.guid())
+    }
+
     pub fn create_datareader<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
@@ -50,13 +57,10 @@ impl UserDefinedSubscriberNode {
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
-        let (default_unicast_locator_list, default_multicast_locator_list) =
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
-                (
-                    dp.unwrap().default_unicast_locator_list().to_vec(),
-                    dp.unwrap().default_multicast_locator_list().to_vec(),
-                )
-            });
+        let default_unicast_locator_list =
+            domain_participant.default_unicast_locator_list().to_vec();
+        let default_multicast_locator_list =
+            domain_participant.default_multicast_locator_list().to_vec();
 
         let qos = match qos {
             QosKind::Default => self.0.get()?.get_default_datareader_qos(),
@@ -136,19 +140,19 @@ impl UserDefinedSubscriberNode {
             .get()?
             .stateful_data_reader_delete(a_datareader_handle);
 
-        if data_reader.is_enabled() {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-                &self.0.parent().prefix(),
-                |dcps| {
-                    dcps.unwrap()
-                        .announce_sender()
-                        .send(AnnounceKind::DeletedDataReader(
-                            data_reader.get_instance_handle(),
-                        ))
-                        .ok()
-                },
-            );
-        }
+        // if data_reader.is_enabled() {
+        //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
+        //         &self.0.parent().prefix(),
+        //         |dcps| {
+        //             dcps.unwrap()
+        //                 .announce_sender()
+        //                 .send(AnnounceKind::DeletedDataReader(
+        //                     data_reader.get_instance_handle(),
+        //                 ))
+        //                 .ok()
+        //         },
+        //     );
+        // }
 
         Ok(())
     }
@@ -189,19 +193,19 @@ impl UserDefinedSubscriberNode {
 
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         for data_reader in self.0.get()?.stateful_data_reader_drain().into_iter() {
-            if data_reader.is_enabled() {
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-                    &self.0.parent().prefix(),
-                    |dcps| {
-                        dcps.unwrap()
-                            .announce_sender()
-                            .send(AnnounceKind::DeletedDataReader(
-                                data_reader.get_instance_handle(),
-                            ))
-                            .ok()
-                    },
-                );
-            }
+            // if data_reader.is_enabled() {
+            //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
+            //         &self.0.parent().prefix(),
+            //         |dcps| {
+            //             dcps.unwrap()
+            //                 .announce_sender()
+            //                 .send(AnnounceKind::DeletedDataReader(
+            //                     data_reader.get_instance_handle(),
+            //                 ))
+            //                 .ok()
+            //         },
+            //     );
+            // }
         }
         Ok(())
     }
@@ -235,9 +239,8 @@ impl UserDefinedSubscriberNode {
         Ok(self.0.get()?.get_status_changes())
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
-        let is_parent_enabled = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-            .get_participant(&self.0.parent().prefix(), |dp| dp.unwrap().is_enabled());
+    pub fn enable(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<()> {
+        let is_parent_enabled = domain_participant.is_enabled();
         if !is_parent_enabled {
             return Err(DdsError::PreconditionNotMet(
                 "Parent participant is disabled".to_string(),
@@ -256,34 +259,34 @@ impl UserDefinedSubscriberNode {
             {
                 for data_reader in &self.0.get()?.stateful_data_reader_list() {
                     data_reader.enable()?;
-                    let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-                        &self.0.parent().prefix(),
-                        |dp| {
-                            dp.unwrap()
-                                .topic_list()
-                                .into_iter()
-                                .find(|t| {
-                                    t.get_name() == data_reader.get_topic_name()
-                                        && t.get_type_name() == data_reader.get_type_name()
-                                })
-                                .cloned()
-                                .expect("Topic must exist")
-                        },
-                    );
+                    // let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    //     &self.0.parent().prefix(),
+                    //     |dp| {
+                    //         dp.unwrap()
+                    //             .topic_list()
+                    //             .into_iter()
+                    //             .find(|t| {
+                    //                 t.get_name() == data_reader.get_topic_name()
+                    //                     && t.get_type_name() == data_reader.get_type_name()
+                    //             })
+                    //             .cloned()
+                    //             .expect("Topic must exist")
+                    //     },
+                    // );
 
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-                        &self.0.parent().prefix(),
-                        |dcps| {
-                            let discovered_reader_data = data_reader.as_discovered_reader_data(
-                                &topic.get_qos(),
-                                &self.0.get().unwrap().get_qos(),
-                            );
-                            dcps.unwrap()
-                                .announce_sender()
-                                .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
-                                .ok()
-                        },
-                    );
+                    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
+                    //     &self.0.parent().prefix(),
+                    //     |dcps| {
+                    //         let discovered_reader_data = data_reader.as_discovered_reader_data(
+                    //             &topic.get_qos(),
+                    //             &self.0.get().unwrap().get_qos(),
+                    //         );
+                    //         dcps.unwrap()
+                    //             .announce_sender()
+                    //             .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+                    //             .ok()
+                    //     },
+                    // );
                 }
             }
         }

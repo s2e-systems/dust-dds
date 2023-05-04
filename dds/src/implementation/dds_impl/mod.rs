@@ -1,16 +1,12 @@
 pub mod any_data_reader_listener;
 pub mod any_data_writer_listener;
 pub mod any_topic_listener;
-pub mod dcps_service;
 pub mod dds_data_reader;
 pub mod dds_data_writer;
-pub mod dds_domain_entity_list;
 pub mod dds_domain_participant;
-pub mod dds_entity_list;
 pub mod dds_publisher;
 pub mod dds_subscriber;
 pub mod dds_topic;
-pub mod domain_participant_list;
 pub mod iterators;
 pub mod message_receiver;
 pub mod node_builtin_data_reader_stateful;

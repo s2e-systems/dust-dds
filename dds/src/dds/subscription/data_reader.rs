@@ -1,4 +1,5 @@
 use crate::{
+    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         node_kind::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
@@ -514,9 +515,13 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => Ok(Topic::new(TopicNodeKind::UserDefined(
-                r.get_topicdescription()?,
-            ))),
+            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                    Ok(Topic::new(TopicNodeKind::UserDefined(
+                        r.get_topicdescription(dp)?,
+                    )))
+                }),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
@@ -552,7 +557,6 @@ where
             DataReaderNodeKind::UserDefined(r) => r.wait_for_historical_data(max_wait),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
-
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the [`DataReader`];
@@ -609,7 +613,11 @@ impl<Foo> DataReader<Foo> {
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
-            DataReaderNodeKind::UserDefined(r) => r.set_qos(qos),
+            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                    r.set_qos(dp, qos)
+                }),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

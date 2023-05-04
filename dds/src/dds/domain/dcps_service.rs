@@ -22,6 +22,21 @@ use crate::{
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
         },
+        dds_impl::{
+            dds_data_reader::DdsDataReader,
+            dds_data_writer::DdsDataWriter,
+            dds_domain_participant::{
+                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            },
+            dds_subscriber::DdsSubscriber,
+            message_receiver::MessageReceiver,
+            participant_discovery::ParticipantDiscovery,
+            status_listener::StatusListener,
+        },
         rtps::{
             discovery_types::BuiltinEndpointSet,
             history_cache::RtpsWriterCacheChange,
@@ -56,21 +71,6 @@ use crate::{
         InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
-};
-
-use super::{
-    dds_data_reader::DdsDataReader,
-    dds_data_writer::DdsDataWriter,
-    dds_domain_participant::{
-        AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-    },
-    dds_subscriber::DdsSubscriber,
-    message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery,
-    status_listener::StatusListener,
 };
 
 pub struct DcpsService {

@@ -1,9 +1,12 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    },
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
-        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
         dds_subscriber::DdsSubscriber,
+        node_kind::{DataReaderNodeKind, SubscriberNodeKind},
     },
     infrastructure::{
         condition::StatusCondition,
@@ -66,19 +69,23 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) =>
-            {
-                #[allow(clippy::redundant_closure)]
-                s.create_datareader::<Foo>(
-                    a_topic.get_type_name()?,
-                    a_topic.get_name()?,
-                    qos,
-                    a_listener
-                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
-                    mask,
-                )
-                .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
-            }
+            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&s.guid()?.prefix(), |dp| {
+                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                    #[allow(clippy::redundant_closure)]
+                    s.create_datareader::<Foo>(
+                        dp,
+                        a_topic.get_type_name()?,
+                        a_topic.get_name()?,
+                        qos,
+                        a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| {
+                            Box::new(x)
+                        }),
+                        mask,
+                    )
+                    .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
+                }),
+
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -297,7 +304,11 @@ impl Subscriber {
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => s.enable(),
+            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&s.guid()?.prefix(), |dp| {
+                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                    s.enable(dp)
+                }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }

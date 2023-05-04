@@ -6,7 +6,7 @@ use crate::{
         SubscriptionBuiltinTopicData,
     },
     domain::{
-        domain_participant_factory::{DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY},
+        domain_participant_factory::DomainId,
         domain_participant_listener::DomainParticipantListener,
     },
     implementation::{
@@ -977,20 +977,20 @@ impl DdsDomainParticipant {
 
             self.announce_participant().ok();
             let participant_guid = self.guid();
-            self.timer.write_lock().start_timer(
-                DurationKind::Finite(Duration::new(5, 0)),
-                InstanceHandle::new([0; 16]),
-                move || {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-                        &participant_guid.prefix(),
-                        |dp| {
-                            if let Some(dp) = dp {
-                                dp.announce_participant().ok();
-                            }
-                        },
-                    );
-                },
-            );
+            // self.timer.write_lock().start_timer(
+            //     DurationKind::Finite(Duration::new(5, 0)),
+            //     InstanceHandle::new([0; 16]),
+            //     move || {
+            //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+            //             &participant_guid.prefix(),
+            //             |dp| {
+            //                 if let Some(dp) = dp {
+            //                     dp.announce_participant().ok();
+            //                 }
+            //             },
+            //         );
+            //     },
+            // );
         }
         Ok(())
     }

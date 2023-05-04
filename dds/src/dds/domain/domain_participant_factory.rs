@@ -4,13 +4,13 @@ use std::{
     str::FromStr,
 };
 
-use super::domain_participant::DomainParticipant;
+use super::{dcps_service::DcpsService, domain_participant::DomainParticipant};
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
         configuration::DustDdsConfiguration,
         dds_impl::{
-            dcps_service::DcpsService, dds_domain_participant::DdsDomainParticipant,
+            dds_domain_participant::DdsDomainParticipant,
             node_domain_participant::DomainParticipantNode,
         },
         rtps::{
@@ -476,7 +476,7 @@ impl DdsDomainParticipantFactory {
 }
 
 lazy_static! {
-    pub static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
+    pub(in crate::dds) static ref THE_DDS_DOMAIN_PARTICIPANT_FACTORY: DdsDomainParticipantFactory =
         DdsDomainParticipantFactory::new();
 }
 

@@ -1,6 +1,5 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
-    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::{
         rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
@@ -293,19 +292,6 @@ impl UserDefinedDataWriterNode {
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         // Ok(self.0.get()?.guid().into())
         todo!()
-    }
-
-    fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
-            &self.parent_participant.prefix(),
-            |dp| {
-                let domain_participant = dp.ok_or(DdsError::AlreadyDeleted)?;
-                f(domain_participant)
-            },
-        )
     }
 
     pub fn this(&self) -> Guid {
