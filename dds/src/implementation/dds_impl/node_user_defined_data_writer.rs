@@ -1,6 +1,9 @@
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
     implementation::{
+        data_representation_builtin_endpoints::discovered_writer_data::{
+            DiscoveredWriterData, WriterProxy,
+        },
         rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
         utils::{
             node::ChildNode,
@@ -17,18 +20,14 @@ use crate::{
         },
         time::{Duration, Time},
     },
-    topic_definition::type_support::{DdsSerializedKey, DdsType},
+    topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
-    dds_data_writer::DdsDataWriter,
-    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    dds_publisher::DdsPublisher,
-    dds_topic::DdsTopic,
+    any_data_writer_listener::AnyDataWriterListener, dds_data_writer::DdsDataWriter,
+    dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher, dds_topic::DdsTopic,
     node_user_defined_publisher::UserDefinedPublisherNode,
-    node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
+    node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 
 type UserDefinedDataWriterNodeType = ChildNode<DdsDataWriter<RtpsStatefulWriter>, Guid>;
@@ -299,57 +298,6 @@ impl UserDefinedDataWriterNode {
     }
 }
 
-fn enable(
-    domain_participant: &mut DdsDomainParticipant,
-    publisher_guid: Guid,
-    data_writer_guid: Guid,
-) -> DdsResult<()> {
-    // self.0.get()?.enable();
-
-    // let data_writer = self.0.get()?;
-
-    // let topic =
-    //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
-    //         dp.unwrap()
-    //             .topic_list()
-    //             .into_iter()
-    //             .find(|t| {
-    //                 t.get_name() == data_writer.get_topic_name()
-    //                     && t.get_type_name() == data_writer.get_type_name()
-    //             })
-    //             .cloned()
-    //             .expect("Topic must exist")
-    //     });
-    // let publisher_qos = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-    //     &self.0.parent().prefix(),
-    //     |dp| {
-    //         Ok(dp
-    //             .ok_or(DdsError::AlreadyDeleted)?
-    //             .user_defined_publisher_list()
-    //             .iter()
-    //             .find(|p| &p.guid() == self.0.parent())
-    //             .ok_or(DdsError::AlreadyDeleted)?
-    //             .get_qos())
-    //     },
-    // )?;
-    // let discovered_writer_data = self
-    //     .0
-    //     .get()?
-    //     .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
-    // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-    //     &self.0.parent().prefix(),
-    //     move |dcps| {
-    //         dcps.unwrap()
-    //             .announce_sender()
-    //             .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
-    //             .ok()
-    //     },
-    // );
-
-    // Ok(())
-    todo!()
-}
-
 fn enable_data_writer(
     domain_participant: &mut DdsDomainParticipant,
     publisher_guid: Guid,
@@ -367,6 +315,27 @@ fn enable_data_writer(
         .get_publisher(publisher_guid)?
         .get_data_writer(data_writer_guid)?
         .enable();
+
+    let type_name = domain_participant
+        .get_publisher(publisher_guid)?
+        .get_data_writer(data_writer_guid)?
+        .get_type_name();
+
+    let topic_name = domain_participant
+        .get_publisher(publisher_guid)?
+        .get_data_writer(data_writer_guid)?
+        .get_topic_name();
+
+    let topic = domain_participant
+        .get_topic(topic_name, type_name)
+        .cloned()
+        .expect("Topic must exist");
+    let publisher_qos = domain_participant.get_publisher(publisher_guid)?.get_qos();
+    let discovered_writer_data = domain_participant
+        .get_publisher(publisher_guid)?
+        .get_data_writer(data_writer_guid)?
+        .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
+    announce_created_data_writer(domain_participant, discovered_writer_data);
 
     Ok(())
 }
@@ -397,4 +366,45 @@ impl DdsPublisher {
             .find(|dw| dw.guid() == data_writer_guid)
             .ok_or(DdsError::AlreadyDeleted)
     }
+}
+
+fn announce_created_data_writer(
+    domain_participant: &DdsDomainParticipant,
+    discovered_writer_data: DiscoveredWriterData,
+) {
+    let writer_data = &DiscoveredWriterData::new(
+        discovered_writer_data.dds_publication_data().clone(),
+        WriterProxy::new(
+            discovered_writer_data.writer_proxy().remote_writer_guid(),
+            discovered_writer_data
+                .writer_proxy()
+                .remote_group_entity_id(),
+            domain_participant.default_unicast_locator_list().to_vec(),
+            domain_participant.default_multicast_locator_list().to_vec(),
+            discovered_writer_data
+                .writer_proxy()
+                .data_max_size_serialized(),
+        ),
+    );
+
+    let mut serialized_data = Vec::new();
+    writer_data
+        .dds_serialize(&mut serialized_data)
+        .expect("Failed to serialize data");
+
+    let timestamp = domain_participant.get_current_time();
+
+    domain_participant
+        .get_builtin_publisher()
+        .stateful_data_writer_list()
+        .into_iter()
+        .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
+        .unwrap()
+        .write_w_timestamp(
+            serialized_data,
+            writer_data.get_serialized_key(),
+            None,
+            timestamp,
+        )
+        .expect("Should not fail to write built-in message");
 }

@@ -1,4 +1,5 @@
 use crate::{
+    domain::dcps_service::DcpsService,
     implementation::{
         rtps::{
             endpoint::RtpsEndpoint,
