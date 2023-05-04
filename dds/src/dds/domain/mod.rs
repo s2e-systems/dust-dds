@@ -8,3 +8,4 @@ pub mod domain_participant_factory;
 pub mod domain_participant_listener;
 
 pub(crate) mod dcps_service;
+pub(crate) mod timer_factory;

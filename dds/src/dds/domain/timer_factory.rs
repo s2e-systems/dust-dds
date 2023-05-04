@@ -4,21 +4,31 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::infrastructure::{instance::InstanceHandle, time::DurationKind};
-
-use super::{
-    condvar::DdsCondvar,
-    shared_object::{DdsRwLock, DdsShared},
+use crate::{
+    implementation::{
+        dds_impl::dds_domain_participant::DdsDomainParticipant,
+        rtps::types::GuidPrefix,
+        utils::{
+            condvar::DdsCondvar,
+            shared_object::{DdsRwLock, DdsShared},
+        },
+    },
+    infrastructure::{instance::InstanceHandle, time::DurationKind},
 };
 
+use super::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY;
+
 struct PeriodicTask {
-    func: Box<dyn Fn() + Send + Sync>,
+    func: Box<dyn Fn(&mut DdsDomainParticipant) + Send + Sync>,
     duration: std::time::Duration,
     start_instant: std::time::Instant,
 }
 
 impl PeriodicTask {
-    fn new(duration: std::time::Duration, func: impl Fn() + 'static + Send + Sync) -> Self {
+    fn new(
+        duration: std::time::Duration,
+        func: impl Fn(&mut DdsDomainParticipant) + 'static + Send + Sync,
+    ) -> Self {
         Self {
             func: Box::new(func),
             duration,
@@ -41,7 +51,7 @@ impl PeriodicTask {
 }
 
 pub struct Timer {
-    instance_task_list: HashMap<InstanceHandle, PeriodicTask>,
+    instance_task_list: HashMap<(GuidPrefix, InstanceHandle), PeriodicTask>,
     timer_condvar: DdsCondvar,
 }
 
@@ -56,13 +66,14 @@ impl Timer {
     pub fn start_timer(
         &mut self,
         duration: DurationKind,
+        guid_prefix: GuidPrefix,
         id: InstanceHandle,
-        func: impl Fn() + 'static + Send + Sync,
+        func: impl Fn(&mut DdsDomainParticipant) + 'static + Send + Sync,
     ) {
         if let DurationKind::Finite(duration) = duration {
             let duration = std::time::Duration::new(duration.sec() as u64, duration.nanosec());
             self.instance_task_list
-                .insert(id, PeriodicTask::new(duration, func));
+                .insert((guid_prefix, id), PeriodicTask::new(duration, func));
             self.timer_condvar.notify_all();
         }
     }
@@ -101,10 +112,14 @@ impl TimerFactory {
             }
 
             for timer in timer_list_clone.read_lock().iter() {
-                for v in timer.write_lock().instance_task_list.values_mut() {
+                for ((guid_prefix, _), v) in timer.write_lock().instance_task_list.iter_mut() {
                     if v.is_elapsed() {
                         v.reset();
-                        (v.func)()
+                        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(guid_prefix, |dp| {
+                            if let Some(dp) = dp {
+                                (v.func)(dp)
+                            }
+                        })
                     }
                 }
             }
@@ -164,7 +179,7 @@ impl Drop for TimerFactory {
 mod tests {
     use mockall::mock;
 
-    use crate::infrastructure::time::Duration;
+    use crate::{implementation::rtps::types::GUIDPREFIX_UNKNOWN, infrastructure::time::Duration};
 
     use super::*;
 
@@ -184,16 +199,18 @@ mod tests {
 
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(1, 0)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task1.run(),
+            move |_| mock_task1.run(),
         );
 
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(4).return_const(());
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(0, 600_000_000)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([2u8; 16]),
-            move || mock_task2.run(),
+            move |_| mock_task2.run(),
         );
 
         std::thread::sleep(std::time::Duration::from_millis(2500));
@@ -209,8 +226,9 @@ mod tests {
 
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(1, 0)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task1.run(),
+            move |_| mock_task1.run(),
         );
 
         std::thread::sleep(std::time::Duration::from_millis(800));
@@ -219,8 +237,9 @@ mod tests {
         mock_task1.expect_run().times(0).return_const(());
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(1, 0)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task1.run(),
+            move |_| mock_task1.run(),
         );
 
         std::thread::sleep(std::time::Duration::from_millis(800));
@@ -237,16 +256,18 @@ mod tests {
 
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(1, 0)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task1.run(),
+            move |_| mock_task1.run(),
         );
 
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(4).return_const(());
         tp2.write_lock().start_timer(
             DurationKind::Finite(Duration::new(0, 600_000_000)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task2.run(),
+            move |_| mock_task2.run(),
         );
 
         std::thread::sleep(std::time::Duration::from_millis(2500));
@@ -263,16 +284,18 @@ mod tests {
 
         tp1.write_lock().start_timer(
             DurationKind::Finite(Duration::new(1, 0)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task1.run(),
+            move |_| mock_task1.run(),
         );
 
         let mut mock_task2 = MockTask::new();
         mock_task2.expect_run().times(0).return_const(());
         tp2.write_lock().start_timer(
             DurationKind::Finite(Duration::new(0, 600_000_000)),
+            GUIDPREFIX_UNKNOWN,
             InstanceHandle::new([1u8; 16]),
-            move || mock_task2.run(),
+            move |_| mock_task2.run(),
         );
 
         timer_factory._delete_timer(&tp2);
@@ -295,14 +318,16 @@ mod tests {
 
             tp1.write_lock().start_timer(
                 DurationKind::Finite(Duration::new(1, 0)),
+                GUIDPREFIX_UNKNOWN,
                 InstanceHandle::new([1u8; 16]),
-                move || mock_task1.run(),
+                move |_| mock_task1.run(),
             );
 
             tp2.write_lock().start_timer(
                 DurationKind::Finite(Duration::new(0, 600_000_000)),
+                GUIDPREFIX_UNKNOWN,
                 InstanceHandle::new([1u8; 16]),
-                move || mock_task2.run(),
+                move |_| mock_task2.run(),
             );
 
             timer_factory._delete_timer(&tp2);

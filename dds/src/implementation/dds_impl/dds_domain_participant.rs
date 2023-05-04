@@ -7,7 +7,7 @@ use crate::{
     },
     domain::{
         domain_participant_factory::DomainId,
-        domain_participant_listener::DomainParticipantListener,
+        domain_participant_listener::DomainParticipantListener, timer_factory::Timer,
     },
     implementation::{
         data_representation_builtin_endpoints::{
@@ -53,7 +53,6 @@ use crate::{
             condvar::DdsCondvar,
             iterator::{DdsListIntoIterator, DdsMapIntoIterator},
             shared_object::{DdsRwLock, DdsShared},
-            timer_factory::{Timer, TimerFactory},
         },
     },
     infrastructure::{
@@ -165,7 +164,6 @@ pub struct DdsDomainParticipant {
     ignored_publications: DdsRwLock<HashSet<InstanceHandle>>,
     ignored_subcriptions: DdsRwLock<HashSet<InstanceHandle>>,
     data_max_size_serialized: usize,
-    _timer_factory: TimerFactory,
     timer: DdsShared<DdsRwLock<Timer>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     announce_sender: SyncSender<AnnounceKind>,
@@ -190,6 +188,7 @@ impl DdsDomainParticipant {
         user_defined_data_send_condvar: DdsCondvar,
         data_max_size_serialized: usize,
         announce_sender: SyncSender<AnnounceKind>,
+        timer: DdsShared<DdsRwLock<Timer>>,
     ) -> Self {
         let lease_duration = Duration::new(100, 0);
         let guid_prefix = rtps_participant.guid().prefix();
@@ -367,9 +366,6 @@ impl DdsDomainParticipant {
         builtin_publisher.stateful_datawriter_add(sedp_builtin_publications_writer);
         builtin_publisher.stateful_datawriter_add(sedp_builtin_subscriptions_writer);
 
-        let timer_factory = TimerFactory::new();
-        let timer = timer_factory.create_timer();
-
         Self {
             rtps_participant,
             domain_id,
@@ -398,7 +394,6 @@ impl DdsDomainParticipant {
             ignored_publications: DdsRwLock::new(HashSet::new()),
             ignored_subcriptions: DdsRwLock::new(HashSet::new()),
             data_max_size_serialized,
-            _timer_factory: timer_factory,
             timer,
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             announce_sender,
@@ -982,21 +977,14 @@ impl DdsDomainParticipant {
             }
 
             self.announce_participant().ok();
-            let participant_guid = self.guid();
-            // self.timer.write_lock().start_timer(
-            //     DurationKind::Finite(Duration::new(5, 0)),
-            //     InstanceHandle::new([0; 16]),
-            //     move || {
-            //         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-            //             &participant_guid.prefix(),
-            //             |dp| {
-            //                 if let Some(dp) = dp {
-            //                     dp.announce_participant().ok();
-            //                 }
-            //             },
-            //         );
-            //     },
-            // );
+            self.timer.write_lock().start_timer(
+                DurationKind::Finite(Duration::new(5, 0)),
+                self.rtps_participant.guid().prefix(),
+                InstanceHandle::new([0; 16]),
+                |dp| {
+                    dp.announce_participant().ok();
+                },
+            );
         }
         Ok(())
     }

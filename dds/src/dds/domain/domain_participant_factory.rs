@@ -4,7 +4,9 @@ use std::{
     str::FromStr,
 };
 
-use super::{dcps_service::DcpsService, domain_participant::DomainParticipant};
+use super::{
+    dcps_service::DcpsService, domain_participant::DomainParticipant, timer_factory::TimerFactory,
+};
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
     implementation::{
@@ -242,6 +244,9 @@ impl DomainParticipantFactory {
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
         let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(1);
+        let timer = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .timer_factory
+            .create_timer();
         let dds_participant = DdsDomainParticipant::new(
             rtps_participant,
             domain_id,
@@ -253,6 +258,7 @@ impl DomainParticipantFactory {
             user_defined_data_send_condvar.clone(),
             configuration.fragment_size,
             announce_sender.clone(),
+            timer,
         );
 
         let dcps_service = DcpsService::new(
@@ -390,6 +396,7 @@ pub struct DdsDomainParticipantFactory {
     domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
+    timer_factory: TimerFactory,
 }
 
 impl DdsDomainParticipantFactory {
@@ -398,6 +405,7 @@ impl DdsDomainParticipantFactory {
             domain_participant_list: DdsRwLock::new(HashMap::new()),
             qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
             default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
+            timer_factory: TimerFactory::new(),
         }
     }
 
