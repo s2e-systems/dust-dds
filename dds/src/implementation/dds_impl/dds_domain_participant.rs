@@ -171,6 +171,12 @@ pub struct DdsDomainParticipant {
     announce_sender: SyncSender<AnnounceKind>,
 }
 
+impl Drop for DdsDomainParticipant {
+    fn drop(&mut self) {
+        self.timer.write_lock().cancel_timers()
+    }
+}
+
 impl DdsDomainParticipant {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -1250,10 +1256,6 @@ impl DdsDomainParticipant {
         }
 
         Ok(())
-    }
-
-    pub fn cancel_timers(&self) {
-        self.timer.write_lock().cancel_timers()
     }
 }
 

@@ -231,10 +231,10 @@ impl DomainParticipantFactory {
 
         let rtps_participant = RtpsParticipant::new(
             guid_prefix,
-            default_unicast_locator_list,
+            default_unicast_locator_list.clone(),
             default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
+            metatraffic_unicast_locator_list.clone(),
+            metatraffic_multicast_locator_list.clone(),
             PROTOCOLVERSION,
             VENDOR_ID_S2E,
         );
@@ -257,6 +257,9 @@ impl DomainParticipantFactory {
 
         let dcps_service = DcpsService::new(
             guid_prefix,
+            default_unicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             metatraffic_multicast_transport,
             metatraffic_unicast_transport,
             default_unicast_transport,
@@ -300,23 +303,13 @@ impl DomainParticipantFactory {
         )?;
 
         if is_participant_empty {
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-                &participant.0 .0.prefix(),
-                |dp| {
-                    dp.ok_or(DdsError::AlreadyDeleted)?.cancel_timers();
-                    Ok(())
-                },
-            )?;
-
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-                &participant.0 .0.prefix(),
-                |dcps| {
-                    dcps.ok_or(DdsError::AlreadyDeleted)?.shutdown_tasks();
-                    Ok(())
-                },
-            )?;
-
-            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.remove_participant(&participant.0 .0.prefix());
+            // Explicit external drop to avoid deadlock. Otherwise objects contained in the factory can't access it due to it being blocked
+            // while locking
+            let object = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .domain_participant_list
+                .write_lock()
+                .remove(&participant.0 .0.prefix());
+            std::mem::drop(object);
 
             Ok(())
         } else {
@@ -461,17 +454,6 @@ impl DdsDomainParticipantFactory {
             .write_lock()
             .get_mut(&guid_prefix)
             .map(|o| &mut o.0))
-    }
-
-    pub fn get_dcps_service<F, O>(&self, guid_prefix: &GuidPrefix, f: F) -> O
-    where
-        F: FnOnce(Option<&DcpsService>) -> O,
-    {
-        f(self
-            .domain_participant_list
-            .read_lock()
-            .get(&guid_prefix)
-            .map(|o| &o.1))
     }
 }
 

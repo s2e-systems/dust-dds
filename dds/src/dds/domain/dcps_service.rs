@@ -74,19 +74,65 @@ use crate::{
 };
 
 pub struct DcpsService {
-    participant_guid_prefix: GuidPrefix,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     sender_socket: UdpSocket,
     announce_sender: SyncSender<AnnounceKind>,
+    default_unicast_locator_list: Vec<Locator>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+}
+
+impl Drop for DcpsService {
+    fn drop(&mut self) {
+        self.quit.store(true, atomic::Ordering::SeqCst);
+
+        self.sedp_condvar.notify_all();
+        self.user_defined_data_send_condvar.notify_all();
+        self.announce_sender
+            .send(AnnounceKind::DeletedParticipant)
+            .ok();
+
+        // Send shutdown messages
+        if let Some(default_unicast_locator) = self.default_unicast_locator_list.get(0) {
+            let port: u32 = default_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_unicast_locator) = self.metatraffic_unicast_locator_list.get(0) {
+            let port: u32 = metatraffic_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_multicast_transport) =
+            self.metatraffic_multicast_locator_list.get(0)
+        {
+            let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
+            let port: u32 = metatraffic_multicast_transport.port().into();
+            let addr = SocketAddrV4::new(
+                Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
+                port as u16,
+            );
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        while let Some(thread) = self.threads.write_lock().pop() {
+            thread.join().unwrap();
+        }
+    }
 }
 
 impl DcpsService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         participant_guid_prefix: GuidPrefix,
+        default_unicast_locator_list: Vec<Locator>,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
@@ -259,7 +305,9 @@ impl DcpsService {
         let sedp_condvar = sedp_condvar.clone();
         let user_defined_data_send_condvar = user_defined_data_send_condvar.clone();
         Ok(DcpsService {
-            participant_guid_prefix,
+            default_unicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             quit,
             threads: DdsRwLock::new(threads),
             sedp_condvar,
@@ -267,26 +315,6 @@ impl DcpsService {
             sender_socket,
             announce_sender,
         })
-    }
-
-    pub fn shutdown_tasks(&self) {
-        self.quit.store(true, atomic::Ordering::SeqCst);
-
-        self.sedp_condvar.notify_all();
-        self.user_defined_data_send_condvar.notify_all();
-        self.announce_sender
-            .send(AnnounceKind::DeletedParticipant)
-            .ok();
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.participant_guid_prefix, |dp| {
-            if let Some(dp) = dp {
-                send_shutdown_messages(dp, &self.sender_socket);
-            }
-        });
-
-        while let Some(thread) = self.threads.write_lock().pop() {
-            thread.join().unwrap();
-        }
     }
 
     pub fn _sedp_condvar(&self) -> &DdsCondvar {
@@ -1361,36 +1389,6 @@ fn announce_entity(domain_participant: &DdsDomainParticipant, announce_kind: Ann
             announce_deleted_writer(domain_participant, deleted_writer_handle)
         }
         AnnounceKind::DeletedParticipant => (),
-    }
-}
-
-fn send_shutdown_messages(domain_participant: &DdsDomainParticipant, sender_socket: &UdpSocket) {
-    if let Some(default_unicast_locator) = domain_participant.default_unicast_locator_list().get(0)
-    {
-        let port: u32 = default_unicast_locator.port().into();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-        sender_socket.send_to(&[0], addr).ok();
-    }
-
-    if let Some(metatraffic_unicast_locator) =
-        domain_participant.metatraffic_unicast_locator_list().get(0)
-    {
-        let port: u32 = metatraffic_unicast_locator.port().into();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-        sender_socket.send_to(&[0], addr).ok();
-    }
-
-    if let Some(metatraffic_multicast_transport) = domain_participant
-        .metatraffic_multicast_locator_list()
-        .get(0)
-    {
-        let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
-        let port: u32 = metatraffic_multicast_transport.port().into();
-        let addr = SocketAddrV4::new(
-            Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
-            port as u16,
-        );
-        sender_socket.send_to(&[0], addr).ok();
     }
 }
 
