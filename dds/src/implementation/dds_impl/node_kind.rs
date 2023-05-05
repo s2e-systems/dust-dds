@@ -18,7 +18,7 @@ pub enum SubscriberNodeKind {
     Listener(ListenerSubscriberNode),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum DataWriterNodeKind {
     UserDefined(UserDefinedDataWriterNode),
     Listener(ListenerDataWriterNode),

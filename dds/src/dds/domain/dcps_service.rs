@@ -11,13 +11,31 @@ use std::{
 use fnmatch_regex::glob_to_regex;
 
 use crate::{
-    domain::domain_participant_listener::DomainParticipantListener,
+    domain::{
+        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+        domain_participant_listener::DomainParticipantListener,
+    },
     implementation::{
         data_representation_builtin_endpoints::{
             discovered_reader_data::{DiscoveredReaderData, ReaderProxy, DCPS_SUBSCRIPTION},
             discovered_topic_data::{DiscoveredTopicData, DCPS_TOPIC},
             discovered_writer_data::{DiscoveredWriterData, WriterProxy, DCPS_PUBLICATION},
             spdp_discovered_participant_data::{SpdpDiscoveredParticipantData, DCPS_PARTICIPANT},
+        },
+        dds_impl::{
+            dds_data_reader::DdsDataReader,
+            dds_data_writer::DdsDataWriter,
+            dds_domain_participant::{
+                AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+            },
+            dds_subscriber::DdsSubscriber,
+            message_receiver::MessageReceiver,
+            participant_discovery::ParticipantDiscovery,
+            status_listener::StatusListener,
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -55,36 +73,66 @@ use crate::{
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
 
-use super::{
-    dds_data_reader::DdsDataReader,
-    dds_data_writer::DdsDataWriter,
-    dds_domain_participant::{
-        AnnounceKind, DdsDomainParticipant, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-    },
-    dds_domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
-    dds_subscriber::DdsSubscriber,
-    message_receiver::MessageReceiver,
-    participant_discovery::ParticipantDiscovery,
-    status_listener::StatusListener,
-};
-
 pub struct DcpsService {
-    participant_guid: Guid,
     quit: Arc<AtomicBool>,
     threads: DdsRwLock<Vec<JoinHandle<()>>>,
     sedp_condvar: DdsCondvar,
     user_defined_data_send_condvar: DdsCondvar,
     sender_socket: UdpSocket,
     announce_sender: SyncSender<AnnounceKind>,
+    default_unicast_locator_list: Vec<Locator>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+}
+
+impl Drop for DcpsService {
+    fn drop(&mut self) {
+        self.quit.store(true, atomic::Ordering::SeqCst);
+
+        self.sedp_condvar.notify_all();
+        self.user_defined_data_send_condvar.notify_all();
+        self.announce_sender
+            .send(AnnounceKind::DeletedParticipant)
+            .ok();
+
+        // Send shutdown messages
+        if let Some(default_unicast_locator) = self.default_unicast_locator_list.get(0) {
+            let port: u32 = default_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_unicast_locator) = self.metatraffic_unicast_locator_list.get(0) {
+            let port: u32 = metatraffic_unicast_locator.port().into();
+            let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        if let Some(metatraffic_multicast_transport) =
+            self.metatraffic_multicast_locator_list.get(0)
+        {
+            let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
+            let port: u32 = metatraffic_multicast_transport.port().into();
+            let addr = SocketAddrV4::new(
+                Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
+                port as u16,
+            );
+            self.sender_socket.send_to(&[0], addr).ok();
+        }
+
+        while let Some(thread) = self.threads.write_lock().pop() {
+            thread.join().unwrap();
+        }
+    }
 }
 
 impl DcpsService {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        participant_guid: Guid,
+        participant_guid_prefix: GuidPrefix,
+        default_unicast_locator_list: Vec<Locator>,
+        metatraffic_unicast_locator_list: Vec<Locator>,
+        metatraffic_multicast_locator_list: Vec<Locator>,
         mut metatraffic_multicast_transport: UdpTransport,
         mut metatraffic_unicast_transport: UdpTransport,
         mut default_unicast_transport: UdpTransport,
@@ -105,11 +153,14 @@ impl DcpsService {
                     break;
                 }
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                    if let Some(dp) = dp {
-                        dp.update_communication_status().ok();
-                    }
-                });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    &participant_guid_prefix,
+                    |dp| {
+                        if let Some(dp) = dp {
+                            dp.update_communication_status().ok();
+                        }
+                    },
+                );
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }));
         }
@@ -127,11 +178,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_multicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -146,11 +200,14 @@ impl DcpsService {
                 }
 
                 if let Ok(announce_kind) = announce_receiver.recv() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            announce_entity(dp, announce_kind);
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                announce_entity(dp, announce_kind);
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -165,11 +222,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = metatraffic_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
-                        }
-                    })
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                receive_builtin_message(dp, message, locator, &sedp_condvar_clone)
+                            }
+                        },
+                    )
                 }
             }));
         }
@@ -186,11 +246,14 @@ impl DcpsService {
                     break;
                 }
                 let _r = sedp_condvar_clone.wait_timeout(Duration::new(0, 500000000));
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                    if let Some(dp) = dp {
-                        send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
-                    }
-                });
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                    &participant_guid_prefix,
+                    |dp| {
+                        if let Some(dp) = dp {
+                            send_user_defined_message(dp, &mut metatraffic_unicast_transport_send);
+                        }
+                    },
+                );
             }));
         }
 
@@ -203,11 +266,14 @@ impl DcpsService {
                 }
 
                 if let Some((locator, message)) = default_unicast_transport.read() {
-                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
-                        if let Some(dp) = dp {
-                            dp.receive_user_defined_data(locator, message).ok();
-                        }
-                    });
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
+                        &participant_guid_prefix,
+                        |dp| {
+                            if let Some(dp) = dp {
+                                dp.receive_user_defined_data(locator, message).ok();
+                            }
+                        },
+                    );
                 }
             }));
         }
@@ -226,7 +292,7 @@ impl DcpsService {
                 let _r = user_defined_data_send_condvar_clone
                     .wait_timeout(Duration::new(0, 100_000_000));
 
-                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid, |dp| {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&participant_guid_prefix, |dp| {
                     if let Some(dp) = dp {
                         user_defined_communication_send(dp, &mut default_unicast_transport_send);
                     }
@@ -239,7 +305,9 @@ impl DcpsService {
         let sedp_condvar = sedp_condvar.clone();
         let user_defined_data_send_condvar = user_defined_data_send_condvar.clone();
         Ok(DcpsService {
-            participant_guid,
+            default_unicast_locator_list,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             quit,
             threads: DdsRwLock::new(threads),
             sedp_condvar,
@@ -247,26 +315,6 @@ impl DcpsService {
             sender_socket,
             announce_sender,
         })
-    }
-
-    pub fn shutdown_tasks(&self) {
-        self.quit.store(true, atomic::Ordering::SeqCst);
-
-        self.sedp_condvar.notify_all();
-        self.user_defined_data_send_condvar.notify_all();
-        self.announce_sender
-            .send(AnnounceKind::DeletedParticipant)
-            .ok();
-
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.participant_guid, |dp| {
-            if let Some(dp) = dp {
-                send_shutdown_messages(dp, &self.sender_socket);
-            }
-        });
-
-        while let Some(thread) = self.threads.write_lock().pop() {
-            thread.join().unwrap();
-        }
     }
 
     pub fn _sedp_condvar(&self) -> &DdsCondvar {
@@ -311,7 +359,7 @@ fn announce_created_data_reader(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -331,10 +379,14 @@ fn announce_created_data_writer(
         discovered_writer_data.dds_publication_data().clone(),
         WriterProxy::new(
             discovered_writer_data.writer_proxy().remote_writer_guid(),
-            discovered_writer_data.writer_proxy().remote_group_entity_id(),
+            discovered_writer_data
+                .writer_proxy()
+                .remote_group_entity_id(),
             domain_participant.default_unicast_locator_list().to_vec(),
             domain_participant.default_multicast_locator_list().to_vec(),
-            discovered_writer_data.writer_proxy().data_max_size_serialized(),
+            discovered_writer_data
+                .writer_proxy()
+                .data_max_size_serialized(),
         ),
     );
 
@@ -348,7 +400,7 @@ fn announce_created_data_writer(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -374,7 +426,7 @@ fn announce_created_topic(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -401,7 +453,7 @@ fn announce_deleted_reader(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
@@ -423,7 +475,7 @@ fn announce_deleted_writer(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
@@ -805,11 +857,16 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
         match discovered_writer_data_sample.sample_info.instance_state {
             InstanceStateKind::Alive => {
                 if let Some(discovered_writer_data) = discovered_writer_data_sample.data {
-                    if !domain_participant
-                        .is_publication_ignored(discovered_writer_data.writer_proxy().remote_writer_guid().into())
-                    {
-                        let remote_writer_guid_prefix =
-                            discovered_writer_data.writer_proxy().remote_writer_guid().prefix();
+                    if !domain_participant.is_publication_ignored(
+                        discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .into(),
+                    ) {
+                        let remote_writer_guid_prefix = discovered_writer_data
+                            .writer_proxy()
+                            .remote_writer_guid()
+                            .prefix();
                         let writer_parent_participant_guid =
                             Guid::new(remote_writer_guid_prefix, ENTITYID_PARTICIPANT);
 
@@ -958,7 +1015,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
@@ -978,7 +1035,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
@@ -998,7 +1055,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
@@ -1227,7 +1284,7 @@ fn add_matched_topics_detector(
 }
 
 fn receive_builtin_message(
-    domain_participant: &DdsDomainParticipant,
+    domain_participant: &mut DdsDomainParticipant,
     message: RtpsMessage,
     locator: Locator,
     sedp_condvar: &DdsCondvar,
@@ -1235,7 +1292,7 @@ fn receive_builtin_message(
     MessageReceiver::new(domain_participant.get_current_time())
         .process_message(
             domain_participant.guid().prefix(),
-            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+            core::slice::from_ref(domain_participant.get_builtin_publisher()),
             core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
             locator,
             &message,
@@ -1276,7 +1333,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
             .unwrap(),
         header,
@@ -1287,7 +1344,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
             .unwrap(),
         header,
@@ -1298,7 +1355,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
             .unwrap(),
         header,
@@ -1335,36 +1392,6 @@ fn announce_entity(domain_participant: &DdsDomainParticipant, announce_kind: Ann
     }
 }
 
-fn send_shutdown_messages(domain_participant: &DdsDomainParticipant, sender_socket: &UdpSocket) {
-    if let Some(default_unicast_locator) = domain_participant.default_unicast_locator_list().get(0)
-    {
-        let port: u32 = default_unicast_locator.port().into();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-        sender_socket.send_to(&[0], addr).ok();
-    }
-
-    if let Some(metatraffic_unicast_locator) =
-        domain_participant.metatraffic_unicast_locator_list().get(0)
-    {
-        let port: u32 = metatraffic_unicast_locator.port().into();
-        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port as u16);
-        sender_socket.send_to(&[0], addr).ok();
-    }
-
-    if let Some(metatraffic_multicast_transport) = domain_participant
-        .metatraffic_multicast_locator_list()
-        .get(0)
-    {
-        let addr: [u8; 16] = metatraffic_multicast_transport.address().into();
-        let port: u32 = metatraffic_multicast_transport.port().into();
-        let addr = SocketAddrV4::new(
-            Ipv4Addr::new(addr[12], addr[13], addr[14], addr[15]),
-            port as u16,
-        );
-        sender_socket.send_to(&[0], addr).ok();
-    }
-}
-
 fn user_defined_communication_send(
     domain_participant: &DdsDomainParticipant,
     default_unicast_transport_send: &mut impl TransportWrite,
@@ -1377,8 +1404,8 @@ fn user_defined_communication_send(
     };
     let now = domain_participant.get_current_time();
 
-    for publisher in &domain_participant.user_defined_publisher_list() {
-        for data_writer in &publisher.stateful_data_writer_list() {
+    for publisher in domain_participant.user_defined_publisher_list() {
+        for data_writer in publisher.stateful_data_writer_list() {
             let writer_id = data_writer.guid().entity_id();
             let data_max_size_serialized = data_writer.data_max_size_serialized();
             let heartbeat_period = data_writer.heartbeat_period();

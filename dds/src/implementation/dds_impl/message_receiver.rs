@@ -1,21 +1,18 @@
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
-    implementation::{
-        rtps::{
-            messages::{
-                submessages::{
-                    DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-                    HeartbeatSubmessage, InfoDestinationSubmessage, InfoSourceSubmessage,
-                    InfoTimestampSubmessage,
-                },
-                RtpsMessage, RtpsSubmessageKind,
+    implementation::rtps::{
+        messages::{
+            submessages::{
+                DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
+                HeartbeatSubmessage, InfoDestinationSubmessage, InfoSourceSubmessage,
+                InfoTimestampSubmessage,
             },
-            types::{
-                GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
-                LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
-            },
+            RtpsMessage, RtpsSubmessageKind,
         },
-        utils::shared_object::DdsShared,
+        types::{
+            GuidPrefix, Locator, ProtocolVersion, VendorId, GUIDPREFIX_UNKNOWN,
+            LOCATOR_ADDRESS_INVALID, LOCATOR_PORT_INVALID, PROTOCOLVERSION, VENDOR_ID_UNKNOWN,
+        },
     },
     infrastructure::{
         error::DdsResult,
@@ -93,7 +90,7 @@ impl MessageReceiver {
     pub fn process_message(
         &mut self,
         participant_guid_prefix: GuidPrefix,
-        publisher_list: &[DdsShared<DdsPublisher>],
+        publisher_list: &[DdsPublisher],
         subscriber_list: &[impl SubscriberSubmessageReceiver],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
@@ -121,7 +118,7 @@ impl MessageReceiver {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
                         for stateful_data_writer in
-                            publisher.stateful_data_writer_list().into_iter()
+                            publisher.stateful_data_writer_list().iter()
                         {
                             stateful_data_writer
                                 .on_acknack_submessage_received(acknack_submessage, self);
@@ -180,7 +177,7 @@ impl MessageReceiver {
                 RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list {
                         for stateful_data_writer in
-                            publisher.stateful_data_writer_list().into_iter()
+                            publisher.stateful_data_writer_list().iter()
                         {
                             stateful_data_writer
                                 .on_nack_frag_submessage_received(nack_frag_submessage, self);

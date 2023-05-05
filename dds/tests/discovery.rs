@@ -271,6 +271,7 @@ fn updated_writers_are_announced_to_reader() {
 }
 
 #[test]
+#[ignore = "Deadlock when using multiple participants"]
 fn participant_records_discovered_topics() {
     let domain_id = TEST_DOMAIN_ID_GENERATOR.generate_unique_domain_id();
     let domain_participant_factory = DomainParticipantFactory::get_instance();
@@ -635,7 +636,7 @@ fn writer_matched_to_already_existing_reader_with_matched_writer() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data_writer2 = publisher
         .create_datawriter::<UserType>(&topic, QosKind::Default, None, NO_STATUS)

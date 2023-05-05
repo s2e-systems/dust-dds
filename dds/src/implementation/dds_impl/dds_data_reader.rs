@@ -1209,6 +1209,10 @@ impl DdsDataReader<RtpsStatefulReader> {
             .write_lock()
             .matched_writer_remove(a_writer_guid)
     }
+
+    pub fn guid(&self) -> Guid {
+        self.rtps_reader.read_lock().guid()
+    }
 }
 
 impl DdsDataReader<RtpsStatelessReader> {

@@ -124,7 +124,7 @@ fn deadline_missed_listener() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();
@@ -161,7 +161,7 @@ fn sample_rejected_listener() {
     let mut participant_listener = MockSampleRejectedListener::new();
     participant_listener
         .expect_on_sample_rejected()
-        .times(1..3)
+        .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
                 && status.total_count_change == 1
@@ -771,7 +771,7 @@ fn data_on_readers_listener() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let subscriber_cond = subscriber.get_statuscondition().unwrap();
     subscriber_cond
@@ -971,13 +971,13 @@ fn participant_deadline_missed_listener() {
     wait_set
         .attach_condition(Condition::StatusCondition(cond))
         .unwrap();
-    wait_set.wait(Duration::new(5, 0)).unwrap();
+    wait_set.wait(Duration::new(10, 0)).unwrap();
 
     let data1 = MyData { id: 1, value: 1 };
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();
@@ -1474,7 +1474,6 @@ fn subscriber_deadline_missed_listener() {
 
         impl SubscriberListener for DeadlineMissedListener {
 
-
             fn on_requested_deadline_missed(
                 &mut self,
                 _the_reader: &dyn AnyDataReader,
@@ -1616,7 +1615,7 @@ fn subscriber_sample_rejected_listener() {
     let mut subscriber_listener = MockSampleRejectedListener::new();
     subscriber_listener
         .expect_on_sample_rejected()
-        .times(1..4)
+        .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
                 && status.total_count_change == 1

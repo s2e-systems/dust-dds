@@ -29,7 +29,7 @@ pub struct DdsPublisher {
     qos: DdsRwLock<PublisherQos>,
     rtps_group: RtpsGroup,
     stateless_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatelessWriter>>>>,
-    stateful_data_writer_list: DdsRwLock<Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>>,
+    stateful_data_writer_list: Vec<DdsShared<DdsDataWriter<RtpsStatefulWriter>>>,
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn PublisherListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -43,18 +43,18 @@ impl DdsPublisher {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn PublisherListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsShared<Self> {
-        DdsShared::new(DdsPublisher {
+    ) -> Self {
+        Self {
             qos: DdsRwLock::new(qos),
             rtps_group,
             stateless_data_writer_list: DdsRwLock::new(Vec::new()),
-            stateful_data_writer_list: DdsRwLock::new(Vec::new()),
+            stateful_data_writer_list: Vec::new(),
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             user_defined_data_writer_counter: DdsRwLock::new(0),
             default_datawriter_qos: DdsRwLock::new(DataWriterQos::default()),
-        })
+        }
     }
 
     pub fn enable(&self) {
@@ -73,30 +73,25 @@ impl DdsPublisher {
     }
 
     pub fn stateful_datawriter_add(
-        &self,
+        &mut self,
         data_writer: DdsShared<DdsDataWriter<RtpsStatefulWriter>>,
     ) {
-        self.stateful_data_writer_list
-            .write_lock()
-            .push(data_writer)
+        self.stateful_data_writer_list.push(data_writer)
     }
 
     pub fn stateful_datawriter_drain(
-        &self,
-    ) -> DdsDrainIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
-        DdsDrainIntoIterator::new(self.stateful_data_writer_list.write_lock())
+        &mut self,
+    ) -> std::vec::Drain<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
+        self.stateful_data_writer_list.drain(..)
     }
 
-    pub fn stateful_datawriter_delete(&self, data_writer_handle: InstanceHandle) {
+    pub fn stateful_datawriter_delete(&mut self, data_writer_handle: InstanceHandle) {
         self.stateful_data_writer_list
-            .write_lock()
             .retain(|x| InstanceHandle::from(x.guid()) != data_writer_handle);
     }
 
-    pub fn stateful_data_writer_list(
-        &self,
-    ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
-        DdsListIntoIterator::new(self.stateful_data_writer_list.read_lock())
+    pub fn stateful_data_writer_list(&self) -> &[DdsShared<DdsDataWriter<RtpsStatefulWriter>>] {
+        &self.stateful_data_writer_list
     }
 
     pub fn stateless_datawriter_add(
@@ -124,6 +119,15 @@ impl DdsPublisher {
         &self,
     ) -> DdsListIntoIterator<DdsShared<DdsDataWriter<RtpsStatelessWriter>>> {
         DdsListIntoIterator::new(self.stateless_data_writer_list.read_lock())
+    }
+
+    pub fn get_data_writer(
+        &self,
+        data_writer_guid: Guid,
+    ) -> Option<&DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
+        self.stateful_data_writer_list()
+            .iter()
+            .find(|dw| dw.guid() == data_writer_guid)
     }
 
     pub fn get_status_listener_lock(

@@ -1,7 +1,8 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    domain::domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
     implementation::dds_impl::{
         any_data_writer_listener::AnyDataWriterListener,
         node_kind::{DataWriterNodeKind, TopicNodeKind},
@@ -160,9 +161,15 @@ where
                 .dds_serialize(&mut serialized_key)?;
 
             match &self.0 {
-                DataWriterNodeKind::UserDefined(w) => {
-                    w.unregister_instance_w_timestamp(serialized_key, instance_handle, timestamp)
-                }
+                DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.this().prefix(), |dp| {
+                        w.unregister_instance_w_timestamp(
+                            dp.ok_or(DdsError::AlreadyDeleted)?,
+                            serialized_key,
+                            instance_handle,
+                            timestamp,
+                        )
+                    }),
                 DataWriterNodeKind::Listener(_) => todo!(),
             }
         } else {
@@ -188,7 +195,13 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.lookup_instance(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        instance.get_serialized_key(),
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -248,12 +261,16 @@ where
         data.dds_serialize(&mut serialized_data)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
-                serialized_data,
-                data.get_serialized_key(),
-                handle,
-                timestamp,
-            ),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.write_w_timestamp(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        serialized_data,
+                        data.get_serialized_key(),
+                        handle,
+                        timestamp,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -319,9 +336,15 @@ where
             .dds_serialize(&mut serialized_key)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                w.dispose_w_timestamp(serialized_key, instance_handle, timestamp)
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.dispose_w_timestamp(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        serialized_key,
+                        instance_handle,
+                        timestamp,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -336,7 +359,21 @@ where
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
+            DataWriterNodeKind::UserDefined(w) => {
+                let start_time = Instant::now();
+
+                while start_time.elapsed() < std::time::Duration::from(max_wait) {
+                    if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&w.this().prefix(), |dp| {
+                            w.are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        })?
+                    {
+                        return Ok(());
+                    }
+                }
+
+                Err(DdsError::Timeout)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -368,7 +405,10 @@ where
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_publication_matched_status(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -417,9 +457,13 @@ where
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                w.get_matched_subscription_data(subscription_handle)
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_matched_subscription_data(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        subscription_handle,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -432,7 +476,10 @@ where
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscriptions(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -457,7 +504,10 @@ where
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.set_qos(qos),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -465,7 +515,10 @@ where
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_qos(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -500,9 +553,12 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                Ok(StatusCondition::new(w.get_statuscondition()?))
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    Ok(StatusCondition::new(w.get_statuscondition(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                    )?))
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -542,7 +598,10 @@ where
     /// enabled are “inactive,” that is, the operation [`StatusCondition::get_trigger_value()`] will always return `false`.
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.enable(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }

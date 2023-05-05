@@ -1,12 +1,16 @@
 use crate::{
-    domain::domain_participant::DomainParticipant,
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_factory::THE_DDS_DOMAIN_PARTICIPANT_FACTORY,
+    },
     implementation::dds_impl::{
-        any_data_writer_listener::AnyDataWriterListener, node_kind::DataWriterNodeKind,
+        any_data_writer_listener::AnyDataWriterListener,
+        dds_domain_participant::DdsDomainParticipant, node_kind::DataWriterNodeKind,
         node_user_defined_publisher::UserDefinedPublisherNode,
     },
     infrastructure::{
         condition::StatusCondition,
-        error::DdsResult,
+        error::{DdsError, DdsResult},
         instance::InstanceHandle,
         qos::{DataWriterQos, PublisherQos, QosKind, TopicQos},
         status::StatusKind,
@@ -23,8 +27,8 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-#[derive(PartialEq, Debug)]
-pub struct Publisher(UserDefinedPublisherNode);
+#[derive(Eq, PartialEq, Debug)]
+pub struct Publisher(pub(crate) UserDefinedPublisherNode);
 
 impl Publisher {
     pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
@@ -60,16 +64,20 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        #[allow(clippy::redundant_closure)]
-        self.0
-            .create_datawriter::<Foo>(
-                a_topic.get_type_name()?,
-                a_topic.get_name()?,
-                qos,
-                a_listener.map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
-                mask,
-            )
-            .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
+        self.call_participant_mut_method(|dp| {
+            #[allow(clippy::redundant_closure)]
+            self.0
+                .create_datawriter::<Foo>(
+                    dp,
+                    a_topic.get_type_name()?,
+                    a_topic.get_name()?,
+                    qos,
+                    a_listener
+                        .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),
+                    mask,
+                )
+                .map(|x| DataWriter::new(DataWriterNodeKind::UserDefined(x)))
+        })
     }
 
     /// This operation deletes a [`DataWriter`] that belongs to the [`Publisher`]. This operation must be called on the
@@ -82,8 +90,10 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        self.0
-            .delete_datawriter(a_datawriter.get_instance_handle()?)
+        self.call_participant_mut_method(|dp| {
+            self.0
+                .delete_datawriter(dp, a_datawriter.get_instance_handle()?)
+        })
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching
@@ -175,7 +185,7 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.set_default_datawriter_qos(qos)
+        self.call_participant_method(|dp| self.0.set_default_datawriter_qos(dp, qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -183,7 +193,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0.get_default_datawriter_qos()
+        self.call_participant_method(|dp| self.0.get_default_datawriter_qos(dp))
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
@@ -221,7 +231,7 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.get_qos()
+        self.call_participant_method(|dp| self.0.get_qos(dp))
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -282,5 +292,23 @@ impl Publisher {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0.get_instance_handle()
+    }
+
+    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
+    }
+
+    fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(&self.0.parent().prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
     }
 }
