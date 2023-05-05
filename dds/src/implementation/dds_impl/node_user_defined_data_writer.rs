@@ -218,17 +218,26 @@ impl UserDefinedDataWriterNode {
 
     pub fn get_matched_subscription_data(
         &self,
-        _subscription_handle: InstanceHandle,
+        domain_participant: &DdsDomainParticipant,
+        subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
-        // if !self.0.get()?.is_enabled() {
-        //     return Err(DdsError::NotEnabled);
-        // }
+        let is_parent_enabled = domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled();
+        if !is_parent_enabled {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent publisher disabled".to_string(),
+            ));
+        }
 
-        // self.0
-        //     .get()?
-        //     .get_matched_subscription_data(subscription_handle)
-        //     .ok_or(DdsError::BadParameter)
-        todo!()
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_matched_subscription_data(subscription_handle)
+            .ok_or(DdsError::BadParameter)
     }
 
     pub fn get_matched_subscriptions(
@@ -253,52 +262,74 @@ impl UserDefinedDataWriterNode {
             .get_matched_subscriptions())
     }
 
-    pub fn set_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        // let data_writer = self.0.get()?;
+    pub fn set_qos(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        qos: QosKind<DataWriterQos>,
+    ) -> DdsResult<()> {
+        let qos = match qos {
+            QosKind::Default => Default::default(),
+            QosKind::Specific(q) => q,
+        };
+        qos.is_consistent()?;
 
-        // let qos = match qos {
-        //     QosKind::Default => Default::default(),
-        //     QosKind::Specific(q) => q,
-        // };
-        // qos.is_consistent()?;
+        let is_data_writer_enabled = domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled();
 
-        // if self.0.get()?.is_enabled() {
-        //     if self.0.get()?.is_enabled() {
-        //         self.0.get()?.get_qos().check_immutability(&qos)?;
-        //     }
+        if is_data_writer_enabled {
+            domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_data_writer(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_qos()
+                .check_immutability(&qos)?;
+        }
 
-        //     self.0.get()?.set_qos(qos);
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_qos(qos);
 
-        //     let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-        //         &self.0.parent().prefix(),
-        //         |dp| {
-        //             dp.unwrap()
-        //                 .topic_list()
-        //                 .into_iter()
-        //                 .find(|t| {
-        //                     t.get_name() == data_writer.get_topic_name()
-        //                         && t.get_type_name() == data_writer.get_type_name()
-        //                 })
-        //                 .cloned()
-        //                 .expect("Topic must exist")
-        //         },
-        //     );
-        //     todo!()
-        //     // let discovered_writer_data = self
-        //     //     .0
-        //     //     .get()?
-        //     //     .as_discovered_writer_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
-        //     // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(self.0.parent(), |dcps| {
-        //     //     dcps.unwrap()
-        //     //         .announce_sender()
-        //     //         .send(AnnounceKind::CreatedDataWriter(discovered_writer_data))
-        //     //         .ok()
-        //     // });
-        // } else {
-        //     self.0.get()?.set_qos(qos);
-        // }
-        // Ok(())
-        todo!()
+        if is_data_writer_enabled {
+            let type_name = domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_data_writer(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_type_name();
+
+            let topic_name = domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_data_writer(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_topic_name();
+
+            let topic = domain_participant
+                .get_topic(topic_name, type_name)
+                .cloned()
+                .expect("Topic must exist");
+            let publisher_qos = domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_qos();
+            let discovered_writer_data = domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_data_writer(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
+            announce_created_data_writer(domain_participant, discovered_writer_data);
+        }
+
+        Ok(())
     }
 
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
@@ -333,8 +364,7 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        // Ok(self.0.get()?.guid().into())
-        todo!()
+        Ok(self.this.into())
     }
 
     pub fn this(&self) -> Guid {

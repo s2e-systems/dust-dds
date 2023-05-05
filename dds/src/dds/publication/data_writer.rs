@@ -428,9 +428,13 @@ where
         subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                w.get_matched_subscription_data(subscription_handle)
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_matched_subscription_data(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        subscription_handle,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -471,7 +475,10 @@ where
     /// modified to match the current default for the Entity’s factory.
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.set_qos(qos),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

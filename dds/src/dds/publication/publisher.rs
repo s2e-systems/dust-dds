@@ -90,8 +90,10 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
-        self.0
-            .delete_datawriter(a_datawriter.get_instance_handle()?)
+        self.call_participant_mut_method(|dp| {
+            self.0
+                .delete_datawriter(dp, a_datawriter.get_instance_handle()?)
+        })
     }
 
     /// This operation retrieves a previously created [`DataWriter`] belonging to the [`Publisher`] that is attached to a [`Topic`] with a matching
