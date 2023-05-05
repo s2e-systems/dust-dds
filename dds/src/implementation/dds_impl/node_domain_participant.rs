@@ -55,19 +55,19 @@ impl DomainParticipantNode {
 
     pub fn create_subscriber(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<UserDefinedSubscriberNode> {
         domain_participant
             .create_subscriber(qos, a_listener, mask)
-            .map(|x| UserDefinedSubscriberNode::new(ChildNode::new(x.downgrade(), self.0)))
+            .map(|x| UserDefinedSubscriberNode::new(x, self.0))
     }
 
     pub fn delete_subscriber(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         subscriber_handle: InstanceHandle,
     ) -> DdsResult<()> {
         domain_participant.delete_subscriber(subscriber_handle)
