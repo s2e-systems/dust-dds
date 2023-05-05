@@ -1,11 +1,11 @@
 //! Deserializing CDR into Rust data types.
 
-use std::{self, marker::PhantomData};
+use std::{self, marker::PhantomData, io::Read};
 
 use byteorder::ByteOrder;
 use serde::de::{self};
 
-use cdr::{Error, Result};
+use cdr::{Error, Result, SizeLimit};
 
 /// A deserializer that reads bytes from a buffer.
 pub struct ParameterListDeserializer<E> {
@@ -220,12 +220,14 @@ where
     where
         V: de::Visitor<'de>,
     {
-        struct Access<'a, E> {
-            de: &'a mut ParameterListDeserializer<E>,
+        struct Access<R, S, E> {
+            de: cdr::Deserializer<R,S,E>,
         }
-        impl<'de, 'a, E> de::MapAccess<'de> for Access<'a, E>
+        impl<'de, R, S, E> de::MapAccess<'de> for Access<R, S, E>
         where
             E: ByteOrder,
+            S: SizeLimit,
+            R: Read
         {
             type Error = Error;
 
@@ -236,7 +238,7 @@ where
             where
                 K: de::DeserializeSeed<'de>,
             {
-                let res = seed.deserialize(&mut *self.de).map(Some);
+                let res = seed.deserialize(&mut self.de).map(Some);
                 res
             }
 
@@ -244,11 +246,14 @@ where
             where
                 V: de::DeserializeSeed<'de>,
             {
-                let res = seed.deserialize(&mut *self.de);
+                let _length: u16 = serde::Deserialize::deserialize(&mut self.de)?;
+                let res = seed.deserialize(&mut self.de);
                 res
             }
         }
-        visitor.visit_map(Access { de: self })
+        let reader = self.reader.as_slice();
+        let cdr_deserializer = cdr::Deserializer::<_,_,E>::new(reader, cdr::Infinite);
+        visitor.visit_map(Access { de: cdr_deserializer })
     }
 
     fn deserialize_enum<V>(
@@ -263,11 +268,11 @@ where
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        Err(Error::TypeNotSupported)
+        visitor.visit_bytes(&self.reader)
     }
 
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -280,6 +285,12 @@ where
     fn is_human_readable(&self) -> bool {
         false
     }
+}
+
+#[derive(serde::Deserialize)]
+struct ParamHeader {
+    pid: u16,
+    length: i16,
 }
 
 #[derive(Debug, PartialEq)]
@@ -343,6 +354,7 @@ where
                 serde::Deserializer::deserialize_identifier(deserializer, FieldVisitor)
             }
         }
+
         struct Visitor<'de, const PID: u16, T>
         where
             T: serde::Deserialize<'de>,
@@ -363,26 +375,19 @@ where
             where
                 A: serde::de::MapAccess<'de>,
             {
-                let mut field_0: Option<T> = None;
-
-                while let Some(key) = map.next_key::<Field>()? {
-                    match key {
-                        Field::Field0 => {
-                            if field_0.is_some() {
-                                return Err(serde::de::Error::duplicate_field("value"));
-                            }
-                            field_0 = Some(map.next_value::<T>()?);
-                        }
-                        _ => {
-                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
-                        }
+                let mut value: Option<T> = None;
+                while let Some(pid) = map.next_key::<u16>()? {
+                    if pid == PID {
+                        value = Some(map.next_value::<T>()?);
+                    } else {
+                        let _ = map.next_value::<serde::de::IgnoredAny>()?;
                     }
                 }
-                let __field0 = match field_0 {
-                    Some(__field0) => __field0,
+                let value = match value {
+                    Some(value) => value,
                     None => serde::__private::de::missing_field("value")?,
                 };
-                Ok(Parameter { value: __field0 })
+                Ok(Parameter { value })
             }
         }
         const FIELDS: &'static [&'static str] = &["value"];
