@@ -497,7 +497,10 @@ where
     /// This operation allows access to the existing set of [`DataWriterQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_qos(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

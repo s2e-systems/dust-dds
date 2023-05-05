@@ -341,9 +341,13 @@ impl UserDefinedDataWriterNode {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
-        // Ok(self.0.get()?.get_qos())
-        todo!()
+    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<DataWriterQos> {
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos())
     }
 
     pub fn set_listener(

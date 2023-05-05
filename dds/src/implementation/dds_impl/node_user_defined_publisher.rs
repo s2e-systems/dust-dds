@@ -167,14 +167,25 @@ impl UserDefinedPublisherNode {
         // Ok(())
     }
 
-    pub fn set_default_datawriter_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        todo!()
-        // self.this.get()?.set_default_datawriter_qos(qos)
+    pub fn set_default_datawriter_qos(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        qos: QosKind<DataWriterQos>,
+    ) -> DdsResult<()> {
+        domain_participant
+            .get_publisher(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_default_datawriter_qos(qos)
     }
 
-    pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        todo!()
-        // Ok(self.this.get()?.get_default_datawriter_qos())
+    pub fn get_default_datawriter_qos(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<DataWriterQos> {
+        Ok(domain_participant
+            .get_publisher(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_default_datawriter_qos())
     }
 
     pub fn copy_from_topic_qos(

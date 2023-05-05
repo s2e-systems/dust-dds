@@ -185,7 +185,7 @@ impl Publisher {
     /// The special value [`QosKind::Default`] may be passed to this operation to indicate that the default qos should be
     /// reset back to the initial values the factory would use, that is the default value of [`DataWriterQos`].
     pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
-        self.0.set_default_datawriter_qos(qos)
+        self.call_participant_method(|dp| self.0.set_default_datawriter_qos(dp, qos))
     }
 
     /// This operation retrieves the default factory value of the [`DataWriterQos`], that is, the qos policies which will be used for newly created
@@ -193,7 +193,7 @@ impl Publisher {
     /// The values retrieved by this operation will match the set of values specified on the last successful call to
     /// [`Publisher::set_default_datawriter_qos`], or else, if the call was never made, the default values of [`DataWriterQos`].
     pub fn get_default_datawriter_qos(&self) -> DdsResult<DataWriterQos> {
-        self.0.get_default_datawriter_qos()
+        self.call_participant_method(|dp| self.0.get_default_datawriter_qos(dp))
     }
 
     /// This operation copies the policies in the `a_topic_qos` to the corresponding policies in the `a_datawriter_qos`.
