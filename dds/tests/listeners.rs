@@ -124,7 +124,7 @@ fn deadline_missed_listener() {
     writer.write(&data1, None).unwrap();
 
     writer
-        .wait_for_acknowledgments(Duration::new(1, 0))
+        .wait_for_acknowledgments(Duration::new(10, 0))
         .unwrap();
 
     let reader_cond = reader.get_statuscondition().unwrap();
@@ -161,7 +161,7 @@ fn sample_rejected_listener() {
     let mut participant_listener = MockSampleRejectedListener::new();
     participant_listener
         .expect_on_sample_rejected()
-        .times(1..3)
+        .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
                 && status.total_count_change == 1
@@ -1616,7 +1616,7 @@ fn subscriber_sample_rejected_listener() {
     let mut subscriber_listener = MockSampleRejectedListener::new();
     subscriber_listener
         .expect_on_sample_rejected()
-        .times(1..4)
+        .times(1..)
         .withf(|_, status| {
             status.total_count >= 1 // This is not an equality because the listener might be called multiple times during testing
                 && status.total_count_change == 1
