@@ -161,9 +161,15 @@ where
                 .dds_serialize(&mut serialized_key)?;
 
             match &self.0 {
-                DataWriterNodeKind::UserDefined(w) => {
-                    w.unregister_instance_w_timestamp(serialized_key, instance_handle, timestamp)
-                }
+                DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                    .get_participant_mut(&w.this().prefix(), |dp| {
+                        w.unregister_instance_w_timestamp(
+                            dp.ok_or(DdsError::AlreadyDeleted)?,
+                            serialized_key,
+                            instance_handle,
+                            timestamp,
+                        )
+                    }),
                 DataWriterNodeKind::Listener(_) => todo!(),
             }
         } else {

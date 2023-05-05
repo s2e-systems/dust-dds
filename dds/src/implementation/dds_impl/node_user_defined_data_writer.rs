@@ -55,14 +55,17 @@ impl UserDefinedDataWriterNode {
 
     pub fn unregister_instance_w_timestamp(
         &self,
-        _instance_serialized_key: Vec<u8>,
-        _handle: InstanceHandle,
-        _timestamp: Time,
+        domain_participant: &DdsDomainParticipant,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
+        timestamp: Time,
     ) -> DdsResult<()> {
-        // self.0
-        // .get()?
-        // .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
-        todo!()
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .unregister_instance_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
     pub fn get_key_value<Foo>(
