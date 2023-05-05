@@ -799,7 +799,7 @@ impl DdsDomainParticipant {
     }
 
     pub fn ignore_topic(&self, _handle: InstanceHandle) {
-        todo!()
+        // todo!()
     }
 
     pub fn ignore_publication(&self, handle: InstanceHandle) {

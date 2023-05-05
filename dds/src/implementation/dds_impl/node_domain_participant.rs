@@ -155,8 +155,12 @@ impl DomainParticipantNode {
         domain_participant: &DdsDomainParticipant,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
-        domain_participant.ignore_publication(handle);
-        Ok(())
+        if !domain_participant.is_enabled() {
+            Err(DdsError::NotEnabled)
+        } else {
+            domain_participant.ignore_publication(handle);
+            Ok(())
+        }
     }
 
     pub fn ignore_subscription(

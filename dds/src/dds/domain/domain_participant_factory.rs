@@ -243,7 +243,7 @@ impl DomainParticipantFactory {
         let guid = rtps_participant.guid();
         let sedp_condvar = DdsCondvar::new();
         let user_defined_data_send_condvar = DdsCondvar::new();
-        let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(1);
+        let (announce_sender, announce_receiver) = std::sync::mpsc::sync_channel(10);
         let timer = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
             .timer_factory
             .create_timer();
