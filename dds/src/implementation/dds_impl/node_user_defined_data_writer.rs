@@ -163,12 +163,22 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
-        // self.0
-        //     .get()?
-        //     .remove_communication_state(StatusKind::PublicationMatched);
-        // Ok(self.0.get()?.get_publication_matched_status())
-        todo!()
+    pub fn get_publication_matched_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<PublicationMatchedStatus> {
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .remove_communication_state(StatusKind::PublicationMatched);
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_publication_matched_status())
     }
 
     pub fn get_topic(&self) -> DdsResult<UserDefinedTopicNode> {
@@ -221,13 +231,26 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
-        // if !self.0.get()?.is_enabled() {
-        //     return Err(DdsError::NotEnabled);
-        // }
+    pub fn get_matched_subscriptions(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<Vec<InstanceHandle>> {
+        let is_parent_enabled = domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled();
+        if !is_parent_enabled {
+            return Err(DdsError::PreconditionNotMet(
+                "Parent publisher disabled".to_string(),
+            ));
+        }
 
-        // Ok(self.0.get()?.get_matched_subscriptions())
-        todo!()
+        Ok(domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_matched_subscriptions())
     }
 
     pub fn set_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {

@@ -376,7 +376,10 @@ where
     /// This operation allows access to the [`PublicationMatchedStatus`].
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_publication_matched_status(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -440,7 +443,10 @@ where
     /// [`SampleInfo::instance_handle`](crate::subscription::sample_info::SampleInfo) field when reading the “DCPSSubscriptions” builtin topic.
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.get_matched_subscriptions(),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
