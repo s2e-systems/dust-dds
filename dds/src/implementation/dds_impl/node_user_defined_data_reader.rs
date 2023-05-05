@@ -232,15 +232,10 @@ impl UserDefinedDataReaderNode {
                 .0
                 .get()?
                 .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
-            // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-            //     &self.0.parent().parent().prefix(),
-            //     |dcps| {
-            //         dcps.unwrap()
-            //             .announce_sender()
-            //             .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
-            //             .ok()
-            //     },
-            // );
+            domain_participant
+                .announce_sender()
+                .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+                .ok();
         }
 
         Ok(())
@@ -267,7 +262,7 @@ impl UserDefinedDataReaderNode {
         Ok(self.0.get()?.get_status_changes())
     }
 
-    pub fn enable(&self) -> DdsResult<()> {
+    pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
         if !self.0.parent().get()?.is_enabled() {
             return Err(DdsError::PreconditionNotMet(
                 "Parent subscriber disabled".to_string(),
@@ -277,34 +272,23 @@ impl UserDefinedDataReaderNode {
         self.0.get()?.enable()?;
 
         let data_reader = self.0.get()?;
-
-        // let topic = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(
-        //     &self.0.parent().parent().prefix(),
-        //     |dp| {
-        //         dp.unwrap()
-        //             .topic_list()
-        //             .into_iter()
-        //             .find(|t| {
-        //                 t.get_name() == data_reader.get_topic_name()
-        //                     && t.get_type_name() == data_reader.get_type_name()
-        //             })
-        //             .cloned()
-        //             .expect("Topic must exist")
-        //     },
-        // );
-        // let discovered_reader_data = self
-        //     .0
-        //     .get()?
-        //     .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-        //     &self.0.parent().parent().prefix(),
-        //     |dcps| {
-        //         dcps.unwrap()
-        //             .announce_sender()
-        //             .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
-        //             .ok()
-        //     },
-        // );
+        let topic = domain_participant
+            .topic_list()
+            .into_iter()
+            .find(|t| {
+                t.get_name() == data_reader.get_topic_name()
+                    && t.get_type_name() == data_reader.get_type_name()
+            })
+            .cloned()
+            .expect("Topic must exist");
+        let discovered_reader_data = self
+            .0
+            .get()?
+            .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        domain_participant
+            .announce_sender()
+            .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
+            .ok();
 
         Ok(())
     }

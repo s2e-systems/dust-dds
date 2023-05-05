@@ -698,7 +698,10 @@ impl<Foo> DataReader<Foo> {
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => r.enable(),
+            DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&r.guid()?.prefix(), |dp| {
+                    r.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

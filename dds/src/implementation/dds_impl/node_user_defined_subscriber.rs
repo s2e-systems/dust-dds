@@ -44,7 +44,7 @@ impl UserDefinedSubscriberNode {
 
     pub fn create_datareader<Foo>(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
@@ -113,7 +113,7 @@ impl UserDefinedSubscriberNode {
                 .entity_factory
                 .autoenable_created_entities
         {
-            node.enable()?;
+            node.enable(domain_participant)?;
         }
 
         Ok(node)
