@@ -1,11 +1,10 @@
 //! Deserializing CDR into Rust data types.
 
-use std::{self, io::Read, marker::PhantomData};
+use std::{self, marker::PhantomData};
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
-use serde::de::{self, IntoDeserializer};
+use byteorder::ByteOrder;
+use serde::de::{self};
 
-use cdr::size::{Infinite, SizeLimit};
 use cdr::{Error, Result};
 
 /// A deserializer that reads bytes from a buffer.
@@ -172,7 +171,7 @@ where
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
@@ -215,7 +214,7 @@ where
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
-        fields: &'static [&'static str],
+        _fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
     where
@@ -288,160 +287,116 @@ struct Parameter<const PID: u16, T> {
     value: T,
 }
 
-#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
-const _: () = {
-    #[allow(unused_extern_crates, clippy::useless_attribute)]
-    extern crate serde as _serde;
-    #[allow(unused_macros)]
-    macro_rules! r#try {
-    ($__expr:expr) => {
-      match$__expr {
-        _serde::__private::Ok(__val) => __val,_serde::__private::Err(__err) => {
-          return _serde::__private::Err(__err);
-        }
-      }
-    }
-  }
-    #[automatically_derived]
-    impl<'de, const PID: u16, T> _serde::Deserialize<'de> for Parameter<PID, T>
+impl<'de, const PID: u16, T> serde::Deserialize<'de> for Parameter<PID, T>
+where
+    T: serde::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
-        T: _serde::Deserialize<'de>,
+        D: serde::Deserializer<'de>,
     {
-        fn deserialize<__D>(__deserializer: __D) -> _serde::__private::Result<Self, __D::Error>
-        where
-            __D: _serde::Deserializer<'de>,
-        {
-            #[allow(non_camel_case_types)]
-            enum Field {
-                __field0,
-                __ignore,
-            }
-            struct __FieldVisitor;
-
-            impl<'de> _serde::de::Visitor<'de> for __FieldVisitor {
-                type Value = Field;
-                fn expecting(
-                    &self,
-                    __formatter: &mut _serde::__private::Formatter,
-                ) -> _serde::__private::fmt::Result {
-                    _serde::__private::Formatter::write_str(__formatter, "field identifier")
-                }
-                fn visit_u64<__E>(self, __value: u64) -> _serde::__private::Result<Self::Value, __E>
-                where
-                    __E: _serde::de::Error,
-                {
-                    match __value {
-                        0u64 => _serde::__private::Ok(Field::__field0),
-                        _ => _serde::__private::Ok(Field::__ignore),
-                    }
-                }
-                fn visit_str<__E>(
-                    self,
-                    __value: &str,
-                ) -> _serde::__private::Result<Self::Value, __E>
-                where
-                    __E: _serde::de::Error,
-                {
-                    match __value {
-                        "value" => _serde::__private::Ok(Field::__field0),
-                        _ => _serde::__private::Ok(Field::__ignore),
-                    }
-                }
-                fn visit_bytes<__E>(
-                    self,
-                    __value: &[u8],
-                ) -> _serde::__private::Result<Self::Value, __E>
-                where
-                    __E: _serde::de::Error,
-                {
-                    match __value {
-                        b"value" => _serde::__private::Ok(Field::__field0),
-                        _ => _serde::__private::Ok(Field::__ignore),
-                    }
-                }
-            }
-
-
-            impl<'de> _serde::Deserialize<'de> for Field {
-                #[inline]
-                fn deserialize<__D>(
-                    __deserializer: __D,
-                ) -> _serde::__private::Result<Self, __D::Error>
-                where
-                    __D: _serde::Deserializer<'de>,
-                {
-                    _serde::Deserializer::deserialize_identifier(__deserializer, __FieldVisitor)
-                }
-            }
-            struct Visitor<'de, const PID: u16, T>
-            where
-                T: serde::Deserialize<'de>,
-            {
-                marker: _serde::__private::PhantomData<Parameter<PID, T>>,
-                lifetime: _serde::__private::PhantomData<&'de ()>,
-            }
-            impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
-            where
-                T: serde::Deserialize<'de>,
-            {
-                type Value = Parameter<PID, T>;
-                fn expecting(
-                    &self,
-                    formatter: &mut _serde::__private::Formatter,
-                ) -> _serde::__private::fmt::Result {
-                    _serde::__private::Formatter::write_str(formatter, "struct Parameter")
-                }
-
-                fn visit_map<A>(
-                    self,
-                    mut map: A,
-                ) -> _serde::__private::Result<Self::Value, A::Error>
-                where
-                    A: _serde::de::MapAccess<'de>,
-                {
-                    let mut __field0: Option<T> = None;
-
-                    while let Some(key) = map.next_key::<Field>()? {
-                        match key {
-                            Field::__field0 => {
-                                if _serde::__private::Option::is_some(&__field0) {
-                                    return _serde::__private::Err(
-                                        <A::Error as _serde::de::Error>::duplicate_field("value"),
-                                    );
-                                }
-                                __field0 = _serde::__private::Some(r#try!(
-                                    _serde::de::MapAccess::next_value::<T>(&mut map)
-                                ));
-                            }
-                            _ => {
-                                let _ = r#try!(_serde::de::MapAccess::next_value::<
-                                    _serde::de::IgnoredAny,
-                                >(&mut map));
-                            }
-                        }
-                    }
-                    let __field0 = match __field0 {
-                        _serde::__private::Some(__field0) => __field0,
-                        _serde::__private::None => {
-                            r#try!(_serde::__private::de::missing_field("value"))
-                        }
-                    };
-                    _serde::__private::Ok(Parameter { value: __field0 })
-                }
-            }
-            const FIELDS: &'static [&'static str] = &["value"];
-            _serde::Deserializer::deserialize_struct(
-                __deserializer,
-                "Parameter",
-                FIELDS,
-                Visitor {
-                    marker: _serde::__private::PhantomData::<Parameter<PID, T>>,
-                    lifetime: _serde::__private::PhantomData,
-                },
-            )
+        enum Field {
+            Field0,
+            Ignore,
         }
+        struct FieldVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for FieldVisitor {
+            type Value = Field;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("field identifier")
+            }
+            fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    0u64 => Ok(Field::Field0),
+                    _ => Ok(Field::Ignore),
+                }
+            }
+            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "value" => Ok(Field::Field0),
+                    _ => Ok(Field::Ignore),
+                }
+            }
+            fn visit_bytes<E>(self, value: &[u8]) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    b"value" => Ok(Field::Field0),
+                    _ => Ok(Field::Ignore),
+                }
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for Field {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                serde::Deserializer::deserialize_identifier(deserializer, FieldVisitor)
+            }
+        }
+        struct Visitor<'de, const PID: u16, T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            marker: PhantomData<Parameter<PID, T>>,
+            lifetime: PhantomData<&'de ()>,
+        }
+        impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
+        where
+            T: serde::Deserialize<'de>,
+        {
+            type Value = Parameter<PID, T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("struct Parameter")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut field_0: Option<T> = None;
+
+                while let Some(key) = map.next_key::<Field>()? {
+                    match key {
+                        Field::Field0 => {
+                            if field_0.is_some() {
+                                return Err(serde::de::Error::duplicate_field("value"));
+                            }
+                            field_0 = Some(map.next_value::<T>()?);
+                        }
+                        _ => {
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+                let __field0 = match field_0 {
+                    Some(__field0) => __field0,
+                    None => serde::__private::de::missing_field("value")?,
+                };
+                Ok(Parameter { value: __field0 })
+            }
+        }
+        const FIELDS: &'static [&'static str] = &["value"];
+        serde::Deserializer::deserialize_struct(
+            deserializer,
+            "Parameter",
+            FIELDS,
+            Visitor {
+                marker: PhantomData::<Parameter<PID, T>>,
+                lifetime: PhantomData,
+            },
+        )
     }
-};
+}
 
 #[cfg(test)]
 mod tests {
@@ -465,7 +420,10 @@ mod tests {
         //     72, 0x00, 4, 0, // n | Length (incl padding)
         //     34, 0, 0, 0, // u8
         // ][..];
-        let data = vec![71];
+        let data = vec![
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
+        ];
         let expected = Parameter::<71, _> { value: 21u8 };
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
         let result: Parameter<71, u8> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
