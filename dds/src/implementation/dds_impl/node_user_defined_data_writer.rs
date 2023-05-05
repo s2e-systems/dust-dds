@@ -79,10 +79,15 @@ impl UserDefinedDataWriterNode {
 
     pub fn lookup_instance(
         &self,
-        _instance_serialized_key: DdsSerializedKey,
+        domain_participant: &DdsDomainParticipant,
+        instance_serialized_key: DdsSerializedKey,
     ) -> DdsResult<Option<InstanceHandle>> {
-        // self.0.get()?.lookup_instance(instance_serialized_key)
-        todo!()
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .lookup_instance(instance_serialized_key)
     }
 
     pub fn write_w_timestamp(
@@ -118,14 +123,17 @@ impl UserDefinedDataWriterNode {
 
     pub fn dispose_w_timestamp(
         &self,
-        _instance_serialized_key: Vec<u8>,
-        _handle: InstanceHandle,
-        _timestamp: Time,
+        domain_participant: &DdsDomainParticipant,
+        instance_serialized_key: Vec<u8>,
+        handle: InstanceHandle,
+        timestamp: Time,
     ) -> DdsResult<()> {
-        // self.0
-        //     .get()?
-        //     .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
-        todo!()
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .dispose_w_timestamp(instance_serialized_key, handle, timestamp)
     }
 
     pub fn are_all_changes_acknowledge(

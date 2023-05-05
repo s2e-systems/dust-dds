@@ -189,7 +189,13 @@ where
     /// reason the Service is unable to provide an [`InstanceHandle`], the operation will return [`None`].
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.lookup_instance(instance.get_serialized_key()),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.lookup_instance(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        instance.get_serialized_key(),
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -324,9 +330,15 @@ where
             .dds_serialize(&mut serialized_key)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                w.dispose_w_timestamp(serialized_key, instance_handle, timestamp)
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.dispose_w_timestamp(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        serialized_key,
+                        instance_handle,
+                        timestamp,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
