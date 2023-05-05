@@ -525,16 +525,18 @@ impl DdsDomainParticipant {
         Ok(guid)
     }
 
-    pub fn delete_publisher(&mut self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_publisher(&mut self, publisher_guid: Guid) -> DdsResult<()> {
+        if self.rtps_participant.guid().prefix() != publisher_guid.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
         if self
             .user_defined_publisher_list()
             .iter()
-            .find(|x| InstanceHandle::from(x.guid()) == a_publisher_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Publisher can only be deleted from its parent participant".to_string(),
-                )
-            })?
+            .find(|x| x.guid() == publisher_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_writer_list()
             .iter()
             .count()
@@ -546,7 +548,7 @@ impl DdsDomainParticipant {
         }
 
         self.user_defined_publisher_list
-            .retain(|x| InstanceHandle::from(x.guid()) != a_publisher_handle);
+            .retain(|x| x.guid() != publisher_guid);
 
         Ok(())
     }

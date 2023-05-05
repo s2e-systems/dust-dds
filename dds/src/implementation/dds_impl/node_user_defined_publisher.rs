@@ -190,9 +190,13 @@ impl UserDefinedPublisherNode {
         // self.this.get()?.set_qos(qos)
     }
 
-    pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        todo!()
-        // Ok(self.this.get()?.get_qos())
+    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<PublisherQos> {
+        Ok(domain_participant
+            .user_defined_publisher_list()
+            .iter()
+            .find(|p| p.guid() == self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos())
     }
 
     pub fn set_listener(
@@ -268,12 +272,15 @@ impl UserDefinedPublisherNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        todo!()
-        // Ok(InstanceHandle::from(self.this.get()?.guid()))
+        Ok(InstanceHandle::from(self.this))
     }
 
     pub fn parent(&self) -> Guid {
         self.parent
+    }
+
+    pub fn this(&self) -> Guid {
+        self.this
     }
 }
 

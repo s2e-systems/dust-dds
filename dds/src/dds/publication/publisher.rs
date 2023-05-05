@@ -28,7 +28,7 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
 #[derive(PartialEq, Debug)]
-pub struct Publisher(UserDefinedPublisherNode);
+pub struct Publisher(pub(crate) UserDefinedPublisherNode);
 
 impl Publisher {
     pub(crate) fn new(publisher: UserDefinedPublisherNode) -> Self {
@@ -231,7 +231,7 @@ impl Publisher {
 
     /// This operation allows access to the existing set of [`PublisherQos`] policies.
     pub fn get_qos(&self) -> DdsResult<PublisherQos> {
-        self.0.get_qos()
+        self.call_participant_method(|dp| self.0.get_qos(dp))
     }
 
     /// This operation installs a Listener on the Entity. The listener will only be invoked on the changes of communication status
@@ -292,6 +292,15 @@ impl Publisher {
     /// This operation returns the [`InstanceHandle`] that represents the Entity.
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
         self.0.get_instance_handle()
+    }
+
+    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
+    where
+        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
+    {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
+            f(dp.ok_or(DdsError::AlreadyDeleted)?)
+        })
     }
 
     fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>

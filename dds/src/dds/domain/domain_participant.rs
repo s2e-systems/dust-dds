@@ -81,8 +81,7 @@ impl DomainParticipant {
     /// a PreconditionNotMet error.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            self.0
-                .delete_publisher(dp, a_publisher.get_instance_handle()?)?;
+            self.0.delete_publisher(dp, a_publisher.0.this())?;
             Ok(())
         })
     }

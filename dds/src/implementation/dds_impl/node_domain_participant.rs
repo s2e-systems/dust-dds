@@ -48,9 +48,9 @@ impl DomainParticipantNode {
     pub fn delete_publisher(
         &self,
         domain_participant: &mut DdsDomainParticipant,
-        publisher_handle: InstanceHandle,
+        publisher_guid: Guid,
     ) -> DdsResult<()> {
-        domain_participant.delete_publisher(publisher_handle)
+        domain_participant.delete_publisher(publisher_guid)
     }
 
     pub fn create_subscriber(
