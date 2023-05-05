@@ -76,7 +76,7 @@ impl UserDefinedPublisherNode {
             .find(|p| p.guid() == self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| InstanceHandle::from(x.guid()) == data_writer_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
