@@ -27,7 +27,7 @@ use super::{data_writer_listener::DataWriterListener, publisher_listener::Publis
 /// data associated with one of its [`DataWriter`] objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the [`Publisher`] and the [`DataWriter`].
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Publisher(pub(crate) UserDefinedPublisherNode);
 
 impl Publisher {
