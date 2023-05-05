@@ -249,12 +249,16 @@ where
         data.dds_serialize(&mut serialized_data)?;
 
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.write_w_timestamp(
-                serialized_data,
-                data.get_serialized_key(),
-                handle,
-                timestamp,
-            ),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    w.write_w_timestamp(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        serialized_data,
+                        data.get_serialized_key(),
+                        handle,
+                        timestamp,
+                    )
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
@@ -337,7 +341,10 @@ where
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => w.wait_for_acknowledgments(max_wait),
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&w.this().prefix(), |dp| {
+                    w.wait_for_acknowledgments(dp.ok_or(DdsError::AlreadyDeleted)?, max_wait)
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

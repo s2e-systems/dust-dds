@@ -1261,6 +1261,10 @@ impl DdsDomainParticipant {
     pub fn announce_sender(&self) -> &SyncSender<AnnounceKind> {
         &self.announce_sender
     }
+
+    pub fn user_defined_data_send_condvar(&self) -> &DdsCondvar {
+        &self.user_defined_data_send_condvar
+    }
 }
 
 fn add_matched_reader(

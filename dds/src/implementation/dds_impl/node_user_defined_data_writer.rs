@@ -83,28 +83,33 @@ impl UserDefinedDataWriterNode {
 
     pub fn write_w_timestamp(
         &self,
+        domain_participant: &DdsDomainParticipant,
         serialized_data: Vec<u8>,
         instance_serialized_key: DdsSerializedKey,
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> DdsResult<()> {
-        todo!()
-        // if !self.0.get()?.is_enabled() {
-        //     return Err(DdsError::NotEnabled);
-        // }
+        let is_parent_enabled = domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled();
 
-        // self.0.get()?.write_w_timestamp(
-        //     serialized_data,
-        //     instance_serialized_key,
-        //     handle,
-        //     timestamp,
-        // )?;
+        if !is_parent_enabled {
+            return Err(DdsError::NotEnabled);
+        }
 
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(&self.0.parent().prefix(), |dcps| {
-        //     dcps.unwrap().user_defined_data_send_condvar().notify_all()
-        // });
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .write_w_timestamp(serialized_data, instance_serialized_key, handle, timestamp)?;
 
-        // Ok(())
+        domain_participant
+            .user_defined_data_send_condvar()
+            .notify_all();
+
+        Ok(())
     }
 
     pub fn dispose_w_timestamp(
@@ -119,9 +124,26 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        // self.0.get()?.wait_for_acknowledgments(max_wait)
-        todo!()
+    pub fn wait_for_acknowledgments(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        max_wait: Duration,
+    ) -> DdsResult<()> {
+        let is_parent_enabled = domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled();
+
+        if !is_parent_enabled {
+            return Err(DdsError::NotEnabled);
+        }
+
+        domain_participant
+            .get_publisher(self.parent_publisher)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_data_writer(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .wait_for_acknowledgments(max_wait)
     }
 
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {
@@ -169,8 +191,7 @@ impl UserDefinedDataWriterNode {
     }
 
     pub fn get_publisher(&self) -> UserDefinedPublisherNode {
-        // UserDefinedPublisherNode::new(self.parent_publisher, self.parent_participant)
-        todo!()
+        UserDefinedPublisherNode::new(self.parent_publisher, self.parent_participant)
     }
 
     pub fn assert_liveliness(&self) -> DdsResult<()> {
