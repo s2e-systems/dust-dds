@@ -15,7 +15,7 @@ use crate::{
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusKind,
         },
-        time::{Duration, Time},
+        time::Time,
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
@@ -128,11 +128,10 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn wait_for_acknowledgments(
+    pub fn are_all_changes_acknowledge(
         &self,
         domain_participant: &DdsDomainParticipant,
-        max_wait: Duration,
-    ) -> DdsResult<()> {
+    ) -> DdsResult<bool> {
         let is_parent_enabled = domain_participant
             .get_publisher(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
@@ -142,12 +141,22 @@ impl UserDefinedDataWriterNode {
             return Err(DdsError::NotEnabled);
         }
 
-        domain_participant
+        if domain_participant
             .get_publisher(self.parent_publisher)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_data_writer(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
-            .wait_for_acknowledgments(max_wait)
+            .is_enabled()
+        {
+            Ok(domain_participant
+                .get_publisher(self.parent_publisher)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_data_writer(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .are_all_changes_acknowledge())
+        } else {
+            Err(DdsError::NotEnabled)
+        }
     }
 
     pub fn get_liveliness_lost_status(&self) -> DdsResult<LivelinessLostStatus> {

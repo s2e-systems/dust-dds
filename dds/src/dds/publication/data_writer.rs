@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, time::Instant};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -341,10 +341,21 @@ where
     /// Otherwise the operation will return immediately with [`Ok`].
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&w.this().prefix(), |dp| {
-                    w.wait_for_acknowledgments(dp.ok_or(DdsError::AlreadyDeleted)?, max_wait)
-                }),
+            DataWriterNodeKind::UserDefined(w) => {
+                let start_time = Instant::now();
+
+                while start_time.elapsed() < std::time::Duration::from(max_wait) {
+                    if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&w.this().prefix(), |dp| {
+                            w.are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        })?
+                    {
+                        return Ok(());
+                    }
+                }
+
+                Err(DdsError::Timeout)
+            }
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }

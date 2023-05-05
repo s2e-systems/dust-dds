@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    time::Instant,
-};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     builtin_topics::{BuiltInTopicKey, PublicationBuiltinTopicData},
@@ -20,10 +17,7 @@ use crate::{
                 ChangeKind, EntityId, EntityKey, Guid, Locator, GUID_UNKNOWN, USER_DEFINED_UNKNOWN,
             },
         },
-        utils::{
-            condvar::DdsCondvar,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         instance::{InstanceHandle, HANDLE_NIL},
@@ -196,7 +190,6 @@ pub struct DdsDataWriter<T> {
     enabled: DdsRwLock<bool>,
     status_listener: DdsRwLock<StatusListener<dyn AnyDataWriterListener + Send + Sync>>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
-    acked_by_all_condvar: DdsCondvar,
 }
 
 impl<T> DdsDataWriter<T> {
@@ -216,7 +209,6 @@ impl<T> DdsDataWriter<T> {
             enabled: DdsRwLock::new(false),
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
-            acked_by_all_condvar: DdsCondvar::new(),
         })
     }
 
@@ -467,7 +459,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     acknack_submessage,
                     message_receiver.source_guid_prefix(),
                 );
-            self.acked_by_all_condvar.notify_all();
         }
     }
 
@@ -485,7 +476,6 @@ impl DdsDataWriter<RtpsStatefulWriter> {
                     nackfrag_submessage,
                     message_receiver.source_guid_prefix(),
                 );
-            self.acked_by_all_condvar.notify_all();
         }
     }
 
@@ -582,39 +572,14 @@ impl DdsDataWriter<RtpsStatefulWriter> {
         )
     }
 
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> DdsResult<()> {
-        if !*self.enabled.read_lock() {
-            return Err(DdsError::NotEnabled);
-        }
+    pub fn are_all_changes_acknowledge(&self) -> bool {
+        let rtps_writer_lock = self.rtps_writer.write_lock();
+        let changes = rtps_writer_lock.change_list();
 
-        let start_time = Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            {
-                // This is done in an inner scope such that the lock can be dropped and new acknowledgements
-                // can be processed when received
-                let rtps_writer_lock = self.rtps_writer.write_lock();
-                let changes = rtps_writer_lock.change_list();
-
-                if changes
-                    .iter()
-                    .map(|c| rtps_writer_lock.is_acked_by_all(c))
-                    .all(|r| r)
-                {
-                    return Ok(());
-                }
-            }
-
-            let elapsed = Duration::from(start_time.elapsed());
-            if elapsed >= max_wait {
-                return Err(DdsError::Timeout);
-            }
-            let duration_until_timeout = max_wait - elapsed;
-            self.acked_by_all_condvar
-                .wait_timeout(duration_until_timeout)
-                .ok();
-        }
-        Err(DdsError::Timeout)
+        changes
+            .iter()
+            .map(|c| rtps_writer_lock.is_acked_by_all(c))
+            .all(|r| r)
     }
 
     pub fn as_discovered_writer_data(

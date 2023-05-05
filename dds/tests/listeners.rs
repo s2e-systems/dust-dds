@@ -1474,7 +1474,6 @@ fn subscriber_deadline_missed_listener() {
 
         impl SubscriberListener for DeadlineMissedListener {
 
-
             fn on_requested_deadline_missed(
                 &mut self,
                 _the_reader: &dyn AnyDataReader,
