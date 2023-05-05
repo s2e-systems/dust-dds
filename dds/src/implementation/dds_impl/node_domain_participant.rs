@@ -115,7 +115,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<Option<UserDefinedTopicNode>> {
         Ok(domain_participant
             .topic_list()
-            .into_iter()
+            .iter()
             .find(|topic| topic.get_name() == topic_name && topic.get_type_name() == type_name)
             .map(|x| UserDefinedTopicNode::new(ChildNode::new(x.downgrade(), self.0))))
     }

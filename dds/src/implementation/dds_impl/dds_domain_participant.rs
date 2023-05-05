@@ -528,7 +528,7 @@ impl DdsDomainParticipant {
     pub fn delete_publisher(&mut self, a_publisher_handle: InstanceHandle) -> DdsResult<()> {
         if self
             .user_defined_publisher_list()
-            .into_iter()
+            .iter()
             .find(|x| InstanceHandle::from(x.guid()) == a_publisher_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
@@ -536,7 +536,7 @@ impl DdsDomainParticipant {
                 )
             })?
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .count()
             > 0
         {
@@ -692,7 +692,7 @@ impl DdsDomainParticipant {
             .clone();
 
         for publisher in self.user_defined_publisher_list() {
-            if publisher.stateful_data_writer_list().into_iter().any(|w| {
+            if publisher.stateful_data_writer_list().iter().any(|w| {
                 w.get_type_name() == topic.get_type_name() && w.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -830,10 +830,7 @@ impl DdsDomainParticipant {
 
     pub fn delete_contained_entities(&mut self) -> DdsResult<()> {
         for mut user_defined_publisher in self.user_defined_publisher_list.drain(..) {
-            for data_writer in user_defined_publisher
-                .stateful_datawriter_drain()
-                .into_iter()
-            {
+            for data_writer in user_defined_publisher.stateful_datawriter_drain() {
                 if data_writer.is_enabled() {
                     self.announce_sender
                         .send(AnnounceKind::DeletedDataWriter(data_writer.guid().into()))
@@ -961,10 +958,7 @@ impl DdsDomainParticipant {
                 builtin_stateless_writer.enable();
             }
 
-            for builtin_stateful_writer in self
-                .builtin_publisher
-                .stateful_data_writer_list()
-                .into_iter()
+            for builtin_stateful_writer in self.builtin_publisher.stateful_data_writer_list().iter()
             {
                 builtin_stateful_writer.enable()
             }

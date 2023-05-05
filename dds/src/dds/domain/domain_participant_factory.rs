@@ -302,9 +302,9 @@ impl DomainParticipantFactory {
             &participant.0 .0.prefix(),
             |dp| {
                 let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                Ok(dp.user_defined_publisher_list().into_iter().count() == 0
+                Ok(dp.user_defined_publisher_list().iter().count() == 0
                     && dp.user_defined_subscriber_list().into_iter().count() == 0
-                    && dp.topic_list().into_iter().count() == 0)
+                    && dp.topic_list().iter().count() == 0)
             },
         )?;
 
@@ -399,6 +399,12 @@ pub struct DdsDomainParticipantFactory {
     timer_factory: TimerFactory,
 }
 
+impl Default for DdsDomainParticipantFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
@@ -449,7 +455,7 @@ impl DdsDomainParticipantFactory {
         f(self
             .domain_participant_list
             .read_lock()
-            .get(&guid_prefix)
+            .get(guid_prefix)
             .map(|o| &o.0))
     }
 
@@ -460,7 +466,7 @@ impl DdsDomainParticipantFactory {
         f(self
             .domain_participant_list
             .write_lock()
-            .get_mut(&guid_prefix)
+            .get_mut(guid_prefix)
             .map(|o| &mut o.0))
     }
 }

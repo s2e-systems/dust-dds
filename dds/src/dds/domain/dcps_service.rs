@@ -359,7 +359,7 @@ fn announce_created_data_reader(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -400,7 +400,7 @@ fn announce_created_data_writer(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -426,7 +426,7 @@ fn announce_created_topic(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
         .unwrap()
         .write_w_timestamp(
@@ -453,7 +453,7 @@ fn announce_deleted_reader(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, reader_handle, timestamp)
@@ -475,7 +475,7 @@ fn announce_deleted_writer(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .dispose_w_timestamp(instance_serialized_key, writer_handle, timestamp)
@@ -1015,7 +1015,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1035,7 +1035,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1055,7 +1055,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_publisher()
                 .stateful_data_writer_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
@@ -1292,7 +1292,7 @@ fn receive_builtin_message(
     MessageReceiver::new(domain_participant.get_current_time())
         .process_message(
             domain_participant.guid().prefix(),
-            core::slice::from_ref(&domain_participant.get_builtin_publisher()),
+            core::slice::from_ref(domain_participant.get_builtin_publisher()),
             core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
             locator,
             &message,
@@ -1333,7 +1333,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
             .unwrap(),
         header,
@@ -1344,7 +1344,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredReaderData::type_name())
             .unwrap(),
         header,
@@ -1355,7 +1355,7 @@ fn send_user_defined_message(
         domain_participant
             .get_builtin_publisher()
             .stateful_data_writer_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == DiscoveredTopicData::type_name())
             .unwrap(),
         header,

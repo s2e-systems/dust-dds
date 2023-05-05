@@ -118,7 +118,7 @@ impl MessageReceiver {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
                         for stateful_data_writer in
-                            publisher.stateful_data_writer_list().into_iter()
+                            publisher.stateful_data_writer_list().iter()
                         {
                             stateful_data_writer
                                 .on_acknack_submessage_received(acknack_submessage, self);
@@ -177,7 +177,7 @@ impl MessageReceiver {
                 RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list {
                         for stateful_data_writer in
-                            publisher.stateful_data_writer_list().into_iter()
+                            publisher.stateful_data_writer_list().iter()
                         {
                             stateful_data_writer
                                 .on_nack_frag_submessage_received(nack_frag_submessage, self);

@@ -402,7 +402,7 @@ fn announce_created_data_writer(
     domain_participant
         .get_builtin_publisher()
         .stateful_data_writer_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_type_name() == DiscoveredWriterData::type_name())
         .unwrap()
         .write_w_timestamp(

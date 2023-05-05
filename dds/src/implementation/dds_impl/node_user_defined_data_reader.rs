@@ -175,7 +175,7 @@ impl UserDefinedDataReaderNode {
         let data_reader = self.0.get()?;
         let topic = domain_participant
             .topic_list()
-            .into_iter()
+            .iter()
             .find(|t| {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
@@ -221,7 +221,7 @@ impl UserDefinedDataReaderNode {
         if self.0.get()?.is_enabled() {
             let topic = domain_participant
                 .topic_list()
-                .into_iter()
+                .iter()
                 .find(|t| {
                     t.get_name() == data_reader.get_topic_name()
                         && t.get_type_name() == data_reader.get_type_name()
@@ -274,7 +274,7 @@ impl UserDefinedDataReaderNode {
         let data_reader = self.0.get()?;
         let topic = domain_participant
             .topic_list()
-            .into_iter()
+            .iter()
             .find(|t| {
                 t.get_name() == data_reader.get_topic_name()
                     && t.get_type_name() == data_reader.get_type_name()
