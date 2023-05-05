@@ -31,7 +31,7 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct UserDefinedPublisherNode {
     this: Guid,
     parent: Guid,

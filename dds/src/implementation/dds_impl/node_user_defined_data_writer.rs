@@ -26,7 +26,7 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct UserDefinedDataWriterNode {
     this: Guid,
     parent_publisher: Guid,
