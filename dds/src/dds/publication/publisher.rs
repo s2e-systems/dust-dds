@@ -292,15 +292,6 @@ impl Publisher {
         self.0.get_instance_handle()
     }
 
-    fn call_participant_method<F, O>(&self, f: F) -> DdsResult<O>
-    where
-        F: FnOnce(&DdsDomainParticipant) -> DdsResult<O>,
-    {
-        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&self.0.parent().prefix(), |dp| {
-            f(dp.ok_or(DdsError::AlreadyDeleted)?)
-        })
-    }
-
     fn call_participant_mut_method<F, O>(&self, f: F) -> DdsResult<O>
     where
         F: FnOnce(&mut DdsDomainParticipant) -> DdsResult<O>,

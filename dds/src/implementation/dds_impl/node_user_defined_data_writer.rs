@@ -44,8 +44,8 @@ impl UserDefinedDataWriterNode {
 
     pub fn register_instance_w_timestamp(
         &self,
-        instance_serialized_key: DdsSerializedKey,
-        timestamp: Time,
+        _instance_serialized_key: DdsSerializedKey,
+        _timestamp: Time,
     ) -> DdsResult<Option<InstanceHandle>> {
         // self.0
         //     .get()?
@@ -55,9 +55,9 @@ impl UserDefinedDataWriterNode {
 
     pub fn unregister_instance_w_timestamp(
         &self,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
+        _instance_serialized_key: Vec<u8>,
+        _handle: InstanceHandle,
+        _timestamp: Time,
     ) -> DdsResult<()> {
         // self.0
         // .get()?
@@ -65,7 +65,11 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn get_key_value<Foo>(&self, key_holder: &mut Foo, handle: InstanceHandle) -> DdsResult<()>
+    pub fn get_key_value<Foo>(
+        &self,
+        _key_holder: &mut Foo,
+        _handle: InstanceHandle,
+    ) -> DdsResult<()>
     where
         Foo: DdsType,
     {
@@ -75,7 +79,7 @@ impl UserDefinedDataWriterNode {
 
     pub fn lookup_instance(
         &self,
-        instance_serialized_key: DdsSerializedKey,
+        _instance_serialized_key: DdsSerializedKey,
     ) -> DdsResult<Option<InstanceHandle>> {
         // self.0.get()?.lookup_instance(instance_serialized_key)
         todo!()
@@ -114,9 +118,9 @@ impl UserDefinedDataWriterNode {
 
     pub fn dispose_w_timestamp(
         &self,
-        instance_serialized_key: Vec<u8>,
-        handle: InstanceHandle,
-        timestamp: Time,
+        _instance_serialized_key: Vec<u8>,
+        _handle: InstanceHandle,
+        _timestamp: Time,
     ) -> DdsResult<()> {
         // self.0
         //     .get()?
@@ -204,7 +208,7 @@ impl UserDefinedDataWriterNode {
 
     pub fn get_matched_subscription_data(
         &self,
-        subscription_handle: InstanceHandle,
+        _subscription_handle: InstanceHandle,
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         // if !self.0.get()?.is_enabled() {
         //     return Err(DdsError::NotEnabled);
@@ -226,7 +230,7 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         // let data_writer = self.0.get()?;
 
         // let qos = match qos {
@@ -281,8 +285,8 @@ impl UserDefinedDataWriterNode {
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         // self.0.get()?.set_listener(a_listener, mask);
         // Ok(())

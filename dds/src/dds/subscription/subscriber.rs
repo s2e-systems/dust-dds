@@ -99,9 +99,13 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => {
-                s.delete_datareader(a_datareader.get_instance_handle()?)
-            }
+            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&s.guid()?.prefix(), |dp| {
+                    s.delete_datareader(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        a_datareader.get_instance_handle()?,
+                    )
+                }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
@@ -165,7 +169,10 @@ impl Subscriber {
     pub fn delete_contained_entities(&self) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => s.delete_contained_entities(),
+            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&s.guid()?.prefix(), |dp| {
+                    s.delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }

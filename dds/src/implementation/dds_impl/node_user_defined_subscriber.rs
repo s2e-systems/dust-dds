@@ -24,10 +24,13 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, dds_data_reader::DdsDataReader,
-    dds_domain_participant::DdsDomainParticipant, dds_subscriber::DdsSubscriber,
+    any_data_reader_listener::AnyDataReaderListener,
+    dds_data_reader::DdsDataReader,
+    dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
+    dds_subscriber::DdsSubscriber,
     node_domain_participant::DomainParticipantNode,
-    node_user_defined_data_reader::UserDefinedDataReaderNode, status_listener::StatusListener,
+    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_listener::StatusListener,
 };
 
 #[derive(PartialEq, Debug)]
@@ -119,7 +122,11 @@ impl UserDefinedSubscriberNode {
         Ok(node)
     }
 
-    pub fn delete_datareader(&self, a_datareader_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_datareader(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        a_datareader_handle: InstanceHandle,
+    ) -> DdsResult<()> {
         let data_reader = self
             .0
             .get()?
@@ -137,19 +144,14 @@ impl UserDefinedSubscriberNode {
             .get()?
             .stateful_data_reader_delete(a_datareader_handle);
 
-        // if data_reader.is_enabled() {
-        //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-        //         &self.0.parent().prefix(),
-        //         |dcps| {
-        //             dcps.unwrap()
-        //                 .announce_sender()
-        //                 .send(AnnounceKind::DeletedDataReader(
-        //                     data_reader.get_instance_handle(),
-        //                 ))
-        //                 .ok()
-        //         },
-        //     );
-        // }
+        if data_reader.is_enabled() {
+            domain_participant
+                .announce_sender()
+                .send(AnnounceKind::DeletedDataReader(
+                    data_reader.get_instance_handle(),
+                ))
+                .ok();
+        }
 
         Ok(())
     }
@@ -188,21 +190,19 @@ impl UserDefinedSubscriberNode {
         todo!()
     }
 
-    pub fn delete_contained_entities(&self) -> DdsResult<()> {
+    pub fn delete_contained_entities(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<()> {
         for data_reader in self.0.get()?.stateful_data_reader_drain().into_iter() {
-            // if data_reader.is_enabled() {
-            //     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_dcps_service(
-            //         &self.0.parent().prefix(),
-            //         |dcps| {
-            //             dcps.unwrap()
-            //                 .announce_sender()
-            //                 .send(AnnounceKind::DeletedDataReader(
-            //                     data_reader.get_instance_handle(),
-            //                 ))
-            //                 .ok()
-            //         },
-            //     );
-            // }
+            if data_reader.is_enabled() {
+                domain_participant
+                    .announce_sender()
+                    .send(AnnounceKind::DeletedDataReader(
+                        data_reader.get_instance_handle(),
+                    ))
+                    .ok();
+            }
         }
         Ok(())
     }

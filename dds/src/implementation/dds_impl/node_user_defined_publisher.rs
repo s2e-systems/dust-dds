@@ -63,7 +63,7 @@ impl UserDefinedPublisherNode {
         )
     }
 
-    pub fn delete_datawriter(&self, data_writer_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_datawriter(&self, _data_writer_handle: InstanceHandle) -> DdsResult<()> {
         todo!()
         // let data_writer = self
         //     .0
@@ -97,8 +97,8 @@ impl UserDefinedPublisherNode {
 
     pub fn lookup_datawriter(
         &self,
-        type_name: &'static str,
-        topic_name: &str,
+        _type_name: &'static str,
+        _topic_name: &str,
     ) -> DdsResult<UserDefinedDataWriterNode> {
         todo!()
         // let writer = self
@@ -159,7 +159,7 @@ impl UserDefinedPublisherNode {
         // Ok(())
     }
 
-    pub fn set_default_datawriter_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
+    pub fn set_default_datawriter_qos(&self, _qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         todo!()
         // self.this.get()?.set_default_datawriter_qos(qos)
     }
@@ -177,7 +177,7 @@ impl UserDefinedPublisherNode {
         todo!()
     }
 
-    pub fn set_qos(&self, qos: QosKind<PublisherQos>) -> DdsResult<()> {
+    pub fn set_qos(&self, _qos: QosKind<PublisherQos>) -> DdsResult<()> {
         todo!()
         // self.this.get()?.set_qos(qos)
     }
@@ -189,8 +189,8 @@ impl UserDefinedPublisherNode {
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
         // *self.this.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
