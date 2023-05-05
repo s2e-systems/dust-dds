@@ -121,6 +121,15 @@ impl DdsPublisher {
         DdsListIntoIterator::new(self.stateless_data_writer_list.read_lock())
     }
 
+    pub fn get_data_writer(
+        &self,
+        data_writer_guid: Guid,
+    ) -> Option<&DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
+        self.stateful_data_writer_list()
+            .iter()
+            .find(|dw| dw.guid() == data_writer_guid)
+    }
+
     pub fn get_status_listener_lock(
         &self,
     ) -> RwLockWriteGuard<StatusListener<dyn PublisherListener + Send + Sync>> {

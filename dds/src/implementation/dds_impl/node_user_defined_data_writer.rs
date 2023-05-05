@@ -4,7 +4,7 @@ use crate::{
         data_representation_builtin_endpoints::discovered_writer_data::{
             DiscoveredWriterData, WriterProxy,
         },
-        rtps::{stateful_writer::RtpsStatefulWriter, types::Guid},
+        rtps::types::Guid,
         utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
@@ -21,8 +21,7 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener, dds_data_writer::DdsDataWriter,
-    dds_domain_participant::DdsDomainParticipant, dds_publisher::DdsPublisher, dds_topic::DdsTopic,
+    any_data_writer_listener::AnyDataWriterListener, dds_domain_participant::DdsDomainParticipant,
     node_user_defined_publisher::UserDefinedPublisherNode,
     node_user_defined_topic::UserDefinedTopicNode, status_condition_impl::StatusConditionImpl,
 };
@@ -269,9 +268,11 @@ impl UserDefinedDataWriterNode {
         todo!()
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        // Ok(self.0.get()?.get_statuscondition())
-        todo!()
+    pub fn get_statuscondition(
+        &self,
+        domain_participant: &mut DdsDomainParticipant,
+    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+        get_data_writer_status_condition(domain_participant, self.parent_publisher, self.this)
     }
 
     pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
@@ -299,7 +300,8 @@ fn enable_data_writer(
     data_writer_guid: Guid,
 ) -> DdsResult<()> {
     let is_parent_enabled = domain_participant
-        .get_publisher(publisher_guid)?
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
         .is_enabled();
     if !is_parent_enabled {
         return Err(DdsError::PreconditionNotMet(
@@ -307,60 +309,43 @@ fn enable_data_writer(
         ));
     }
     domain_participant
-        .get_publisher(publisher_guid)?
-        .get_data_writer(data_writer_guid)?
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
         .enable();
 
     let type_name = domain_participant
-        .get_publisher(publisher_guid)?
-        .get_data_writer(data_writer_guid)?
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
         .get_type_name();
 
     let topic_name = domain_participant
-        .get_publisher(publisher_guid)?
-        .get_data_writer(data_writer_guid)?
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
         .get_topic_name();
 
     let topic = domain_participant
         .get_topic(topic_name, type_name)
         .cloned()
         .expect("Topic must exist");
-    let publisher_qos = domain_participant.get_publisher(publisher_guid)?.get_qos();
+    let publisher_qos = domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_qos();
     let discovered_writer_data = domain_participant
-        .get_publisher(publisher_guid)?
-        .get_data_writer(data_writer_guid)?
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
         .as_discovered_writer_data(&topic.get_qos(), &publisher_qos);
     announce_created_data_writer(domain_participant, discovered_writer_data);
 
     Ok(())
-}
-
-impl DdsDomainParticipant {
-    fn get_publisher(&self, publisher_guid: Guid) -> DdsResult<&DdsPublisher> {
-        self.user_defined_publisher_list()
-            .iter()
-            .find(|p| p.guid() == publisher_guid)
-            .ok_or(DdsError::AlreadyDeleted)
-    }
-
-    fn get_topic(&self, topic_name: &str, type_name: &str) -> DdsResult<&DdsShared<DdsTopic>> {
-        self.topic_list()
-            .iter()
-            .find(|t| t.get_name() == topic_name && t.get_type_name() == type_name)
-            .ok_or(DdsError::AlreadyDeleted)
-    }
-}
-
-impl DdsPublisher {
-    fn get_data_writer(
-        &self,
-        data_writer_guid: Guid,
-    ) -> DdsResult<&DdsShared<DdsDataWriter<RtpsStatefulWriter>>> {
-        self.stateful_data_writer_list()
-            .iter()
-            .find(|dw| dw.guid() == data_writer_guid)
-            .ok_or(DdsError::AlreadyDeleted)
-    }
 }
 
 fn announce_created_data_writer(
@@ -402,4 +387,17 @@ fn announce_created_data_writer(
             timestamp,
         )
         .expect("Should not fail to write built-in message");
+}
+
+fn get_data_writer_status_condition(
+    domain_participant: &DdsDomainParticipant,
+    publisher_guid: Guid,
+    data_writer_guid: Guid,
+) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+    Ok(domain_participant
+        .get_publisher(publisher_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_data_writer(data_writer_guid)
+        .ok_or(DdsError::AlreadyDeleted)?
+        .get_statuscondition())
 }

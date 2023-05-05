@@ -559,6 +559,12 @@ impl DdsDomainParticipant {
         self.user_defined_publisher_list.as_mut_slice()
     }
 
+    pub fn get_publisher(&self, publisher_guid: Guid) -> Option<&DdsPublisher> {
+        self.user_defined_publisher_list()
+            .iter()
+            .find(|p| p.guid() == publisher_guid)
+    }
+
     pub fn create_subscriber(
         &self,
         qos: QosKind<SubscriberQos>,
@@ -712,6 +718,12 @@ impl DdsDomainParticipant {
 
     pub fn topic_list(&self) -> &[DdsShared<DdsTopic>] {
         &self.topic_list
+    }
+
+    pub fn get_topic(&self, topic_name: &str, type_name: &str) -> Option<&DdsShared<DdsTopic>> {
+        self.topic_list()
+            .iter()
+            .find(|t| t.get_name() == topic_name && t.get_type_name() == type_name)
     }
 
     pub fn get_qos(&self) -> DomainParticipantQos {

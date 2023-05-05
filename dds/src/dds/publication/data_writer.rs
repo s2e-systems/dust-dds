@@ -501,9 +501,12 @@ where
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataWriterNodeKind::UserDefined(w) => {
-                Ok(StatusCondition::new(w.get_statuscondition()?))
-            }
+            DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant_mut(&w.this().prefix(), |dp| {
+                    Ok(StatusCondition::new(w.get_statuscondition(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                    )?))
+                }),
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
