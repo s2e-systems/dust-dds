@@ -124,7 +124,7 @@ impl UserDefinedSubscriberNode {
         domain_participant
             .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
-            .stateful_data_reader_add(data_reader.clone());
+            .stateful_data_reader_add(data_reader);
 
         let node = UserDefinedDataReaderNode::new(guid, self.this, self.parent);
 
@@ -154,7 +154,7 @@ impl UserDefinedSubscriberNode {
             .get_subscriber(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_instance_handle() == a_datareader_handle)
             .ok_or_else(|| {
                 DdsError::PreconditionNotMet(
@@ -190,7 +190,7 @@ impl UserDefinedSubscriberNode {
             .get_subscriber(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|data_reader| {
                 data_reader.get_topic_name() == topic_name
                     && data_reader.get_type_name() == type_name
@@ -224,7 +224,6 @@ impl UserDefinedSubscriberNode {
             .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_drain()
-            .into_iter()
         {
             if data_reader.is_enabled() {
                 todo!()

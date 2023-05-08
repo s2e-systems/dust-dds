@@ -40,7 +40,7 @@ impl BuiltinSubscriberNode {
         if let Some(r) = domain_participant
             .get_builtin_subscriber()
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
         {
             Ok(Some(DataReaderNodeKind::BuiltinStateful(
@@ -49,7 +49,7 @@ impl BuiltinSubscriberNode {
         } else if let Some(r) = domain_participant
             .get_builtin_subscriber()
             .stateless_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_type_name() == Foo::type_name() && x.get_topic_name() == topic_name)
         {
             Ok(Some(DataReaderNodeKind::BuiltinStateless(

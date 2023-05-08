@@ -356,8 +356,7 @@ impl UserDefinedDataReaderNode {
             let subscriber_qos = domain_participant
                 .get_subscriber(self.parent_subcriber)
                 .ok_or(DdsError::AlreadyDeleted)?
-                .get_qos()
-                .clone();
+                .get_qos();
             let discovered_reader_data = domain_participant
                 .get_subscriber(self.parent_subcriber)
                 .ok_or(DdsError::AlreadyDeleted)?
@@ -451,8 +450,7 @@ impl UserDefinedDataReaderNode {
         let subscriber_qos = domain_participant
             .get_subscriber(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?
-            .get_qos()
-            .clone();
+            .get_qos();
         let discovered_reader_data = domain_participant
             .get_subscriber(self.parent_subcriber)
             .ok_or(DdsError::AlreadyDeleted)?

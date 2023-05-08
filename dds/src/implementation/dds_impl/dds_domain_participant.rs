@@ -611,11 +611,11 @@ impl DdsDomainParticipant {
 
         if self
             .user_defined_subscriber_list()
-            .into_iter()
+            .iter()
             .find(|&x| x.guid() == subscriber_guid)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .count()
             > 0
         {
@@ -715,7 +715,7 @@ impl DdsDomainParticipant {
         }
 
         for subscriber in self.user_defined_subscriber_list() {
-            if subscriber.stateful_data_reader_list().into_iter().any(|r| {
+            if subscriber.stateful_data_reader_list().iter().any(|r| {
                 r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -853,10 +853,7 @@ impl DdsDomainParticipant {
         }
 
         for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
-            for data_reader in user_defined_subscriber
-                .stateful_data_reader_drain()
-                .into_iter()
-            {
+            for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
                 if data_reader.is_enabled() {
                     self.announce_sender
                         .send(AnnounceKind::DeletedDataReader(
@@ -1108,7 +1105,7 @@ impl DdsDomainParticipant {
         let samples = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
             .unwrap()
             .read::<DiscoveredReaderData>(
@@ -1223,7 +1220,7 @@ impl DdsDomainParticipant {
         while let Ok(samples) = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_topic_name() == DCPS_TOPIC)
             .unwrap()
             .read::<DiscoveredTopicData>(
