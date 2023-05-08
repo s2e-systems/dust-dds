@@ -602,16 +602,18 @@ impl DdsDomainParticipant {
         Ok(guid)
     }
 
-    pub fn delete_subscriber(&mut self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_subscriber(&mut self, subscriber_guid: Guid) -> DdsResult<()> {
+        if self.rtps_participant.guid().prefix() != subscriber_guid.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
         if self
             .user_defined_subscriber_list()
             .into_iter()
-            .find(|&x| x.get_instance_handle() == a_subscriber_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Subscriber can only be deleted from its parent participant".to_string(),
-                )
-            })?
+            .find(|&x| x.guid() == subscriber_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
             .into_iter()
             .count()
@@ -623,7 +625,7 @@ impl DdsDomainParticipant {
         }
 
         self.user_defined_subscriber_list
-            .retain(|x| x.get_instance_handle() != a_subscriber_handle);
+            .retain(|x| x.guid() != subscriber_guid);
 
         Ok(())
     }

@@ -32,7 +32,7 @@ use super::{
 /// other parts of the system), it builds the list of concerned [`DataReader`] objects, and then indicates to the application that data is
 /// available, through its listener or by enabling related conditions.
 #[derive(PartialEq, Debug)]
-pub struct Subscriber(SubscriberNodeKind);
+pub struct Subscriber(pub(crate) SubscriberNodeKind);
 
 impl Subscriber {
     pub(crate) fn new(subscriber: SubscriberNodeKind) -> Self {
@@ -120,9 +120,17 @@ impl Subscriber {
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
     {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => Ok(s
-                .lookup_datareader::<Foo>(topic_name)?
-                .map(|x| DataReader::new(x))),
+            SubscriberNodeKind::Builtin(s) => {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant(&s.guid()?.prefix(), |dp| {
+                    Ok(
+                        s.lookup_datareader::<Foo>(
+                            dp.ok_or(DdsError::AlreadyDeleted)?,
+                            topic_name,
+                        )?
+                        .map(|x| DataReader::new(x)),
+                    )
+                })
+            }
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid()?.prefix(), |dp| {
                     Ok(s.lookup_datareader(
@@ -254,7 +262,10 @@ impl Subscriber {
     /// This operation allows access to the existing set of [`SubscriberQos`] policies.
     pub fn get_qos(&self) -> DdsResult<SubscriberQos> {
         match &self.0 {
-            SubscriberNodeKind::Builtin(s) => s.get_qos(),
+            SubscriberNodeKind::Builtin(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&s.guid()?.prefix(), |dp| {
+                    s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&s.guid()?.prefix(), |dp| {
                     s.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)

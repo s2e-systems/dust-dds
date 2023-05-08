@@ -1,12 +1,13 @@
 use crate::{
     implementation::{
-        rtps::{stateless_reader::RtpsStatelessReader, types::Guid},
-        utils::{
-            node::ChildNode,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        rtps::types::Guid,
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
-    infrastructure::{error::DdsResult, instance::InstanceHandle, qos::DataReaderQos},
+    infrastructure::{
+        error::{DdsError, DdsResult},
+        instance::InstanceHandle,
+        qos::DataReaderQos,
+    },
     subscription::{
         data_reader::Sample,
         sample_info::{InstanceStateKind, SampleStateKind, ViewStateKind},
@@ -15,23 +16,32 @@ use crate::{
 };
 
 use super::{
-    dds_data_reader::DdsDataReader, dds_subscriber::DdsSubscriber,
-    status_condition_impl::StatusConditionImpl,
+    dds_domain_participant::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
 };
 
-type BuiltinDataReaderStatelessNodeType =
-    ChildNode<DdsDataReader<RtpsStatelessReader>, ChildNode<DdsSubscriber, Guid>>;
-
 #[derive(PartialEq, Debug)]
-pub struct BuiltinDataReaderStatelessNode(BuiltinDataReaderStatelessNodeType);
+pub struct BuiltinDataReaderStatelessNode {
+    this: Guid,
+    parent_subcriber: Guid,
+    parent_participant: Guid,
+}
 
 impl BuiltinDataReaderStatelessNode {
-    pub fn new(node: BuiltinDataReaderStatelessNodeType) -> Self {
-        Self(node)
+    pub fn new(this: Guid, parent_subcriber: Guid, parent_participant: Guid) -> Self {
+        Self {
+            this,
+            parent_subcriber,
+            parent_participant,
+        }
+    }
+
+    pub fn guid(&self) -> DdsResult<Guid> {
+        Ok(self.this)
     }
 
     pub fn read<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -41,17 +51,22 @@ impl BuiltinDataReaderStatelessNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
+        domain_participant
+            .get_builtin_subscriber()
+            .get_stateless_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )
     }
 
     pub fn read_next_instance<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -61,24 +76,39 @@ impl BuiltinDataReaderStatelessNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.read_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        domain_participant
+            .get_builtin_subscriber()
+            .get_stateless_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(self.0.get()?.get_qos())
+    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<DataReaderQos> {
+        Ok(domain_participant
+            .get_builtin_subscriber()
+            .get_stateless_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos())
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        Ok(self.0.get()?.get_statuscondition())
+    pub fn get_statuscondition(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+        Ok(domain_participant
+            .get_builtin_subscriber()
+            .get_stateless_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_statuscondition())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(InstanceHandle::from(self.0.get()?.guid()))
+        Ok(self.this.into())
     }
 }

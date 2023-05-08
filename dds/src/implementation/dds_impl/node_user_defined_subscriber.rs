@@ -280,8 +280,8 @@ impl UserDefinedSubscriberNode {
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
         todo!()
         // *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);

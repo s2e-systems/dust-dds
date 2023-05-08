@@ -115,8 +115,12 @@ impl DomainParticipant {
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
         self.call_participant_mut_method(|dp| {
-            self.0
-                .delete_subscriber(dp, a_subscriber.get_instance_handle()?)?;
+            match &a_subscriber.0 {
+                SubscriberNodeKind::Builtin(_) => todo!(),
+                SubscriberNodeKind::UserDefined(s) => self.0.delete_subscriber(dp, s.guid()?)?,
+                SubscriberNodeKind::Listener(_) => todo!(),
+            }
+
             Ok(())
         })
     }

@@ -111,20 +111,28 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                None,
-            ),
-            DataReaderNodeKind::BuiltinStateful(r) => r.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                None,
-            ),
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        None,
+                    )
+                }),
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        None,
+                    )
+                }),
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     r.read(
@@ -189,20 +197,28 @@ where
     /// sequences and specify states.
     pub fn read_next_sample(&self) -> DdsResult<Sample<Foo>> {
         let mut samples = match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.read(
-                1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            )?,
-            DataReaderNodeKind::BuiltinStateful(r) => r.read(
-                1,
-                &[SampleStateKind::NotRead],
-                ANY_VIEW_STATE,
-                ANY_INSTANCE_STATE,
-                None,
-            )?,
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        1,
+                        &[SampleStateKind::NotRead],
+                        ANY_VIEW_STATE,
+                        ANY_INSTANCE_STATE,
+                        None,
+                    )
+                })?,
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        1,
+                        &[SampleStateKind::NotRead],
+                        ANY_VIEW_STATE,
+                        ANY_INSTANCE_STATE,
+                        None,
+                    )
+                })?,
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     r.read(
@@ -282,20 +298,28 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(a_handle),
-            ),
-            DataReaderNodeKind::BuiltinStateful(r) => r.read(
-                max_samples,
-                sample_states,
-                view_states,
-                instance_states,
-                Some(a_handle),
-            ),
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        Some(a_handle),
+                    )
+                }),
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                        Some(a_handle),
+                    )
+                }),
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     r.read(
@@ -383,20 +407,28 @@ where
         instance_states: &[InstanceStateKind],
     ) -> DdsResult<Vec<Sample<Foo>>> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ),
-            DataReaderNodeKind::BuiltinStateful(r) => r.read_next_instance(
-                max_samples,
-                previous_handle,
-                sample_states,
-                view_states,
-                instance_states,
-            ),
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read_next_instance(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        previous_handle,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                    )
+                }),
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.read_next_instance(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                        max_samples,
+                        previous_handle,
+                        sample_states,
+                        view_states,
+                        instance_states,
+                    )
+                }),
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     r.read_next_instance(
@@ -690,8 +722,14 @@ impl<Foo> DataReader<Foo> {
     /// This operation allows access to the existing set of [`DataReaderQos`] policies.
     pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => r.get_qos(),
-            DataReaderNodeKind::BuiltinStateful(r) => r.get_qos(),
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    r.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
+                }),
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     r.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
@@ -708,12 +746,18 @@ impl<Foo> DataReader<Foo> {
     /// that affect the Entity.
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(r) => {
-                Ok(StatusCondition::new(r.get_statuscondition()?))
-            }
-            DataReaderNodeKind::BuiltinStateful(r) => {
-                Ok(StatusCondition::new(r.get_statuscondition()?))
-            }
+            DataReaderNodeKind::BuiltinStateless(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    Ok(StatusCondition::new(r.get_statuscondition(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                    )?))
+                }),
+            DataReaderNodeKind::BuiltinStateful(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                .get_participant(&r.guid()?.prefix(), |dp| {
+                    Ok(StatusCondition::new(r.get_statuscondition(
+                        dp.ok_or(DdsError::AlreadyDeleted)?,
+                    )?))
+                }),
             DataReaderNodeKind::UserDefined(r) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
                 .get_participant(&r.guid()?.prefix(), |dp| {
                     Ok(StatusCondition::new(r.get_statuscondition(

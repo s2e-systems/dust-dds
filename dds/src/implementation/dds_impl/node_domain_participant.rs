@@ -68,9 +68,9 @@ impl DomainParticipantNode {
     pub fn delete_subscriber(
         &self,
         domain_participant: &mut DdsDomainParticipant,
-        subscriber_handle: InstanceHandle,
+        subscriber_guid: Guid,
     ) -> DdsResult<()> {
-        domain_participant.delete_subscriber(subscriber_handle)
+        domain_participant.delete_subscriber(subscriber_guid)
     }
 
     pub fn create_topic(
@@ -126,11 +126,7 @@ impl DomainParticipantNode {
     ) -> DdsResult<BuiltinSubscriberNode> {
         let builtin_subcriber = Ok(domain_participant.get_builtin_subscriber())?;
 
-        Ok(BuiltinSubscriberNode::new(ChildNode::new(
-            // builtin_subcriber.downgrade(),
-            todo!(),
-            self.0,
-        )))
+        Ok(BuiltinSubscriberNode::new(builtin_subcriber.guid(), self.0))
     }
 
     pub fn ignore_participant(

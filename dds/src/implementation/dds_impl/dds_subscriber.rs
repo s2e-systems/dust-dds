@@ -13,10 +13,7 @@ use crate::{
             stateless_reader::RtpsStatelessReader,
             types::{Guid, GuidPrefix},
         },
-        utils::{
-            iterator::{DdsDrainIntoIterator, DdsListIntoIterator},
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::DdsResult,
@@ -40,7 +37,7 @@ use super::{
 pub struct DdsSubscriber {
     qos: DdsRwLock<SubscriberQos>,
     rtps_group: RtpsGroup,
-    stateless_data_reader_list: DdsRwLock<Vec<DdsShared<DdsDataReader<RtpsStatelessReader>>>>,
+    stateless_data_reader_list: Vec<DdsShared<DdsDataReader<RtpsStatelessReader>>>,
     stateful_data_reader_list: Vec<DdsShared<DdsDataReader<RtpsStatefulReader>>>,
     enabled: DdsRwLock<bool>,
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
@@ -60,7 +57,7 @@ impl DdsSubscriber {
         DdsSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
-            stateless_data_reader_list: DdsRwLock::new(Vec::new()),
+            stateless_data_reader_list: Vec::new(),
             stateful_data_reader_list: Vec::new(),
             enabled: DdsRwLock::new(false),
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
@@ -104,30 +101,28 @@ impl DdsSubscriber {
     }
 
     pub fn stateless_data_reader_add(
-        &self,
+        &mut self,
         data_reader: DdsShared<DdsDataReader<RtpsStatelessReader>>,
     ) {
-        self.stateless_data_reader_list
-            .write_lock()
-            .push(data_reader)
+        self.stateless_data_reader_list.push(data_reader)
     }
 
-    pub fn _stateless_data_reader_delete(&self, a_datareader_handle: InstanceHandle) {
+    pub fn _stateless_data_reader_delete(&mut self, a_datareader_handle: InstanceHandle) {
         self.stateless_data_reader_list
-            .write_lock()
             .retain(|x| x._get_instance_handle() != a_datareader_handle)
     }
 
-    pub fn stateless_data_reader_list(
-        &self,
-    ) -> DdsListIntoIterator<DdsShared<DdsDataReader<RtpsStatelessReader>>> {
-        DdsListIntoIterator::new(self.stateless_data_reader_list.read_lock())
+    pub fn stateless_data_reader_list(&self) -> &[DdsShared<DdsDataReader<RtpsStatelessReader>>] {
+        &self.stateless_data_reader_list
     }
 
-    pub fn _stateless_data_reader_drain(
+    pub fn get_stateless_data_reader(
         &self,
-    ) -> DdsDrainIntoIterator<DdsShared<DdsDataReader<RtpsStatelessReader>>> {
-        DdsDrainIntoIterator::new(self.stateless_data_reader_list.write_lock())
+        data_reader: Guid,
+    ) -> Option<&DdsShared<DdsDataReader<RtpsStatelessReader>>> {
+        self.stateless_data_reader_list
+            .iter()
+            .find(|s| s.guid() == data_reader)
     }
 
     pub fn stateful_data_reader_add(
@@ -152,7 +147,7 @@ impl DdsSubscriber {
     ) -> Option<&DdsShared<DdsDataReader<RtpsStatefulReader>>> {
         self.stateful_data_reader_list
             .iter()
-            .find(|s| s.guid() != data_reader)
+            .find(|s| s.guid() == data_reader)
     }
 
     pub fn stateful_data_reader_drain(
@@ -317,7 +312,7 @@ impl DdsSubscriber {
             dyn DomainParticipantListener + Send + Sync,
         >,
     ) {
-        for stateless_data_reader in self.stateless_data_reader_list.read_lock().iter() {
+        for stateless_data_reader in self.stateless_data_reader_list.iter() {
             stateless_data_reader.on_data_submessage_received(data_submessage, message_receiver);
         }
 
