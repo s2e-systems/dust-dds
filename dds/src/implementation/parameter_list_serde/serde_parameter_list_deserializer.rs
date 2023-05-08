@@ -322,10 +322,13 @@ where
                         reader,
                         cdr::Infinite,
                     );
-                    let pid: u16 = serde::Deserialize::deserialize(&mut deserializer).unwrap();
-                    let length: u16 = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    let pid: u16 = serde::Deserialize::deserialize(&mut deserializer)
+                        .map_err(|_err| serde::de::Error::missing_field("PID"))?;
+                    let length: u16 = serde::Deserialize::deserialize(&mut deserializer)
+                        .map_err(|_err| serde::de::Error::missing_field("length"))?;
                     if pid == PID {
-                        let value: T = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                        let value: T = serde::Deserialize::deserialize(&mut deserializer)
+                            .map_err(|_err| serde::de::Error::missing_field("value"))?;
                         return Ok(Parameter(value));
                     } else if pid == PID_SENTINEL {
                         return Err(serde::de::Error::missing_field("PID missing"));
