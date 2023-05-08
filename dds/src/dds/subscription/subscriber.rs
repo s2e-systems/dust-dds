@@ -81,7 +81,7 @@ impl Subscriber {
                 )?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
-                    reader.guid()?,
+                    reader.guid(),
                     a_listener
                         .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
                     mask,
@@ -97,10 +97,7 @@ impl Subscriber {
     /// This operation deletes a [`DataReader`] that belongs to the [`Subscriber`]. This operation must be called on the
     /// same [`Subscriber`] object used to create the [`DataReader`]. If [`Subscriber::delete_datareader`] is called on a
     /// different [`Subscriber`], the operation will have no effect and it will return [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
-    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()>
-    where
-        Foo: DdsType + for<'de> DdsDeserialize<'de> + 'static,
-    {
+    pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
