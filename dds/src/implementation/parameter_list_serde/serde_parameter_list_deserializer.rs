@@ -1,23 +1,21 @@
-//! Deserializing CDR into Rust data types.
-
-use std::{self, marker::PhantomData, io::Read};
+use std::{self, marker::PhantomData};
 
 use byteorder::ByteOrder;
 use serde::de::{self};
 
-use cdr::{Error, Result, SizeLimit};
+use crate::implementation::data_representation_builtin_endpoints::parameter_id_values::PID_SENTINEL;
+use cdr::{Error, Result};
 
-/// A deserializer that reads bytes from a buffer.
-pub struct ParameterListDeserializer<E> {
-    reader: Vec<u8>,
+pub struct ParameterListDeserializer<'a, E> {
+    reader: &'a [u8],
     phantom: PhantomData<E>,
 }
 
-impl<E> ParameterListDeserializer<E>
+impl<'a, E> ParameterListDeserializer<'a, E>
 where
     E: ByteOrder,
 {
-    pub fn new(reader: Vec<u8>) -> Self {
+    pub fn new(reader: &'a [u8]) -> Self {
         Self {
             reader,
             phantom: PhantomData,
@@ -25,7 +23,7 @@ where
     }
 }
 
-impl<'de, 'a, E> de::Deserializer<'de> for &'a mut ParameterListDeserializer<E>
+impl<'de, 'a: 'b, 'b, E> de::Deserializer<'de> for &'b mut ParameterListDeserializer<'a, E>
 where
     E: ByteOrder,
 {
@@ -175,7 +173,7 @@ where
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_bytes(self.reader.as_slice())
+        visitor.visit_bytes(self.reader)
     }
 
     fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value>
@@ -214,46 +212,48 @@ where
     fn deserialize_struct<V>(
         self,
         _name: &'static str,
-        _fields: &'static [&'static str],
+        fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        struct Access<R, S, E> {
-            de: cdr::Deserializer<R,S,E>,
-        }
-        impl<'de, R, S, E> de::MapAccess<'de> for Access<R, S, E>
+        struct Access<'c, 'd, E>
         where
             E: ByteOrder,
-            S: SizeLimit,
-            R: Read
+        {
+            deserializer: &'c mut ParameterListDeserializer<'d, E>,
+            len: usize,
+        }
+
+        impl<'de, 'c, 'd, E> de::SeqAccess<'de> for Access<'c, 'd, E>
+        where
+            E: ByteOrder,
         {
             type Error = Error;
 
-            fn next_key_seed<K>(
-                &mut self,
-                seed: K,
-            ) -> std::result::Result<Option<K::Value>, Self::Error>
+            fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
             where
-                K: de::DeserializeSeed<'de>,
+                T: de::DeserializeSeed<'de>,
             {
-                let res = seed.deserialize(&mut self.de).map(Some);
-                res
+                if self.len > 0 {
+                    self.len -= 1;
+                    let value = seed.deserialize(&mut *self.deserializer)?;
+                    Ok(Some(value))
+                } else {
+                    Ok(None)
+                }
             }
 
-            fn next_value_seed<V>(&mut self, seed: V) -> std::result::Result<V::Value, Self::Error>
-            where
-                V: de::DeserializeSeed<'de>,
-            {
-                let _length: u16 = serde::Deserialize::deserialize(&mut self.de)?;
-                let res = seed.deserialize(&mut self.de);
-                res
+            fn size_hint(&self) -> Option<usize> {
+                Some(self.len)
             }
         }
-        let reader = self.reader.as_slice();
-        let cdr_deserializer = cdr::Deserializer::<_,_,E>::new(reader, cdr::Infinite);
-        visitor.visit_map(Access { de: cdr_deserializer })
+
+        visitor.visit_seq(Access {
+            deserializer: self,
+            len: fields.len(),
+        })
     }
 
     fn deserialize_enum<V>(
@@ -268,11 +268,11 @@ where
         Err(Error::TypeNotSupported)
     }
 
-    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_identifier<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_bytes(&self.reader)
+        Err(Error::TypeNotSupported)
     }
 
     fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -281,22 +281,10 @@ where
     {
         Err(Error::TypeNotSupported)
     }
-
-    fn is_human_readable(&self) -> bool {
-        false
-    }
-}
-
-#[derive(serde::Deserialize)]
-struct ParamHeader {
-    pid: u16,
-    length: i16,
 }
 
 #[derive(Debug, PartialEq)]
-struct Parameter<const PID: u16, T> {
-    value: T,
-}
+struct Parameter<const PID: u16, T>(T);
 
 impl<'de, const PID: u16, T> serde::Deserialize<'de> for Parameter<PID, T>
 where
@@ -306,55 +294,6 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        enum Field {
-            Field0,
-            Ignore,
-        }
-        struct FieldVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for FieldVisitor {
-            type Value = Field;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("field identifier")
-            }
-            fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                match value {
-                    0u64 => Ok(Field::Field0),
-                    _ => Ok(Field::Ignore),
-                }
-            }
-            fn visit_str<E>(self, value: &str) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                match value {
-                    "value" => Ok(Field::Field0),
-                    _ => Ok(Field::Ignore),
-                }
-            }
-            fn visit_bytes<E>(self, value: &[u8]) -> std::result::Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                match value {
-                    b"value" => Ok(Field::Field0),
-                    _ => Ok(Field::Ignore),
-                }
-            }
-        }
-
-        impl<'de> serde::Deserialize<'de> for Field {
-            fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                serde::Deserializer::deserialize_identifier(deserializer, FieldVisitor)
-            }
-        }
-
         struct Visitor<'de, const PID: u16, T>
         where
             T: serde::Deserialize<'de>,
@@ -371,30 +310,33 @@ where
                 formatter.write_str("struct Parameter")
             }
 
-            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            fn visit_bytes<E>(self, v: &[u8]) -> std::result::Result<Self::Value, E>
             where
-                A: serde::de::MapAccess<'de>,
+                E: serde::de::Error,
             {
-                let mut value: Option<T> = None;
-                while let Some(pid) = map.next_key::<u16>()? {
+                let mut skip_bytes = 0;
+                let mut reader = v;
+                loop {
+                    reader = &reader[skip_bytes..];
+                    let mut deserializer = cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
+                        reader,
+                        cdr::Infinite,
+                    );
+                    let pid: u16 = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                    let length: u16 = serde::Deserialize::deserialize(&mut deserializer).unwrap();
                     if pid == PID {
-                        value = Some(map.next_value::<T>()?);
+                        let value: T = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+                        return Ok(Parameter(value));
+                    } else if pid == PID_SENTINEL {
+                        return Err(serde::de::Error::missing_field("PID missing"));
                     } else {
-                        let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
                     }
                 }
-                let value = match value {
-                    Some(value) => value,
-                    None => serde::__private::de::missing_field("value")?,
-                };
-                Ok(Parameter { value })
             }
         }
-        const FIELDS: &'static [&'static str] = &["value"];
-        serde::Deserializer::deserialize_struct(
-            deserializer,
+        deserializer.deserialize_newtype_struct(
             "Parameter",
-            FIELDS,
             Visitor {
                 marker: PhantomData::<Parameter<PID, T>>,
                 lifetime: PhantomData,
@@ -407,7 +349,7 @@ where
 mod tests {
     use super::*;
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, serde::Deserialize)]
     struct Inner {
         id: Parameter<71, u8>,
         n: Parameter<72, u8>,
@@ -415,23 +357,19 @@ mod tests {
 
     #[test]
     fn deserialize_simple() {
-        // let expected = Inner {
-        //     id: Parameter(21),
-        //     n: Parameter(34),
-        // };
-        // let mut data = &[
-        //     71, 0x00, 4, 0, // id | Length (incl padding)
-        //     21, 0, 0, 0, // u8
-        //     72, 0x00, 4, 0, // n | Length (incl padding)
-        //     34, 0, 0, 0, // u8
-        // ][..];
-        let data = vec![
+        let expected = Inner {
+            id: Parameter(21),
+            n: Parameter(34),
+        };
+        let data = &[
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
-        ];
-        let expected = Parameter::<71, _> { value: 21u8 };
+            72, 0x00, 4, 0, // n | Length (incl padding)
+            34, 0, 0, 0, // u8
+            1, 0, 0, 0, // Sentinel
+        ][..];
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
-        let result: Parameter<71, u8> = serde::Deserialize::deserialize(&mut deserializer).unwrap();
+        let result: Inner = serde::Deserialize::deserialize(&mut deserializer).unwrap();
         assert_eq!(result, expected)
     }
 }
