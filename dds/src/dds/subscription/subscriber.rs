@@ -69,22 +69,32 @@ impl Subscriber {
     {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&s.guid()?.prefix(), |dp| {
-                    let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                    #[allow(clippy::redundant_closure)]
-                    s.create_datareader::<Foo>(
-                        dp,
-                        a_topic.get_type_name()?,
-                        a_topic.get_name()?,
-                        qos,
-                        a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| {
-                            Box::new(x)
-                        }),
-                        mask,
-                    )
-                    .map(|x| DataReader::new(DataReaderNodeKind::UserDefined(x)))
-                }),
+            SubscriberNodeKind::UserDefined(s) => {
+                let reader = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                    &s.guid()?.prefix(),
+                    |dp| {
+                        let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
+                        #[allow(clippy::redundant_closure)]
+                        s.create_datareader::<Foo>(
+                            dp,
+                            a_topic.get_type_name()?,
+                            a_topic.get_name()?,
+                            qos,
+                            None,
+                            mask,
+                        )
+                    },
+                )?;
+
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
+                    reader.guid()?,
+                    a_listener
+                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
+                    mask,
+                );
+
+                Ok(DataReader::new(DataReaderNodeKind::UserDefined(reader)))
+            }
 
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }

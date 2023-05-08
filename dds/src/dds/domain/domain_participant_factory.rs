@@ -12,13 +12,14 @@ use crate::{
     implementation::{
         configuration::DustDdsConfiguration,
         dds_impl::{
+            any_data_reader_listener::AnyDataReaderListener,
             dds_domain_participant::DdsDomainParticipant,
-            node_domain_participant::DomainParticipantNode,
+            node_domain_participant::DomainParticipantNode, status_listener::StatusListener,
         },
         rtps::{
             participant::RtpsParticipant,
             types::{
-                GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
+                Guid, GuidPrefix, Locator, LocatorAddress, LocatorPort, LOCATOR_KIND_UDP_V4,
                 PROTOCOLVERSION, VENDOR_ID_S2E,
             },
         },
@@ -394,6 +395,9 @@ impl DomainParticipantFactory {
 
 pub struct DdsDomainParticipantFactory {
     domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,
+
+    data_reader_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataReaderListener + Send + Sync>>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
     timer_factory: TimerFactory,
@@ -409,6 +413,7 @@ impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
             domain_participant_list: DdsRwLock::new(HashMap::new()),
+            data_reader_listener_list: DdsRwLock::new(HashMap::new()),
             qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
             default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
             timer_factory: TimerFactory::new(),
@@ -468,6 +473,33 @@ impl DdsDomainParticipantFactory {
             .write_lock()
             .get_mut(guid_prefix)
             .map(|o| &mut o.0))
+    }
+
+    pub fn add_data_reader_listener(
+        &self,
+        data_reader_guid: Guid,
+        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.data_reader_listener_list
+            .write_lock()
+            .insert(data_reader_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_data_reader_listener(&self, data_reader_guid: &Guid) {
+        self.data_reader_listener_list
+            .write_lock()
+            .remove(data_reader_guid);
+    }
+
+    pub fn get_data_reader_listener<F, O>(&self, data_reader_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn AnyDataReaderListener + Send + Sync>>) -> O,
+    {
+        f(self
+            .data_reader_listener_list
+            .write_lock()
+            .get_mut(data_reader_guid))
     }
 }
 

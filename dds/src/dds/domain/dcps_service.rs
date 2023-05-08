@@ -34,6 +34,8 @@ use crate::{
             },
             dds_subscriber::DdsSubscriber,
             message_receiver::MessageReceiver,
+            node_kind::DataReaderNodeKind,
+            node_user_defined_data_reader::UserDefinedDataReaderNode,
             participant_discovery::ParticipantDiscovery,
             status_listener::StatusListener,
         },
@@ -55,7 +57,7 @@ use crate::{
             transport::TransportWrite,
             types::{
                 DurabilityKind, EntityId, Guid, GuidPrefix, Locator, ReliabilityKind,
-                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN,
+                SequenceNumber, ENTITYID_PARTICIPANT, ENTITYID_UNKNOWN, GUID_UNKNOWN,
             },
             writer_proxy::RtpsWriterProxy,
         },
@@ -67,8 +69,12 @@ use crate::{
         instance::InstanceHandle,
         time::{Duration, DurationKind, Time},
     },
-    subscription::sample_info::{
-        InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE, ANY_VIEW_STATE,
+    subscription::{
+        data_reader::DataReader,
+        sample_info::{
+            InstanceStateKind, SampleStateKind, ANY_INSTANCE_STATE, ANY_SAMPLE_STATE,
+            ANY_VIEW_STATE,
+        },
     },
     topic_definition::type_support::{DdsSerialize, DdsSerializedKey, DdsType},
 };
@@ -275,6 +281,18 @@ impl DcpsService {
                         },
                     );
                 }
+                // let data_reader_node =
+                //     UserDefinedDataReaderNode::new(GUID_UNKNOWN, GUID_UNKNOWN, GUID_UNKNOWN);
+                // THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+                //     &data_reader_node.guid().unwrap(),
+                //     move |l| {
+                //         if let Some(l) = l {
+                //             l.trigger_on_data_available(todo!())
+                //         } else {
+                //             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener()
+                //         }
+                //     },
+                // )
             }));
         }
 
