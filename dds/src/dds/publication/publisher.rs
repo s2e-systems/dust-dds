@@ -64,13 +64,16 @@ impl Publisher {
     where
         Foo: DdsType + DdsSerialize + 'static,
     {
+        let type_name = a_topic.get_type_name()?;
+        let topic_name = a_topic.get_name()?;
+
         self.call_participant_mut_method(|dp| {
             #[allow(clippy::redundant_closure)]
             self.0
                 .create_datawriter::<Foo>(
                     dp,
-                    a_topic.get_type_name()?,
-                    a_topic.get_name()?,
+                    type_name,
+                    topic_name,
                     qos,
                     a_listener
                         .map::<Box<dyn AnyDataWriterListener + Send + Sync>, _>(|x| Box::new(x)),

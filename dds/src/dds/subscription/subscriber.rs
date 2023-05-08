@@ -70,19 +70,13 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => {
+                let type_name = a_topic.get_type_name()?;
+                let topic_name = a_topic.get_name()?;
                 let reader = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
                     &s.guid().prefix(),
                     |dp| {
                         let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                        #[allow(clippy::redundant_closure)]
-                        s.create_datareader::<Foo>(
-                            dp,
-                            a_topic.get_type_name()?,
-                            a_topic.get_name()?,
-                            qos,
-                            None,
-                            mask,
-                        )
+                        s.create_datareader::<Foo>(dp, type_name, topic_name, qos, None, mask)
                     },
                 )?;
 
