@@ -28,7 +28,7 @@ use super::{
     node_user_defined_data_reader::UserDefinedDataReaderNode,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct UserDefinedSubscriberNode {
     this: Guid,
     parent: Guid,

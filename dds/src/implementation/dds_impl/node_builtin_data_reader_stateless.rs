@@ -19,7 +19,7 @@ use super::{
     dds_domain_participant::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct BuiltinDataReaderStatelessNode {
     this: Guid,
     parent_subcriber: Guid,

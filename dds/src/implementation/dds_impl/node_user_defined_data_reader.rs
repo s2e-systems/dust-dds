@@ -31,7 +31,7 @@ use super::{
     status_condition_impl::StatusConditionImpl,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct UserDefinedDataReaderNode {
     this: Guid,
     parent_subcriber: Guid,

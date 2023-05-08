@@ -14,7 +14,7 @@ use super::{
     node_kind::DataReaderNodeKind,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct BuiltinSubscriberNode {
     this: Guid,
     parent: Guid,
