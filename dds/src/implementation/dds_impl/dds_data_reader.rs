@@ -27,7 +27,6 @@ use crate::{
             writer_proxy::RtpsWriterProxy,
         },
         utils::{
-            condvar::DdsCondvar,
             node::RootNode,
             shared_object::{DdsRwLock, DdsShared},
         },
@@ -46,7 +45,7 @@ use crate::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
         },
-        time::{Duration, DurationKind, Time},
+        time::{DurationKind, Time},
     },
     subscription::{
         data_reader::Sample,
@@ -193,7 +192,6 @@ pub struct DdsDataReader<T> {
     status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
-    wait_for_historical_data_condvar: DdsCondvar,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
 }
 
@@ -225,7 +223,6 @@ impl<T> DdsDataReader<T> {
             status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
-            wait_for_historical_data_condvar: DdsCondvar::new(),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
         })
     }
@@ -312,7 +309,6 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             .rtps_reader
             .write_lock()
             .on_data_submessage_received(data_submessage, message_receiver);
-        self.wait_for_historical_data_condvar.notify_all();
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
                 UserDefinedReaderDataSubmessageReceivedResult::NoChange
@@ -364,7 +360,6 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             .rtps_reader
             .write_lock()
             .on_data_frag_submessage_received(data_frag_submessage, message_receiver);
-        self.wait_for_historical_data_condvar.notify_all();
 
         match data_submessage_received_result {
             StatefulReaderDataReceivedResult::NoMatchedWriterProxy => {
@@ -411,7 +406,6 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         self.rtps_reader
             .write_lock()
             .on_heartbeat_submessage_received(heartbeat_submessage, source_guid_prefix);
-        self.wait_for_historical_data_condvar.notify_all();
     }
 
     pub fn on_heartbeat_frag_submessage_received(
@@ -692,7 +686,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         todo!()
     }
 
-    pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
+    pub fn is_historical_data_received(&self) -> DdsResult<bool> {
         if !*self.enabled.read_lock() {
             Err(DdsError::NotEnabled)
         } else {
@@ -704,18 +698,7 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
             DurabilityQosPolicyKind::TransientLocal => Ok(()),
         }?;
 
-        let start_time = std::time::Instant::now();
-
-        while start_time.elapsed() < std::time::Duration::from(max_wait) {
-            if self.rtps_reader.read_lock().is_historical_data_received() {
-                return Ok(());
-            }
-            let duration_until_timeout = Duration::from(start_time.elapsed()) - max_wait;
-            self.wait_for_historical_data_condvar
-                .wait_timeout(duration_until_timeout)
-                .ok();
-        }
-        Err(DdsError::Timeout)
+        Ok(self.rtps_reader.read_lock().is_historical_data_received())
     }
 
     pub fn get_matched_publication_data(

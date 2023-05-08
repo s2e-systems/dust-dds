@@ -644,7 +644,21 @@ where
         match &self.0 {
             DataReaderNodeKind::BuiltinStateless(_) => todo!(),
             DataReaderNodeKind::BuiltinStateful(_) => todo!(),
-            DataReaderNodeKind::UserDefined(r) => r.wait_for_historical_data(max_wait),
+            DataReaderNodeKind::UserDefined(r) => {
+                let start_time = std::time::Instant::now();
+
+                while start_time.elapsed() < std::time::Duration::from(max_wait) {
+                    if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                        .get_participant(&r.guid()?.prefix(), |dp| {
+                            r.is_historical_data_received(dp.ok_or(DdsError::AlreadyDeleted)?)
+                        })?
+                    {
+                        return Ok(());
+                    }
+                }
+
+                Err(DdsError::Timeout)
+            }
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }

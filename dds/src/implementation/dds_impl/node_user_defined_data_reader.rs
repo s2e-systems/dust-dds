@@ -15,7 +15,6 @@ use crate::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
-        time::Duration,
     },
     subscription::{
         data_reader::Sample,
@@ -284,9 +283,16 @@ impl UserDefinedDataReaderNode {
         UserDefinedSubscriberNode::new(self.parent_subcriber, self.parent_participant)
     }
 
-    pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        todo!()
-        // self.0.get()?.wait_for_historical_data(max_wait)
+    pub fn is_historical_data_received(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<bool> {
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_historical_data_received()
     }
 
     pub fn get_matched_publication_data(
