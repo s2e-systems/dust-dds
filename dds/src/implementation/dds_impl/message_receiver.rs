@@ -3,9 +3,7 @@ use crate::{
     implementation::rtps::{
         messages::{
             submessages::{
-                DataFragSubmessage, DataSubmessage, GapSubmessage, HeartbeatFragSubmessage,
-                HeartbeatSubmessage, InfoDestinationSubmessage, InfoSourceSubmessage,
-                InfoTimestampSubmessage,
+                InfoDestinationSubmessage, InfoSourceSubmessage, InfoTimestampSubmessage,
             },
             RtpsMessage, RtpsSubmessageKind,
         },
@@ -20,45 +18,9 @@ use crate::{
     },
 };
 
-use super::{dds_publisher::DdsPublisher, status_listener::StatusListener};
-
-pub trait SubscriberSubmessageReceiver {
-    fn on_heartbeat_submessage_received(
-        &self,
-        heartbeat_submessage: &HeartbeatSubmessage,
-        source_guid_prefix: GuidPrefix,
-    );
-
-    fn on_heartbeat_frag_submessage_received(
-        &self,
-        heartbeat_frag_submessage: &HeartbeatFragSubmessage,
-        source_guid_prefix: GuidPrefix,
-    );
-
-    fn on_data_submessage_received(
-        &self,
-        data_submessage: &DataSubmessage<'_>,
-        message_receiver: &MessageReceiver,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    );
-
-    fn on_data_frag_submessage_received(
-        &self,
-        data_frag_submessage: &DataFragSubmessage<'_>,
-        message_receiver: &MessageReceiver,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    );
-
-    fn on_gap_submessage_received(
-        &self,
-        gap_submessage: &GapSubmessage,
-        message_receiver: &MessageReceiver,
-    );
-}
+use super::{
+    dds_publisher::DdsPublisher, dds_subscriber::DdsSubscriber, status_listener::StatusListener,
+};
 
 pub struct MessageReceiver {
     source_version: ProtocolVersion,
@@ -91,7 +53,7 @@ impl MessageReceiver {
         &mut self,
         participant_guid_prefix: GuidPrefix,
         publisher_list: &[DdsPublisher],
-        subscriber_list: &[impl SubscriberSubmessageReceiver],
+        subscriber_list: &[DdsSubscriber],
         source_locator: Locator,
         message: &RtpsMessage<'_>,
         participant_status_listener: &mut StatusListener<
@@ -117,9 +79,7 @@ impl MessageReceiver {
             match submessage {
                 RtpsSubmessageKind::AckNack(acknack_submessage) => {
                     for publisher in publisher_list {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list().iter()
-                        {
+                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
                             stateful_data_writer
                                 .on_acknack_submessage_received(acknack_submessage, self);
                         }
@@ -176,9 +136,7 @@ impl MessageReceiver {
                 }
                 RtpsSubmessageKind::NackFrag(nack_frag_submessage) => {
                     for publisher in publisher_list {
-                        for stateful_data_writer in
-                            publisher.stateful_data_writer_list().iter()
-                        {
+                        for stateful_data_writer in publisher.stateful_data_writer_list().iter() {
                             stateful_data_writer
                                 .on_nack_frag_submessage_received(nack_frag_submessage, self);
                         }

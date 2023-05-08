@@ -842,7 +842,7 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
     let samples = domain_participant
         .get_builtin_subscriber()
         .stateful_data_reader_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
         .unwrap()
         .read::<DiscoveredWriterData>(
@@ -877,7 +877,7 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
                                 h == &InstanceHandle::from(writer_parent_participant_guid)
                             })
                         {
-                            for subscriber in &domain_participant.user_defined_subscriber_list() {
+                            for subscriber in domain_participant.user_defined_subscriber_list() {
                                 subscriber_add_matched_writer(
                                     subscriber,
                                     &discovered_writer_data,
@@ -895,8 +895,8 @@ fn discover_matched_writers(domain_participant: &DdsDomainParticipant) -> DdsRes
                 }
             }
             InstanceStateKind::NotAliveDisposed => {
-                for subscriber in &domain_participant.user_defined_subscriber_list() {
-                    for data_reader in &subscriber.stateful_data_reader_list() {
+                for subscriber in domain_participant.user_defined_subscriber_list() {
+                    for data_reader in subscriber.stateful_data_reader_list() {
                         data_reader.remove_matched_writer(
                             discovered_writer_data_sample.sample_info.instance_handle,
                             &mut subscriber.get_status_listener_lock(),
@@ -955,7 +955,7 @@ pub fn subscriber_add_matched_writer(
         || is_subscriber_regex_matched_to_discovered_writer
         || is_partition_string_matched
     {
-        for data_reader in &user_defined_subscriber.stateful_data_reader_list() {
+        for data_reader in user_defined_subscriber.stateful_data_reader_list() {
             data_reader.add_matched_writer(
                 discovered_writer_data,
                 default_unicast_locator_list,
@@ -975,7 +975,7 @@ fn discover_matched_participants(
     let spdp_builtin_participant_data_reader = domain_participant
         .get_builtin_subscriber()
         .stateless_data_reader_list()
-        .into_iter()
+        .iter()
         .find(|x| x.get_topic_name() == DCPS_PARTICIPANT)
         .unwrap()
         .clone();
@@ -1025,7 +1025,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_PUBLICATION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1045,7 +1045,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
                 .unwrap(),
             &discovered_participant_data,
@@ -1065,7 +1065,7 @@ fn add_discovered_participant(
             domain_participant
                 .get_builtin_subscriber()
                 .stateful_data_reader_list()
-                .into_iter()
+                .iter()
                 .find(|x| x.get_topic_name() == DCPS_TOPIC)
                 .unwrap(),
             &discovered_participant_data,
@@ -1293,7 +1293,7 @@ fn receive_builtin_message(
         .process_message(
             domain_participant.guid().prefix(),
             core::slice::from_ref(domain_participant.get_builtin_publisher()),
-            core::slice::from_ref(&domain_participant.get_builtin_subscriber()),
+            core::slice::from_ref(domain_participant.get_builtin_subscriber()),
             locator,
             &message,
             &mut domain_participant.get_status_listener_lock(),
@@ -1365,7 +1365,6 @@ fn send_user_defined_message(
     for stateful_readers in domain_participant
         .get_builtin_subscriber()
         .stateful_data_reader_list()
-        .into_iter()
     {
         stateful_readers.send_message(header, metatraffic_unicast_transport_send)
     }
@@ -1445,8 +1444,8 @@ fn user_defined_communication_send(
         }
     }
 
-    for subscriber in &domain_participant.user_defined_subscriber_list() {
-        for data_reader in &subscriber.stateful_data_reader_list() {
+    for subscriber in domain_participant.user_defined_subscriber_list() {
+        for data_reader in subscriber.stateful_data_reader_list() {
             data_reader.send_message(header, default_unicast_transport_send)
         }
     }

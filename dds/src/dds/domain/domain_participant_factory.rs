@@ -303,7 +303,7 @@ impl DomainParticipantFactory {
             |dp| {
                 let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
                 Ok(dp.user_defined_publisher_list().iter().count() == 0
-                    && dp.user_defined_subscriber_list().into_iter().count() == 0
+                    && dp.user_defined_subscriber_list().iter().count() == 0
                     && dp.topic_list().iter().count() == 0)
             },
         )?;

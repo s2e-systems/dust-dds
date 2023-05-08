@@ -51,7 +51,7 @@ use crate::{
         },
         utils::{
             condvar::DdsCondvar,
-            iterator::{DdsListIntoIterator, DdsMapIntoIterator},
+            iterator::DdsMapIntoIterator,
             shared_object::{DdsRwLock, DdsShared},
         },
     },
@@ -141,9 +141,9 @@ pub struct DdsDomainParticipant {
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
-    builtin_subscriber: DdsShared<DdsSubscriber>,
+    builtin_subscriber: DdsSubscriber,
     builtin_publisher: DdsPublisher,
-    user_defined_subscriber_list: DdsRwLock<Vec<DdsShared<DdsSubscriber>>>,
+    user_defined_subscriber_list: Vec<DdsSubscriber>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
     user_defined_publisher_list: Vec<DdsPublisher>,
@@ -286,7 +286,7 @@ impl DdsDomainParticipant {
             NO_STATUS,
         );
 
-        let builtin_subscriber = DdsSubscriber::new(
+        let mut builtin_subscriber = DdsSubscriber::new(
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
@@ -373,7 +373,7 @@ impl DdsDomainParticipant {
             qos: DdsRwLock::new(domain_participant_qos),
             builtin_subscriber,
             builtin_publisher,
-            user_defined_subscriber_list: DdsRwLock::new(Vec::new()),
+            user_defined_subscriber_list: Vec::new(),
             user_defined_subscriber_counter: AtomicU8::new(0),
             default_subscriber_qos: DdsRwLock::new(SubscriberQos::default()),
             user_defined_publisher_list: Vec::new(),
@@ -428,8 +428,8 @@ impl DdsDomainParticipant {
         self.rtps_participant.metatraffic_multicast_locator_list()
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsShared<DdsSubscriber> {
-        self.builtin_subscriber.clone()
+    pub fn get_builtin_subscriber(&self) -> &DdsSubscriber {
+        &self.builtin_subscriber
     }
 
     pub fn get_builtin_publisher(&self) -> &DdsPublisher {
@@ -515,12 +515,12 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl_shared = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
-            publisher_impl_shared.enable();
+            publisher.enable();
         }
 
-        self.user_defined_publisher_list.push(publisher_impl_shared);
+        self.user_defined_publisher_list.push(publisher);
 
         Ok(guid)
     }
@@ -568,11 +568,11 @@ impl DdsDomainParticipant {
     }
 
     pub fn create_subscriber(
-        &self,
+        &mut self,
         qos: QosKind<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsResult<DdsShared<DdsSubscriber>> {
+    ) -> DdsResult<Guid> {
         let subscriber_qos = match qos {
             QosKind::Default => self.default_subscriber_qos.read_lock().clone(),
             QosKind::Specific(q) => q,
@@ -586,7 +586,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber_shared = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -594,28 +594,28 @@ impl DdsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber_shared.enable()?;
+            subscriber.enable()?;
         }
 
-        self.user_defined_subscriber_list
-            .write_lock()
-            .push(subscriber_shared.clone());
+        self.user_defined_subscriber_list.push(subscriber);
 
-        Ok(subscriber_shared)
+        Ok(guid)
     }
 
-    pub fn delete_subscriber(&self, a_subscriber_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_subscriber(&mut self, subscriber_guid: Guid) -> DdsResult<()> {
+        if self.rtps_participant.guid().prefix() != subscriber_guid.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
         if self
             .user_defined_subscriber_list()
-            .into_iter()
-            .find(|&x| x.get_instance_handle() == a_subscriber_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Subscriber can only be deleted from its parent participant".to_string(),
-                )
-            })?
+            .iter()
+            .find(|&x| x.guid() == subscriber_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .count()
             > 0
         {
@@ -625,14 +625,25 @@ impl DdsDomainParticipant {
         }
 
         self.user_defined_subscriber_list
-            .write_lock()
-            .retain(|x| x.get_instance_handle() != a_subscriber_handle);
+            .retain(|x| x.guid() != subscriber_guid);
 
         Ok(())
     }
 
-    pub fn user_defined_subscriber_list(&self) -> DdsListIntoIterator<DdsShared<DdsSubscriber>> {
-        DdsListIntoIterator::new(self.user_defined_subscriber_list.read_lock())
+    pub fn user_defined_subscriber_list(&self) -> &[DdsSubscriber] {
+        &self.user_defined_subscriber_list
+    }
+
+    pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsSubscriber> {
+        self.user_defined_subscriber_list
+            .iter()
+            .find(|s| s.guid() == subscriber_guid)
+    }
+
+    pub fn get_subscriber_mut(&mut self, subscriber_guid: Guid) -> Option<&mut DdsSubscriber> {
+        self.user_defined_subscriber_list
+            .iter_mut()
+            .find(|s| s.guid() == subscriber_guid)
     }
 
     pub fn create_topic(
@@ -703,8 +714,8 @@ impl DdsDomainParticipant {
             }
         }
 
-        for subscriber in &self.user_defined_subscriber_list() {
-            if subscriber.stateful_data_reader_list().into_iter().any(|r| {
+        for subscriber in self.user_defined_subscriber_list() {
+            if subscriber.stateful_data_reader_list().iter().any(|r| {
                 r.get_type_name() == topic.get_type_name() && r.get_topic_name() == topic.get_name()
             }) {
                 return Err(DdsError::PreconditionNotMet(
@@ -805,8 +816,8 @@ impl DdsDomainParticipant {
     pub fn ignore_publication(&self, handle: InstanceHandle) {
         self.ignored_publications.write_lock().insert(handle);
 
-        for subscriber in &self.user_defined_subscriber_list() {
-            for data_reader in &subscriber.stateful_data_reader_list() {
+        for subscriber in self.user_defined_subscriber_list() {
+            for data_reader in subscriber.stateful_data_reader_list() {
                 data_reader.remove_matched_writer(
                     handle,
                     &mut subscriber.get_status_listener_lock(),
@@ -841,11 +852,8 @@ impl DdsDomainParticipant {
             }
         }
 
-        for user_defined_subscriber in self.user_defined_subscriber_list.write_lock().drain(..) {
-            for data_reader in user_defined_subscriber
-                .stateful_data_reader_drain()
-                .into_iter()
-            {
+        for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
+            for data_reader in user_defined_subscriber.stateful_data_reader_drain() {
                 if data_reader.is_enabled() {
                     self.announce_sender
                         .send(AnnounceKind::DeletedDataReader(
@@ -975,7 +983,7 @@ impl DdsDomainParticipant {
                     publisher.enable();
                 }
 
-                for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+                for subscriber in self.user_defined_subscriber_list.iter() {
                     subscriber.enable()?;
                 }
 
@@ -1084,7 +1092,7 @@ impl DdsDomainParticipant {
         MessageReceiver::new(self.get_current_time()).process_message(
             self.rtps_participant.guid().prefix(),
             self.user_defined_publisher_list.as_slice(),
-            self.user_defined_subscriber_list.read_lock().as_slice(),
+            self.user_defined_subscriber_list.as_slice(),
             source_locator,
             &message,
             &mut self.status_listener.write_lock(),
@@ -1097,7 +1105,7 @@ impl DdsDomainParticipant {
         let samples = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_topic_name() == DCPS_SUBSCRIPTION)
             .unwrap()
             .read::<DiscoveredReaderData>(
@@ -1212,7 +1220,7 @@ impl DdsDomainParticipant {
         while let Ok(samples) = self
             .get_builtin_subscriber()
             .stateful_data_reader_list()
-            .into_iter()
+            .iter()
             .find(|x| x.get_topic_name() == DCPS_TOPIC)
             .unwrap()
             .read::<DiscoveredTopicData>(
@@ -1247,7 +1255,7 @@ impl DdsDomainParticipant {
 
     pub fn update_communication_status(&self) -> DdsResult<()> {
         let now = self.get_current_time();
-        for subscriber in self.user_defined_subscriber_list.read_lock().iter() {
+        for subscriber in self.user_defined_subscriber_list.iter() {
             subscriber.update_communication_status(now, &mut self.status_listener.write_lock());
         }
 

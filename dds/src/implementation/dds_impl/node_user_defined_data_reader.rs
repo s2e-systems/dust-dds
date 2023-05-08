@@ -1,7 +1,7 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
-        rtps::{stateful_reader::RtpsStatefulReader, types::Guid},
+        rtps::types::Guid,
         utils::{
             node::ChildNode,
             shared_object::{DdsRwLock, DdsShared},
@@ -15,7 +15,6 @@ use crate::{
             LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
             SampleLostStatus, SampleRejectedStatus, StatusKind, SubscriptionMatchedStatus,
         },
-        time::Duration,
     },
     subscription::{
         data_reader::Sample,
@@ -26,32 +25,35 @@ use crate::{
 
 use super::{
     any_data_reader_listener::AnyDataReaderListener,
-    dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
-    dds_subscriber::DdsSubscriber,
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
     status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
 };
 
-type UserDefinedDataReaderNodeType =
-    ChildNode<DdsDataReader<RtpsStatefulReader>, ChildNode<DdsSubscriber, Guid>>;
-
-#[derive(PartialEq, Debug)]
-pub struct UserDefinedDataReaderNode(UserDefinedDataReaderNodeType);
+#[derive(PartialEq, Eq, Debug)]
+pub struct UserDefinedDataReaderNode {
+    this: Guid,
+    parent_subcriber: Guid,
+    parent_participant: Guid,
+}
 
 impl UserDefinedDataReaderNode {
-    pub fn new(node: UserDefinedDataReaderNodeType) -> Self {
-        Self(node)
+    pub fn new(this: Guid, parent_subcriber: Guid, parent_participant: Guid) -> Self {
+        Self {
+            this,
+            parent_subcriber,
+            parent_participant,
+        }
     }
 
     pub fn guid(&self) -> DdsResult<Guid> {
-        Ok(self.0.get()?.guid())
+        Ok(self.this)
     }
 
     pub fn read<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -61,17 +63,23 @@ impl UserDefinedDataReaderNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.read(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .read(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )
     }
 
     pub fn take<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
@@ -81,17 +89,23 @@ impl UserDefinedDataReaderNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.take(
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-            specific_instance_handle,
-        )
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .take(
+                max_samples,
+                sample_states,
+                view_states,
+                instance_states,
+                specific_instance_handle,
+            )
     }
 
     pub fn read_next_instance<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -101,17 +115,23 @@ impl UserDefinedDataReaderNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.read_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .read_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )
     }
 
     pub fn take_next_instance<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         max_samples: i32,
         previous_handle: Option<InstanceHandle>,
         sample_states: &[SampleStateKind],
@@ -121,58 +141,128 @@ impl UserDefinedDataReaderNode {
     where
         Foo: for<'de> DdsDeserialize<'de>,
     {
-        self.0.get()?.take_next_instance(
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .take_next_instance(
+                max_samples,
+                previous_handle,
+                sample_states,
+                view_states,
+                instance_states,
+            )
     }
 
     pub fn get_key_value<Foo>(
         &self,
+        domain_participant: &DdsDomainParticipant,
         key_holder: &mut Foo,
         handle: InstanceHandle,
     ) -> DdsResult<()> {
-        self.0.get()?.get_key_value(key_holder, handle)
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_key_value(key_holder, handle)
     }
 
-    pub fn lookup_instance<Foo>(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
-        self.0.get()?.lookup_instance(instance)
+    pub fn lookup_instance<Foo>(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+        instance: &Foo,
+    ) -> DdsResult<Option<InstanceHandle>> {
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .lookup_instance(instance)
     }
 
-    pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
-        Ok(self.0.get()?.get_liveliness_changed_status())
+    pub fn get_liveliness_changed_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<LivelinessChangedStatus> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_liveliness_changed_status())
     }
 
-    pub fn get_requested_deadline_missed_status(&self) -> DdsResult<RequestedDeadlineMissedStatus> {
-        Ok(self.0.get()?.get_requested_deadline_missed_status())
+    pub fn get_requested_deadline_missed_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<RequestedDeadlineMissedStatus> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_requested_deadline_missed_status())
     }
 
     pub fn get_requested_incompatible_qos_status(
         &self,
+        domain_participant: &DdsDomainParticipant,
     ) -> DdsResult<RequestedIncompatibleQosStatus> {
-        Ok(self.0.get()?.get_requested_incompatible_qos_status())
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_requested_incompatible_qos_status())
     }
 
-    pub fn get_sample_lost_status(&self) -> DdsResult<SampleLostStatus> {
-        Ok(self.0.get()?.get_sample_lost_status())
+    pub fn get_sample_lost_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<SampleLostStatus> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_sample_lost_status())
     }
 
-    pub fn get_sample_rejected_status(&self) -> DdsResult<SampleRejectedStatus> {
-        Ok(self.0.get()?.get_sample_rejected_status())
+    pub fn get_sample_rejected_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<SampleRejectedStatus> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_sample_rejected_status())
     }
 
-    pub fn get_subscription_matched_status(&self) -> DdsResult<SubscriptionMatchedStatus> {
-        Ok(self.0.get()?.get_subscription_matched_status())
+    pub fn get_subscription_matched_status(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<SubscriptionMatchedStatus> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_subscription_matched_status())
     }
 
     pub fn get_topicdescription(
         &self,
         domain_participant: &DdsDomainParticipant,
     ) -> DdsResult<UserDefinedTopicNode> {
-        let data_reader = self.0.get()?;
+        let data_reader = domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?;
         let topic = domain_participant
             .topic_list()
             .iter()
@@ -185,29 +275,49 @@ impl UserDefinedDataReaderNode {
 
         Ok(UserDefinedTopicNode::new(ChildNode::new(
             topic.downgrade(),
-            *self.0.parent().parent(),
+            self.parent_participant,
         )))
     }
 
     pub fn get_subscriber(&self) -> UserDefinedSubscriberNode {
-        UserDefinedSubscriberNode::new(self.0.parent().clone())
+        UserDefinedSubscriberNode::new(self.parent_subcriber, self.parent_participant)
     }
 
-    pub fn wait_for_historical_data(&self, max_wait: Duration) -> DdsResult<()> {
-        self.0.get()?.wait_for_historical_data(max_wait)
+    pub fn is_historical_data_received(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<bool> {
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_historical_data_received()
     }
 
     pub fn get_matched_publication_data(
         &self,
+        domain_participant: &DdsDomainParticipant,
         publication_handle: InstanceHandle,
     ) -> DdsResult<PublicationBuiltinTopicData> {
-        self.0
-            .get()?
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
             .get_matched_publication_data(publication_handle)
     }
 
-    pub fn get_matched_publications(&self) -> DdsResult<Vec<InstanceHandle>> {
-        Ok(self.0.get()?.get_matched_publications())
+    pub fn get_matched_publications(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<Vec<InstanceHandle>> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_matched_publications())
     }
 
     pub fn set_qos(
@@ -215,10 +325,25 @@ impl UserDefinedDataReaderNode {
         domain_participant: &DdsDomainParticipant,
         qos: QosKind<DataReaderQos>,
     ) -> DdsResult<()> {
-        self.0.get()?.set_qos(qos)?;
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .set_qos(qos)?;
 
-        let data_reader = self.0.get()?;
-        if self.0.get()?.is_enabled() {
+        let data_reader = domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?;
+        if domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled()
+        {
             let topic = domain_participant
                 .topic_list()
                 .iter()
@@ -228,10 +353,16 @@ impl UserDefinedDataReaderNode {
                 })
                 .cloned()
                 .expect("Topic must exist");
-            let discovered_reader_data = self
-                .0
-                .get()?
-                .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+            let subscriber_qos = domain_participant
+                .get_subscriber(self.parent_subcriber)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_qos();
+            let discovered_reader_data = domain_participant
+                .get_subscriber(self.parent_subcriber)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .get_stateful_data_reader(self.this)
+                .ok_or(DdsError::AlreadyDeleted)?
+                .as_discovered_reader_data(&topic.get_qos(), &subscriber_qos);
             domain_participant
                 .announce_sender()
                 .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
@@ -241,37 +372,72 @@ impl UserDefinedDataReaderNode {
         Ok(())
     }
 
-    pub fn get_qos(&self) -> DdsResult<DataReaderQos> {
-        Ok(self.0.get()?.get_qos())
+    pub fn get_qos(&self, domain_participant: &DdsDomainParticipant) -> DdsResult<DataReaderQos> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos())
     }
 
     pub fn set_listener(
         &self,
-        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
+        _a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
+        _mask: &[StatusKind],
     ) -> DdsResult<()> {
-        *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
-        Ok(())
+        todo!()
+        // *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
+        // Ok(())
     }
 
-    pub fn get_statuscondition(&self) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        Ok(self.0.get()?.get_statuscondition())
+    pub fn get_statuscondition(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_statuscondition())
     }
 
-    pub fn get_status_changes(&self) -> DdsResult<Vec<StatusKind>> {
-        Ok(self.0.get()?.get_status_changes())
+    pub fn get_status_changes(
+        &self,
+        domain_participant: &DdsDomainParticipant,
+    ) -> DdsResult<Vec<StatusKind>> {
+        Ok(domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_status_changes())
     }
 
     pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
-        if !self.0.parent().get()?.is_enabled() {
+        if !domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .is_enabled()
+        {
             return Err(DdsError::PreconditionNotMet(
                 "Parent subscriber disabled".to_string(),
             ));
         }
 
-        self.0.get()?.enable()?;
+        domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .enable()?;
 
-        let data_reader = self.0.get()?;
+        let data_reader = domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?;
         let topic = domain_participant
             .topic_list()
             .iter()
@@ -281,10 +447,16 @@ impl UserDefinedDataReaderNode {
             })
             .cloned()
             .expect("Topic must exist");
-        let discovered_reader_data = self
-            .0
-            .get()?
-            .as_discovered_reader_data(&topic.get_qos(), &self.0.parent().get()?.get_qos());
+        let subscriber_qos = domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_qos();
+        let discovered_reader_data = domain_participant
+            .get_subscriber(self.parent_subcriber)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .get_stateful_data_reader(self.this)
+            .ok_or(DdsError::AlreadyDeleted)?
+            .as_discovered_reader_data(&topic.get_qos(), &subscriber_qos);
         domain_participant
             .announce_sender()
             .send(AnnounceKind::CreatedDataReader(discovered_reader_data))
@@ -294,6 +466,6 @@ impl UserDefinedDataReaderNode {
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {
-        Ok(self.0.get()?.get_instance_handle())
+        Ok(self.this.into())
     }
 }

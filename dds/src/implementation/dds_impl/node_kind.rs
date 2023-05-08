@@ -11,7 +11,7 @@ use super::{
     node_user_defined_topic::UserDefinedTopicNode,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum SubscriberNodeKind {
     Builtin(BuiltinSubscriberNode),
     UserDefined(UserDefinedSubscriberNode),

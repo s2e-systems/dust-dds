@@ -100,7 +100,7 @@ impl DomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
     ) -> DdsResult<Subscriber> {
-        self.call_participant_method(|dp| {
+        self.call_participant_mut_method(|dp| {
             Ok(Subscriber::new(SubscriberNodeKind::UserDefined(
                 self.0.create_subscriber(dp, qos, a_listener, mask)?,
             )))
@@ -114,9 +114,13 @@ impl DomainParticipant {
     /// it is called on a different [`DomainParticipant`], the operation will have no effect and it will return
     /// [`DdsError::PreconditionNotMet`](crate::infrastructure::error::DdsError).
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> DdsResult<()> {
-        self.call_participant_method(|dp| {
-            self.0
-                .delete_subscriber(dp, a_subscriber.get_instance_handle()?)?;
+        self.call_participant_mut_method(|dp| {
+            match &a_subscriber.0 {
+                SubscriberNodeKind::Builtin(_) => todo!(),
+                SubscriberNodeKind::UserDefined(s) => self.0.delete_subscriber(dp, s.guid()?)?,
+                SubscriberNodeKind::Listener(_) => todo!(),
+            }
+
             Ok(())
         })
     }
