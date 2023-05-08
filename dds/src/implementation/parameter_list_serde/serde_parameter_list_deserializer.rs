@@ -314,26 +314,52 @@ where
             where
                 E: serde::de::Error,
             {
-                let mut skip_bytes = 0;
-                let mut reader = v;
+                const PL_CDR_BE: &[u8] = &[0x00, 0x02];
+                const PL_CDR_LE: &[u8] = &[0x00, 0x03];
+
+                let (representation_identifier, v) = v.split_at(2);
+                if representation_identifier != PL_CDR_BE && representation_identifier != PL_CDR_LE
+                {
+                    return Err(serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Bytes(representation_identifier),
+                        &"PL_CDR_BE or PL_CDR_LE",
+                    ));
+                }
+                let (_representation_options, mut reader) = v.split_at(2);
                 loop {
-                    reader = &reader[skip_bytes..];
-                    let mut deserializer = cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
-                        reader,
-                        cdr::Infinite,
-                    );
-                    let pid: u16 = serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|_err| serde::de::Error::missing_field("PID"))?;
-                    let length: u16 = serde::Deserialize::deserialize(&mut deserializer)
-                        .map_err(|_err| serde::de::Error::missing_field("length"))?;
+                    let mut deserializer_be =
+                        cdr::Deserializer::<_, _, byteorder::BigEndian>::new(reader, cdr::Infinite);
+                    let mut deserializer_le =
+                        cdr::Deserializer::<_, _, byteorder::LittleEndian>::new(
+                            reader,
+                            cdr::Infinite,
+                        );
+                    let pid: u16 = if representation_identifier == PL_CDR_BE {
+                        serde::Deserialize::deserialize(&mut deserializer_be)
+                    } else {
+                        serde::Deserialize::deserialize(&mut deserializer_le)
+                    }
+                    .map_err(|_err| serde::de::Error::missing_field("PID"))?;
+                    let length: u16 = if representation_identifier == PL_CDR_BE {
+                        serde::Deserialize::deserialize(&mut deserializer_be)
+                    } else {
+                        serde::Deserialize::deserialize(&mut deserializer_le)
+                    }
+                    .map_err(|_err| serde::de::Error::missing_field("length"))?;
+
                     if pid == PID {
-                        let value: T = serde::Deserialize::deserialize(&mut deserializer)
-                            .map_err(|_err| serde::de::Error::missing_field("value"))?;
+                        let value: T = if representation_identifier == PL_CDR_BE {
+                            serde::Deserialize::deserialize(&mut deserializer_be)
+                        } else {
+                            serde::Deserialize::deserialize(&mut deserializer_le)
+                        }
+                        .map_err(|_err| serde::de::Error::missing_field("value"))?;
                         return Ok(Parameter(value));
                     } else if pid == PID_SENTINEL {
                         return Err(serde::de::Error::missing_field("PID missing"));
                     } else {
-                        skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
+                        let skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
+                        reader = &reader[skip_bytes..];
                     }
                 }
             }
@@ -365,6 +391,7 @@ mod tests {
             n: Parameter(34),
         };
         let data = &[
+            0x00, 0x03, 0, 0, // representation identifier
             71, 0x00, 4, 0, // id | Length (incl padding)
             21, 0, 0, 0, // u8
             72, 0x00, 4, 0, // n | Length (incl padding)
