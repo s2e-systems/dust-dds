@@ -515,12 +515,12 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let publisher_impl_shared = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
+        let publisher = DdsPublisher::new(publisher_qos, rtps_group, a_listener, mask);
         if self.is_enabled() && self.get_qos().entity_factory.autoenable_created_entities {
-            publisher_impl_shared.enable();
+            publisher.enable();
         }
 
-        self.user_defined_publisher_list.push(publisher_impl_shared);
+        self.user_defined_publisher_list.push(publisher);
 
         Ok(guid)
     }
