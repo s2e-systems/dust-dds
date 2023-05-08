@@ -341,14 +341,19 @@ impl DomainParticipantFactory {
     /// [`DomainParticipant`] exists, the operation will return a [`None`] value.
     /// If multiple [`DomainParticipant`] entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_participant(&self, _domain_id: DomainId) -> Option<DomainParticipant> {
-        todo!()
-        // THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-        //     .iter(|x| {
-        //         x.find(|dp| dp.get_domain_id() == domain_id)
-        //             .map(|dp| dp.guid())
-        //     })
-        //     .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
+    pub fn lookup_participant(&self, domain_id: DomainId) -> Option<DomainParticipant> {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+            .domain_participant_list
+            .read_lock()
+            .iter()
+            .find_map(|(_, (dp, _))| {
+                if dp.get_domain_id() == domain_id {
+                    Some(dp.guid())
+                } else {
+                    None
+                }
+            })
+            .map(|guid| DomainParticipant::new(DomainParticipantNode::new(guid)))
     }
 
     /// This operation sets a default value of the [`DomainParticipantQos`] policies which will be used for newly created

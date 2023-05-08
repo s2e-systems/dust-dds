@@ -40,6 +40,14 @@ impl Subscriber {
     }
 }
 
+impl Drop for Subscriber {
+    fn drop(&mut self) {
+        if let Ok(dp) = self.get_participant() {
+            dp.delete_subscriber(self).ok();
+        }
+    }
+}
+
 impl Subscriber {
     /// This operation creates a [`DataReader`]. The returned [`DataReader`] will be attached and belong to the [`Subscriber`].
     /// The [`DataReader`] returned by this operation has an associated [`Topic`] and a type `Foo`.
@@ -100,13 +108,24 @@ impl Subscriber {
     pub fn delete_datareader<Foo>(&self, a_datareader: &DataReader<Foo>) -> DdsResult<()> {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
-            SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&s.guid().prefix(), |dp| {
-                    s.delete_datareader(
-                        dp.ok_or(DdsError::AlreadyDeleted)?,
-                        a_datareader.get_instance_handle()?,
-                    )
-                }),
+            SubscriberNodeKind::UserDefined(s) => match &a_datareader.0 {
+                DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
+                DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+                DataReaderNodeKind::UserDefined(dr) => {
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_participant_mut(
+                        &s.guid().prefix(),
+                        |dp| {
+                            s.delete_datareader(
+                                dp.ok_or(DdsError::AlreadyDeleted)?,
+                                a_datareader.get_instance_handle()?,
+                            )
+                        },
+                    )?;
+                    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.delete_data_reader_listener(&dr.guid());
+                    Ok(())
+                }
+                DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
+            },
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }

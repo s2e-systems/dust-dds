@@ -3,7 +3,6 @@ use crate::{
     implementation::dds_impl::{
         any_data_reader_listener::AnyDataReaderListener,
         node_kind::{DataReaderNodeKind, SubscriberNodeKind, TopicNodeKind},
-        node_user_defined_subscriber::UserDefinedSubscriberNode,
     },
     infrastructure::{
         error::DdsError, instance::InstanceHandle, qos::QosKind, status::StatusKind, time::Duration,
@@ -52,7 +51,7 @@ pub struct Sample<Foo> {
 ///
 /// A DataReader refers to exactly one [`Topic`] that identifies the data to be read. The subscription has a unique resulting type.
 /// The data-reader may give access to several instances of the resulting type, which can be distinguished from each other by their key.
-pub struct DataReader<Foo>(DataReaderNodeKind, PhantomData<Foo>);
+pub struct DataReader<Foo>(pub(crate) DataReaderNodeKind, PhantomData<Foo>);
 
 impl<Foo> DataReader<Foo> {
     pub(crate) fn new(data_reader: DataReaderNodeKind) -> Self {
@@ -62,17 +61,8 @@ impl<Foo> DataReader<Foo> {
 
 impl<Foo> Drop for DataReader<Foo> {
     fn drop(&mut self) {
-        match &self.0 {
-            DataReaderNodeKind::BuiltinStateful(_) => (),
-            DataReaderNodeKind::BuiltinStateless(_) => (),
-            DataReaderNodeKind::UserDefined(dr) => {
-                Subscriber::new(SubscriberNodeKind::UserDefined(
-                    UserDefinedSubscriberNode::new(dr.parent_subscriber(), dr.parent_participant()),
-                ))
-                .delete_datareader(self)
-                .ok();
-            }
-            DataReaderNodeKind::Listener(_) => (),
+        if let Ok(s) = self.get_subscriber() {
+            s.delete_datareader(self).ok();
         }
     }
 }
@@ -536,7 +526,9 @@ where
             DataReaderNodeKind::Listener(_) => todo!(),
         }
     }
+}
 
+impl<Foo> DataReader<Foo> {
     /// This operation allows access to the [`LivelinessChangedStatus`].
     pub fn get_liveliness_changed_status(&self) -> DdsResult<LivelinessChangedStatus> {
         match &self.0 {

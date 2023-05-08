@@ -48,14 +48,6 @@ impl UserDefinedDataReaderNode {
         self.this
     }
 
-    pub fn parent_subscriber(&self) -> Guid {
-        self.parent_subcriber
-    }
-
-    pub fn parent_participant(&self) -> Guid {
-        self.parent_participant
-    }
-
     pub fn read<Foo>(
         &self,
         domain_participant: &DdsDomainParticipant,

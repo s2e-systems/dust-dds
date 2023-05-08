@@ -27,11 +27,19 @@ use crate::{
 
 /// The [`DataWriter`] allows the application to set the value of the
 /// data to be published under a given [`Topic`].
-pub struct DataWriter<Foo>(DataWriterNodeKind, PhantomData<Foo>);
+pub struct DataWriter<Foo>(pub(crate) DataWriterNodeKind, PhantomData<Foo>);
 
 impl<Foo> DataWriter<Foo> {
     pub(crate) fn new(data_writer: DataWriterNodeKind) -> Self {
         Self(data_writer, PhantomData)
+    }
+}
+
+impl<Foo> Drop for DataWriter<Foo> {
+    fn drop(&mut self) {
+        if let Ok(p) = self.get_publisher() {
+            p.delete_datawriter(self).ok();
+        }
     }
 }
 
@@ -162,7 +170,7 @@ where
 
             match &self.0 {
                 DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                    .get_participant_mut(&w.this().prefix(), |dp| {
+                    .get_participant_mut(&w.guid().prefix(), |dp| {
                         w.unregister_instance_w_timestamp(
                             dp.ok_or(DdsError::AlreadyDeleted)?,
                             serialized_key,
@@ -196,7 +204,7 @@ where
     pub fn lookup_instance(&self, instance: &Foo) -> DdsResult<Option<InstanceHandle>> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.lookup_instance(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         instance.get_serialized_key(),
@@ -262,7 +270,7 @@ where
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.write_w_timestamp(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         serialized_data,
@@ -337,7 +345,7 @@ where
 
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.dispose_w_timestamp(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         serialized_key,
@@ -348,7 +356,9 @@ where
             DataWriterNodeKind::Listener(_) => todo!(),
         }
     }
+}
 
+impl<Foo> DataWriter<Foo> {
     /// This operation blocks the calling thread until either all data written by the [`DataWriter`] is acknowledged by all
     /// matched [`DataReader`](crate::subscription::data_reader::DataReader) entities that have
     /// [`ReliabilityQosPolicyKind::Reliable`](crate::infrastructure::qos_policy::ReliabilityQosPolicyKind), or else the duration
@@ -364,7 +374,7 @@ where
 
                 while start_time.elapsed() < std::time::Duration::from(max_wait) {
                     if THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                        .get_participant(&w.this().prefix(), |dp| {
+                        .get_participant(&w.guid().prefix(), |dp| {
                             w.are_all_changes_acknowledge(dp.ok_or(DdsError::AlreadyDeleted)?)
                         })?
                     {
@@ -406,7 +416,7 @@ where
     pub fn get_publication_matched_status(&self) -> DdsResult<PublicationMatchedStatus> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.get_publication_matched_status(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
@@ -458,7 +468,7 @@ where
     ) -> DdsResult<SubscriptionBuiltinTopicData> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.get_matched_subscription_data(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                         subscription_handle,
@@ -477,7 +487,7 @@ where
     pub fn get_matched_subscriptions(&self) -> DdsResult<Vec<InstanceHandle>> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.get_matched_subscriptions(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
@@ -505,7 +515,7 @@ where
     pub fn set_qos(&self, qos: QosKind<DataWriterQos>) -> DdsResult<()> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.set_qos(dp.ok_or(DdsError::AlreadyDeleted)?, qos)
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
@@ -516,7 +526,7 @@ where
     pub fn get_qos(&self) -> DdsResult<DataWriterQos> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.get_qos(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             DataWriterNodeKind::Listener(_) => todo!(),
@@ -554,7 +564,7 @@ where
     pub fn get_statuscondition(&self) -> DdsResult<StatusCondition> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     Ok(StatusCondition::new(w.get_statuscondition(
                         dp.ok_or(DdsError::AlreadyDeleted)?,
                     )?))
@@ -599,7 +609,7 @@ where
     pub fn enable(&self) -> DdsResult<()> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant_mut(&w.this().prefix(), |dp| {
+                .get_participant_mut(&w.guid().prefix(), |dp| {
                     w.enable(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),

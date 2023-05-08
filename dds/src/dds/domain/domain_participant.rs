@@ -20,7 +20,9 @@ use crate::{
 };
 
 use super::{
-    domain_participant_factory::{DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY},
+    domain_participant_factory::{
+        DomainId, THE_DDS_DOMAIN_PARTICIPANT_FACTORY, THE_PARTICIPANT_FACTORY,
+    },
     domain_participant_listener::DomainParticipantListener,
 };
 
@@ -48,6 +50,12 @@ pub struct DomainParticipant(pub(crate) DomainParticipantNode);
 impl DomainParticipant {
     pub(crate) fn new(node: DomainParticipantNode) -> Self {
         Self(node)
+    }
+}
+
+impl Drop for DomainParticipant {
+    fn drop(&mut self) {
+        THE_PARTICIPANT_FACTORY.delete_participant(self).ok();
     }
 }
 
