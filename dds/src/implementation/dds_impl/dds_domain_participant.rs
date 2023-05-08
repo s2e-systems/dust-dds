@@ -676,6 +676,10 @@ impl DdsDomainParticipant {
             mask,
             self.announce_sender.clone(),
         );
+
+        self.topic_list.push(topic_shared.clone());
+        self.topic_find_condvar.notify_all();
+
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -686,22 +690,21 @@ impl DdsDomainParticipant {
             topic_shared.enable()?;
         }
 
-        self.topic_list.push(topic_shared.clone());
-        self.topic_find_condvar.notify_all();
-
         Ok(topic_shared)
     }
 
-    pub fn delete_topic(&mut self, a_topic_handle: InstanceHandle) -> DdsResult<()> {
+    pub fn delete_topic(&mut self, topic_guid: Guid) -> DdsResult<()> {
+        if self.rtps_participant.guid().prefix() != topic_guid.prefix() {
+            return Err(DdsError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant".to_string(),
+            ));
+        }
+
         let topic = self
             .topic_list
             .iter()
-            .find(|&topic| topic.get_instance_handle() == a_topic_handle)
-            .ok_or_else(|| {
-                DdsError::PreconditionNotMet(
-                    "Topic can only be deleted from its parent publisher".to_string(),
-                )
-            })?
+            .find(|&topic| topic.guid() == topic_guid)
+            .ok_or(DdsError::AlreadyDeleted)?
             .clone();
 
         for publisher in self.user_defined_publisher_list() {
@@ -724,8 +727,7 @@ impl DdsDomainParticipant {
             }
         }
 
-        self.topic_list
-            .retain(|x| x.get_instance_handle() != a_topic_handle);
+        self.topic_list.retain(|x| x.guid() != topic_guid);
         Ok(())
     }
 

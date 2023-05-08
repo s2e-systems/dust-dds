@@ -42,6 +42,10 @@ impl UserDefinedPublisherNode {
         Self { this, parent }
     }
 
+    pub fn guid(&self) -> Guid {
+        self.this
+    }
+
     pub fn create_datawriter<Foo>(
         &self,
         domain_participant: &mut DdsDomainParticipant,
@@ -288,10 +292,6 @@ impl UserDefinedPublisherNode {
 
     pub fn parent(&self) -> Guid {
         self.parent
-    }
-
-    pub fn this(&self) -> Guid {
-        self.this
     }
 }
 

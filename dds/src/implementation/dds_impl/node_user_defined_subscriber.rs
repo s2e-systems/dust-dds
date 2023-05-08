@@ -39,8 +39,8 @@ impl UserDefinedSubscriberNode {
         Self { this, parent }
     }
 
-    pub fn guid(&self) -> DdsResult<Guid> {
-        Ok(self.this)
+    pub fn guid(&self) -> Guid {
+        self.this
     }
 
     pub fn create_datareader<Foo>(

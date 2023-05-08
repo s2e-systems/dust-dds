@@ -2,10 +2,7 @@ use crate::{
     builtin_topics::PublicationBuiltinTopicData,
     implementation::{
         rtps::types::Guid,
-        utils::{
-            node::ChildNode,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -273,10 +270,10 @@ impl UserDefinedDataReaderNode {
             .cloned()
             .expect("Topic must exist");
 
-        Ok(UserDefinedTopicNode::new(ChildNode::new(
-            topic.downgrade(),
+        Ok(UserDefinedTopicNode::new(
+            topic.guid(),
             self.parent_participant,
-        )))
+        ))
     }
 
     pub fn get_subscriber(&self) -> UserDefinedSubscriberNode {
