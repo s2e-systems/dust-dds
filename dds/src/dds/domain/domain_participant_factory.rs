@@ -13,6 +13,7 @@ use crate::{
         configuration::DustDdsConfiguration,
         dds_impl::{
             any_data_reader_listener::AnyDataReaderListener,
+            any_data_writer_listener::AnyDataWriterListener, any_topic_listener::AnyTopicListener,
             dds_domain_participant::DdsDomainParticipant,
             node_domain_participant::DomainParticipantNode, status_listener::StatusListener,
         },
@@ -31,7 +32,10 @@ use crate::{
         qos::{DomainParticipantFactoryQos, DomainParticipantQos, QosKind},
         status::StatusKind,
     },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
 };
+
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mac_address::MacAddress;
@@ -395,9 +399,18 @@ impl DomainParticipantFactory {
 
 pub struct DdsDomainParticipantFactory {
     domain_participant_list: DdsRwLock<HashMap<GuidPrefix, (DdsDomainParticipant, DcpsService)>>,
-
+    domain_participant_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn DomainParticipantListener + Send + Sync>>>,
+    publisher_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn PublisherListener + Send + Sync>>>,
+    subscriber_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn SubscriberListener + Send + Sync>>>,
+    topic_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyTopicListener + Send + Sync>>>,
     data_reader_listener_list:
         DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataReaderListener + Send + Sync>>>,
+    data_writer_listener_list:
+        DdsRwLock<HashMap<Guid, StatusListener<dyn AnyDataWriterListener + Send + Sync>>>,
     qos: DdsRwLock<DomainParticipantFactoryQos>,
     default_participant_qos: DdsRwLock<DomainParticipantQos>,
     timer_factory: TimerFactory,
@@ -413,7 +426,12 @@ impl DdsDomainParticipantFactory {
     pub fn new() -> Self {
         Self {
             domain_participant_list: DdsRwLock::new(HashMap::new()),
+            domain_participant_listener_list: DdsRwLock::new(HashMap::new()),
+            publisher_listener_list: DdsRwLock::new(HashMap::new()),
+            subscriber_listener_list: DdsRwLock::new(HashMap::new()),
+            topic_listener_list: DdsRwLock::new(HashMap::new()),
             data_reader_listener_list: DdsRwLock::new(HashMap::new()),
+            data_writer_listener_list: DdsRwLock::new(HashMap::new()),
             qos: DdsRwLock::new(DomainParticipantFactoryQos::default()),
             default_participant_qos: DdsRwLock::new(DomainParticipantQos::default()),
             timer_factory: TimerFactory::new(),
@@ -475,6 +493,109 @@ impl DdsDomainParticipantFactory {
             .map(|o| &mut o.0))
     }
 
+    pub fn add_domain_participant_listener(
+        &self,
+        domain_participant_guid: Guid,
+        listener: Option<Box<dyn DomainParticipantListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.domain_participant_listener_list
+            .write_lock()
+            .insert(domain_participant_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_domain_participant_listener(&self, domain_participant_guid: &Guid) {
+        self.domain_participant_listener_list
+            .write_lock()
+            .remove(domain_participant_guid);
+    }
+
+    pub fn get_domain_participant_listener<F, O>(&self, domain_participant_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn DomainParticipantListener + Send + Sync>>) -> O,
+    {
+        f(self
+            .domain_participant_listener_list
+            .write_lock()
+            .get_mut(domain_participant_guid))
+    }
+
+    pub fn add_subscriber_listener(
+        &self,
+        subscriber_guid: Guid,
+        listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.subscriber_listener_list
+            .write_lock()
+            .insert(subscriber_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_subscriber_listener(&self, subscriber_guid: &Guid) {
+        self.subscriber_listener_list
+            .write_lock()
+            .remove(subscriber_guid);
+    }
+
+    pub fn get_subscriber_listener<F, O>(&self, subscriber_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn SubscriberListener + Send + Sync>>) -> O,
+    {
+        f(self
+            .subscriber_listener_list
+            .write_lock()
+            .get_mut(subscriber_guid))
+    }
+
+    pub fn add_publisher_listener(
+        &self,
+        publisher_guid: Guid,
+        listener: Option<Box<dyn PublisherListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.publisher_listener_list
+            .write_lock()
+            .insert(publisher_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_publisher_listener(&self, publisher_guid: &Guid) {
+        self.publisher_listener_list
+            .write_lock()
+            .remove(publisher_guid);
+    }
+
+    pub fn get_publisher_listener<F, O>(&self, publisher_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn PublisherListener + Send + Sync>>) -> O,
+    {
+        f(self
+            .publisher_listener_list
+            .write_lock()
+            .get_mut(publisher_guid))
+    }
+
+    pub fn add_topic_listener(
+        &self,
+        topic_guid: Guid,
+        listener: Option<Box<dyn AnyTopicListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.topic_listener_list
+            .write_lock()
+            .insert(topic_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_topic_listener(&self, topic_guid: &Guid) {
+        self.topic_listener_list.write_lock().remove(topic_guid);
+    }
+
+    pub fn get_topic_listener<F, O>(&self, topic_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn AnyTopicListener + Send + Sync>>) -> O,
+    {
+        f(self.topic_listener_list.write_lock().get_mut(topic_guid))
+    }
+
     pub fn add_data_reader_listener(
         &self,
         data_reader_guid: Guid,
@@ -500,6 +621,33 @@ impl DdsDomainParticipantFactory {
             .data_reader_listener_list
             .write_lock()
             .get_mut(data_reader_guid))
+    }
+
+    pub fn add_data_writer_listener(
+        &self,
+        data_writer_guid: Guid,
+        listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
+        mask: &[StatusKind],
+    ) {
+        self.data_writer_listener_list
+            .write_lock()
+            .insert(data_writer_guid, StatusListener::new(listener, mask));
+    }
+
+    pub fn delete_data_writer_listener(&self, data_writer_guid: &Guid) {
+        self.data_writer_listener_list
+            .write_lock()
+            .remove(data_writer_guid);
+    }
+
+    pub fn get_data_writer_listener<F, O>(&self, data_writer_guid: &Guid, f: F) -> O
+    where
+        F: FnOnce(Option<&mut StatusListener<dyn AnyDataWriterListener + Send + Sync>>) -> O,
+    {
+        f(self
+            .data_writer_listener_list
+            .write_lock()
+            .get_mut(data_writer_guid))
     }
 }
 
