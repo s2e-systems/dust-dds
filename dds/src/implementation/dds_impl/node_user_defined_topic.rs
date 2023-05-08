@@ -14,7 +14,7 @@ use super::{
     node_domain_participant::DomainParticipantNode,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct UserDefinedTopicNode {
     this: Guid,
     parent: Guid,
