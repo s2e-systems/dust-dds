@@ -84,14 +84,22 @@ impl Subscriber {
                     &s.guid().prefix(),
                     |dp| {
                         let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                        s.create_datareader::<Foo>(dp, type_name, topic_name, qos, None, mask)
+                        s.create_datareader::<Foo>(
+                            dp,
+                            type_name,
+                            topic_name,
+                            qos,
+                            a_listener.map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(
+                                |x| Box::new(x),
+                            ),
+                            mask,
+                        )
                     },
                 )?;
 
                 THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_reader_listener(
                     reader.guid(),
-                    a_listener
-                        .map::<Box<dyn AnyDataReaderListener + Send + Sync>, _>(|x| Box::new(x)),
+                    None,
                     mask,
                 );
 

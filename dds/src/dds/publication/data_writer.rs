@@ -437,7 +437,7 @@ impl<Foo> DataWriter<Foo> {
     pub fn get_publisher(&self) -> DdsResult<Publisher> {
         match &self.0 {
             DataWriterNodeKind::UserDefined(w) => Ok(Publisher::new(w.get_publisher())),
-            DataWriterNodeKind::Listener(_) => todo!(),
+            DataWriterNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 

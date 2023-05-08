@@ -629,12 +629,12 @@ impl<Foo> DataReader<Foo> {
     /// This operation returns the [`Subscriber`] to which the [`DataReader`] belongs.
     pub fn get_subscriber(&self) -> DdsResult<Subscriber> {
         match &self.0 {
-            DataReaderNodeKind::BuiltinStateless(_) => todo!(),
-            DataReaderNodeKind::BuiltinStateful(_) => todo!(),
+            DataReaderNodeKind::BuiltinStateless(_) => Err(DdsError::IllegalOperation),
+            DataReaderNodeKind::BuiltinStateful(_) => Err(DdsError::IllegalOperation),
             DataReaderNodeKind::UserDefined(r) => Ok(Subscriber::new(
                 SubscriberNodeKind::UserDefined(r.get_subscriber()),
             )),
-            DataReaderNodeKind::Listener(_) => todo!(),
+            DataReaderNodeKind::Listener(_) => Err(DdsError::IllegalOperation),
         }
     }
 
