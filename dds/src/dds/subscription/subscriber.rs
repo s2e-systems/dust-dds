@@ -176,7 +176,7 @@ impl Subscriber {
         match &self.0 {
             SubscriberNodeKind::Builtin(_) => Err(DdsError::IllegalOperation),
             SubscriberNodeKind::UserDefined(s) => THE_DDS_DOMAIN_PARTICIPANT_FACTORY
-                .get_participant(&s.guid()?.prefix(), |dp| {
+                .get_participant_mut(&s.guid()?.prefix(), |dp| {
                     s.delete_contained_entities(dp.ok_or(DdsError::AlreadyDeleted)?)
                 }),
             SubscriberNodeKind::Listener(_) => Err(DdsError::IllegalOperation),

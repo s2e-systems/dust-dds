@@ -122,7 +122,7 @@ impl UserDefinedSubscriberNode {
         let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
 
         domain_participant
-            .get_subscriber(self.this)
+            .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_add(data_reader.clone());
 
@@ -164,7 +164,7 @@ impl UserDefinedSubscriberNode {
             .clone();
 
         domain_participant
-            .get_subscriber(self.this)
+            .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_delete(a_datareader_handle);
 
@@ -218,21 +218,22 @@ impl UserDefinedSubscriberNode {
 
     pub fn delete_contained_entities(
         &self,
-        domain_participant: &DdsDomainParticipant,
+        domain_participant: &mut DdsDomainParticipant,
     ) -> DdsResult<()> {
         for data_reader in domain_participant
-            .get_subscriber(self.this)
+            .get_subscriber_mut(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .stateful_data_reader_drain()
             .into_iter()
         {
             if data_reader.is_enabled() {
-                domain_participant
-                    .announce_sender()
-                    .send(AnnounceKind::DeletedDataReader(
-                        data_reader.get_instance_handle(),
-                    ))
-                    .ok();
+                todo!()
+                // domain_participant
+                //     .announce_sender()
+                //     .send(AnnounceKind::DeletedDataReader(
+                //         data_reader.get_instance_handle(),
+                //     ))
+                //     .ok();
             }
         }
         Ok(())

@@ -30,7 +30,7 @@ use crate::{
 
 use super::{
     dds_data_reader::{DdsDataReader, UserDefinedReaderDataSubmessageReceivedResult},
-    message_receiver::{MessageReceiver, SubscriberSubmessageReceiver},
+    message_receiver::MessageReceiver,
     node_kind::SubscriberNodeKind,
     node_listener_subscriber::ListenerSubscriberNode,
     status_condition_impl::StatusConditionImpl,
@@ -56,8 +56,8 @@ impl DdsSubscriber {
         rtps_group: RtpsGroup,
         listener: Option<Box<dyn SubscriberListener + Send + Sync>>,
         mask: &[StatusKind],
-    ) -> DdsShared<Self> {
-        DdsShared::new(DdsSubscriber {
+    ) -> Self {
+        DdsSubscriber {
             qos: DdsRwLock::new(qos),
             rtps_group,
             stateless_data_reader_list: DdsRwLock::new(Vec::new()),
@@ -68,7 +68,7 @@ impl DdsSubscriber {
             status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             user_defined_data_reader_counter: DdsRwLock::new(0),
             default_data_reader_qos: DdsRwLock::new(Default::default()),
-        })
+        }
     }
 
     pub fn guid(&self) -> Guid {
@@ -177,9 +177,7 @@ impl DdsSubscriber {
     pub fn get_default_datareader_qos(&self) -> DataReaderQos {
         self.default_data_reader_qos.read_lock().clone()
     }
-}
 
-impl DdsShared<DdsSubscriber> {
     pub fn update_communication_status(
         &self,
         now: Time,
@@ -287,10 +285,8 @@ impl DdsShared<DdsSubscriber> {
             }
         }
     }
-}
 
-impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
-    fn on_heartbeat_submessage_received(
+    pub fn on_heartbeat_submessage_received(
         &self,
         heartbeat_submessage: &HeartbeatSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -300,7 +296,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         }
     }
 
-    fn on_heartbeat_frag_submessage_received(
+    pub fn on_heartbeat_frag_submessage_received(
         &self,
         heartbeat_frag_submessage: &HeartbeatFragSubmessage,
         source_guid_prefix: GuidPrefix,
@@ -313,7 +309,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         }
     }
 
-    fn on_data_submessage_received(
+    pub fn on_data_submessage_received(
         &self,
         data_submessage: &DataSubmessage<'_>,
         message_receiver: &MessageReceiver,
@@ -344,7 +340,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         }
     }
 
-    fn on_data_frag_submessage_received(
+    pub fn on_data_frag_submessage_received(
         &self,
         data_frag_submessage: &DataFragSubmessage<'_>,
         message_receiver: &MessageReceiver,
@@ -371,7 +367,7 @@ impl SubscriberSubmessageReceiver for DdsShared<DdsSubscriber> {
         }
     }
 
-    fn on_gap_submessage_received(
+    pub fn on_gap_submessage_received(
         &self,
         gap_submessage: &GapSubmessage,
         message_receiver: &MessageReceiver,

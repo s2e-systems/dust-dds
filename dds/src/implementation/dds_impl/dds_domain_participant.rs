@@ -141,9 +141,9 @@ pub struct DdsDomainParticipant {
     domain_id: DomainId,
     domain_tag: String,
     qos: DdsRwLock<DomainParticipantQos>,
-    builtin_subscriber: DdsShared<DdsSubscriber>,
+    builtin_subscriber: DdsSubscriber,
     builtin_publisher: DdsPublisher,
-    user_defined_subscriber_list: Vec<DdsShared<DdsSubscriber>>,
+    user_defined_subscriber_list: Vec<DdsSubscriber>,
     user_defined_subscriber_counter: AtomicU8,
     default_subscriber_qos: DdsRwLock<SubscriberQos>,
     user_defined_publisher_list: Vec<DdsPublisher>,
@@ -286,7 +286,7 @@ impl DdsDomainParticipant {
             NO_STATUS,
         );
 
-        let builtin_subscriber = DdsSubscriber::new(
+        let mut builtin_subscriber = DdsSubscriber::new(
             SubscriberQos::default(),
             RtpsGroup::new(Guid::new(
                 guid_prefix,
@@ -428,8 +428,8 @@ impl DdsDomainParticipant {
         self.rtps_participant.metatraffic_multicast_locator_list()
     }
 
-    pub fn get_builtin_subscriber(&self) -> DdsShared<DdsSubscriber> {
-        self.builtin_subscriber.clone()
+    pub fn get_builtin_subscriber(&self) -> &DdsSubscriber {
+        &self.builtin_subscriber
     }
 
     pub fn get_builtin_publisher(&self) -> &DdsPublisher {
@@ -586,7 +586,7 @@ impl DdsDomainParticipant {
         );
         let guid = Guid::new(self.rtps_participant.guid().prefix(), entity_id);
         let rtps_group = RtpsGroup::new(guid);
-        let subscriber_shared = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
+        let subscriber = DdsSubscriber::new(subscriber_qos, rtps_group, a_listener, mask);
         if *self.enabled.read_lock()
             && self
                 .qos
@@ -594,10 +594,10 @@ impl DdsDomainParticipant {
                 .entity_factory
                 .autoenable_created_entities
         {
-            subscriber_shared.enable()?;
+            subscriber.enable()?;
         }
 
-        self.user_defined_subscriber_list.push(subscriber_shared);
+        self.user_defined_subscriber_list.push(subscriber);
 
         Ok(guid)
     }
@@ -628,13 +628,19 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn user_defined_subscriber_list(&self) -> &[DdsShared<DdsSubscriber>] {
+    pub fn user_defined_subscriber_list(&self) -> &[DdsSubscriber] {
         &self.user_defined_subscriber_list
     }
 
-    pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsShared<DdsSubscriber>> {
+    pub fn get_subscriber(&self, subscriber_guid: Guid) -> Option<&DdsSubscriber> {
         self.user_defined_subscriber_list
             .iter()
+            .find(|s| s.guid() == subscriber_guid)
+    }
+
+    pub fn get_subscriber_mut(&mut self, subscriber_guid: Guid) -> Option<&mut DdsSubscriber> {
+        self.user_defined_subscriber_list
+            .iter_mut()
             .find(|s| s.guid() == subscriber_guid)
     }
 
@@ -844,7 +850,7 @@ impl DdsDomainParticipant {
             }
         }
 
-        for user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
+        for mut user_defined_subscriber in self.user_defined_subscriber_list.drain(..) {
             for data_reader in user_defined_subscriber
                 .stateful_data_reader_drain()
                 .into_iter()

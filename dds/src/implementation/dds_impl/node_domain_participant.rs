@@ -127,7 +127,8 @@ impl DomainParticipantNode {
         let builtin_subcriber = Ok(domain_participant.get_builtin_subscriber())?;
 
         Ok(BuiltinSubscriberNode::new(ChildNode::new(
-            builtin_subcriber.downgrade(),
+            // builtin_subcriber.downgrade(),
+            todo!(),
             self.0,
         )))
     }
