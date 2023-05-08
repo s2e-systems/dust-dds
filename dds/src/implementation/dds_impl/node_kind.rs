@@ -32,7 +32,7 @@ pub enum DataReaderNodeKind {
     Listener(ListenerDataReaderNode),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum TopicNodeKind {
     UserDefined(UserDefinedTopicNode),
     Listener(ListenerTopicNode),
