@@ -2,7 +2,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, UdpSocket},
     sync::{
         atomic::{self, AtomicBool},
-        mpsc::{Receiver, SyncSender},
+        mpsc::{self, Receiver, SyncSender},
         Arc,
     },
     thread::JoinHandle,
@@ -35,7 +35,7 @@ use crate::{
             dds_subscriber::DdsSubscriber,
             message_receiver::MessageReceiver,
             participant_discovery::ParticipantDiscovery,
-            status_listener::StatusListener,
+            status_listener::{ListenerTriggerKind, StatusListener},
         },
         rtps::{
             discovery_types::BuiltinEndpointSet,
@@ -65,6 +65,7 @@ use crate::{
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
+        status::StatusKind,
         time::{Duration, DurationKind, Time},
     },
     subscription::sample_info::{
@@ -144,6 +145,8 @@ impl DcpsService {
         let quit = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::new();
 
+        let (listener_sender, listener_receiver) = mpsc::channel();
+
         // //////////// Notification thread
         {
             let task_quit = quit.clone();
@@ -157,7 +160,7 @@ impl DcpsService {
                     &participant_guid_prefix,
                     |dp| {
                         if let Some(dp) = dp {
-                            dp.update_communication_status().ok();
+                            dp.update_communication_status(&listener_sender).ok();
                         }
                     },
                 );
@@ -309,6 +312,60 @@ impl DcpsService {
                         user_defined_communication_send(dp, &mut default_unicast_transport_send);
                     }
                 })
+            }));
+        }
+
+        //////////// Listener thread
+        {
+            let task_quit = quit.clone();
+
+            threads.push(std::thread::spawn(move || loop {
+                if task_quit.load(atomic::Ordering::SeqCst) {
+                    break;
+                }
+
+                if let Ok(l) = listener_receiver.recv() {
+                    match l {
+                        ListenerTriggerKind::RequestedDeadlineMissed(data_reader_node) => {
+                            // 1. Enable requested deadline missed communication changed flag
+                            // 2. Call the listener on the reader if enabled
+                            //    2.1 If listener is enabled then requested deadline missed communication changed flag is implicitly reset by calling get_requested_deadline_missed_status
+                            // 3. Signal the status condition change
+                            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+                                &data_reader_node.guid(),
+                                |data_reader_listener| {
+                                    if let Some(l) = data_reader_listener {
+                                        if l.is_enabled(&StatusKind::RequestedDeadlineMissed) {
+                                            let status = THE_DDS_DOMAIN_PARTICIPANT_FACTORY
+                                                .get_participant(
+                                                    &data_reader_node.parent_participant().prefix(),
+                                                    |dp| {
+                                                        data_reader_node
+                                                            .get_requested_deadline_missed_status(
+                                                                dp.unwrap(),
+                                                            )
+                                                    },
+                                                )
+                                                .unwrap();
+
+                                            l.listener_mut()
+                                                .as_mut()
+                                                .expect("Listener should be some")
+                                                .trigger_on_requested_deadline_missed(
+                                                    data_reader_node,
+                                                    status,
+                                                )
+                                        }
+
+                                        l.add_communication_state(
+                                            StatusKind::RequestedDeadlineMissed,
+                                        );
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
             }));
         }
 

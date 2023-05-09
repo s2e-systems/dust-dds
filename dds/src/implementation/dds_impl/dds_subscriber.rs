@@ -1,4 +1,4 @@
-use std::sync::RwLockWriteGuard;
+use std::sync::{mpsc::Sender, RwLockWriteGuard};
 
 use crate::{
     domain::domain_participant_listener::DomainParticipantListener,
@@ -31,7 +31,7 @@ use super::{
     node_kind::SubscriberNodeKind,
     node_listener_subscriber::ListenerSubscriberNode,
     status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    status_listener::{ListenerTriggerKind, StatusListener},
 };
 
 pub struct DdsSubscriber {
@@ -176,15 +176,15 @@ impl DdsSubscriber {
     pub fn update_communication_status(
         &self,
         now: Time,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_participant_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         for data_reader in self.stateful_data_reader_list.iter() {
             data_reader.update_communication_status(
                 now,
-                &mut self.status_listener.write_lock(),
-                participant_status_listener,
+                parent_participant_guid,
+                self.guid(),
+                listener_sender,
             );
         }
     }

@@ -90,17 +90,20 @@ use std::{
     collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicU8, Ordering},
-        mpsc::SyncSender,
+        mpsc::{Sender, SyncSender},
         RwLockWriteGuard,
     },
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use super::{
-    any_topic_listener::AnyTopicListener, dds_data_writer::DdsDataWriter,
-    dds_publisher::DdsPublisher, message_receiver::MessageReceiver,
-    node_listener_data_writer::ListenerDataWriterNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    any_topic_listener::AnyTopicListener,
+    dds_data_writer::DdsDataWriter,
+    dds_publisher::DdsPublisher,
+    message_receiver::MessageReceiver,
+    node_listener_data_writer::ListenerDataWriterNode,
+    status_condition_impl::StatusConditionImpl,
+    status_listener::{ListenerTriggerKind, StatusListener},
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER: EntityId =
@@ -1255,10 +1258,13 @@ impl DdsDomainParticipant {
         Ok(())
     }
 
-    pub fn update_communication_status(&self) -> DdsResult<()> {
+    pub fn update_communication_status(
+        &self,
+        listener_sender: &Sender<ListenerTriggerKind>,
+    ) -> DdsResult<()> {
         let now = self.get_current_time();
         for subscriber in self.user_defined_subscriber_list.iter() {
-            subscriber.update_communication_status(now, &mut self.status_listener.write_lock());
+            subscriber.update_communication_status(now, self.guid(), listener_sender);
         }
 
         Ok(())

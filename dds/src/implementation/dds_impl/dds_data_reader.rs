@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::RwLockWriteGuard,
+    sync::{mpsc::Sender, RwLockWriteGuard},
 };
 
 use crate::{
@@ -26,10 +26,7 @@ use crate::{
             types::{Guid, GuidPrefix, Locator, GUID_UNKNOWN},
             writer_proxy::RtpsWriterProxy,
         },
-        utils::{
-            node::RootNode,
-            shared_object::{DdsRwLock, DdsShared},
-        },
+        utils::shared_object::{DdsRwLock, DdsShared},
     },
     infrastructure::{
         error::{DdsError, DdsResult},
@@ -56,9 +53,11 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener, message_receiver::MessageReceiver,
-    node_listener_data_reader::ListenerDataReaderNode, status_condition_impl::StatusConditionImpl,
-    status_listener::StatusListener,
+    any_data_reader_listener::AnyDataReaderListener,
+    message_receiver::MessageReceiver,
+    node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_condition_impl::StatusConditionImpl,
+    status_listener::{ListenerTriggerKind, StatusListener},
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -793,10 +792,9 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
     pub fn update_communication_status(
         &self,
         now: Time,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
+        parent_participant_guid: Guid,
+        parent_subcriber_guid: Guid,
+        listener_sender: &Sender<ListenerTriggerKind>,
     ) {
         let (missed_deadline_instances, instance_reception_time) = self
             .instance_reception_time
@@ -810,11 +808,19 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         *self.instance_reception_time.write_lock() = instance_reception_time;
 
         for (missed_deadline_instance, _) in missed_deadline_instances {
-            self.on_requested_deadline_missed(
-                missed_deadline_instance,
-                subscriber_status_listener,
-                participant_status_listener,
-            );
+            self.requested_deadline_missed_status
+                .write_lock()
+                .increment(missed_deadline_instance);
+
+            listener_sender
+                .send(ListenerTriggerKind::RequestedDeadlineMissed(
+                    UserDefinedDataReaderNode::new(
+                        self.guid(),
+                        parent_subcriber_guid,
+                        parent_participant_guid,
+                    ),
+                ))
+                .unwrap();
         }
     }
 
@@ -852,23 +858,24 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
     ) {
         let on_data_available_status_kind = &StatusKind::DataAvailable;
-        if reader_status_listener.is_enabled(on_data_available_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
-                    self.downgrade(),
-                )))
-        } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
-                    self.downgrade(),
-                )))
-        }
+        todo!()
+        // if reader_status_listener.is_enabled(on_data_available_status_kind) {
+        //     reader_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .trigger_on_data_available(ListenerDataReaderNode::new(RootNode::new(
+        //             self.downgrade(),
+        //         )))
+        // } else if participant_status_listener.is_enabled(on_data_available_status_kind) {
+        //     participant_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_data_available(&ListenerDataReaderNode::new(RootNode::new(
+        //             self.downgrade(),
+        //         )))
+        // }
     }
 
     fn on_sample_lost(
@@ -900,34 +907,35 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
     ) {
         let sample_lost_status_kind = &StatusKind::SampleLost;
-        if reader_status_listener.is_enabled(sample_lost_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_sample_lost(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_lost(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_lost(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_lost_status(),
-                )
-        }
+        todo!()
+        // if reader_status_listener.is_enabled(sample_lost_status_kind) {
+        //     reader_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .trigger_on_sample_lost(
+        //             ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_lost_status(),
+        //         )
+        // } else if subscriber_status_listener.is_enabled(sample_lost_status_kind) {
+        //     subscriber_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_sample_lost(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_lost_status(),
+        //         )
+        // } else if participant_status_listener.is_enabled(sample_lost_status_kind) {
+        //     participant_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_sample_lost(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_lost_status(),
+        //         )
+        // }
     }
 
     fn on_subscription_matched(
@@ -962,34 +970,35 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
     ) {
         let subscription_matched_status_kind = &StatusKind::SubscriptionMatched;
-        if reader_status_listener.is_enabled(subscription_matched_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_subscription_matched(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_subscription_matched(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_subscription_matched(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_subscription_matched_status(),
-                )
-        }
+        todo!()
+        // if reader_status_listener.is_enabled(subscription_matched_status_kind) {
+        //     reader_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .trigger_on_subscription_matched(
+        //             ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_subscription_matched_status(),
+        //         )
+        // } else if subscriber_status_listener.is_enabled(subscription_matched_status_kind) {
+        //     subscriber_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_subscription_matched(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_subscription_matched_status(),
+        //         )
+        // } else if participant_status_listener.is_enabled(subscription_matched_status_kind) {
+        //     participant_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_subscription_matched(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_subscription_matched_status(),
+        //         )
+        // }
     }
 
     fn on_sample_rejected(
@@ -1025,96 +1034,35 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
     ) {
         let sample_rejected_status_kind = &StatusKind::SampleRejected;
-        if reader_status_listener.is_enabled(sample_rejected_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_sample_rejected(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_rejected(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_sample_rejected(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_sample_rejected_status(),
-                )
-        }
-    }
-
-    fn on_requested_deadline_missed(
-        &self,
-        instance_handle: InstanceHandle,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        self.requested_deadline_missed_status
-            .write_lock()
-            .increment(instance_handle);
-
-        self.trigger_on_requested_deadline_missed_listener(
-            &mut self.status_listener.write_lock(),
-            subscriber_status_listener,
-            participant_status_listener,
-        );
-
-        self.status_condition
-            .write_lock()
-            .add_communication_state(StatusKind::RequestedDeadlineMissed);
-    }
-
-    fn trigger_on_requested_deadline_missed_listener(
-        &self,
-        reader_status_listener: &mut StatusListener<dyn AnyDataReaderListener + Send + Sync>,
-        subscriber_status_listener: &mut StatusListener<dyn SubscriberListener + Send + Sync>,
-        participant_status_listener: &mut StatusListener<
-            dyn DomainParticipantListener + Send + Sync,
-        >,
-    ) {
-        let requested_deadline_missed_status_kind = &StatusKind::RequestedDeadlineMissed;
-        if reader_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_requested_deadline_missed(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        } else if participant_status_listener.is_enabled(requested_deadline_missed_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_deadline_missed(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_deadline_missed_status(),
-                )
-        }
+        todo!()
+        // if reader_status_listener.is_enabled(sample_rejected_status_kind) {
+        //     reader_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .trigger_on_sample_rejected(
+        //             ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_rejected_status(),
+        //         )
+        // } else if subscriber_status_listener.is_enabled(sample_rejected_status_kind) {
+        //     subscriber_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_sample_rejected(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_rejected_status(),
+        //         )
+        // } else if participant_status_listener.is_enabled(sample_rejected_status_kind) {
+        //     participant_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_sample_rejected(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_sample_rejected_status(),
+        //         )
+        // }
     }
 
     fn on_requested_incompatible_qos(
@@ -1149,34 +1097,35 @@ impl DdsShared<DdsDataReader<RtpsStatefulReader>> {
         >,
     ) {
         let requested_incompatible_qos_status_kind = &StatusKind::RequestedIncompatibleQos;
-        if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            reader_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .trigger_on_requested_incompatible_qos(
-                    ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            subscriber_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
-            participant_status_listener
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_requested_incompatible_qos(
-                    &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
-                    self.get_requested_incompatible_qos_status(),
-                )
-        }
+        todo!()
+        // if reader_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
+        //     reader_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .trigger_on_requested_incompatible_qos(
+        //             ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_requested_incompatible_qos_status(),
+        //         )
+        // } else if subscriber_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
+        //     subscriber_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_requested_incompatible_qos(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_requested_incompatible_qos_status(),
+        //         )
+        // } else if participant_status_listener.is_enabled(requested_incompatible_qos_status_kind) {
+        //     participant_status_listener
+        //         .listener_mut()
+        //         .as_mut()
+        //         .expect("Listener should be some")
+        //         .on_requested_incompatible_qos(
+        //             &ListenerDataReaderNode::new(RootNode::new(self.downgrade())),
+        //             self.get_requested_incompatible_qos_status(),
+        //         )
+        // }
     }
 }
 

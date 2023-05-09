@@ -2,7 +2,6 @@ use super::{
     node_builtin_data_reader_stateful::BuiltinDataReaderStatefulNode,
     node_builtin_data_reader_stateless::BuiltinDataReaderStatelessNode,
     node_builtin_subscriber::BuiltinSubscriberNode,
-    node_listener_data_reader::ListenerDataReaderNode,
     node_listener_data_writer::ListenerDataWriterNode,
     node_listener_subscriber::ListenerSubscriberNode, node_listener_topic::ListenerTopicNode,
     node_user_defined_data_reader::UserDefinedDataReaderNode,
@@ -29,7 +28,7 @@ pub enum DataReaderNodeKind {
     BuiltinStateful(BuiltinDataReaderStatefulNode),
     BuiltinStateless(BuiltinDataReaderStatelessNode),
     UserDefined(UserDefinedDataReaderNode),
-    Listener(ListenerDataReaderNode),
+    Listener(UserDefinedDataReaderNode),
 }
 
 #[derive(PartialEq, Eq, Debug)]
