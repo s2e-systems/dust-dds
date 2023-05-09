@@ -295,8 +295,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
             )),
-            None,
-            NO_STATUS,
             SpdpDiscoveredParticipantData::type_name(),
             String::from(DCPS_PARTICIPANT),
         );
@@ -313,8 +311,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
             )),
-            None,
-            NO_STATUS,
             DiscoveredTopicData::type_name(),
             String::from(DCPS_TOPIC),
         );
@@ -324,8 +320,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
             )),
-            None,
-            NO_STATUS,
             DiscoveredWriterData::type_name(),
             String::from(DCPS_PUBLICATION),
         );
@@ -335,8 +329,6 @@ impl DdsDomainParticipant {
                 guid_prefix,
                 ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
             )),
-            None,
-            NO_STATUS,
             DiscoveredReaderData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
         );

@@ -23,7 +23,6 @@ use crate::{
 };
 
 use super::{
-    any_data_writer_listener::AnyDataWriterListener,
     dds_data_writer::DdsDataWriter,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
@@ -52,21 +51,11 @@ impl UserDefinedPublisherNode {
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataWriterQos>,
-        a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedDataWriterNode>
     where
         Foo: DdsType,
     {
-        create_datawriter::<Foo>(
-            domain_participant,
-            self.this,
-            qos,
-            a_listener,
-            mask,
-            type_name,
-            topic_name,
-        )
+        create_datawriter::<Foo>(domain_participant, self.this, qos, type_name, topic_name)
     }
 
     pub fn delete_datawriter(
@@ -299,8 +288,6 @@ fn create_datawriter<Foo>(
     domain_participant: &mut DdsDomainParticipant,
     publisher_guid: Guid,
     qos: QosKind<DataWriterQos>,
-    a_listener: Option<Box<dyn AnyDataWriterListener + Send + Sync>>,
-    mask: &[StatusKind],
     type_name: &'static str,
     topic_name: String,
 ) -> DdsResult<UserDefinedDataWriterNode>
@@ -359,7 +346,7 @@ where
         qos,
     ));
 
-    let data_writer = DdsDataWriter::new(rtps_writer_impl, a_listener, mask, type_name, topic_name);
+    let data_writer = DdsDataWriter::new(rtps_writer_impl, type_name, topic_name);
 
     publisher.stateful_datawriter_add(data_writer.clone());
 

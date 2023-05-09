@@ -76,9 +76,8 @@ impl Publisher {
         let topic_name = a_topic.get_name()?;
 
         let datawriter = self.call_participant_mut_method(|dp| {
-            #[allow(clippy::redundant_closure)]
             self.0
-                .create_datawriter::<Foo>(dp, type_name, topic_name, qos, None, mask)
+                .create_datawriter::<Foo>(dp, type_name, topic_name, qos)
         })?;
 
         THE_DDS_DOMAIN_PARTICIPANT_FACTORY.add_data_writer_listener(
