@@ -375,10 +375,10 @@ where
 }
 
 #[derive(Debug, PartialEq)]
-struct DefaultParameter<const PID: u16, T>(T);
+struct ParameterWithDefault<const PID: u16, T>(T);
 
 
-impl<'de, const PID: u16, T> serde::Deserialize<'de> for DefaultParameter<PID, T>
+impl<'de, const PID: u16, T> serde::Deserialize<'de> for ParameterWithDefault<PID, T>
 where
     T: serde::Deserialize<'de> + Default,
 {
@@ -390,14 +390,14 @@ where
         where
             T: serde::Deserialize<'de>,
         {
-            marker: PhantomData<DefaultParameter<PID, T>>,
+            marker: PhantomData<ParameterWithDefault<PID, T>>,
             lifetime: PhantomData<&'de ()>,
         }
         impl<'de, const PID: u16, T> serde::de::Visitor<'de> for Visitor<'de, PID, T>
         where
             T: serde::Deserialize<'de> + Default,
         {
-            type Value = DefaultParameter<PID, T>;
+            type Value = ParameterWithDefault<PID, T>;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("struct DefaultParameter")
             }
@@ -446,9 +446,9 @@ where
                             serde::Deserialize::deserialize(&mut deserializer_le)
                         }
                         .map_err(|_err| serde::de::Error::missing_field("value"))?;
-                        return Ok(DefaultParameter(value));
+                        return Ok(ParameterWithDefault(value));
                     } else if pid == PID_SENTINEL {
-                        return Ok(DefaultParameter(T::default()));
+                        return Ok(ParameterWithDefault(T::default()));
                     } else {
                         let skip_bytes = length as usize + 4 /*number of bytes of pid and length */;
                         reader = &reader[skip_bytes..];
@@ -459,7 +459,7 @@ where
         deserializer.deserialize_newtype_struct(
             "DefaultParameter",
             Visitor {
-                marker: PhantomData::<DefaultParameter<PID, T>>,
+                marker: PhantomData::<ParameterWithDefault<PID, T>>,
                 lifetime: PhantomData,
             },
         )
@@ -472,14 +472,14 @@ mod tests {
     #[derive(Debug, PartialEq, serde::Deserialize)]
     struct InnerWithDefault {
         id: Parameter<71, u8>,
-        n: DefaultParameter<72, u8>,
+        n: ParameterWithDefault<72, u8>,
     }
 
     #[test]
     fn deserialize_with_default() {
         let expected = InnerWithDefault {
             id: Parameter(21),
-            n: DefaultParameter(0),
+            n: ParameterWithDefault(0),
         };
         let data = &[
             0x00, 0x03, 0, 0, // representation identifier
@@ -505,10 +505,10 @@ mod tests {
         };
         let data = &[
             0x00, 0x03, 0, 0, // representation identifier
-            71, 0x00, 4, 0, // id | Length (incl padding)
-            21, 0, 0, 0, // u8
             72, 0x00, 4, 0, // n | Length (incl padding)
             34, 0, 0, 0, // u8
+            71, 0x00, 4, 0, // id | Length (incl padding)
+            21, 0, 0, 0, // u8
             1, 0, 0, 0, // Sentinel
         ][..];
         let mut deserializer = ParameterListDeserializer::<byteorder::LittleEndian>::new(data);
