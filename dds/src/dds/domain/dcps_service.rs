@@ -340,10 +340,6 @@ impl DcpsService {
                 if let Ok(l) = listener_receiver.recv() {
                     match l {
                         ListenerTriggerKind::RequestedDeadlineMissed(data_reader_node) => {
-                            // 1. Enable requested deadline missed communication changed flag
-                            // 2. Call the listener on the reader if enabled
-                            //    2.1 If listener is enabled then requested deadline missed communication changed flag is implicitly reset by calling get_requested_deadline_missed_status
-                            // 3. Signal the status condition change
                             THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
                                 &data_reader_node.guid(),
                                 |data_reader_listener| {

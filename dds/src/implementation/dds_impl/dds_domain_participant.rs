@@ -252,8 +252,6 @@ impl DdsDomainParticipant {
             )),
             ParticipantBuiltinTopicData::type_name(),
             String::from(DCPS_PARTICIPANT),
-            None,
-            NO_STATUS,
         );
 
         let sedp_builtin_topics_reader = DdsDataReader::new(
@@ -263,8 +261,6 @@ impl DdsDomainParticipant {
             )),
             TopicBuiltinTopicData::type_name(),
             String::from(DCPS_TOPIC),
-            None,
-            NO_STATUS,
         );
 
         let sedp_builtin_publications_reader = DdsDataReader::new(
@@ -274,8 +270,6 @@ impl DdsDomainParticipant {
             )),
             PublicationBuiltinTopicData::type_name(),
             String::from(DCPS_PUBLICATION),
-            None,
-            NO_STATUS,
         );
 
         let sedp_builtin_subscriptions_reader = DdsDataReader::new(
@@ -285,8 +279,6 @@ impl DdsDomainParticipant {
             )),
             SubscriptionBuiltinTopicData::type_name(),
             String::from(DCPS_SUBSCRIPTION),
-            None,
-            NO_STATUS,
         );
 
         let mut builtin_subscriber = DdsSubscriber::new(

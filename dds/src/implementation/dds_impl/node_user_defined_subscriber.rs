@@ -21,7 +21,6 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
     dds_data_reader::DdsDataReader,
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_domain_participant::DomainParticipantNode,
@@ -49,8 +48,6 @@ impl UserDefinedSubscriberNode {
         type_name: &'static str,
         topic_name: String,
         qos: QosKind<DataReaderQos>,
-        a_listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
     ) -> DdsResult<UserDefinedDataReaderNode>
     where
         Foo: DdsType + for<'de> DdsDeserialize<'de>,
@@ -119,7 +116,7 @@ impl UserDefinedSubscriberNode {
             qos,
         ));
 
-        let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name, a_listener, mask);
+        let data_reader = DdsDataReader::new(rtps_reader, type_name, topic_name);
 
         domain_participant
             .get_subscriber_mut(self.this)

@@ -40,6 +40,10 @@ impl<T: ?Sized> StatusListener<T> {
     pub fn get_status_condition(&self) -> StatusCondition {
         StatusCondition::new(self.status_condition.clone())
     }
+
+    pub fn get_status_changes(&self) -> Vec<StatusKind> {
+        self.status_condition.read_lock().get_status_changes()
+    }
 }
 
 pub enum ListenerTriggerKind {

@@ -84,7 +84,7 @@ impl Subscriber {
                     &s.guid().prefix(),
                     |dp| {
                         let dp = dp.ok_or(DdsError::AlreadyDeleted)?;
-                        s.create_datareader::<Foo>(dp, type_name, topic_name, qos, None, mask)
+                        s.create_datareader::<Foo>(dp, type_name, topic_name, qos)
                     },
                 )?;
 

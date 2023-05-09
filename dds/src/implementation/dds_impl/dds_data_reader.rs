@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::{mpsc::Sender, RwLockWriteGuard},
+    sync::mpsc::Sender,
 };
 
 use crate::{
@@ -39,7 +39,7 @@ use crate::{
         status::{
             LivelinessChangedStatus, QosPolicyCount, RequestedDeadlineMissedStatus,
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleRejectedStatusKind, StatusKind, SubscriptionMatchedStatus,
+            SampleRejectedStatusKind, SubscriptionMatchedStatus,
         },
         time::{DurationKind, Time},
     },
@@ -51,11 +51,8 @@ use crate::{
 };
 
 use super::{
-    any_data_reader_listener::AnyDataReaderListener,
-    message_receiver::MessageReceiver,
-    node_user_defined_data_reader::UserDefinedDataReaderNode,
-    status_condition_impl::StatusConditionImpl,
-    status_listener::{ListenerTriggerKind, StatusListener},
+    message_receiver::MessageReceiver, node_user_defined_data_reader::UserDefinedDataReaderNode,
+    status_listener::ListenerTriggerKind,
 };
 
 pub enum UserDefinedReaderDataSubmessageReceivedResult {
@@ -177,7 +174,6 @@ pub struct DdsDataReader<T> {
     rtps_reader: DdsRwLock<T>,
     type_name: &'static str,
     topic_name: String,
-    status_listener: DdsRwLock<StatusListener<dyn AnyDataReaderListener + Send + Sync>>,
     liveliness_changed_status: DdsRwLock<LivelinessChangedStatus>,
     requested_deadline_missed_status: DdsRwLock<RequestedDeadlineMissedStatus>,
     requested_incompatible_qos_status: DdsRwLock<RequestedIncompatibleQosStatus>,
@@ -186,25 +182,17 @@ pub struct DdsDataReader<T> {
     subscription_matched_status: DdsRwLock<SubscriptionMatchedStatus>,
     matched_publication_list: DdsRwLock<HashMap<InstanceHandle, PublicationBuiltinTopicData>>,
     enabled: DdsRwLock<bool>,
-    status_condition: DdsShared<DdsRwLock<StatusConditionImpl>>,
     instance_reception_time: DdsRwLock<HashMap<InstanceHandle, Time>>,
     data_available_status_changed_flag: DdsRwLock<bool>,
     incompatible_writer_list: DdsRwLock<HashSet<InstanceHandle>>,
 }
 
 impl<T> DdsDataReader<T> {
-    pub fn new(
-        rtps_reader: T,
-        type_name: &'static str,
-        topic_name: String,
-        listener: Option<Box<dyn AnyDataReaderListener + Send + Sync>>,
-        mask: &[StatusKind],
-    ) -> DdsShared<Self> {
+    pub fn new(rtps_reader: T, type_name: &'static str, topic_name: String) -> DdsShared<Self> {
         DdsShared::new(DdsDataReader {
             rtps_reader: DdsRwLock::new(rtps_reader),
             type_name,
             topic_name,
-            status_listener: DdsRwLock::new(StatusListener::new(listener, mask)),
             liveliness_changed_status: DdsRwLock::new(LivelinessChangedStatus::default()),
             requested_deadline_missed_status: DdsRwLock::new(
                 RequestedDeadlineMissedStatus::default(),
@@ -217,17 +205,10 @@ impl<T> DdsDataReader<T> {
             subscription_matched_status: DdsRwLock::new(SubscriptionMatchedStatus::default()),
             matched_publication_list: DdsRwLock::new(HashMap::new()),
             enabled: DdsRwLock::new(false),
-            status_condition: DdsShared::new(DdsRwLock::new(StatusConditionImpl::default())),
             instance_reception_time: DdsRwLock::new(HashMap::new()),
             data_available_status_changed_flag: DdsRwLock::new(false),
             incompatible_writer_list: DdsRwLock::new(HashSet::new()),
         })
-    }
-
-    pub fn get_status_listener_lock(
-        &self,
-    ) -> RwLockWriteGuard<StatusListener<dyn AnyDataReaderListener + Send + Sync>> {
-        self.status_listener.write_lock()
     }
 
     pub fn get_type_name(&self) -> &'static str {
@@ -259,27 +240,13 @@ impl<T> DdsDataReader<T> {
     }
 
     pub fn get_sample_rejected_status(&self) -> SampleRejectedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SampleRejected);
         self.sample_rejected_status.write_lock().read_and_reset()
     }
 
     pub fn get_subscription_matched_status(&self) -> SubscriptionMatchedStatus {
-        self.status_condition
-            .write_lock()
-            .remove_communication_state(StatusKind::SubscriptionMatched);
         self.subscription_matched_status
             .write_lock()
             .read_and_reset(self.matched_publication_list.read_lock().len() as i32)
-    }
-
-    pub fn get_statuscondition(&self) -> DdsShared<DdsRwLock<StatusConditionImpl>> {
-        self.status_condition.clone()
-    }
-
-    pub fn get_status_changes(&self) -> Vec<StatusKind> {
-        self.status_condition.read_lock().get_status_changes()
     }
 
     pub fn is_enabled(&self) -> bool {

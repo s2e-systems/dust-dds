@@ -1,8 +1,5 @@
 use crate::{
-    implementation::{
-        rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared},
-    },
+    implementation::rtps::types::Guid,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -15,9 +12,7 @@ use crate::{
     topic_definition::type_support::DdsDeserialize,
 };
 
-use super::{
-    dds_domain_participant::DdsDomainParticipant, status_condition_impl::StatusConditionImpl,
-};
+use super::dds_domain_participant::DdsDomainParticipant;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct BuiltinDataReaderStatelessNode {
@@ -35,8 +30,8 @@ impl BuiltinDataReaderStatelessNode {
         }
     }
 
-    pub fn guid(&self) -> DdsResult<Guid> {
-        Ok(self.this)
+    pub fn guid(&self) -> Guid {
+        self.this
     }
 
     pub fn read<Foo>(
@@ -95,17 +90,6 @@ impl BuiltinDataReaderStatelessNode {
             .get_stateless_data_reader(self.this)
             .ok_or(DdsError::AlreadyDeleted)?
             .get_qos())
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        Ok(domain_participant
-            .get_builtin_subscriber()
-            .get_stateless_data_reader(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_statuscondition())
     }
 
     pub fn get_instance_handle(&self) -> DdsResult<InstanceHandle> {

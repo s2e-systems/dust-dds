@@ -1,9 +1,6 @@
 use crate::{
     builtin_topics::PublicationBuiltinTopicData,
-    implementation::{
-        rtps::types::Guid,
-        utils::shared_object::{DdsRwLock, DdsShared},
-    },
+    implementation::rtps::types::Guid,
     infrastructure::{
         error::{DdsError, DdsResult},
         instance::InstanceHandle,
@@ -25,7 +22,6 @@ use super::{
     dds_domain_participant::{AnnounceKind, DdsDomainParticipant},
     node_user_defined_subscriber::UserDefinedSubscriberNode,
     node_user_defined_topic::UserDefinedTopicNode,
-    status_condition_impl::StatusConditionImpl,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -390,30 +386,6 @@ impl UserDefinedDataReaderNode {
         todo!()
         // *self.0.get()?.get_status_listener_lock() = StatusListener::new(a_listener, mask);
         // Ok(())
-    }
-
-    pub fn get_statuscondition(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<DdsShared<DdsRwLock<StatusConditionImpl>>> {
-        Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_statuscondition())
-    }
-
-    pub fn get_status_changes(
-        &self,
-        domain_participant: &DdsDomainParticipant,
-    ) -> DdsResult<Vec<StatusKind>> {
-        Ok(domain_participant
-            .get_subscriber(self.parent_subcriber)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_stateful_data_reader(self.this)
-            .ok_or(DdsError::AlreadyDeleted)?
-            .get_status_changes())
     }
 
     pub fn enable(&self, domain_participant: &mut DdsDomainParticipant) -> DdsResult<()> {
