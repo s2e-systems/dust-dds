@@ -416,7 +416,7 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
     }
 
     let status_kind = StatusKind::RequestedDeadlineMissed;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
         |data_reader_listener| match data_reader_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -424,12 +424,35 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
                     l.listener_mut()
                         .as_mut()
                         .expect("Listener should be some")
-                        .trigger_on_requested_deadline_missed(data_reader_node, status)
+                        .trigger_on_requested_deadline_missed(data_reader_node, status);
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
+            _ => false,
+        },
+    );
+
+    if !reader_listener {
+        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+            &data_reader_node.parent_subscriber(),
+            |subscriber_listener| match subscriber_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_requested_deadline_missed(&data_reader_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+
+        if !subscriber_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_reader_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_requested_deadline_missed_status(&data_reader_node)
                         {
@@ -439,26 +462,11 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
                                 .on_requested_deadline_missed(&data_reader_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_reader_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) =
-                                    get_requested_deadline_missed_status(&data_reader_node)
-                                {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_requested_deadline_missed(&data_reader_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
@@ -471,50 +479,68 @@ fn on_requested_deadline_missed_communication_change(data_reader_node: UserDefin
 }
 
 fn on_data_available_communication_change(data_reader_node: UserDefinedDataReaderNode) {
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+    let data_on_reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
         &data_reader_node.parent_subscriber(),
         |subscriber_listener| match subscriber_listener {
-            Some(l) if l.is_enabled(&StatusKind::DataOnReaders) => l
-                .listener_mut()
-                .as_mut()
-                .expect("Listener should be some")
-                .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
-                    UserDefinedSubscriberNode::new(
-                        data_reader_node.parent_subscriber(),
-                        data_reader_node.parent_participant(),
-                    ),
-                ))),
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
-                &data_reader_node.guid(),
-                |data_reader_listener| match data_reader_listener {
+            Some(l) if l.is_enabled(&StatusKind::DataOnReaders) => {
+                l.listener_mut()
+                    .as_mut()
+                    .expect("Listener should be some")
+                    .on_data_on_readers(&Subscriber::new(SubscriberNodeKind::Listener(
+                        UserDefinedSubscriberNode::new(
+                            data_reader_node.parent_subscriber(),
+                            data_reader_node.parent_participant(),
+                        ),
+                    )));
+                true
+            }
+            _ => false,
+        },
+    );
+    if !data_on_reader_listener {
+        let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+            &data_reader_node.guid(),
+            |data_reader_listener| match data_reader_listener {
+                Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
+                    l.listener_mut()
+                        .as_mut()
+                        .expect("Listener should be some")
+                        .trigger_on_data_available(data_reader_node);
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !reader_listener {
+            let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+                &data_reader_node.parent_subscriber(),
+                |subscriber_listener| match subscriber_listener {
                     Some(l) if l.is_enabled(&StatusKind::DataAvailable) => {
                         l.listener_mut()
                             .as_mut()
                             .expect("Listener should be some")
-                            .trigger_on_data_available(data_reader_node);
+                            .on_data_available(&data_reader_node);
+
+                        true
                     }
-                    _ => match subscriber_listener {
+                    _ => false,
+                },
+            );
+            if !subscriber_listener {
+                THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                    &data_reader_node.parent_participant(),
+                    |participant_listener| match participant_listener {
                         Some(l) if l.is_enabled(&StatusKind::DataAvailable) => l
                             .listener_mut()
                             .as_mut()
                             .expect("Listener should be some")
                             .on_data_available(&data_reader_node),
-                        _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                            &data_reader_node.parent_participant(),
-                            |participant_listener| match participant_listener {
-                                Some(l) if l.is_enabled(&StatusKind::DataAvailable) => l
-                                    .listener_mut()
-                                    .as_mut()
-                                    .expect("Listener should be some")
-                                    .on_data_available(&data_reader_node),
-                                _ => (),
-                            },
-                        ),
+                        _ => (),
                     },
-                },
-            ),
-        },
-    );
+                );
+            }
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
         &data_reader_node.parent_subscriber(),
@@ -549,7 +575,7 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
     }
 
     let status_kind = StatusKind::SubscriptionMatched;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
         |data_reader_listener| match data_reader_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -559,10 +585,31 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
                         .expect("Listener should be some")
                         .trigger_on_subscription_matched(data_reader_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
+            _ => false,
+        },
+    );
+    if !reader_listener {
+        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+            &data_reader_node.parent_subscriber(),
+            |subscriber_listener| match subscriber_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_subscription_matched(&data_reader_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !subscriber_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_reader_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_subscription_matched_status(&data_reader_node) {
                             l.listener_mut()
@@ -571,26 +618,11 @@ fn on_subscription_matched_communication_change(data_reader_node: UserDefinedDat
                                 .on_subscription_matched(&data_reader_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_reader_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) =
-                                    get_subscription_matched_status(&data_reader_node)
-                                {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_subscription_matched(&data_reader_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
@@ -616,7 +648,7 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefi
     }
 
     let status_kind = StatusKind::RequestedIncompatibleQos;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
         |data_reader_listener| match data_reader_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -626,10 +658,31 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefi
                         .expect("Listener should be some")
                         .trigger_on_requested_incompatible_qos(data_reader_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
+            _ => false,
+        },
+    );
+    if !reader_listener {
+        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+            &data_reader_node.parent_subscriber(),
+            |subscriber_listener| match subscriber_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_requested_incompatible_qos(&data_reader_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !subscriber_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_reader_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_requested_incompatible_qos_status(&data_reader_node)
                         {
@@ -639,26 +692,11 @@ fn on_requested_incompatible_qos_communication_change(data_reader_node: UserDefi
                                 .on_requested_incompatible_qos(&data_reader_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_reader_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) =
-                                    get_requested_incompatible_qos_status(&data_reader_node)
-                                {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_requested_incompatible_qos(&data_reader_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
@@ -681,7 +719,7 @@ fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataRead
     }
 
     let status_kind = StatusKind::SampleRejected;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
         |data_reader_listener| match data_reader_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -691,10 +729,31 @@ fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataRead
                         .expect("Listener should be some")
                         .trigger_on_sample_rejected(data_reader_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
+            _ => false,
+        },
+    );
+    if !reader_listener {
+        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+            &data_reader_node.parent_subscriber(),
+            |subscriber_listener| match subscriber_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_sample_rejected(&data_reader_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !subscriber_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_reader_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
                             l.listener_mut()
@@ -703,24 +762,11 @@ fn on_sample_rejected_communication_change(data_reader_node: UserDefinedDataRead
                                 .on_sample_rejected(&data_reader_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_reader_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) = get_sample_rejected_status(&data_reader_node) {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_sample_rejected(&data_reader_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
@@ -743,7 +789,7 @@ fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNo
     }
 
     let status_kind = StatusKind::SampleLost;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
+    let reader_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
         |data_reader_listener| match data_reader_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -753,10 +799,31 @@ fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNo
                         .expect("Listener should be some")
                         .trigger_on_sample_lost(data_reader_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
-                &data_reader_node.parent_subscriber(),
-                |subscriber_listener| match subscriber_listener {
+            _ => false,
+        },
+    );
+    if !reader_listener {
+        let subscriber_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_subscriber_listener(
+            &data_reader_node.parent_subscriber(),
+            |subscriber_listener| match subscriber_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_sample_lost_status(&data_reader_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_sample_lost(&data_reader_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !subscriber_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_reader_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_sample_lost_status(&data_reader_node) {
                             l.listener_mut()
@@ -765,24 +832,11 @@ fn on_sample_lost_communication_change(data_reader_node: UserDefinedDataReaderNo
                                 .on_sample_lost(&data_reader_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_reader_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) = get_sample_lost_status(&data_reader_node) {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_sample_lost(&data_reader_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_reader_listener(
         &data_reader_node.guid(),
@@ -808,7 +862,7 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
     }
 
     let status_kind = StatusKind::OfferedIncompatibleQos;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
         &data_writer_node.guid(),
         |data_writer_listener| match data_writer_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -818,10 +872,31 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
                         .expect("Listener should be some")
                         .trigger_on_offered_incompatible_qos(data_writer_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-                &data_writer_node.parent_publisher(),
-                |publisher_listener| match publisher_listener {
+            _ => false,
+        },
+    );
+    if !writer_listener {
+        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+            &data_writer_node.parent_publisher(),
+            |publisher_listener| match publisher_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_offered_incompatible_qos(&data_writer_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !publisher_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_writer_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_offered_incompatible_qos_status(&data_writer_node) {
                             l.listener_mut()
@@ -830,26 +905,11 @@ fn on_offered_incompatible_qos_communication_change(data_writer_node: UserDefine
                                 .on_offered_incompatible_qos(&data_writer_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_writer_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) =
-                                    get_offered_incompatible_qos_status(&data_writer_node)
-                                {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_offered_incompatible_qos(&data_writer_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
         &data_writer_node.guid(),
@@ -874,7 +934,7 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
     }
 
     let status_kind = StatusKind::PublicationMatched;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
+    let writer_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
         &data_writer_node.guid(),
         |data_writer_listener| match data_writer_listener {
             Some(l) if l.is_enabled(&status_kind) => {
@@ -884,10 +944,31 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
                         .expect("Listener should be some")
                         .trigger_on_publication_matched(data_writer_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
-                &data_writer_node.parent_publisher(),
-                |publisher_listener| match publisher_listener {
+            _ => false,
+        },
+    );
+    if !writer_listener {
+        let publisher_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_publisher_listener(
+            &data_writer_node.parent_publisher(),
+            |publisher_listener| match publisher_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_publication_matched_status(&data_writer_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_publication_matched(&data_writer_node, status)
+                    }
+                    true
+                }
+                _ => false,
+            },
+        );
+        if !publisher_listener {
+            THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+                &data_writer_node.parent_participant(),
+                |participant_listener| match participant_listener {
                     Some(l) if l.is_enabled(&status_kind) => {
                         if let Ok(status) = get_publication_matched_status(&data_writer_node) {
                             l.listener_mut()
@@ -896,26 +977,11 @@ fn on_publication_matched_communication_change(data_writer_node: UserDefinedData
                                 .on_publication_matched(&data_writer_node, status)
                         }
                     }
-                    _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                        &data_writer_node.parent_participant(),
-                        |participant_listener| match participant_listener {
-                            Some(l) if l.is_enabled(&status_kind) => {
-                                if let Ok(status) =
-                                    get_publication_matched_status(&data_writer_node)
-                                {
-                                    l.listener_mut()
-                                        .as_mut()
-                                        .expect("Listener should be some")
-                                        .on_publication_matched(&data_writer_node, status)
-                                }
-                            }
-                            _ => (),
-                        },
-                    ),
+                    _ => (),
                 },
-            ),
-        },
-    );
+            );
+        }
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_data_writer_listener(
         &data_writer_node.guid(),
@@ -938,8 +1004,9 @@ fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) 
     }
 
     let status_kind = StatusKind::InconsistentTopic;
-    THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
-        match topic_listener {
+    let topic_listener = THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(
+        &topic_node.guid(),
+        |topic_listener| match topic_listener {
             Some(l) if l.is_enabled(&status_kind) => {
                 if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
                     l.listener_mut()
@@ -947,23 +1014,27 @@ fn on_inconsistent_topic_communication_change(topic_node: UserDefinedTopicNode) 
                         .expect("Listener should be some")
                         .trigger_on_inconsistent_topic(topic_node, status)
                 }
+                true
             }
-            _ => THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
-                &topic_node.parent_participant(),
-                |participant_listener| match participant_listener {
-                    Some(l) if l.is_enabled(&status_kind) => {
-                        if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
-                            l.listener_mut()
-                                .as_mut()
-                                .expect("Listener should be some")
-                                .on_inconsistent_topic(&topic_node, status)
-                        }
+            _ => false,
+        },
+    );
+    if !topic_listener {
+        THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_domain_participant_listener(
+            &topic_node.parent_participant(),
+            |participant_listener| match participant_listener {
+                Some(l) if l.is_enabled(&status_kind) => {
+                    if let Ok(status) = get_inconsistent_topic_status(&topic_node) {
+                        l.listener_mut()
+                            .as_mut()
+                            .expect("Listener should be some")
+                            .on_inconsistent_topic(&topic_node, status)
                     }
-                    _ => (),
-                },
-            ),
-        }
-    });
+                }
+                _ => (),
+            },
+        );
+    }
 
     THE_DDS_DOMAIN_PARTICIPANT_FACTORY.get_topic_listener(&topic_node.guid(), |topic_listener| {
         if let Some(l) = topic_listener {
