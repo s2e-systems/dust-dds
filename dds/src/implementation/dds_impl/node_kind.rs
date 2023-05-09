@@ -21,7 +21,7 @@ pub enum DataWriterNodeKind {
     Listener(UserDefinedDataWriterNode),
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum DataReaderNodeKind {
     BuiltinStateful(BuiltinDataReaderStatefulNode),
     BuiltinStateless(BuiltinDataReaderStatelessNode),
